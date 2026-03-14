@@ -26,7 +26,7 @@ export default function Navbar() {
       <div className="w-px h-5 bg-white/[0.06] mr-4" />
 
       {/* Center: Tabs */}
-      <div className="flex items-center gap-1 flex-1 justify-center" role="tablist">
+      <div className="flex items-center gap-1 flex-1 justify-center" role="tablist" aria-label="Main navigation">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}

@@ -12,9 +12,14 @@ fi
 echo "=== GPIO Dashboard Agent Installer ==="
 echo ""
 
+INSTALL_USER="${SUDO_USER:-$USER}"
+
 # 1. Update apt cache
 echo "[1/5] Updating package cache..."
-$SUDO apt-get update -qq
+if ! $SUDO apt-get update -qq; then
+    echo "ERROR: Failed to update package cache."
+    exit 1
+fi
 
 # 2. Install Python packages
 echo "[2/5] Installing Python dependencies..."
@@ -25,15 +30,24 @@ if apt-cache show python3-rpi-lgpio &>/dev/null; then
     PACKAGES="$PACKAGES python3-rpi-lgpio"
 fi
 
-$SUDO apt-get install -y -qq $PACKAGES
+if ! $SUDO apt-get install -y -qq $PACKAGES; then
+    echo "ERROR: Failed to install Python packages."
+    exit 1
+fi
 
 # 3. Ensure pinctrl is available (provided by raspi-utils or raspberrypi-utils)
 echo "[3/5] Checking for pinctrl..."
 if ! command -v pinctrl &>/dev/null; then
     if apt-cache show raspi-utils &>/dev/null; then
-        $SUDO apt-get install -y -qq raspi-utils
+        if ! $SUDO apt-get install -y -qq raspi-utils; then
+            echo "ERROR: Failed to install raspi-utils."
+            exit 1
+        fi
     elif apt-cache show raspberrypi-utils &>/dev/null; then
-        $SUDO apt-get install -y -qq raspberrypi-utils
+        if ! $SUDO apt-get install -y -qq raspberrypi-utils; then
+            echo "ERROR: Failed to install raspberrypi-utils."
+            exit 1
+        fi
     else
         echo "  WARNING: pinctrl not found and raspi-utils package unavailable."
         echo "  GPIO monitoring will be limited."
@@ -45,11 +59,11 @@ fi
 # 4. Add user to gpio group
 echo "[4/5] Checking gpio group membership..."
 if getent group gpio &>/dev/null; then
-    if ! id -nG "$USER" | grep -qw gpio; then
-        $SUDO usermod -aG gpio "$USER"
-        echo "  Added $USER to gpio group (re-login required)."
+    if ! id -nG "$INSTALL_USER" | grep -qw gpio; then
+        $SUDO usermod -aG gpio "$INSTALL_USER"
+        echo "  Added $INSTALL_USER to gpio group (re-login required)."
     else
-        echo "  $USER already in gpio group."
+        echo "  $INSTALL_USER already in gpio group."
     fi
 else
     echo "  gpio group does not exist, skipping."
@@ -61,7 +75,7 @@ echo ""
 echo "To start the agent:"
 echo "  python3 $(dirname "$0")/agent.py"
 echo ""
-echo "The agent will listen on ws://0.0.0.0:8765"
+echo "The agent will listen on ws://127.0.0.1:8765"
 echo "Set AGENT_HOST and AGENT_PORT environment variables to customize."
 echo ""
 

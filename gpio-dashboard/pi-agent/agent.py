@@ -5,6 +5,7 @@ import asyncio
 import json
 import logging
 import os
+import secrets
 import signal
 import sys
 
@@ -65,12 +66,31 @@ async def broadcast_sysinfo():
         await asyncio.sleep(SYSINFO_INTERVAL)
 
 
-async def handle_client(ws: websockets.WebSocketServerProtocol, monitor: GpioMonitor):
+async def handle_client(ws: websockets.WebSocketServerProtocol, monitor: GpioMonitor, auth_token: str):
     """Handle a single WebSocket client connection."""
-    clients[ws] = {}
-    executor = CodeExecutor()
     remote = ws.remote_address
     log.info("Client connected: %s", remote)
+
+    # Require authentication as the first message
+    try:
+        raw = await asyncio.wait_for(ws.recv(), timeout=5.0)
+        msg = json.loads(raw)
+        if msg.get("type") != "auth" or msg.get("token") != auth_token:
+            log.warning("Auth failed from %s", remote)
+            await ws.close(4001, "Authentication failed")
+            return
+        await ws.send(json.dumps({"type": "auth_ok"}))
+        log.info("Client authenticated: %s", remote)
+    except asyncio.TimeoutError:
+        log.warning("Auth timeout from %s", remote)
+        await ws.close(4001, "Authentication timeout")
+        return
+    except (json.JSONDecodeError, websockets.ConnectionClosed):
+        await ws.close(4001, "Authentication failed")
+        return
+
+    clients[ws] = {}
+    executor = CodeExecutor()
 
     try:
         async for raw in ws:
@@ -126,8 +146,11 @@ async def handle_client(ws: websockets.WebSocketServerProtocol, monitor: GpioMon
 
 
 async def main():
-    host = os.environ.get("AGENT_HOST", "0.0.0.0")
+    host = os.environ.get("AGENT_HOST", "127.0.0.1")
     port = int(os.environ.get("AGENT_PORT", "8765"))
+
+    auth_token = secrets.token_urlsafe(32)
+    print(f"AUTH_TOKEN={auth_token}", flush=True)
 
     monitor = GpioMonitor()
 
@@ -145,7 +168,7 @@ async def main():
     sysinfo_task = asyncio.create_task(broadcast_sysinfo())
 
     async with websockets.serve(
-        lambda ws: handle_client(ws, monitor),
+        lambda ws: handle_client(ws, monitor, auth_token),
         host,
         port,
         ping_interval=20,

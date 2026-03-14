@@ -28,7 +28,8 @@ export default function PinoutPage() {
           {pinSearch && (
             <button
               onClick={() => setPinSearch('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-white/[0.06] rounded"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-white/[0.06] rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+              aria-label="Clear search"
             >
               <X className="w-3.5 h-3.5 text-gray-500" />
             </button>
@@ -37,22 +38,22 @@ export default function PinoutPage() {
 
         {/* Type filter pills */}
         <div className="flex flex-wrap gap-2 mb-4">
-          {pinTypeFilters.size > 0 && (
+          {pinTypeFilters.length > 0 && (
             <button
               onClick={clearPinTypeFilters}
-              className="text-xs px-2.5 py-1 rounded-full bg-white/[0.06] text-gray-400 hover:text-white transition-colors"
+              className="text-xs px-2.5 py-1 rounded-full bg-white/[0.06] text-gray-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
             >
               Clear
             </button>
           )}
           {ALL_PIN_TYPES.map((type) => {
             const info = PIN_TYPES[type]
-            const active = pinTypeFilters.has(type)
+            const active = pinTypeFilters.includes(type)
             return (
               <button
                 key={type}
                 onClick={() => togglePinTypeFilter(type)}
-                className="text-xs px-2.5 py-1 rounded-full font-medium transition-all"
+                className="text-xs px-2.5 py-1 rounded-full font-medium transition-[background-color,color,opacity] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
                 style={{
                   backgroundColor: active ? info.color : 'transparent',
                   color: active ? 'white' : info.color,

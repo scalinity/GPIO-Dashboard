@@ -60,7 +60,7 @@ const Terminal = forwardRef(function Terminal({ sessionId, className }, ref) {
       termRef.current = null
       fitAddonRef.current = null
     }
-  }, [])
+  }, [sessionId])
 
   return (
     <div

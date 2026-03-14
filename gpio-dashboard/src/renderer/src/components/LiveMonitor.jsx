@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { PINS } from '../data/pins'
 import useGpioStore, { usePinState, usePinChanged } from '../store/gpioStore'
@@ -12,12 +12,12 @@ const FILTERS = [
   { key: 'outputs', label: 'Outputs' }
 ]
 
-function PinRow({ pin }) {
+const PinRow = React.memo(function PinRow({ pin }) {
   const state = usePinState(String(pin.bcm))
   const changed = usePinChanged(String(pin.bcm))
 
-  const isHigh = state?.state === 1 || state?.state === 'HIGH'
-  const isOutput = state?.direction === 'out' || state?.direction === 'OUT'
+  const isHigh = state?.state === 'HIGH'
+  const isOutput = state?.direction === 'OUT'
 
   return (
     <tr
@@ -54,23 +54,24 @@ function PinRow({ pin }) {
       <td className="px-3 py-2 text-sm text-gray-500">{pin.type}</td>
     </tr>
   )
-}
+})
 
 export default function LiveMonitor() {
   const [filter, setFilter] = useState('all')
   const pins = useGpioStore((s) => s.pins)
+  const lastUpdatedAt = useGpioStore((s) => s.lastUpdatedAt)
 
   const filteredPins = useMemo(() => {
     return GPIO_PINS.filter((pin) => {
       const state = pins[String(pin.bcm)]
       if (filter === 'active') {
-        return state && (state.state === 1 || state.state === 'HIGH')
+        return state && state.state === 'HIGH'
       }
       if (filter === 'inputs') {
-        return state && (state.direction === 'in' || state.direction === 'IN')
+        return state && state.direction === 'IN'
       }
       if (filter === 'outputs') {
-        return state && (state.direction === 'out' || state.direction === 'OUT')
+        return state && state.direction === 'OUT'
       }
       return true
     })
@@ -86,7 +87,7 @@ export default function LiveMonitor() {
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
-            className={`px-3 py-1 text-xs font-medium rounded-btn transition-colors ${
+            className={`px-3 py-1 text-xs font-medium rounded-btn transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
               filter === f.key
                 ? 'bg-accent/20 text-accent-light border border-accent/30'
                 : 'text-gray-400 hover:text-gray-300 bg-white/[0.04] border border-transparent'
@@ -107,7 +108,7 @@ export default function LiveMonitor() {
       {/* Table */}
       <div className="flex-1 overflow-auto rounded-card border border-white/[0.04]">
         <table className="w-full">
-          <thead className="bg-white/[0.03] sticky top-0 z-10">
+          <thead className="bg-surface-800 sticky top-0 z-10">
             <tr>
               <th className="px-3 py-2 text-left section-title">BCM</th>
               <th className="px-3 py-2 text-left section-title">Pin</th>
@@ -136,7 +137,7 @@ export default function LiveMonitor() {
       {/* Footer */}
       {hasPinData && (
         <div className="mt-2 text-xs text-gray-600">
-          Last update: {new Date().toLocaleTimeString()}
+          Last update: {new Date(lastUpdatedAt).toLocaleTimeString()}
         </div>
       )}
     </div>

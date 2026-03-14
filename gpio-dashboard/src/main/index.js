@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -11,6 +11,8 @@ import store from './store'
 const sshManager = new SSHManager()
 const wsClient = new WSClient()
 const deployer = new PiAgentDeployer()
+
+const SAFE_FILENAME_RE = /^[a-zA-Z0-9_-]+\.py$/
 
 let mainWindow = null
 
@@ -27,7 +29,8 @@ function createWindow() {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: true,
+      contextIsolation: true
     }
   })
 
@@ -42,7 +45,10 @@ function createWindow() {
   mainWindow.webContents.setZoomFactor(1)
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    const url = details.url
+    if (url.startsWith('https://') || url.startsWith('http://')) {
+      shell.openExternal(url)
+    }
     return { action: 'deny' }
   })
 
@@ -75,8 +81,27 @@ ipcMain.handle('ssh:disconnect', async () => {
   return { success: true }
 })
 
-ipcMain.handle('ssh:execute', async (_e, cmd) => {
+// Allowlisted tutorial script runner - validates filename before execution
+ipcMain.handle('ssh:runTutorialScript', async (_e, filename) => {
   try {
+    if (typeof filename !== 'string' || !SAFE_FILENAME_RE.test(filename)) {
+      return { error: 'Invalid script filename' }
+    }
+    const cmd = `cd /tmp/gpio_dashboard && python3 ${filename}`
+    const result = await sshManager.execute(cmd, { timeout: 120000 })
+    return result
+  } catch (err) {
+    return { error: err.message }
+  }
+})
+
+// Kill tutorial processes only
+ipcMain.handle('ssh:killProcess', async (_e, filename) => {
+  try {
+    if (typeof filename !== 'string' || !SAFE_FILENAME_RE.test(filename)) {
+      return { error: 'Invalid script filename' }
+    }
+    const cmd = `pkill -f "python3 ${filename}" 2>/dev/null; exit 0`
     const result = await sshManager.execute(cmd)
     return result
   } catch (err) {
@@ -84,17 +109,22 @@ ipcMain.handle('ssh:execute', async (_e, cmd) => {
   }
 })
 
-ipcMain.handle('ssh:scp', async (_e, localPath, remotePath) => {
+// GPIO cleanup command
+ipcMain.handle('ssh:gpioCleanup', async () => {
   try {
-    await sshManager.scpPut(localPath, remotePath)
-    return { success: true }
+    const cmd = 'python3 -c "import RPi.GPIO as GPIO; GPIO.setmode(GPIO.BCM); GPIO.cleanup()" 2>/dev/null; exit 0'
+    const result = await sshManager.execute(cmd)
+    return result
   } catch (err) {
-    return { success: false, error: err.message }
+    return { error: err.message }
   }
 })
 
 ipcMain.handle('ssh:scpBuffer', async (_e, content, remotePath) => {
   try {
+    if (typeof remotePath !== 'string' || !remotePath.startsWith('/tmp/gpio_dashboard/') || remotePath.includes('..')) {
+      return { success: false, error: 'Invalid remote path' }
+    }
     await sshManager.scpPutBuffer(content, remotePath)
     return { success: true }
   } catch (err) {
@@ -112,9 +142,9 @@ sshManager.on('status-change', (data) => {
 
 // --- GPIO / WebSocket IPC Handlers ---
 
-ipcMain.handle('gpio:connect', async (_e, host) => {
+ipcMain.handle('gpio:connect', async (_e, host, authToken) => {
   try {
-    wsClient.connect(host)
+    wsClient.connect(host, 8765, authToken || null)
     return { success: true }
   } catch (err) {
     return { success: false, error: err.message }
@@ -179,7 +209,7 @@ ipcMain.handle('agent:install', async () => {
     const result = await deployer.install(sshManager)
     return result
   } catch (err) {
-    return { error: err.message }
+    return { success: false, error: err.message }
   }
 })
 
@@ -220,23 +250,62 @@ wsClient.on('agent_status', (data) => {
 
 // --- Settings IPC Handlers ---
 
+const SETTINGS_ALLOWLIST = [
+  'ui.completedTutorials',
+  'ui.selectedTab',
+  'connection.host',
+  'connection.port',
+  'connection.username'
+]
+
 ipcMain.handle('settings:get', (_e, key) => {
+  if (key === 'connection.password') {
+    return store.getSecure('connection.password')
+  }
+  if (!SETTINGS_ALLOWLIST.includes(key)) {
+    return undefined
+  }
   return store.get(key)
 })
 
 ipcMain.handle('settings:set', (_e, key, value) => {
+  if (!SETTINGS_ALLOWLIST.includes(key)) {
+    return { success: false, error: 'Setting not allowed' }
+  }
   store.set(key, value)
   return { success: true }
 })
 
+ipcMain.handle('settings:setPassword', (_e, value) => {
+  store.setSecure('connection.password', value)
+  return { success: true }
+})
+
 ipcMain.handle('settings:getAll', () => {
-  return store.store
+  const allSettings = { ...store.store }
+  if (allSettings.connection) {
+    allSettings.connection = { ...allSettings.connection }
+    delete allSettings.connection.password
+  }
+  return allSettings
 })
 
 // --- App Lifecycle ---
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.gpio-dashboard')
+
+  // Set CSP headers (production only — Vite dev server needs inline scripts for HMR)
+  if (!is.dev) {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': ["default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"]
+        }
+      })
+    })
+  }
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
@@ -249,9 +318,14 @@ app.whenReady().then(() => {
   })
 })
 
-app.on('window-all-closed', () => {
-  sshManager.disconnect()
+app.on('window-all-closed', async () => {
   wsClient.disconnect()
+  try {
+    await deployer.stop(sshManager).catch(() => {})
+  } catch {
+    // best-effort agent stop
+  }
+  sshManager.disconnect()
   if (process.platform !== 'darwin') {
     app.quit()
   }

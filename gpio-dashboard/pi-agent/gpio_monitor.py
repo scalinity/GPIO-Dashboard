@@ -124,17 +124,19 @@ class GpioMonitor:
         if self._gpiod_available and pins:
             try:
                 chip = self._gpiod.Chip(self._chip)
-                for gpio_str, pin_data in pins.items():
-                    try:
-                        info = chip.get_line_info(int(gpio_str))
-                        if info.consumer:
-                            pin_data["consumer"] = info.consumer
-                        if info.name:
-                            pin_data["name"] = info.name
-                        pin_data["used"] = info.used
-                    except Exception:
-                        pass
-                chip.close()
+                try:
+                    for gpio_str, pin_data in pins.items():
+                        try:
+                            info = chip.get_line_info(int(gpio_str))
+                            if info.consumer:
+                                pin_data["consumer"] = info.consumer
+                            if info.name:
+                                pin_data["name"] = info.name
+                            pin_data["used"] = info.used
+                        except Exception:
+                            pass
+                finally:
+                    chip.close()
             except Exception:
                 log.debug("gpiod enrichment failed", exc_info=True)
 

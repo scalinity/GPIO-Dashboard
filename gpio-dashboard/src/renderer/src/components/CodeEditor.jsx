@@ -15,11 +15,10 @@ const customTheme = EditorView.theme({
   '.cm-cursor': { borderLeftColor: '#6366F1' }                     // accent
 })
 
-const editableCompartment = new Compartment()
-
 export default function CodeEditor({ code, originalCode }) {
   const containerRef = useRef(null)
   const viewRef = useRef(null)
+  const compartmentRef = useRef(new Compartment())
   const setEditorCode = useTutorialStore((s) => s.setEditorCode)
   const resetCode = useTutorialStore((s) => s.resetCode)
   const isCodeModified = useTutorialStore((s) => s.isCodeModified)
@@ -38,7 +37,7 @@ export default function CodeEditor({ code, originalCode }) {
         python(),
         oneDark,
         customTheme,
-        editableCompartment.of(EditorView.editable.of(!readOnly)),
+        compartmentRef.current.of(EditorView.editable.of(!readOnly)),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             setEditorCode(update.state.doc.toString())
@@ -73,7 +72,7 @@ export default function CodeEditor({ code, originalCode }) {
     const view = viewRef.current
     if (!view) return
     view.dispatch({
-      effects: editableCompartment.reconfigure(EditorView.editable.of(!readOnly))
+      effects: compartmentRef.current.reconfigure(EditorView.editable.of(!readOnly))
     })
   }, [readOnly])
 

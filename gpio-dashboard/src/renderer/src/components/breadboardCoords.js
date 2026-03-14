@@ -7,8 +7,8 @@ export const COL_SPACING = 24
 export const CENTER_GAP = 30
 export const POWER_RAIL_HEIGHT = 30
 export const NUM_ROWS = 30
-export const NUM_COLS = 10 // a-j
-export const LABEL_OFFSET = 20
+const NUM_COLS = 10 // a-j
+const LABEL_OFFSET = 20
 
 // Column labels
 export const COL_LABELS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']

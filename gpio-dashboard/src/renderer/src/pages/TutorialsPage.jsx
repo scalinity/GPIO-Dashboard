@@ -55,7 +55,7 @@ export default function TutorialsPage() {
               <button
                 key={cat}
                 onClick={() => setCategoryFilter(cat)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors ${
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
                   isActive
                     ? 'text-white'
                     : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.06]'
@@ -81,7 +81,7 @@ export default function TutorialsPage() {
               <button
                 key={diff}
                 onClick={() => setDifficultyFilter(isActive ? null : diff)}
-                className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
+                className={`px-3 py-1 text-xs rounded-full font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
                   isActive ? 'ring-1' : 'opacity-60 hover:opacity-100'
                 }`}
                 style={{

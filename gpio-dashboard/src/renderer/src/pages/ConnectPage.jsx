@@ -18,8 +18,18 @@ export default function ConnectPage() {
   useEffect(() => {
     async function loadSaved() {
       try {
-        const saved = await window.api.settings.get('sshConfig')
-        if (saved) setConfig(saved)
+        const [host, port, username, password] = await Promise.all([
+          window.api.settings.get('connection.host'),
+          window.api.settings.get('connection.port'),
+          window.api.settings.get('connection.username'),
+          window.api.settings.get('connection.password')
+        ])
+        const saved = {}
+        if (host) saved.host = host
+        if (port) saved.port = port
+        if (username) saved.username = username
+        if (password) saved.password = password
+        if (Object.keys(saved).length > 0) setConfig(saved)
       } catch {
         // no saved config
       }
@@ -34,11 +44,12 @@ export default function ConnectPage() {
   const handleConnect = async () => {
     clearError()
     try {
-      await window.api.settings.set('sshConfig', {
-        host: config.host,
-        port: config.port,
-        username: config.username
-      })
+      await Promise.all([
+        window.api.settings.set('connection.host', config.host),
+        window.api.settings.set('connection.port', config.port),
+        window.api.settings.set('connection.username', config.username),
+        window.api.settings.setPassword(config.password)
+      ])
     } catch {
       // ignore save error
     }
@@ -188,7 +199,7 @@ export default function ConnectPage() {
 
         {status === 'disconnected' && (
           <div className="bg-accent/[0.06] border border-accent/10 rounded-card px-4 py-3 text-accent-light text-sm">
-            Enter your Pi's IP address (find it with{' '}
+            Enter your Pi&apos;s IP address (find it with{' '}
             <code className="bg-surface-800 px-1.5 py-0.5 rounded text-accent-light/80">hostname -I</code>{' '}
             on the Pi)
           </div>

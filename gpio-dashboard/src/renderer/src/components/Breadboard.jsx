@@ -83,6 +83,8 @@ export default function Breadboard({ children, className = '' }) {
       height={VB_H}
       className={className}
       style={{ display: 'block' }}
+      aria-label="Breadboard diagram with T-Cobbler and GPIO pins"
+      role="img"
     >
       <defs>
         <filter id="boardShadow" x="-5%" y="-5%" width="110%" height="110%">

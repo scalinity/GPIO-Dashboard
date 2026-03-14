@@ -1,13 +1,17 @@
+import { useCallback, useMemo } from 'react'
 import { PINS } from '../data/pins'
 import useUiStore from '../store/uiStore'
 import GpioPin from './GpioPin'
+
+// O(1) lookup by physical pin number instead of O(n) PINS.find per row
+const PIN_BY_PHYSICAL = new Map(PINS.map((p) => [p.physical, p]))
 
 export default function GpioHeader() {
   const pinSearch = useUiStore((s) => s.pinSearch)
   const pinTypeFilters = useUiStore((s) => s.pinTypeFilters)
 
-  const matchesFilter = (pin) => {
-    if (pinTypeFilters.size > 0 && !pinTypeFilters.has(pin.type)) return false
+  const matchesFilter = useCallback((pin) => {
+    if (pinTypeFilters.length > 0 && !pinTypeFilters.includes(pin.type)) return false
     if (pinSearch) {
       const q = pinSearch.toLowerCase()
       const nameMatch = pin.name.toLowerCase().includes(q)
@@ -16,16 +20,14 @@ export default function GpioHeader() {
       if (!nameMatch && !bcmMatch && !physMatch) return false
     }
     return true
-  }
+  }, [pinSearch, pinTypeFilters])
 
-  // Build 20 rows x 2 columns grid
-  const rows = Array.from({ length: 20 }, (_, i) => {
-    const leftPhysical = i * 2 + 1
-    const rightPhysical = i * 2 + 2
-    const leftPin = PINS.find((p) => p.physical === leftPhysical)
-    const rightPin = PINS.find((p) => p.physical === rightPhysical)
+  // Build 20 rows x 2 columns grid - O(1) Map lookups
+  const rows = useMemo(() => Array.from({ length: 20 }, (_, i) => {
+    const leftPin = PIN_BY_PHYSICAL.get(i * 2 + 1)
+    const rightPin = PIN_BY_PHYSICAL.get(i * 2 + 2)
     return { leftPin, rightPin, row: i }
-  })
+  }), [])
 
   return (
     <div>

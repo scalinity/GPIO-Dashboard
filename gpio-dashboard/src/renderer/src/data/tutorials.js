@@ -32,10 +32,11 @@ const TUTORIALS = [
     theory:
       'An LED (Light Emitting Diode) only allows current to flow in one direction. The longer leg is the anode (+) and connects toward the GPIO pin through a resistor. The shorter leg is the cathode (-) and connects to ground. The 220Ω resistor limits current to protect both the LED and the GPIO pin (max 16mA per pin on Pi 5). When GPIO17 outputs HIGH (3.3V), current flows through the resistor and LED to ground, lighting it up.',
     wiring: [
-      { from: 'GPIO17 (cobbler)', to: 'Row 22a', description: 'Jumper wire from cobbler to breadboard' },
-      { from: 'Row 22c → Row 23c', to: '220Ω Resistor', description: 'Place resistor spanning rows 22–23' },
-      { from: 'Row 24c (anode +)', to: 'Row 25c (cathode −)', description: 'Place LED — long leg in row 24, short leg in row 25' },
-      { from: 'Row 25a', to: 'GND (cobbler)', description: 'Jumper wire from LED cathode row to ground' }
+      { from: 'GPIO17', to: 'Row 22a', description: 'Jumper wire' },
+      { from: 'Row 22c → Row 23c', to: '220Ω Resistor', description: 'Resistor spanning rows 22-23' },
+      { from: 'Row 23e', to: 'Row 24e', description: 'Jumper wire connecting resistor to LED' },
+      { from: 'Row 24c (anode +)', to: 'Row 25c (cathode -)', description: 'LED, long leg in row 24, short leg in row 25' },
+      { from: 'Row 25a', to: 'GND', description: 'Jumper wire to ground' }
     ],
     wiringDiagram: {
       wires: [
@@ -98,14 +99,14 @@ finally:
     theory:
       'An RGB LED has 3 tiny LEDs inside (Red, Green, Blue) with a common cathode (ground). By controlling the brightness of each color with PWM, you can mix any color. PWM rapidly switches the pin on and off - the duty cycle (0-100%) controls perceived brightness. At 1000Hz, your eye sees a steady brightness proportional to the duty cycle.',
     wiring: [
-      { from: 'GPIO17 (cobbler)', to: 'Row 22a', description: 'Red channel jumper wire' },
-      { from: 'GPIO18 (cobbler)', to: 'Row 23a', description: 'Green channel jumper wire' },
-      { from: 'GPIO27 (cobbler)', to: 'Row 24a', description: 'Blue channel jumper wire' },
-      { from: 'Row 22c → Row 22e', to: '220Ω Resistor', description: 'Red channel resistor in row 22' },
-      { from: 'Row 23c → Row 23e', to: '220Ω Resistor', description: 'Green channel resistor in row 23' },
-      { from: 'Row 24c → Row 24e', to: '220Ω Resistor', description: 'Blue channel resistor in row 24' },
-      { from: 'Row 23g', to: 'RGB LED', description: 'RGB LED — red/green/blue legs in rows 22–24 (right side), longest leg (cathode) in row 25' },
-      { from: 'Row 25a', to: 'GND (cobbler)', description: 'Jumper wire from common cathode row to ground' }
+      { from: 'GPIO17', to: 'Row 22a', description: 'Red channel jumper wire' },
+      { from: 'Row 22c → Row 23c', to: '220Ω Resistor', description: 'Red channel resistor spanning rows 22-23' },
+      { from: 'GPIO18', to: 'Row 24a', description: 'Green channel jumper wire' },
+      { from: 'Row 24c → Row 25c', to: '220Ω Resistor', description: 'Green channel resistor spanning rows 24-25' },
+      { from: 'GPIO27', to: 'Row 26a', description: 'Blue channel jumper wire' },
+      { from: 'Row 26c → Row 27c', to: '220Ω Resistor', description: 'Blue channel resistor spanning rows 26-27' },
+      { from: 'RGB LED', to: 'Row 28g', description: 'Color legs connect to rows 23, 25, 27 (right side); cathode (longest leg) in row 28' },
+      { from: 'Row 28a', to: 'GND', description: 'Common cathode ground jumper wire' }
     ],
     wiringDiagram: {
       wires: [
@@ -210,16 +211,16 @@ finally:
     theory:
       'A push button is a simple switch. When pressed, it connects two pins. Without a pull-down resistor, the GPIO input would "float" and read random values. The 10kΩ pull-down resistor keeps the pin LOW when the button is not pressed. When pressed, current flows from 3.3V through the button to the GPIO pin, reading HIGH. The Pi also has internal pull-up/pull-down resistors you can enable in software.',
     wiring: [
-      { from: 'GPIO17 (cobbler)', to: 'Row 22a', description: 'LED control signal jumper wire' },
-      { from: 'Row 22c → Row 22e', to: '220Ω Resistor', description: 'Current-limiting resistor in row 22' },
-      { from: 'Row 22e → Row 24e', to: 'Jumper wire', description: 'Connect resistor output to LED row' },
-      { from: 'Row 24c', to: 'LED', description: 'Place LED — anode in row 24, cathode toward row 24a' },
-      { from: 'Row 24a', to: 'GND (cobbler)', description: 'LED ground jumper wire' },
-      { from: 'GPIO18 (cobbler)', to: 'Row 26a', description: 'Button input signal jumper wire' },
-      { from: 'Row 26e', to: 'Tactile button', description: 'Place button straddling center channel at row 26' },
-      { from: 'Row 26j', to: '3V3 (cobbler)', description: 'Button power jumper wire' },
-      { from: 'Row 26a → Row 28a', to: '10kΩ Resistor', description: 'Pull-down resistor spanning rows 26–28' },
-      { from: 'Row 28a', to: 'GND (cobbler)', description: 'Pull-down resistor ground jumper wire' }
+      { from: 'GPIO17', to: 'Row 22a', description: 'LED control signal jumper wire' },
+      { from: 'Row 22c → Row 23c', to: '220Ω Resistor', description: 'Current-limiting resistor spanning rows 22-23' },
+      { from: 'Row 23e', to: 'Row 24e', description: 'Jumper wire connecting resistor to LED' },
+      { from: 'Row 24c (anode)', to: 'Row 25c (cathode)', description: 'LED, long leg in row 24, short leg in row 25' },
+      { from: 'Row 25a', to: 'GND', description: 'LED ground jumper wire' },
+      { from: 'GPIO18', to: 'Row 27a', description: 'Button input signal jumper wire' },
+      { from: 'Row 27e', to: 'Tactile button', description: 'Button straddling center channel at row 27' },
+      { from: 'Row 27j', to: '3V3', description: 'Button power jumper wire' },
+      { from: 'Row 28c → Row 29c', to: '10kΩ Resistor', description: 'Pull-down resistor spanning rows 28-29' },
+      { from: 'Row 29a', to: 'GND', description: 'Pull-down resistor ground jumper wire' }
     ],
     wiringDiagram: {
       wires: [
@@ -287,11 +288,11 @@ finally:
     theory:
       'PWM (Pulse Width Modulation) rapidly switches a pin between HIGH and LOW. By changing the duty cycle (percentage of time HIGH), we control the average voltage. At 0% duty cycle, the LED is off. At 100%, it is fully bright. By smoothly ramping the duty cycle up and down, we create a breathing effect. The math.sin() function creates a natural-looking ease-in/ease-out curve.',
     wiring: [
-      { from: 'GPIO18 (cobbler)', to: 'Row 22a', description: 'PWM signal jumper wire' },
-      { from: 'Row 22c → Row 22e', to: '220Ω Resistor', description: 'Current-limiting resistor in row 22' },
-      { from: 'Row 22e → Row 24e', to: 'Jumper wire', description: 'Connect resistor to LED row' },
-      { from: 'Row 24c', to: 'LED', description: 'Place LED — anode in row 24, cathode toward row 24a' },
-      { from: 'Row 24a', to: 'GND (cobbler)', description: 'Ground jumper wire' }
+      { from: 'GPIO18', to: 'Row 22a', description: 'PWM signal jumper wire' },
+      { from: 'Row 22c → Row 23c', to: '220Ω Resistor', description: 'Current-limiting resistor spanning rows 22-23' },
+      { from: 'Row 23e', to: 'Row 24e', description: 'Jumper wire connecting resistor to LED' },
+      { from: 'Row 24c (anode)', to: 'Row 25c (cathode)', description: 'LED, long leg in row 24, short leg in row 25' },
+      { from: 'Row 25a', to: 'GND', description: 'Ground jumper wire' }
     ],
     wiringDiagram: {
       wires: [
@@ -355,14 +356,14 @@ finally:
     theory:
       'By connecting 8 LEDs to separate GPIO pins and turning them on/off in sequence with short delays, we create the illusion of a light flowing back and forth. This is the same principle behind LED matrix displays and LED strips - persistence of vision makes rapid sequential lighting appear as smooth motion.',
     wiring: [
-      { from: 'GPIO17 (cobbler)', to: 'Row 22a', description: 'LED 1 signal — resistor row 22c, LED row 22h' },
-      { from: 'GPIO18 (cobbler)', to: 'Row 23a', description: 'LED 2 signal — resistor row 23c, LED row 23h' },
-      { from: 'GPIO27 (cobbler)', to: 'Row 24a', description: 'LED 3 signal — resistor row 24c, LED row 24h' },
-      { from: 'GPIO22 (cobbler)', to: 'Row 25a', description: 'LED 4 signal — resistor row 25c, LED row 25h' },
-      { from: 'GPIO23 (cobbler)', to: 'Row 26a', description: 'LED 5 signal — resistor row 26c, LED row 26h' },
-      { from: 'GPIO24 (cobbler)', to: 'Row 27a', description: 'LED 6 signal — resistor row 27c, LED row 27h' },
-      { from: 'GPIO25 (cobbler)', to: 'Row 28a', description: 'LED 7 signal — resistor row 28c, LED row 28h' },
-      { from: 'GPIO5 (cobbler)', to: 'Row 29a', description: 'LED 8 signal — resistor row 29c, LED row 29h' },
+      { from: 'GPIO17', to: 'Row 22a', description: 'LED 1 signal — resistor row 22c, LED row 22h' },
+      { from: 'GPIO18', to: 'Row 23a', description: 'LED 2 signal — resistor row 23c, LED row 23h' },
+      { from: 'GPIO27', to: 'Row 24a', description: 'LED 3 signal — resistor row 24c, LED row 24h' },
+      { from: 'GPIO22', to: 'Row 25a', description: 'LED 4 signal — resistor row 25c, LED row 25h' },
+      { from: 'GPIO23', to: 'Row 26a', description: 'LED 5 signal — resistor row 26c, LED row 26h' },
+      { from: 'GPIO24', to: 'Row 27a', description: 'LED 6 signal — resistor row 27c, LED row 27h' },
+      { from: 'GPIO25', to: 'Row 28a', description: 'LED 7 signal — resistor row 28c, LED row 28h' },
+      { from: 'GPIO5', to: 'Row 29a', description: 'LED 8 signal — resistor row 29c, LED row 29h' },
       { from: 'Row 22c–29c', to: '220Ω Resistors (x8)', description: 'One resistor per row between signal and LED' },
       { from: 'All LED cathodes', to: 'GND rail', description: 'Connect all LED short legs to breadboard ground rail' }
     ],
@@ -437,9 +438,10 @@ finally:
     theory:
       'An active buzzer has a built-in oscillator - just apply voltage and it beeps at a fixed frequency. A passive buzzer needs an external signal (PWM) to produce sound at different frequencies. Active buzzers are simpler (just HIGH/LOW) but can only make one tone. The "+" marking indicates the positive terminal.',
     wiring: [
-      { from: 'GPIO17 (cobbler)', to: 'Row 22a', description: 'Signal jumper wire' },
-      { from: 'Row 22h', to: 'Buzzer (+)', description: 'Place buzzer — positive leg in row 22, negative in row 23' },
-      { from: 'Row 23a', to: 'GND (cobbler)', description: 'Buzzer ground jumper wire' }
+      { from: 'GPIO17', to: 'Row 22a', description: 'Signal jumper wire' },
+      { from: 'Row 22e', to: 'Row 22f', description: 'Bridge wire across center channel' },
+      { from: 'Row 22h', to: 'Buzzer (+)', description: 'Buzzer, positive leg in row 22, negative in row 23' },
+      { from: 'Row 23a', to: 'GND', description: 'Buzzer ground jumper wire' }
     ],
     wiringDiagram: {
       wires: [
@@ -521,9 +523,9 @@ finally:
     theory:
       'A relay is an electrically-operated switch. When the control pin goes HIGH, an electromagnet inside pulls a contact, connecting or disconnecting the load circuit. This lets a 3.3V GPIO pin control much higher voltage/current devices (up to 250V AC / 10A on most modules). The relay module includes a transistor driver and flyback diode for safe GPIO connection. NO = Normally Open, NC = Normally Closed, COM = Common.',
     wiring: [
-      { from: 'GPIO17 (cobbler)', to: 'Relay IN', description: 'Control signal — jumper wire to relay module input' },
-      { from: '5V (cobbler)', to: 'Relay VCC', description: 'Power — jumper wire to relay module VCC' },
-      { from: 'GND (cobbler)', to: 'Relay GND', description: 'Ground — jumper wire to relay module GND' },
+      { from: 'GPIO17', to: 'Relay IN', description: 'Control signal — jumper wire to relay module input' },
+      { from: '5V', to: 'Relay VCC', description: 'Power — jumper wire to relay module VCC' },
+      { from: 'GND', to: 'Relay GND', description: 'Ground — jumper wire to relay module GND' },
       { from: 'Relay COM', to: 'Relay NO', description: 'Load circuit — wire through NO (normally open) and COM for the demo LED' }
     ],
     wiringDiagram: {
@@ -584,12 +586,12 @@ finally:
     theory:
       'The L293D is an H-bridge motor driver. It has 4 half-bridges that can drive 2 motors. For one motor: Enable (PWM for speed), Input1 and Input2 control direction. When IN1=HIGH, IN2=LOW: motor spins one way. When IN1=LOW, IN2=HIGH: motor reverses. When both same: motor brakes. The enable pin accepts PWM to control speed. Always use an external power supply for motors - they draw too much current for the Pi.',
     wiring: [
-      { from: 'GPIO17 (cobbler)', to: 'L293D Pin 1 (Enable)', description: 'Speed control (PWM) — row 22' },
-      { from: 'GPIO27 (cobbler)', to: 'L293D Pin 2 (Input 1)', description: 'Direction A — row 23' },
-      { from: 'GPIO22 (cobbler)', to: 'L293D Pin 7 (Input 2)', description: 'Direction B — row 24' },
-      { from: '5V (cobbler)', to: 'L293D Pin 16 (Vcc1)', description: 'Logic power for the driver chip' },
+      { from: 'GPIO17', to: 'L293D Pin 1 (Enable)', description: 'Speed control (PWM) — row 22' },
+      { from: 'GPIO27', to: 'L293D Pin 2 (Input 1)', description: 'Direction A — row 23' },
+      { from: 'GPIO22', to: 'L293D Pin 7 (Input 2)', description: 'Direction B — row 24' },
+      { from: '5V', to: 'L293D Pin 16 (Vcc1)', description: 'Logic power for the driver chip' },
       { from: 'External 6–9V', to: 'L293D Pin 8 (Vcc2)', description: 'Motor power — separate supply required' },
-      { from: 'GND (cobbler)', to: 'L293D Pins 4, 5, 12, 13', description: 'All four GND pins tied together' },
+      { from: 'GND', to: 'L293D Pins 4, 5, 12, 13', description: 'All four GND pins tied together' },
       { from: 'L293D Pins 3, 6 (Output)', to: 'Motor terminals', description: 'Motor connects to driver output pair' }
     ],
     wiringDiagram: {
@@ -682,9 +684,9 @@ finally:
     theory:
       'A servo motor rotates to a specific angle (typically 0-180°) based on a PWM signal. The standard servo signal is a 50Hz PWM where the pulse width determines the angle: 0.5ms = 0°, 1.5ms = 90°, 2.5ms = 180°. In terms of duty cycle at 50Hz: 2.5% = 0°, 7.5% = 90°, 12.5% = 180°. The servo has 3 wires: brown/black=GND, red=5V, orange/yellow=signal.',
     wiring: [
-      { from: 'GPIO18 (cobbler)', to: 'Servo signal (orange wire)', description: 'PWM control — row 22' },
-      { from: '5V (cobbler)', to: 'Servo power (red wire)', description: 'Servo power — row 23' },
-      { from: 'GND (cobbler)', to: 'Servo ground (brown wire)', description: 'Servo ground — row 24' }
+      { from: 'GPIO18', to: 'Servo signal (orange wire)', description: 'PWM control — row 22' },
+      { from: '5V', to: 'Servo power (red wire)', description: 'Servo power — row 23' },
+      { from: 'GND', to: 'Servo ground (brown wire)', description: 'Servo ground — row 24' }
     ],
     wiringDiagram: {
       wires: [
@@ -872,15 +874,15 @@ finally:
     theory:
       'A 7-segment display has 7 LEDs (segments a-g) plus a decimal point (dp) arranged in a figure-8 pattern. By lighting specific segments, we can display digits 0-9 and some letters. Each segment connects to a GPIO pin through a resistor. Common cathode displays share ground; common anode share power. We define each digit as a pattern of which segments to light.',
     wiring: [
-      { from: 'GPIO17 (cobbler)', to: 'Row 22 → Segment a', description: '220Ω resistor in-line, row 22' },
-      { from: 'GPIO18 (cobbler)', to: 'Row 23 → Segment b', description: '220Ω resistor in-line, row 23' },
-      { from: 'GPIO27 (cobbler)', to: 'Row 24 → Segment c', description: '220Ω resistor in-line, row 24' },
-      { from: 'GPIO22 (cobbler)', to: 'Row 25 → Segment d', description: '220Ω resistor in-line, row 25' },
-      { from: 'GPIO23 (cobbler)', to: 'Row 26 → Segment e', description: '220Ω resistor in-line, row 26' },
-      { from: 'GPIO24 (cobbler)', to: 'Row 27 → Segment f', description: '220Ω resistor in-line, row 27' },
-      { from: 'GPIO25 (cobbler)', to: 'Row 28 → Segment g', description: '220Ω resistor in-line, row 28' },
-      { from: 'GPIO5 (cobbler)', to: 'Row 29 → Segment dp', description: '220Ω resistor in-line, row 29' },
-      { from: 'Common cathode', to: 'GND (cobbler)', description: 'Display ground pin to GND rail' }
+      { from: 'GPIO17', to: 'Row 22a → Segment a', description: '220Ω resistor in-line' },
+      { from: 'GPIO18', to: 'Row 23a → Segment b', description: '220Ω resistor in-line' },
+      { from: 'GPIO27', to: 'Row 24a → Segment c', description: '220Ω resistor in-line' },
+      { from: 'GPIO22', to: 'Row 25a → Segment d', description: '220Ω resistor in-line' },
+      { from: 'GPIO23', to: 'Row 26a → Segment e', description: '220Ω resistor in-line' },
+      { from: 'GPIO24', to: 'Row 27a → Segment f', description: '220Ω resistor in-line' },
+      { from: 'GPIO25', to: 'Row 28a → Segment g', description: '220Ω resistor in-line' },
+      { from: 'GPIO5', to: 'Row 29a → Segment dp', description: '220Ω resistor in-line' },
+      { from: 'Common cathode', to: 'GND', description: 'Display ground pin to GND rail' }
     ],
     wiringDiagram: {
       wires: [
@@ -966,26 +968,33 @@ finally:
     theory:
       'Multiplexing rapidly cycles through each digit, lighting one at a time. At fast enough speed (>100Hz per digit), persistence of vision makes all digits appear lit simultaneously. Each digit has its own cathode pin (D1-D4) that we pull LOW to enable. The segment pins (a-g,dp) are shared between all digits. We rapidly cycle: enable D1 + set segments, disable D1, enable D2 + set segments, etc.',
     wiring: [
-      { from: 'GPIO17 (cobbler)', to: 'Row 22 → Segment a', description: '220Ω resistor in-line, row 22' },
-      { from: 'GPIO18 (cobbler)', to: 'Row 23 → Segment b', description: '220Ω resistor in-line, row 23' },
-      { from: 'GPIO27 (cobbler)', to: 'Row 24 → Segment c', description: '220Ω resistor in-line, row 24' },
-      { from: 'GPIO22 (cobbler)', to: 'Row 25 → Segment d', description: '220Ω resistor in-line, row 25' },
-      { from: 'GPIO23 (cobbler)', to: 'Row 26 → Segment e', description: '220Ω resistor in-line, row 26' },
-      { from: 'GPIO24 (cobbler)', to: 'Row 27 → Segment f', description: '220Ω resistor in-line, row 27' },
-      { from: 'GPIO25 (cobbler)', to: 'Row 28 → Segment g', description: '220Ω resistor in-line, row 28' },
-      { from: 'GPIO16 (cobbler)', to: 'Row 29 → Segment dp', description: '220Ω resistor in-line, row 29' },
-      { from: 'GPIO5 (cobbler)', to: 'Row 30 → Digit 1 cathode', description: 'Digit select D1' },
-      { from: 'GPIO6 (cobbler)', to: 'Row 31 → Digit 2 cathode', description: 'Digit select D2' },
-      { from: 'GPIO12 (cobbler)', to: 'Row 32 → Digit 3 cathode', description: 'Digit select D3' },
-      { from: 'GPIO13 (cobbler)', to: 'Row 33 → Digit 4 cathode', description: 'Digit select D4' }
+      { from: 'GPIO17', to: 'Row 22a → Segment a', description: '220Ω resistor in-line' },
+      { from: 'GPIO18', to: 'Row 23a → Segment b', description: '220Ω resistor in-line' },
+      { from: 'GPIO27', to: 'Row 24a → Segment c', description: '220Ω resistor in-line' },
+      { from: 'GPIO22', to: 'Row 25a → Segment d', description: '220Ω resistor in-line' },
+      { from: 'GPIO23', to: 'Row 26a → Segment e', description: '220Ω resistor in-line' },
+      { from: 'GPIO24', to: 'Row 27a → Segment f', description: '220Ω resistor in-line' },
+      { from: 'GPIO25', to: 'Row 28a → Segment g', description: '220Ω resistor in-line' },
+      { from: 'GPIO16', to: 'Row 29a → Segment dp', description: '220Ω resistor in-line' },
+      { from: 'GPIO5', to: 'Row 30a → Digit 1 cathode', description: 'Digit select D1' },
+      { from: 'GPIO6', to: 'Row 31a → Digit 2 cathode', description: 'Digit select D2' },
+      { from: 'GPIO12', to: 'Row 32a → Digit 3 cathode', description: 'Digit select D3' },
+      { from: 'GPIO13', to: 'Row 33a → Digit 4 cathode', description: 'Digit select D4' }
     ],
     wiringDiagram: {
       wires: [
         { from: 'cobbler:GPIO17', to: 'row:22:a', color: '#EF4444' },
-        { from: 'cobbler:GPIO5', to: 'row:26:a', color: '#22C55E' },
-        { from: 'cobbler:GPIO6', to: 'row:27:a', color: '#22C55E' },
-        { from: 'cobbler:GPIO12', to: 'row:28:a', color: '#22C55E' },
-        { from: 'cobbler:GPIO13', to: 'row:29:a', color: '#22C55E' }
+        { from: 'cobbler:GPIO18', to: 'row:23:a', color: '#EF4444' },
+        { from: 'cobbler:GPIO27', to: 'row:24:a', color: '#EF4444' },
+        { from: 'cobbler:GPIO22', to: 'row:25:a', color: '#EF4444' },
+        { from: 'cobbler:GPIO23', to: 'row:26:a', color: '#EF4444' },
+        { from: 'cobbler:GPIO24', to: 'row:27:a', color: '#EF4444' },
+        { from: 'cobbler:GPIO25', to: 'row:28:a', color: '#EF4444' },
+        { from: 'cobbler:GPIO16', to: 'row:29:a', color: '#EF4444' },
+        { from: 'cobbler:GPIO5', to: 'row:30:a', color: '#22C55E' },
+        { from: 'cobbler:GPIO6', to: 'row:31:a', color: '#22C55E' },
+        { from: 'cobbler:GPIO12', to: 'row:32:a', color: '#22C55E' },
+        { from: 'cobbler:GPIO13', to: 'row:33:a', color: '#22C55E' }
       ],
       components: [],
       highlightPins: ['GPIO17', 'GPIO18', 'GPIO27', 'GPIO22', 'GPIO23', 'GPIO24', 'GPIO25', 'GPIO16', 'GPIO5', 'GPIO6', 'GPIO12', 'GPIO13'],
@@ -1078,11 +1087,11 @@ finally:
     theory:
       'The 74HC595 converts serial data (one bit at a time) into 8 parallel outputs. It uses 3 control pins: Data (DS/SER), Clock (SHCP/SRCLK), and Latch (STCP/RCLK). To send a byte: set Data pin to bit value, pulse Clock to shift it in, repeat for 8 bits, then pulse Latch to output all 8 bits simultaneously. You can chain multiple 595s for even more outputs.',
     wiring: [
-      { from: 'GPIO17 (cobbler)', to: '74HC595 Pin 14 (DS)', description: 'Serial data — row 22' },
-      { from: 'GPIO18 (cobbler)', to: '74HC595 Pin 11 (SHCP)', description: 'Shift clock — row 23' },
-      { from: 'GPIO27 (cobbler)', to: '74HC595 Pin 12 (STCP)', description: 'Latch clock — row 24' },
-      { from: '3V3 (cobbler)', to: '74HC595 Pin 16 (VCC) + Pin 10 (MR)', description: 'Power + master reset HIGH' },
-      { from: 'GND (cobbler)', to: '74HC595 Pin 8 (GND) + Pin 13 (OE)', description: 'Ground + output enable LOW' },
+      { from: 'GPIO17', to: '74HC595 Pin 14 (DS)', description: 'Serial data — row 22' },
+      { from: 'GPIO18', to: '74HC595 Pin 11 (SHCP)', description: 'Shift clock — row 23' },
+      { from: 'GPIO27', to: '74HC595 Pin 12 (STCP)', description: 'Latch clock — row 24' },
+      { from: '3V3', to: '74HC595 Pin 16 (VCC) + Pin 10 (MR)', description: 'Power + master reset HIGH' },
+      { from: 'GND', to: '74HC595 Pin 8 (GND) + Pin 13 (OE)', description: 'Ground + output enable LOW' },
       { from: '74HC595 Q0–Q7', to: '220Ω resistors → 8 LEDs', description: 'Each output through a resistor to an LED' }
     ],
     wiringDiagram: {
@@ -1167,14 +1176,14 @@ finally:
     theory:
       'PIR (Passive Infrared) sensors detect changes in infrared radiation from warm bodies (humans, animals). The HC-SR501 has a Fresnel lens that focuses IR onto a pyroelectric sensor. When motion is detected, the output pin goes HIGH for a configurable duration (adjustable via potentiometer). Two trimpots control: sensitivity (detection range 3-7m) and output delay time (5s-5min).',
     wiring: [
-      { from: '5V (cobbler)', to: 'PIR VCC', description: 'Sensor power — row 22' },
-      { from: 'GPIO17 (cobbler)', to: 'PIR OUT', description: 'Motion signal input — row 23' },
-      { from: 'GND (cobbler)', to: 'PIR GND', description: 'Sensor ground — row 24' },
-      { from: 'GPIO18 (cobbler)', to: 'Row 26a', description: 'Alert LED signal jumper wire' },
-      { from: 'Row 26c → Row 26e', to: '220Ω Resistor', description: 'LED current-limiting resistor in row 26' },
-      { from: 'Row 26e → Row 28e', to: 'Jumper wire', description: 'Connect resistor to LED row' },
-      { from: 'Row 28c', to: 'LED', description: 'Alert LED — anode in row 28' },
-      { from: 'Row 28a', to: 'GND (cobbler)', description: 'LED ground jumper wire' }
+      { from: '5V', to: 'PIR VCC', description: 'Sensor power' },
+      { from: 'GPIO17', to: 'PIR OUT', description: 'Motion signal input' },
+      { from: 'GND', to: 'PIR GND', description: 'Sensor ground' },
+      { from: 'GPIO18', to: 'Row 26a', description: 'Alert LED signal jumper wire' },
+      { from: 'Row 26c → Row 27c', to: '220Ω Resistor', description: 'LED current-limiting resistor spanning rows 26-27' },
+      { from: 'Row 27e', to: 'Row 28e', description: 'Jumper wire connecting resistor to LED' },
+      { from: 'Row 28c (anode)', to: 'Row 29c (cathode)', description: 'Alert LED, long leg in row 28, short leg in row 29' },
+      { from: 'Row 29a', to: 'GND', description: 'LED ground jumper wire' }
     ],
     wiringDiagram: {
       wires: [
@@ -1248,14 +1257,14 @@ finally:
     theory:
       'The HC-SR04 sends a 40kHz ultrasonic pulse and measures the time for the echo to return. Distance = (time × speed_of_sound) / 2. Speed of sound ≈ 343 m/s at 20°C. The sensor needs a 10μs trigger pulse on TRIG, then measures the HIGH duration on ECHO. IMPORTANT: ECHO outputs 5V but Pi GPIO is 3.3V, so use a voltage divider (1kΩ + 2kΩ) to reduce ECHO voltage to ~3.3V.',
     wiring: [
-      { from: '5V (cobbler)', to: 'HC-SR04 VCC', description: 'Sensor power (must be 5V) — row 22' },
-      { from: 'GPIO17 (cobbler)', to: 'HC-SR04 TRIG', description: 'Trigger pulse output — row 23' },
-      { from: 'HC-SR04 ECHO', to: 'Row 24f', description: 'Echo signal (5V!) into voltage divider' },
-      { from: 'Row 24f → Row 24h', to: '1kΩ Resistor', description: 'Upper resistor of voltage divider — row 24' },
-      { from: 'Row 24h', to: 'GPIO18 (cobbler)', description: 'Divided signal (~3.3V) to Pi input' },
-      { from: 'Row 25f → Row 25h', to: '2kΩ Resistor', description: 'Lower resistor of voltage divider — row 25' },
-      { from: 'Row 25h', to: 'GND (cobbler)', description: 'Voltage divider ground' },
-      { from: 'GND (cobbler)', to: 'HC-SR04 GND', description: 'Sensor ground — row 25' }
+      { from: '5V', to: 'HC-SR04 VCC', description: 'Sensor power (must be 5V)' },
+      { from: 'GPIO17', to: 'HC-SR04 TRIG', description: 'Trigger pulse output' },
+      { from: 'HC-SR04 ECHO', to: 'Row 24g', description: 'Echo signal (5V!) into voltage divider' },
+      { from: 'Row 24g → Row 25g', to: '1kΩ Resistor', description: 'Upper resistor of voltage divider, rows 24-25' },
+      { from: 'GPIO18', to: 'Row 25a', description: 'Divided signal (~3.3V) to Pi input' },
+      { from: 'Row 26g → Row 27g', to: '2kΩ Resistor', description: 'Lower resistor of voltage divider, rows 26-27' },
+      { from: 'Row 27a', to: 'GND', description: 'Voltage divider ground' },
+      { from: 'GND', to: 'HC-SR04 GND', description: 'Sensor ground' }
     ],
     wiringDiagram: {
       wires: [

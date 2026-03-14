@@ -27,7 +27,8 @@ export default function ConnectionStatus() {
   return (
     <button
       onClick={() => setActiveTab('connect')}
-      className="flex items-center gap-2 px-3 py-1.5 rounded-btn hover:bg-white/[0.06] transition-colors text-sm"
+      className="flex items-center gap-2 px-3 py-1.5 rounded-btn hover:bg-white/[0.06] transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+      aria-label="Connection status"
     >
       <span className={`w-2 h-2 rounded-full ${cfg.color} ${cfg.glow || ''}`} />
       <span className="text-gray-400">{cfg.label}</span>

@@ -9,6 +9,10 @@ out
 build/icon.icns
 build/icon.ico
 
+# Environment
+.env
+.env.*
+
 # Editor
 .vscode
 

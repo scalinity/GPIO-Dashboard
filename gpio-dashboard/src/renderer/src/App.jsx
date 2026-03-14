@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import useUiStore from './store/uiStore'
 import useConnectionStore from './store/connectionStore'
 import useGpioStore from './store/gpioStore'
+import useTutorialStore from './store/tutorialStore'
 import Navbar from './components/Navbar'
 import TerminalPanel from './components/TerminalPanel'
 import ConnectPage from './pages/ConnectPage'
@@ -27,7 +28,20 @@ function App() {
     const cleanups = []
 
     if (window.api?.ssh?.onStatusChange) {
-      cleanups.push(window.api.ssh.onStatusChange(useConnectionStore.getState().setStatus))
+      cleanups.push(
+        window.api.ssh.onStatusChange(({ status, error }) => {
+          const store = useConnectionStore.getState()
+          store.setStatus(status)
+          if (error) store.setError?.(error)
+        })
+      )
+    }
+    if (window.api?.agent?.onStatus) {
+      cleanups.push(
+        window.api.agent.onStatus(({ status }) => {
+          useConnectionStore.getState().setAgentStatus(status)
+        })
+      )
     }
     if (window.api?.gpio?.onState) {
       cleanups.push(window.api.gpio.onState(useGpioStore.getState().updatePinStates))
@@ -35,6 +49,8 @@ function App() {
     if (window.api?.gpio?.onSystemInfo) {
       cleanups.push(window.api.gpio.onSystemInfo(useGpioStore.getState().setSystemInfo))
     }
+
+    useTutorialStore.getState().loadCompleted()
 
     return () => cleanups.forEach((fn) => typeof fn === 'function' && fn())
   }, [])
@@ -65,7 +81,7 @@ function App() {
   return (
     <div className="flex flex-col h-screen bg-surface-950">
       <Navbar />
-      <main className="flex-1 flex flex-col min-h-0">
+      <main className="flex-1 flex flex-col min-h-0" role="tabpanel" aria-label={activeTab}>
         <ActivePage />
       </main>
       <TerminalPanel />

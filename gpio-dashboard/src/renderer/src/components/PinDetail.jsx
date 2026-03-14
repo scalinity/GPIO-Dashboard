@@ -24,7 +24,8 @@ export default function PinDetail() {
         <h3 className="text-lg font-bold text-white">{selectedPin.name}</h3>
         <button
           onClick={() => setSelectedPin(null)}
-          className="p-1 hover:bg-white/[0.06] rounded transition-colors"
+          className="p-1 hover:bg-white/[0.06] rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          aria-label="Close pin detail"
         >
           <X className="w-4 h-4 text-gray-400" />
         </button>
@@ -87,9 +88,9 @@ export default function PinDetail() {
               <div>
                 <span className="section-title block mb-0.5">Value</span>
                 <span
-                  className={`font-mono font-bold ${liveState.state === 1 ? 'text-green-400' : 'text-gray-400'}`}
+                  className={`font-mono font-bold ${liveState.state === 'HIGH' ? 'text-green-400' : 'text-gray-400'}`}
                 >
-                  {liveState.state === 1 ? 'HIGH' : 'LOW'}
+                  {liveState.state === 'HIGH' ? 'HIGH' : 'LOW'}
                 </span>
               </div>
               <div>

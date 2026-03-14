@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, useState } from 'react'
+import { useRef, useCallback, useEffect } from 'react'
 import { ChevronDown, X } from 'lucide-react'
 import useUiStore from '../store/uiStore'
 import Terminal from './Terminal'
@@ -11,16 +11,25 @@ export default function TerminalPanel() {
   const terminalHeight = useUiStore((s) => s.terminalHeight)
   const setTerminalHeight = useUiStore((s) => s.setTerminalHeight)
   const setTerminalOpen = useUiStore((s) => s.setTerminalOpen)
-  const [created, setCreated] = useState(false)
+  const createdRef = useRef(false)
   const termRef = useRef(null)
   const dragging = useRef(false)
 
   useEffect(() => {
-    if (terminalOpen && !created) {
-      window.api.terminal.create('global')
-      setCreated(true)
+    if (terminalOpen && !createdRef.current) {
+      createdRef.current = true
+      window.api.terminal.create('global').catch(() => {})
     }
-  }, [terminalOpen, created])
+  }, [terminalOpen])
+
+  // Destroy the remote shell session on component unmount
+  useEffect(() => {
+    return () => {
+      if (createdRef.current) {
+        window.api.terminal.destroy('global').catch(() => {})
+      }
+    }
+  }, [])
 
   const onDragStart = useCallback(
     (e) => {
@@ -66,14 +75,16 @@ export default function TerminalPanel() {
         <div className="flex items-center gap-1">
           <button
             onClick={() => setTerminalOpen(false)}
-            className="p-1 text-gray-500 hover:text-gray-300 transition-colors"
+            className="p-1 text-gray-500 hover:text-gray-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded"
+            aria-label="Minimize terminal"
             title="Minimize"
           >
             <ChevronDown className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => setTerminalOpen(false)}
-            className="p-1 text-gray-500 hover:text-gray-300 transition-colors"
+            className="p-1 text-gray-500 hover:text-gray-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded"
+            aria-label="Close terminal"
             title="Close"
           >
             <X className="w-3.5 h-3.5" />

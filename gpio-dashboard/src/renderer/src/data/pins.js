@@ -381,25 +381,6 @@ export const PINS = [
   }
 ]
 
-// Helper: get pin by physical number
-export function getPinByPhysical(num) {
-  return PINS.find((p) => p.physical === num)
-}
-
-// Helper: get pin by BCM number
-export function getPinByBCM(bcm) {
-  return PINS.find((p) => p.bcm === bcm)
-}
-
-// Helper: get all GPIO-capable pins
-export function getGpioPins() {
-  return PINS.filter((p) => p.bcm !== null)
-}
-
-// Helper: get pins by type
-export function getPinsByType(type) {
-  return PINS.filter((p) => p.type === type)
-}
 
 // All unique pin types
 export const ALL_PIN_TYPES = [...new Set(PINS.map((p) => p.type))]

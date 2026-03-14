@@ -1,6 +1,11 @@
 import { Client } from 'ssh2'
 import { EventEmitter } from 'events'
 
+const CONNECTION_TIMEOUT_MS = 10000
+const KEEPALIVE_INTERVAL_MS = 15000
+const KEEPALIVE_MAX_COUNT = 3
+const MAX_RECONNECT_DELAY_MS = 30000
+
 class SSHManager extends EventEmitter {
   constructor() {
     super()
@@ -27,7 +32,6 @@ class SSHManager extends EventEmitter {
 
       this.config = config
       this.shouldReconnect = true
-      this.reconnectAttempts = 0
       this._clearReconnect()
       this._setStatus('connecting')
 
@@ -42,7 +46,7 @@ class SSHManager extends EventEmitter {
         const err = new Error('Connection timeout')
         this._setStatus('error', err)
         reject(err)
-      }, 10000)
+      }, CONNECTION_TIMEOUT_MS)
 
       this.client.on('ready', () => {
         if (settled) return
@@ -84,7 +88,7 @@ class SSHManager extends EventEmitter {
       })
 
       this.client.on('end', () => {
-        if (this.status !== 'error') {
+        if (this.status !== 'error' && this.status !== 'connecting') {
           this._setStatus('disconnected')
         }
       })
@@ -94,9 +98,9 @@ class SSHManager extends EventEmitter {
         port: config.port || 22,
         username: config.username,
         password: config.password,
-        readyTimeout: 10000,
-        keepaliveInterval: 15000,
-        keepaliveCountMax: 3
+        readyTimeout: CONNECTION_TIMEOUT_MS,
+        keepaliveInterval: KEEPALIVE_INTERVAL_MS,
+        keepaliveCountMax: KEEPALIVE_MAX_COUNT
       })
     })
   }
@@ -110,7 +114,12 @@ class SSHManager extends EventEmitter {
 
   _scheduleReconnect() {
     this._clearReconnect()
-    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000)
+    if (this.reconnectAttempts >= 10) {
+      this.shouldReconnect = false
+      this._setStatus('error', new Error('Max reconnect attempts exceeded'))
+      return
+    }
+    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), MAX_RECONNECT_DELAY_MS)
     this.reconnectAttempts++
     this._setStatus('connecting')
     this.reconnectTimer = setTimeout(() => {
@@ -120,10 +129,23 @@ class SSHManager extends EventEmitter {
     }, delay)
   }
 
-  disconnect() {
+  async disconnect() {
     this.shouldReconnect = false
     this._clearReconnect()
-    this.shells.forEach((shell) => shell.end())
+    const drainPromises = []
+    this.shells.forEach((shell) => {
+      drainPromises.push(
+        new Promise((resolve) => {
+          const timer = setTimeout(resolve, 3000)
+          shell.once('close', () => {
+            clearTimeout(timer)
+            resolve()
+          })
+          shell.end()
+        })
+      )
+    })
+    await Promise.all(drainPromises)
     this.shells.clear()
     if (this.client) {
       this.client.removeAllListeners()
@@ -133,13 +155,30 @@ class SSHManager extends EventEmitter {
     this._setStatus('disconnected')
   }
 
-  execute(cmd) {
+  execute(cmd, { timeout = 30000 } = {}) {
     return new Promise((resolve, reject) => {
       if (!this.client || this.status !== 'connected') {
         return reject(new Error('Not connected'))
       }
+
+      let timer = null
+      let settled = false
+
+      const settle = (fn, val) => {
+        if (settled) return
+        settled = true
+        if (timer) clearTimeout(timer)
+        fn(val)
+      }
+
+      if (timeout > 0) {
+        timer = setTimeout(() => {
+          settle(reject, new Error(`Command timed out after ${timeout}ms`))
+        }, timeout)
+      }
+
       this.client.exec(cmd, (err, stream) => {
-        if (err) return reject(err)
+        if (err) return settle(reject, err)
         let stdout = ''
         let stderr = ''
         stream.on('data', (data) => {
@@ -149,7 +188,7 @@ class SSHManager extends EventEmitter {
           stderr += data.toString()
         })
         stream.on('close', (code) => {
-          resolve({ stdout, stderr, code })
+          settle(resolve, { stdout, stderr, code })
         })
       })
     })
@@ -205,6 +244,7 @@ class SSHManager extends EventEmitter {
         })
         stream.on('close', () => {
           this.shells.delete(sessionId)
+          this.emit('shell-closed', { sessionId })
         })
         resolve()
       })

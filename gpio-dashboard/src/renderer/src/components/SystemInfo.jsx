@@ -5,7 +5,7 @@ function UsageBar({ value, color }) {
   return (
     <div className="w-full h-1 bg-white/[0.06] rounded-full overflow-hidden">
       <div
-        className="h-full rounded-full transition-all duration-300"
+        className="h-full rounded-full transition-[width] duration-300"
         style={{ width: `${Math.min(100, value)}%`, backgroundColor: color }}
       />
     </div>

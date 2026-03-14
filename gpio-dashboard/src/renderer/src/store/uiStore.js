@@ -4,7 +4,7 @@ const useUiStore = create((set) => ({
   activeTab: 'connect',
   selectedPin: null,
   pinSearch: '',
-  pinTypeFilters: new Set(),
+  pinTypeFilters: [],
   terminalOpen: false,
   terminalHeight: 250,
 
@@ -14,13 +14,14 @@ const useUiStore = create((set) => ({
 
   togglePinTypeFilter: (type) =>
     set((state) => {
-      const next = new Set(state.pinTypeFilters)
-      if (next.has(type)) next.delete(type)
-      else next.add(type)
-      return { pinTypeFilters: next }
+      const filters = state.pinTypeFilters
+      if (filters.includes(type)) {
+        return { pinTypeFilters: filters.filter((t) => t !== type) }
+      }
+      return { pinTypeFilters: [...filters, type] }
     }),
 
-  clearPinTypeFilters: () => set({ pinTypeFilters: new Set() }),
+  clearPinTypeFilters: () => set({ pinTypeFilters: [] }),
 
   toggleTerminal: () => set((state) => ({ terminalOpen: !state.terminalOpen })),
   setTerminalOpen: (open) => set({ terminalOpen: open }),

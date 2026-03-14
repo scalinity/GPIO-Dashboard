@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { PINS, PIN_TYPES } from '../data/pins'
 import { usePinState, usePinChanged } from '../store/gpioStore'
 import {
@@ -8,7 +9,7 @@ import {
   cobblerPinCoord
 } from './breadboardCoords'
 
-function CobblerPin({ pin }) {
+const CobblerPin = memo(function CobblerPin({ pin }) {
   const pinState = usePinState(pin.bcm)
   const changed = usePinChanged(pin.bcm)
   const coord = cobblerPinCoord(pin.physical)
@@ -22,7 +23,7 @@ function CobblerPin({ pin }) {
   const textAnchor = isLeft ? 'end' : 'start'
   const textX = isLeft ? coord.x - padW / 2 - 3 : coord.x + padW / 2 + 3
 
-  const isHigh = pinState?.state === 1 || pinState?.state === 'HIGH'
+  const isHigh = pinState?.state === 'HIGH'
   const isGpio = pin.bcm !== null && pin.type !== 'eeprom'
 
   const tooltipText = `${pin.name}${pin.bcm !== null ? ` (BCM ${pin.bcm})` : ''} — ${PIN_TYPES[pin.type]?.label || ''}${pinState ? ` | ${isHigh ? 'HIGH' : 'LOW'} (${pinState.direction || '?'})` : ''}`
@@ -89,7 +90,7 @@ function CobblerPin({ pin }) {
       )}
     </g>
   )
-}
+})
 
 export default function TCobbler() {
   const topY = rowY(COBBLER_START_ROW) - 12

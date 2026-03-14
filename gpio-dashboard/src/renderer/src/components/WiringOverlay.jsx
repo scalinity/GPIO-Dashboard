@@ -1,4 +1,4 @@
-import { resolveCoord, colX, rowY, ROW_SPACING } from './breadboardCoords'
+import { resolveCoord, colX, rowY } from './breadboardCoords'
 
 function JumperWire({ wire, index }) {
   const from = resolveCoord(wire.from)

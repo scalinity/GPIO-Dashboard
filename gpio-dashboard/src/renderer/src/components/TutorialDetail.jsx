@@ -7,7 +7,6 @@ import {
   Code,
   Play,
   Square,
-  Terminal,
   Check,
   Eye
 } from 'lucide-react'
@@ -163,7 +162,7 @@ export default function TutorialDetail({ tutorial }) {
             {executionStatus === 'completed' && !isCompleted && (
               <button
                 onClick={() => markCompleted(tutorial.id)}
-                className="mt-4 flex items-center gap-2 px-4 py-2 rounded-btn bg-emerald-500/10 text-emerald-400 text-sm font-medium hover:bg-emerald-500/20 transition-colors"
+                className="mt-4 flex items-center gap-2 px-4 py-2 rounded-btn bg-emerald-500/10 text-emerald-400 text-sm font-medium hover:bg-emerald-500/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
               >
                 <Check className="w-4 h-4" />
                 Mark Complete
@@ -225,8 +224,10 @@ export default function TutorialDetail({ tutorial }) {
                 )}
                 <button
                   onClick={() => setActiveStep(i)}
+                  aria-label={step.label}
+                  aria-current={isActive ? 'step' : undefined}
                   title={step.label}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-[background-color,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
                     isActive
                       ? 'bg-accent text-white ring-2 ring-accent/30'
                       : isPast

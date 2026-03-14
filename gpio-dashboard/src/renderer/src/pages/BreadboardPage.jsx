@@ -60,8 +60,11 @@ export default function BreadboardPage() {
   const onMouseDown = useCallback((e) => {
     if (e.button !== 0) return
     setDragging(true)
-    dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y }
-  }, [pan])
+    setPan((currentPan) => {
+      dragStart.current = { x: e.clientX, y: e.clientY, panX: currentPan.x, panY: currentPan.y }
+      return currentPan
+    })
+  }, [])
 
   const onMouseMove = useCallback((e) => {
     if (!dragging) return
@@ -115,7 +118,7 @@ export default function BreadboardPage() {
         {/* Wiring overlay toggle */}
         <button
           onClick={toggleWiring}
-          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-btn transition-colors ${
+          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-btn transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
             showWiringOverlay
               ? 'bg-accent text-white shadow-glow-accent hover:bg-accent-dim'
               : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.06]'

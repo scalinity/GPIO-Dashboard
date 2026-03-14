@@ -23,7 +23,7 @@ export default function TutorialCard({ tutorial }) {
   return (
     <button
       onClick={() => selectTutorial(tutorial.id, tutorial.pythonCode)}
-      className="card text-left group relative cursor-pointer hover:scale-[1.015] transition-all duration-200"
+      className="card text-left group relative cursor-pointer hover:scale-[1.015] transition-[transform,box-shadow,border-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
     >
       {isCompleted && (
         <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-emerald-500/15 flex items-center justify-center">

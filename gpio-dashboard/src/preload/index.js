@@ -5,8 +5,9 @@ const api = {
   ssh: {
     connect: (config) => ipcRenderer.invoke('ssh:connect', config),
     disconnect: () => ipcRenderer.invoke('ssh:disconnect'),
-    execute: (cmd) => ipcRenderer.invoke('ssh:execute', cmd),
-    scp: (localPath, remotePath) => ipcRenderer.invoke('ssh:scp', localPath, remotePath),
+    runTutorialScript: (filename) => ipcRenderer.invoke('ssh:runTutorialScript', filename),
+    killProcess: (filename) => ipcRenderer.invoke('ssh:killProcess', filename),
+    gpioCleanup: () => ipcRenderer.invoke('ssh:gpioCleanup'),
     scpBuffer: (content, remotePath) => ipcRenderer.invoke('ssh:scpBuffer', content, remotePath),
     getStatus: () => ipcRenderer.invoke('ssh:getStatus'),
     onStatusChange: (callback) => {
@@ -17,7 +18,7 @@ const api = {
   },
 
   gpio: {
-    connect: (host) => ipcRenderer.invoke('gpio:connect', host),
+    connect: (host, authToken) => ipcRenderer.invoke('gpio:connect', host, authToken),
     disconnect: () => ipcRenderer.invoke('gpio:disconnect'),
     onState: (callback) => {
       const handler = (_e, data) => callback(data)
@@ -54,12 +55,18 @@ const api = {
       const handler = (_e, data) => callback(data)
       ipcRenderer.on('agent:log', handler)
       return () => ipcRenderer.removeListener('agent:log', handler)
+    },
+    onStatus: (callback) => {
+      const handler = (_e, data) => callback(data)
+      ipcRenderer.on('agent:status', handler)
+      return () => ipcRenderer.removeListener('agent:status', handler)
     }
   },
 
   settings: {
     get: (key) => ipcRenderer.invoke('settings:get', key),
     set: (key, value) => ipcRenderer.invoke('settings:set', key, value),
+    setPassword: (value) => ipcRenderer.invoke('settings:setPassword', value),
     getAll: () => ipcRenderer.invoke('settings:getAll')
   }
 }
@@ -71,7 +78,4 @@ if (process.contextIsolated) {
   } catch (error) {
     console.error(error)
   }
-} else {
-  window.electron = electronAPI
-  window.api = api
 }

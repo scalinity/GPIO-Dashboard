@@ -1,32 +1,43 @@
 import { create } from 'zustand'
 
+const CHANGE_HIGHLIGHT_DURATION_MS = 200
+
+let _changedPinsClearTimer = null
+let _prevPinCount = 0
+
 const useGpioStore = create((set, get) => ({
   pins: {},
   changedPins: new Set(),
   systemInfo: null,
-  _clearTimeout: null,
+  lastUpdatedAt: null,
 
   updatePinStates: (data) => {
     const prev = get().pins
     const changed = new Set()
 
-    for (const [bcm, pinState] of Object.entries(data)) {
+    const dataEntries = Object.entries(data)
+    const normalized = {}
+    for (let i = 0; i < dataEntries.length; i++) {
+      const [bcm, pinState] = dataEntries[i]
+      const state = String(pinState.state).toUpperCase() === 'HIGH' || pinState.state === 1 || pinState.state === '1' ? 'HIGH' : 'LOW'
+      const direction = String(pinState.direction).toUpperCase()
+      normalized[bcm] = { bcm: pinState.bcm, state, direction, pull: pinState.pull, function: pinState.function, info: pinState.info, consumer: pinState.consumer, name: pinState.name, used: pinState.used }
       const old = prev[bcm]
-      if (!old || old.state !== pinState.state || old.direction !== pinState.direction) {
+      if (!old || old.state !== state || old.direction !== direction) {
         changed.add(bcm)
       }
     }
 
-    if (changed.size === 0 && Object.keys(data).length === Object.keys(prev).length) return
+    if (changed.size === 0 && dataEntries.length === _prevPinCount) return
+    _prevPinCount = dataEntries.length
 
-    const existing = get()._clearTimeout
-    if (existing) clearTimeout(existing)
+    if (_changedPinsClearTimer) clearTimeout(_changedPinsClearTimer)
 
-    const timeout = setTimeout(() => {
+    _changedPinsClearTimer = setTimeout(() => {
       set({ changedPins: new Set() })
-    }, 200)
+    }, CHANGE_HIGHLIGHT_DURATION_MS)
 
-    set({ pins: data, changedPins: changed, _clearTimeout: timeout })
+    set({ pins: normalized, changedPins: changed, lastUpdatedAt: Date.now() })
   },
 
   setSystemInfo: (info) => set({ systemInfo: info }),

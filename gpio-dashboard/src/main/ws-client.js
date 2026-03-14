@@ -1,6 +1,8 @@
 import WebSocket from 'ws'
 import { EventEmitter } from 'events'
 
+const MAX_RECONNECT_DELAY_MS = 30000
+
 class WSClient extends EventEmitter {
   constructor() {
     super()
@@ -12,8 +14,10 @@ class WSClient extends EventEmitter {
     this.prevGpioState = null
   }
 
-  connect(host) {
+  connect(host, port = 8765, authToken = null) {
     this.host = host
+    this.port = port
+    this.authToken = authToken
     this.shouldReconnect = true
     this.reconnectAttempts = 0
     this._clearReconnect()
@@ -26,25 +30,29 @@ class WSClient extends EventEmitter {
       this.ws.terminate()
     }
 
-    const url = `ws://${this.host}:8765`
+    const url = `ws://${this.host}:${this.port}`
     this.ws = new WebSocket(url)
 
     this.ws.on('open', () => {
       this.reconnectAttempts = 0
+      if (this.authToken) {
+        this.ws.send(JSON.stringify({ type: 'auth', token: this.authToken }))
+      }
       this.emit('connected')
     })
 
     this.ws.on('message', (raw) => {
       try {
-        const msg = JSON.parse(raw.toString())
+        const rawStr = raw.toString()
+        // Fast path: skip full parse for gpio_state if unchanged
+        if (rawStr.startsWith('{"type":"gpio_state"')) {
+          if (rawStr === this.prevGpioState) return
+          this.prevGpioState = rawStr
+        }
+        const msg = JSON.parse(rawStr)
         const type = msg.type
         if (type === 'gpio_state') {
-          const pins = msg.pins || msg.data
-          const serialized = JSON.stringify(pins)
-          if (serialized !== this.prevGpioState) {
-            this.prevGpioState = serialized
-            this.emit('gpio_state', pins)
-          }
+          this.emit('gpio_state', msg.pins || msg.data)
         } else if (type === 'system_info') {
           this.emit('system_info', msg.data)
         } else if (type === 'output') {
@@ -64,8 +72,8 @@ class WSClient extends EventEmitter {
       }
     })
 
-    this.ws.on('error', () => {
-      // error is followed by close, reconnect handled there
+    this.ws.on('error', (error) => {
+      console.error('[WSClient] WebSocket error:', error)
     })
   }
 
@@ -78,7 +86,12 @@ class WSClient extends EventEmitter {
 
   _scheduleReconnect() {
     this._clearReconnect()
-    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000)
+    if (this.reconnectAttempts >= 10) {
+      this.shouldReconnect = false
+      this.emit('reconnect_failed')
+      return
+    }
+    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), MAX_RECONNECT_DELAY_MS)
     this.reconnectAttempts++
     this.reconnectTimer = setTimeout(() => {
       if (this.shouldReconnect && this.host) {
@@ -99,11 +112,6 @@ class WSClient extends EventEmitter {
     this.emit('disconnected')
   }
 
-  send(message) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message))
-    }
-  }
 }
 
 export default WSClient

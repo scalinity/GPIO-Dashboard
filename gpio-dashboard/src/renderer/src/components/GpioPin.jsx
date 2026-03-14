@@ -1,9 +1,10 @@
+import React from 'react'
 import { ArrowUp, ArrowDown } from 'lucide-react'
 import { PIN_TYPES } from '../data/pins'
 import { usePinState, usePinChanged } from '../store/gpioStore'
 import useUiStore from '../store/uiStore'
 
-export default function GpioPin({ pin }) {
+const GpioPin = React.memo(function GpioPin({ pin }) {
   const setSelectedPin = useUiStore((s) => s.setSelectedPin)
   const liveState = usePinState(pin.bcm)
   const changed = usePinChanged(pin.bcm)
@@ -34,13 +35,13 @@ export default function GpioPin({ pin }) {
         <>
           <span
             className={`absolute bottom-0.5 left-0.5 w-1.5 h-1.5 rounded-full ${
-              liveState.state === 'HIGH' || liveState.state === 1
+              liveState.state === 'HIGH'
                 ? 'bg-green-300 shadow-[0_0_4px_rgba(134,239,172,0.6)]'
                 : 'bg-gray-600'
             }`}
           />
           <span className="absolute bottom-0 right-0.5 text-white/70">
-            {liveState.direction === 'OUT' || liveState.direction === 'out' ? (
+            {liveState.direction === 'OUT' ? (
               <ArrowUp className="w-2.5 h-2.5" />
             ) : (
               <ArrowDown className="w-2.5 h-2.5" />
@@ -50,4 +51,6 @@ export default function GpioPin({ pin }) {
       )}
     </button>
   )
-}
+})
+
+export default GpioPin

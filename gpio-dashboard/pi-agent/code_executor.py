@@ -34,13 +34,16 @@ class CodeExecutor:
         try:
             self._process = await asyncio.create_subprocess_exec(
                 "python3", file_path,
-                stdin=asyncio.subprocess.PIPE,
+                stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 start_new_session=True,
                 cwd=WORK_DIR,
             )
-            self._pgid = os.getpgid(self._process.pid)
+            try:
+                self._pgid = os.getpgid(self._process.pid)
+            except ProcessLookupError:
+                pass
             log.info("Started process PID=%d PGID=%d: %s", self._process.pid, self._pgid, file_path)
         except Exception as e:
             yield {"type": "output", "stream": "stderr", "data": f"Failed to start: {e}"}
