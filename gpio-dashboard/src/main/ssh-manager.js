@@ -31,7 +31,6 @@ class SSHManager extends EventEmitter {
       }
 
       this.config = config
-      this.shouldReconnect = true
       this._clearReconnect()
       this._setStatus('connecting')
 
@@ -53,6 +52,7 @@ class SSHManager extends EventEmitter {
         settled = true
         clearTimeout(timeout)
         this.reconnectAttempts = 0
+        this.shouldReconnect = true
         this._setStatus('connected')
         resolve()
       })
