@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  @font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: block;
+    src: url('./assets/fonts/Inter-Variable.woff2') format('woff2');
+  }
+
+  body {
+    @apply bg-surface-950 text-gray-200 font-sans antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  .titlebar-drag {
+    -webkit-app-region: drag;
+  }
+  .titlebar-drag button,
+  .titlebar-drag a {
+    -webkit-app-region: no-drag;
+  }
+
+  ::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-surface-500/50;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-surface-500/80;
+  }
+}
+
+@layer components {
+  .tab-button {
+    @apply flex items-center gap-2 px-3.5 py-1.5 text-[13px] font-medium rounded-btn
+           text-gray-500 hover:text-gray-300 hover:bg-white/[0.06]
+           transition-all duration-150 relative
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50;
+  }
+  .tab-button.active {
+    @apply text-white bg-white/[0.08];
+    box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.03);
+  }
+  .tab-button.active::after {
+    content: '';
+    @apply absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-accent;
+  }
+
+  .pin-cell {
+    @apply relative flex items-center justify-center w-10 h-10
+           rounded-lg cursor-pointer duration-150
+           transition-[transform,filter,box-shadow]
+           hover:brightness-110 hover:scale-105
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50;
+  }
+
+  .card {
+    @apply bg-surface-800/80 backdrop-blur-sm rounded-card p-4
+           border border-white/[0.04] shadow-card
+           hover:shadow-card-hover hover:border-white/[0.08]
+           transition-[box-shadow,border-color] duration-200;
+  }
+
+  .glass-bg {
+    @apply bg-surface-800/60 backdrop-blur-xl;
+  }
+
+  .glass-panel {
+    @apply glass-bg border border-white/[0.04];
+  }
+
+  .section-title {
+    @apply text-[11px] font-medium text-gray-400 uppercase tracking-wider;
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2 bg-surface-950 border border-white/[0.06] rounded-btn
+           text-white text-sm placeholder-gray-500
+           focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20
+           disabled:opacity-40 transition-all;
+  }
+
+  .btn-primary {
+    @apply px-4 py-2 bg-accent hover:bg-accent-dim text-white text-sm font-medium
+           rounded-btn transition-colors shadow-glow-accent
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .btn-success {
+    @apply px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium
+           rounded-btn transition-colors
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .btn-danger {
+    @apply px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-medium
+           rounded-btn transition-colors
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-white/[0.06] hover:bg-white/[0.10] text-gray-300 text-sm font-medium
+           rounded-btn border border-white/[0.04] transition-colors
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50;
+  }
+
+  .btn-ghost {
+    @apply px-3 py-1.5 text-sm text-gray-400 hover:text-gray-200 hover:bg-white/[0.06]
+           rounded-btn transition-colors
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50;
+  }
+}
+
+@layer utilities {
+  .landscape-rotate g text {
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: rotate(90deg);
+  }
+}
