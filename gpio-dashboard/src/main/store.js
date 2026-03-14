@@ -20,6 +20,15 @@ const schema = {
       completedTutorials: { type: 'array', items: { type: 'string' }, default: [] }
     },
     default: {}
+  },
+  ai: {
+    type: 'object',
+    properties: {
+      apiKey: { type: 'string', default: '' },
+      model: { type: 'string', default: 'anthropic/claude-opus-4.6' },
+      thinkingLevel: { type: 'string', default: 'medium' }
+    },
+    default: {}
   }
 }
 
@@ -34,6 +43,11 @@ const defaults = {
     lastTab: 'gpio',
     terminalHeight: 300,
     completedTutorials: []
+  },
+  ai: {
+    apiKey: '',
+    model: 'anthropic/claude-opus-4.6',
+    thinkingLevel: 'medium'
   }
 }
 

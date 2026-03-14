@@ -50,7 +50,30 @@ function App() {
       cleanups.push(window.api.gpio.onSystemInfo(useGpioStore.getState().setSystemInfo))
     }
 
+    if (window.api?.ai?.onChunk) {
+      cleanups.push(
+        window.api.ai.onChunk(({ content }) => {
+          useTutorialStore.getState().appendAiChunk(content)
+        })
+      )
+    }
+    if (window.api?.ai?.onDone) {
+      cleanups.push(
+        window.api.ai.onDone(() => {
+          useTutorialStore.getState().finishAiGeneration()
+        })
+      )
+    }
+    if (window.api?.ai?.onError) {
+      cleanups.push(
+        window.api.ai.onError(({ error }) => {
+          useTutorialStore.getState().handleAiError(error)
+        })
+      )
+    }
+
     useTutorialStore.getState().loadCompleted()
+    useTutorialStore.getState().loadAiSettings()
 
     return () => cleanups.forEach((fn) => typeof fn === 'function' && fn())
   }, [])

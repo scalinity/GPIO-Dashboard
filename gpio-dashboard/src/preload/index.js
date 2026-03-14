@@ -68,14 +68,43 @@ const api = {
     set: (key, value) => ipcRenderer.invoke('settings:set', key, value),
     setPassword: (value) => ipcRenderer.invoke('settings:setPassword', value),
     getAll: () => ipcRenderer.invoke('settings:getAll')
+  },
+
+  ai: {
+    generate: (params) => ipcRenderer.send('ai:generate', params),
+    abort: () => ipcRenderer.invoke('ai:abort'),
+    onChunk: (callback) => {
+      const handler = (_e, data) => callback(data)
+      ipcRenderer.on('ai:chunk', handler)
+      return () => ipcRenderer.removeListener('ai:chunk', handler)
+    },
+    onDone: (callback) => {
+      const handler = (_e, data) => callback(data)
+      ipcRenderer.on('ai:done', handler)
+      return () => ipcRenderer.removeListener('ai:done', handler)
+    },
+    onError: (callback) => {
+      const handler = (_e, data) => callback(data)
+      ipcRenderer.on('ai:error', handler)
+      return () => ipcRenderer.removeListener('ai:error', handler)
+    },
+    setApiKey: (value) => ipcRenderer.invoke('settings:setApiKey', value),
+    hasApiKey: () => ipcRenderer.invoke('settings:hasApiKey')
   }
 }
 
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
+  } catch (error) {
+    console.error('Failed to expose electron API:', error)
+  }
+  try {
     contextBridge.exposeInMainWorld('api', api)
   } catch (error) {
-    console.error(error)
+    console.error('Failed to expose api:', error)
   }
+} else {
+  window.electron = electronAPI
+  window.api = api
 }

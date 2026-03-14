@@ -19,6 +19,7 @@ export default function CodeEditor({ code, originalCode }) {
   const containerRef = useRef(null)
   const viewRef = useRef(null)
   const compartmentRef = useRef(new Compartment())
+  const externalUpdateRef = useRef(false)
   const setEditorCode = useTutorialStore((s) => s.setEditorCode)
   const resetCode = useTutorialStore((s) => s.resetCode)
   const isCodeModified = useTutorialStore((s) => s.isCodeModified)
@@ -39,7 +40,7 @@ export default function CodeEditor({ code, originalCode }) {
         customTheme,
         compartmentRef.current.of(EditorView.editable.of(!readOnly)),
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
+          if (update.docChanged && !externalUpdateRef.current) {
             setEditorCode(update.state.doc.toString())
           }
         })
@@ -55,15 +56,18 @@ export default function CodeEditor({ code, originalCode }) {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync code prop changes
+  // Sync code prop changes (e.g. AI streaming, reset)
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
     const current = view.state.doc.toString()
     if (current !== code) {
+      externalUpdateRef.current = true
       view.dispatch({
-        changes: { from: 0, to: current.length, insert: code || '' }
+        changes: { from: 0, to: current.length, insert: code || '' },
+        selection: { anchor: Math.min(view.state.selection.main.anchor, (code || '').length) }
       })
+      externalUpdateRef.current = false
     }
   }, [code])
 

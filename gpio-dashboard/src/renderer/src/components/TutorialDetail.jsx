@@ -1,5 +1,6 @@
 import {
   ChevronLeft,
+  ChevronRight,
   BookOpen,
   List,
   Lightbulb,
@@ -13,6 +14,7 @@ import {
 import useTutorialStore from '../store/tutorialStore'
 import useUiStore from '../store/uiStore'
 import CodeEditor from './CodeEditor'
+import AiChatPanel from './AiChatPanel'
 
 const STEPS = [
   { label: 'Introduction', icon: BookOpen },
@@ -40,6 +42,8 @@ export default function TutorialDetail({ tutorial }) {
 
   const isCompleted = completedTutorials.includes(tutorial.id)
   const isRunning = executionStatus === 'running' || executionStatus === 'deploying'
+  const isFirstStep = activeStep === 0
+  const isLastStep = activeStep === STEPS.length - 1
 
   const handleViewBreadboard = () => {
     showWiring(tutorial.id)
@@ -50,64 +54,92 @@ export default function TutorialDetail({ tutorial }) {
     switch (activeStep) {
       case 0:
         return (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-100 mb-3">Introduction</h3>
-            <p className="text-gray-300 leading-relaxed">{tutorial.description}</p>
+          <div className="space-y-6">
+            <div>
+              <span className="inline-block text-[10px] font-bold tracking-widest uppercase text-accent-light/60 mb-2">
+                {tutorial.category} &middot; {tutorial.difficulty}
+              </span>
+              <h3 className="text-2xl font-bold text-white mb-4">{tutorial.title}</h3>
+              <p className="text-gray-300 leading-relaxed text-[15px]">{tutorial.description}</p>
+            </div>
+            <div className="bg-accent/[0.06] border border-accent/10 rounded-card p-4">
+              <h4 className="text-xs font-semibold tracking-wider uppercase text-accent-light/70 mb-3">What you&apos;ll learn</h4>
+              <ul className="space-y-2">
+                {tutorial.tips.slice(0, 3).map((tip, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-sm text-gray-300">
+                    <Check className="w-3.5 h-3.5 text-accent-light shrink-0 mt-0.5" />
+                    <span>{tip}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="flex items-center gap-3 text-sm text-gray-500">
+              <span className="flex items-center gap-1.5">
+                <List className="w-3.5 h-3.5" />
+                {tutorial.components.length} components
+              </span>
+              <span className="w-1 h-1 rounded-full bg-gray-600" />
+              <span className="flex items-center gap-1.5">
+                <Code className="w-3.5 h-3.5" />
+                {tutorial.pythonCode.split('\n').length} lines of code
+              </span>
+            </div>
           </div>
         )
       case 1:
         return (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-100 mb-3">Components Needed</h3>
-            <ul className="space-y-2">
+          <div className="space-y-5">
+            <h3 className="text-xl font-bold text-white">Components Needed</h3>
+            <p className="text-gray-400 text-sm">Gather these parts before starting the wiring.</p>
+            <div className="grid gap-3">
               {tutorial.components.map((c, i) => (
-                <li key={i} className="flex items-center gap-3 text-gray-300">
-                  <span className="w-2 h-2 rounded-full bg-accent-light shrink-0" />
-                  <span>
-                    {c.name}
-                    {c.quantity > 1 && (
-                      <span className="text-gray-500 ml-1">x{c.quantity}</span>
-                    )}
-                  </span>
-                </li>
+                <div
+                  key={i}
+                  className="flex items-center gap-4 bg-white/[0.02] border border-white/[0.06] rounded-card px-4 py-3"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center text-accent-light text-sm font-bold shrink-0">
+                    {c.quantity}x
+                  </div>
+                  <span className="text-gray-200 text-[15px]">{c.name}</span>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         )
       case 2:
         return (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-100 mb-3">Theory</h3>
-            <p className="text-gray-300 leading-relaxed">{tutorial.theory}</p>
+          <div className="space-y-5">
+            <h3 className="text-xl font-bold text-white">Theory</h3>
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-card p-5">
+              <p className="text-gray-300 leading-relaxed text-[15px]">{tutorial.theory}</p>
+            </div>
           </div>
         )
       case 3:
         return (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-100 mb-3">Wiring</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/[0.06]">
-                    <th className="text-left py-2 pr-4 section-title">From</th>
-                    <th className="text-left py-2 pr-4 section-title">To</th>
-                    <th className="text-left py-2 section-title">Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tutorial.wiring.map((w, i) => (
-                    <tr key={i} className="border-b border-white/[0.04]">
-                      <td className="py-2 pr-4 text-gray-200 font-mono text-xs">{w.from}</td>
-                      <td className="py-2 pr-4 text-gray-200 font-mono text-xs">{w.to}</td>
-                      <td className="py-2 text-gray-400">{w.description}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="space-y-5">
+            <h3 className="text-xl font-bold text-white">Wiring</h3>
+            <p className="text-gray-400 text-sm">Connect the components following this guide. Double check before powering on.</p>
+            <div className="space-y-2">
+              {tutorial.wiring.map((w, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.06] rounded-card px-4 py-3"
+                >
+                  <span className="text-xs font-bold text-accent-light bg-accent/10 rounded px-2 py-0.5 shrink-0 font-mono">
+                    {w.from}
+                  </span>
+                  <ChevronRight className="w-3 h-3 text-gray-600 shrink-0" />
+                  <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 rounded px-2 py-0.5 shrink-0 font-mono">
+                    {w.to}
+                  </span>
+                  <span className="text-gray-400 text-sm ml-auto">{w.description}</span>
+                </div>
+              ))}
             </div>
             <button
               onClick={handleViewBreadboard}
-              className="mt-4 flex items-center gap-2 btn-secondary"
+              className="flex items-center gap-2 btn-secondary"
             >
               <Eye className="w-4 h-4" />
               View on Breadboard
@@ -116,16 +148,22 @@ export default function TutorialDetail({ tutorial }) {
         )
       case 4:
         return (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-100 mb-3">Code</h3>
-            <CodeEditor code={editorCode} originalCode={tutorial.pythonCode} />
+          <div className="space-y-4 h-full flex flex-col">
+            <div>
+              <h3 className="text-xl font-bold text-white mb-1">Code</h3>
+              <p className="text-gray-400 text-sm">Review and edit the Python code before running it on your Pi.</p>
+            </div>
+            <div className="flex-1 min-h-0">
+              <CodeEditor code={editorCode} originalCode={tutorial.pythonCode} />
+            </div>
+            <AiChatPanel tutorial={tutorial} />
           </div>
         )
       case 5:
         return (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-100 mb-3">Run</h3>
-            <div className="flex items-center gap-3 mb-4">
+          <div className="space-y-5">
+            <h3 className="text-xl font-bold text-white">Run</h3>
+            <div className="flex items-center gap-3">
               <button
                 onClick={deployAndRun}
                 disabled={isRunning}
@@ -145,7 +183,7 @@ export default function TutorialDetail({ tutorial }) {
               )}
               <StatusIndicator status={executionStatus} />
             </div>
-            <div className="bg-surface-950 border border-white/[0.04] rounded-btn p-3 h-48 overflow-y-auto font-mono text-xs">
+            <div className="bg-surface-950 border border-white/[0.04] rounded-card p-4 h-56 overflow-y-auto font-mono text-xs">
               {executionOutput.length === 0 ? (
                 <span className="text-gray-600">Output will appear here...</span>
               ) : (
@@ -162,7 +200,7 @@ export default function TutorialDetail({ tutorial }) {
             {executionStatus === 'completed' && !isCompleted && (
               <button
                 onClick={() => markCompleted(tutorial.id)}
-                className="mt-4 flex items-center gap-2 px-4 py-2 rounded-btn bg-emerald-500/10 text-emerald-400 text-sm font-medium hover:bg-emerald-500/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+                className="flex items-center gap-2 px-4 py-2 rounded-btn bg-emerald-500/10 text-emerald-400 text-sm font-medium hover:bg-emerald-500/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
               >
                 <Check className="w-4 h-4" />
                 Mark Complete
@@ -172,16 +210,28 @@ export default function TutorialDetail({ tutorial }) {
         )
       case 6:
         return (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-100 mb-3">Tips</h3>
-            <ul className="space-y-3">
+          <div className="space-y-5">
+            <h3 className="text-xl font-bold text-white">Tips & Troubleshooting</h3>
+            <div className="space-y-3">
               {tutorial.tips.map((tip, i) => (
-                <li key={i} className="flex items-start gap-3 text-gray-300">
+                <div
+                  key={i}
+                  className="flex items-start gap-3 bg-yellow-500/[0.04] border border-yellow-500/10 rounded-card px-4 py-3"
+                >
                   <Lightbulb className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" />
-                  <span>{tip}</span>
-                </li>
+                  <span className="text-gray-300 text-[15px]">{tip}</span>
+                </div>
               ))}
-            </ul>
+            </div>
+            {!isCompleted && (
+              <button
+                onClick={() => markCompleted(tutorial.id)}
+                className="flex items-center gap-2 px-4 py-2 rounded-btn bg-emerald-500/10 text-emerald-400 text-sm font-medium hover:bg-emerald-500/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+              >
+                <Check className="w-4 h-4" />
+                Mark Complete
+              </button>
+            )}
           </div>
         )
       default:
@@ -191,7 +241,8 @@ export default function TutorialDetail({ tutorial }) {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.04]">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-6 py-3 border-b border-white/[0.04]">
         <button
           onClick={clearTutorial}
           className="btn-ghost flex items-center gap-1"
@@ -210,7 +261,7 @@ export default function TutorialDetail({ tutorial }) {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Stepper sidebar */}
-        <div className="w-14 shrink-0 flex flex-col items-center py-6 border-r border-white/[0.04] glass-bg">
+        <div className="w-14 shrink-0 flex flex-col items-center py-4 border-r border-white/[0.04] glass-bg">
           {STEPS.map((step, i) => {
             const StepIcon = step.icon
             const isActive = i === activeStep
@@ -219,7 +270,7 @@ export default function TutorialDetail({ tutorial }) {
               <div key={i} className="flex flex-col items-center">
                 {i > 0 && (
                   <div
-                    className={`w-px h-6 ${isPast ? 'bg-accent' : 'bg-white/[0.06]'}`}
+                    className={`w-px h-5 ${isPast ? 'bg-accent' : 'bg-white/[0.06]'}`}
                   />
                 )}
                 <button
@@ -246,8 +297,66 @@ export default function TutorialDetail({ tutorial }) {
           })}
         </div>
 
-        {/* Content area */}
-        <div className="flex-1 overflow-y-auto p-6">{renderStepContent()}</div>
+        {/* Content + navigation */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Step label bar */}
+          <div className="px-8 pt-5 pb-0">
+            {(() => {
+              const CurrentIcon = STEPS[activeStep].icon
+              return (
+                <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase text-gray-500">
+                  <CurrentIcon className="w-3 h-3" />
+                  Step {activeStep + 1} of {STEPS.length} &middot; {STEPS[activeStep].label}
+                </div>
+              )
+            })()}
+          </div>
+
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto px-8 py-5">{renderStepContent()}</div>
+
+          {/* Bottom navigation */}
+          <div className="px-8 py-4 border-t border-white/[0.04] flex items-center justify-between">
+            <button
+              onClick={() => setActiveStep(activeStep - 1)}
+              disabled={isFirstStep}
+              className={`flex items-center gap-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded-btn px-4 py-2 ${
+                isFirstStep
+                  ? 'text-gray-600 cursor-not-allowed'
+                  : 'text-gray-300 hover:text-white hover:bg-white/[0.04]'
+              }`}
+            >
+              <ChevronLeft className="w-4 h-4" />
+              {isFirstStep ? '' : STEPS[activeStep - 1].label}
+            </button>
+
+            {/* Step dots */}
+            <div className="flex items-center gap-1.5">
+              {STEPS.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveStep(i)}
+                  className={`w-1.5 h-1.5 rounded-full transition-all ${
+                    i === activeStep
+                      ? 'bg-accent w-4'
+                      : i < activeStep
+                        ? 'bg-accent/40'
+                        : 'bg-white/10'
+                  }`}
+                  aria-label={`Go to step ${i + 1}`}
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={() => isLastStep ? clearTutorial() : setActiveStep(activeStep + 1)}
+              className="flex items-center gap-2 text-sm font-medium btn-primary px-5 py-2"
+            >
+              {isLastStep ? 'Finish' : STEPS[activeStep + 1]?.label || 'Next'}
+              {!isLastStep && <ChevronRight className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

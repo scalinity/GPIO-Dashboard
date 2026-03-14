@@ -29,7 +29,7 @@ function createWindow() {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: true,
+      sandbox: false,
       contextIsolation: true
     }
   })
@@ -255,7 +255,9 @@ const SETTINGS_ALLOWLIST = [
   'ui.selectedTab',
   'connection.host',
   'connection.port',
-  'connection.username'
+  'connection.username',
+  'ai.model',
+  'ai.thinkingLevel'
 ]
 
 ipcMain.handle('settings:get', (_e, key) => {
@@ -287,7 +289,176 @@ ipcMain.handle('settings:getAll', () => {
     allSettings.connection = { ...allSettings.connection }
     delete allSettings.connection.password
   }
+  if (allSettings.ai) {
+    allSettings.ai = { ...allSettings.ai }
+    delete allSettings.ai.apiKey
+  }
   return allSettings
+})
+
+// --- AI IPC Handlers ---
+
+const ALLOWED_MODELS = new Set([
+  'anthropic/claude-opus-4.6',
+  'openai/gpt-5.4',
+  'minimax/minimax-m2.5',
+  'google/gemini-3.1-pro-preview',
+  'x-ai/grok-4.20-multi-agent-beta'
+])
+const ALLOWED_THINKING = new Set(['off', 'low', 'medium', 'high'])
+const MAX_PROMPT_LEN = 4000
+
+let aiAbortController = null
+
+ipcMain.handle('settings:setApiKey', (_e, value) => {
+  if (typeof value !== 'string' || !value.trim()) {
+    return { success: false, error: 'Invalid API key' }
+  }
+  store.setSecure('ai.apiKey', value.trim())
+  return { success: true }
+})
+
+ipcMain.handle('settings:hasApiKey', () => {
+  return { hasKey: !!store.getSecure('ai.apiKey') }
+})
+
+ipcMain.on('ai:generate', async (_e, params) => {
+  if (!params || typeof params !== 'object') {
+    sendToRenderer('ai:error', { error: 'Invalid request parameters.' })
+    return
+  }
+
+  const { prompt, tutorialContext, model, thinkingLevel } = params
+
+  if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > MAX_PROMPT_LEN) {
+    sendToRenderer('ai:error', { error: `Prompt must be 1-${MAX_PROMPT_LEN} characters.` })
+    return
+  }
+
+  const apiKey = store.getSecure('ai.apiKey')
+  if (!apiKey) {
+    sendToRenderer('ai:error', { error: 'No API key configured. Please set your OpenRouter API key.' })
+    return
+  }
+
+  // Abort any in-flight request before starting a new one
+  if (aiAbortController) {
+    aiAbortController.abort()
+    aiAbortController = null
+  }
+  aiAbortController = new AbortController()
+
+  const safeModel = ALLOWED_MODELS.has(model) ? model : 'anthropic/claude-opus-4.6'
+  const safeThinking = ALLOWED_THINKING.has(thinkingLevel) ? thinkingLevel : 'medium'
+
+  const ctx = tutorialContext || {}
+  const systemPrompt = `You are a Python code generator for Raspberry Pi GPIO tutorials.
+
+Tutorial: ${String(ctx.title || 'Untitled')}
+Description: ${String(ctx.description || 'N/A')}
+Category: ${String(ctx.category || 'N/A')} | Difficulty: ${String(ctx.difficulty || 'N/A')}
+
+Components: ${ctx.components?.map((c) => `${c.quantity}x ${c.name}`).join(', ') || 'N/A'}
+
+Wiring:
+${ctx.wiring?.map((w) => `${w.from} -> ${w.to}: ${w.description}`).join('\n') || 'N/A'}
+
+Theory: ${String(ctx.theory || 'N/A').slice(0, 2000)}
+
+Current code (user-provided):
+\`\`\`python
+${String(ctx.currentCode || '# No code yet').slice(0, 8000)}
+\`\`\`
+
+Rules:
+- Output ONLY valid Python code, no markdown fences, no explanations
+- Use import RPi.GPIO as GPIO
+- Use BCM pin numbering: GPIO.setmode(GPIO.BCM)
+- Always include GPIO.cleanup() in a try/finally block
+- Use only the GPIO pins mentioned in the wiring above
+- Keep code simple, well-commented, and educational`
+
+  const body = {
+    model: safeModel,
+    stream: true,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: prompt.trim() }
+    ]
+  }
+
+  if (safeThinking !== 'off') {
+    body.reasoning = { effort: safeThinking }
+  }
+
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://gpio-dashboard.app',
+        'X-Title': 'GPIO Dashboard',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body),
+      signal: aiAbortController.signal
+    })
+
+    if (!response.ok) {
+      const errBody = (await response.text()).slice(0, 500)
+      sendToRenderer('ai:error', { error: `API error ${response.status}: ${errBody}` })
+      return
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed || !trimmed.startsWith('data: ')) continue
+        const data = trimmed.slice(6)
+        if (data === '[DONE]') continue
+
+        try {
+          const parsed = JSON.parse(data)
+          const content = parsed.choices?.[0]?.delta?.content
+          if (content) {
+            sendToRenderer('ai:chunk', { content })
+          }
+        } catch {
+          // skip malformed JSON
+        }
+      }
+    }
+
+    // Flush remaining bytes from decoder
+    const remaining = decoder.decode()
+    if (remaining) buffer += remaining
+
+    sendToRenderer('ai:done', {})
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      sendToRenderer('ai:done', {})
+    } else {
+      sendToRenderer('ai:error', { error: err.message || String(err) })
+    }
+  } finally {
+    aiAbortController = null
+  }
+})
+
+ipcMain.handle('ai:abort', () => {
+  aiAbortController?.abort()
+  return { success: true }
 })
 
 // --- App Lifecycle ---
