@@ -1,5 +1,6 @@
-import { app, shell, BrowserWindow, ipcMain, session } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session, dialog } from 'electron'
 import { join } from 'path'
+import { readFileSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
@@ -67,8 +68,33 @@ function sendToRenderer(channel, ...args) {
 
 // --- SSH IPC Handlers ---
 
+ipcMain.handle('ssh:selectKeyFile', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Select SSH Private Key',
+    properties: ['openFile', 'showHiddenFiles'],
+    filters: [{ name: 'All Files', extensions: ['*'] }],
+    defaultPath: join(app.getPath('home'), '.ssh')
+  })
+  if (result.canceled || !result.filePaths.length) return { canceled: true }
+  return { canceled: false, path: result.filePaths[0] }
+})
+
 ipcMain.handle('ssh:connect', async (_e, config) => {
   try {
+    // If using key auth, read the key file in the main process
+    if (config.authMethod === 'key' && config.keyPath) {
+      try {
+        // If user selected the .pub file, use the private key next to it (like OpenSSH does)
+        let keyPath = config.keyPath
+        if (keyPath.endsWith('.pub')) {
+          keyPath = keyPath.slice(0, -4)
+        }
+        config.privateKey = readFileSync(keyPath, 'utf8')
+        if (config.password) config.passphrase = config.password
+      } catch (err) {
+        return { success: false, error: `Cannot read key file: ${err.message}` }
+      }
+    }
     await sshManager.connect(config)
     return { success: true }
   } catch (err) {
@@ -82,13 +108,14 @@ ipcMain.handle('ssh:disconnect', async () => {
 })
 
 // Allowlisted tutorial script runner - validates filename before execution
+// Uses streaming execute so output appears in real-time
 ipcMain.handle('ssh:runTutorialScript', async (_e, filename) => {
   try {
     if (typeof filename !== 'string' || !SAFE_FILENAME_RE.test(filename)) {
       return { error: 'Invalid script filename' }
     }
-    const cmd = `cd /tmp/gpio_dashboard && python3 ${filename}`
-    const result = await sshManager.execute(cmd, { timeout: 120000 })
+    const cmd = `mkdir -p /tmp/gpio_dashboard && cd /tmp/gpio_dashboard && python3 -u ${filename}`
+    const result = await sshManager.executeStreaming(cmd, { timeout: 120000 })
     return result
   } catch (err) {
     return { error: err.message }
@@ -101,6 +128,7 @@ ipcMain.handle('ssh:killProcess', async (_e, filename) => {
     if (typeof filename !== 'string' || !SAFE_FILENAME_RE.test(filename)) {
       return { error: 'Invalid script filename' }
     }
+    sshManager.killTutorialStream()
     const cmd = `pkill -f "python3 ${filename}" 2>/dev/null; exit 0`
     const result = await sshManager.execute(cmd)
     return result
@@ -125,6 +153,10 @@ ipcMain.handle('ssh:scpBuffer', async (_e, content, remotePath) => {
     if (typeof remotePath !== 'string' || !remotePath.startsWith('/tmp/gpio_dashboard/') || remotePath.includes('..')) {
       return { success: false, error: 'Invalid remote path' }
     }
+    const mkdirResult = await sshManager.execute('mkdir -p /tmp/gpio_dashboard')
+    if (mkdirResult.code !== 0) {
+      return { success: false, error: `Failed to create directory: ${mkdirResult.stderr}` }
+    }
     await sshManager.scpPutBuffer(content, remotePath)
     return { success: true }
   } catch (err) {
@@ -138,6 +170,10 @@ ipcMain.handle('ssh:getStatus', () => {
 
 sshManager.on('status-change', (data) => {
   sendToRenderer('ssh:status-change', data)
+})
+
+sshManager.on('tutorial-output', (data) => {
+  sendToRenderer('tutorial:output', data)
 })
 
 // --- GPIO / WebSocket IPC Handlers ---
@@ -256,6 +292,8 @@ const SETTINGS_ALLOWLIST = [
   'connection.host',
   'connection.port',
   'connection.username',
+  'connection.authMethod',
+  'connection.keyPath',
   'ai.model',
   'ai.thinkingLevel'
 ]

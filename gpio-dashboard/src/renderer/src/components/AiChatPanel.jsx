@@ -32,9 +32,14 @@ export default function AiChatPanel({ tutorial }) {
   const [showKeyInput, setShowKeyInput] = useState(false)
 
   useEffect(() => {
-    window.api?.ai?.hasApiKey()
-      .then((res) => setHasApiKey(res?.hasKey ?? false))
-      .catch(() => setHasApiKey(false))
+    const result = window.api?.ai?.hasApiKey()
+    if (result && typeof result.then === 'function') {
+      result
+        .then((res) => setHasApiKey(res?.hasKey ?? false))
+        .catch(() => setHasApiKey(false))
+    } else {
+      setHasApiKey(false)
+    }
   }, [])
 
   const isRunning = executionStatus === 'running' || executionStatus === 'deploying'

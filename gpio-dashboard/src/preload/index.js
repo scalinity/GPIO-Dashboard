@@ -4,6 +4,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 const api = {
   ssh: {
     connect: (config) => ipcRenderer.invoke('ssh:connect', config),
+    selectKeyFile: () => ipcRenderer.invoke('ssh:selectKeyFile'),
     disconnect: () => ipcRenderer.invoke('ssh:disconnect'),
     runTutorialScript: (filename) => ipcRenderer.invoke('ssh:runTutorialScript', filename),
     killProcess: (filename) => ipcRenderer.invoke('ssh:killProcess', filename),
@@ -14,6 +15,11 @@ const api = {
       const handler = (_e, data) => callback(data)
       ipcRenderer.on('ssh:status-change', handler)
       return () => ipcRenderer.removeListener('ssh:status-change', handler)
+    },
+    onTutorialOutput: (callback) => {
+      const handler = (_e, data) => callback(data)
+      ipcRenderer.on('tutorial:output', handler)
+      return () => ipcRenderer.removeListener('tutorial:output', handler)
     }
   },
 

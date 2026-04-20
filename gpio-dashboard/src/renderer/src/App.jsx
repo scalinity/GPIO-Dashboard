@@ -50,6 +50,14 @@ function App() {
       cleanups.push(window.api.gpio.onSystemInfo(useGpioStore.getState().setSystemInfo))
     }
 
+    if (window.api?.ssh?.onTutorialOutput) {
+      cleanups.push(
+        window.api.ssh.onTutorialOutput(({ stream, data }) => {
+          useTutorialStore.getState().addOutput({ stream, data })
+        })
+      )
+    }
+
     if (window.api?.ai?.onChunk) {
       cleanups.push(
         window.api.ai.onChunk(({ content }) => {

@@ -170,12 +170,70 @@ function BuzzerSymbol({ component }) {
   )
 }
 
+function SensorSymbol({ component }) {
+  const pos = component.position || component
+  const startRow = pos.row
+  const endRow = pos.endRow || startRow + 2
+  const top = resolveCoord(`row:${startRow}:${pos.col}`)
+  const bot = resolveCoord(`row:${endRow}:${pos.col}`)
+  const cx = top.x
+  const midY = (top.y + bot.y) / 2
+  const bodyW = 20
+  const bodyH = bot.y - top.y + 6
+  const color = component.color || '#3B82F6'
+
+  return (
+    <g>
+      {/* Connection dots for each pin */}
+      <circle cx={cx} cy={top.y} r={3.5} fill={color} stroke="#FFF" strokeWidth={1} />
+      <circle cx={cx} cy={midY} r={3.5} fill={color} stroke="#FFF" strokeWidth={1} />
+      <circle cx={cx} cy={bot.y} r={3.5} fill={color} stroke="#FFF" strokeWidth={1} />
+      {/* Pin legs */}
+      <line x1={cx} y1={top.y} x2={cx} y2={midY - bodyH / 2 + 3} stroke="#999" strokeWidth={1.5} />
+      <line x1={cx} y1={midY + bodyH / 2 - 3} x2={cx} y2={bot.y} stroke="#999" strokeWidth={1.5} />
+      {/* Sensor body */}
+      <rect
+        x={cx - bodyW / 2}
+        y={midY - bodyH / 2 + 3}
+        width={bodyW}
+        height={bodyH - 6}
+        rx={3}
+        fill={color}
+        stroke="#1E40AF"
+        strokeWidth={1}
+        opacity={0.85}
+      />
+      {/* Grid pattern on sensor face */}
+      <rect
+        x={cx - 6}
+        y={midY - 6}
+        width={12}
+        height={12}
+        rx={1}
+        fill="none"
+        stroke="#93C5FD"
+        strokeWidth={0.8}
+        opacity={0.6}
+      />
+      <line x1={cx - 6} y1={midY} x2={cx + 6} y2={midY} stroke="#93C5FD" strokeWidth={0.5} opacity={0.5} />
+      <line x1={cx} y1={midY - 6} x2={cx} y2={midY + 6} stroke="#93C5FD" strokeWidth={0.5} opacity={0.5} />
+      {/* Label */}
+      {component.label && (
+        <text x={cx + bodyW / 2 + 6} y={midY + 3} fontSize={7} fill="#888" textAnchor="start" fontFamily="monospace">
+          {component.label}
+        </text>
+      )}
+    </g>
+  )
+}
+
 const COMPONENT_MAP = {
   led: LEDSymbol,
   resistor: ResistorSymbol,
   button: ButtonSymbol,
   switch: ButtonSymbol,
-  buzzer: BuzzerSymbol
+  buzzer: BuzzerSymbol,
+  sensor: SensorSymbol
 }
 
 export default function WiringOverlay({ diagram }) {

@@ -148,14 +148,12 @@ export default function TutorialDetail({ tutorial }) {
         )
       case 4:
         return (
-          <div className="space-y-4 h-full flex flex-col">
+          <div className="space-y-4">
             <div>
               <h3 className="text-xl font-bold text-white mb-1">Code</h3>
               <p className="text-gray-400 text-sm">Review and edit the Python code before running it on your Pi.</p>
             </div>
-            <div className="flex-1 min-h-0">
-              <CodeEditor code={editorCode} originalCode={tutorial.pythonCode} />
-            </div>
+            <CodeEditor code={editorCode} originalCode={tutorial.pythonCode} />
             <AiChatPanel tutorial={tutorial} />
           </div>
         )

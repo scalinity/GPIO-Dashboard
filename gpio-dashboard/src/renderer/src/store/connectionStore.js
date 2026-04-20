@@ -9,7 +9,9 @@ const useConnectionStore = create((set, get) => ({
     host: '',
     port: 22,
     username: 'pi',
-    password: ''
+    password: '',
+    authMethod: 'key', // 'password' | 'key'
+    keyPath: ''
   },
   status: 'disconnected', // disconnected | connecting | connected | error
   error: null,

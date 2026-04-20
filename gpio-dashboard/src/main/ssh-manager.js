@@ -93,15 +93,23 @@ class SSHManager extends EventEmitter {
         }
       })
 
-      this.client.connect({
+      const connectOpts = {
         host: config.host,
         port: config.port || 22,
         username: config.username,
-        password: config.password,
         readyTimeout: CONNECTION_TIMEOUT_MS,
         keepaliveInterval: KEEPALIVE_INTERVAL_MS,
         keepaliveCountMax: KEEPALIVE_MAX_COUNT
-      })
+      }
+
+      if (config.privateKey) {
+        connectOpts.privateKey = config.privateKey
+        if (config.passphrase) connectOpts.passphrase = config.passphrase
+      } else {
+        connectOpts.password = config.password
+      }
+
+      this.client.connect(connectOpts)
     })
   }
 
@@ -192,6 +200,56 @@ class SSHManager extends EventEmitter {
         })
       })
     })
+  }
+
+  executeStreaming(cmd, { timeout = 120000 } = {}) {
+    return new Promise((resolve, reject) => {
+      if (!this.client || this.status !== 'connected') {
+        return reject(new Error('Not connected'))
+      }
+
+      let timer = null
+      let settled = false
+
+      const settle = (fn, val) => {
+        if (settled) return
+        settled = true
+        if (timer) clearTimeout(timer)
+        fn(val)
+      }
+
+      if (timeout > 0) {
+        timer = setTimeout(() => {
+          if (this._tutorialStream) {
+            this._tutorialStream.close()
+            this._tutorialStream = null
+          }
+          settle(resolve, { code: -1, timedOut: true })
+        }, timeout)
+      }
+
+      this.client.exec(cmd, (err, stream) => {
+        if (err) return settle(reject, err)
+        this._tutorialStream = stream
+        stream.on('data', (data) => {
+          this.emit('tutorial-output', { stream: 'stdout', data: data.toString() })
+        })
+        stream.stderr.on('data', (data) => {
+          this.emit('tutorial-output', { stream: 'stderr', data: data.toString() })
+        })
+        stream.on('close', (code) => {
+          this._tutorialStream = null
+          settle(resolve, { code })
+        })
+      })
+    })
+  }
+
+  killTutorialStream() {
+    if (this._tutorialStream) {
+      this._tutorialStream.close()
+      this._tutorialStream = null
+    }
   }
 
   scpPut(localPath, remotePath) {

@@ -139,21 +139,19 @@ const useTutorialStore = create((set, get) => ({
     set({ executionStatus: 'deploying', executionOutput: [] })
     try {
       const filename = `tutorial_${selectedTutorialId}.py`
-      await window.api.ssh.scpBuffer(editorCode, `/tmp/gpio_dashboard/${filename}`)
+      const upload = await window.api.ssh.scpBuffer(editorCode, `/tmp/gpio_dashboard/${filename}`)
+      if (!upload?.success) {
+        get().addOutput({ stream: 'stderr', data: upload?.error || 'Failed to upload script' })
+        set({ executionStatus: 'error' })
+        return
+      }
       set({ executionStatus: 'running' })
+      // Output streams in real-time via tutorial:output IPC events
       const result = await window.api.ssh.runTutorialScript(filename)
-      if (result) {
-        if (result.stdout) {
-          get().addOutput({ stream: 'stdout', data: result.stdout })
-        }
-        if (result.stderr) {
-          get().addOutput({ stream: 'stderr', data: result.stderr })
-        }
-        if (result.error) {
-          get().addOutput({ stream: 'stderr', data: result.error })
-          set({ executionStatus: 'error' })
-          return
-        }
+      if (result?.error) {
+        get().addOutput({ stream: 'stderr', data: result.error })
+        set({ executionStatus: 'error' })
+        return
       }
       set({ executionStatus: 'completed' })
     } catch (err) {

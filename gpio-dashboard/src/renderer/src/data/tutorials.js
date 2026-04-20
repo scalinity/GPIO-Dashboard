@@ -1,4 +1,4 @@
-// SunFounder Basic Starter Kit - 17 Tutorial Projects
+// SunFounder Basic Starter Kit - 18 Tutorial Projects
 // Each tutorial uses python3-rpi-lgpio (RPi.GPIO drop-in for Pi 5)
 
 export const CATEGORIES = {
@@ -34,21 +34,20 @@ const TUTORIALS = [
     wiring: [
       { from: 'GPIO17', to: 'Row 22a', description: 'Jumper wire' },
       { from: 'Row 22c → Row 23c', to: '220Ω Resistor', description: 'Resistor spanning rows 22-23' },
-      { from: 'Row 23e', to: 'Row 24e', description: 'Jumper wire connecting resistor to LED' },
-      { from: 'Row 24c (anode +)', to: 'Row 25c (cathode -)', description: 'LED, long leg in row 24, short leg in row 25' },
-      { from: 'Row 25a', to: 'GND', description: 'Jumper wire to ground' }
+      { from: 'Row 23e (anode +)', to: 'Row 24e (cathode -)', description: 'LED, long leg in row 23, short leg in row 24' },
+      { from: 'Row 24a', to: 'GND', description: 'Jumper wire to ground' }
     ],
     wiringDiagram: {
       wires: [
         { from: 'cobbler:GPIO17', to: 'row:22:a', color: '#F97316' },
-        { from: 'row:25:a', to: 'cobbler:GND', color: '#333333' }
+        { from: 'row:24:a', to: 'cobbler:GND', color: '#333333' }
       ],
       components: [
         { type: 'resistor', row: 22, endRow: 23, col: 'c', value: '220Ω' },
-        { type: 'led', row: 24, endRow: 25, col: 'c', color: '#EF4444', label: 'Red LED' }
+        { type: 'led', row: 23, endRow: 24, col: 'e', color: '#EF4444', label: 'Red LED' }
       ],
       highlightPins: ['GPIO17', 'GND'],
-      highlightRows: [22, 23, 24, 25]
+      highlightRows: [22, 23, 24]
     },
     pythonCode: `import RPi.GPIO as GPIO
 import time
@@ -105,7 +104,7 @@ finally:
       { from: 'Row 24c → Row 25c', to: '220Ω Resistor', description: 'Green channel resistor spanning rows 24-25' },
       { from: 'GPIO27', to: 'Row 26a', description: 'Blue channel jumper wire' },
       { from: 'Row 26c → Row 27c', to: '220Ω Resistor', description: 'Blue channel resistor spanning rows 26-27' },
-      { from: 'RGB LED', to: 'Row 28g', description: 'Color legs connect to rows 23, 25, 27 (right side); cathode (longest leg) in row 28' },
+      { from: 'RGB LED', to: 'Rows 23e, 25e, 27e (anodes) + Row 28e (cathode)', description: 'Color legs at resistor output rows; cathode (longest leg) in row 28' },
       { from: 'Row 28a', to: 'GND', description: 'Common cathode ground jumper wire' }
     ],
     wiringDiagram: {
@@ -119,10 +118,10 @@ finally:
         { type: 'resistor', row: 22, endRow: 23, col: 'c', value: '220Ω' },
         { type: 'resistor', row: 24, endRow: 25, col: 'c', value: '220Ω' },
         { type: 'resistor', row: 26, endRow: 27, col: 'c', value: '220Ω' },
-        { type: 'led', row: 28, endRow: 29, col: 'g', color: '#FFFFFF', label: 'RGB LED' }
+        { type: 'led', row: 27, endRow: 28, col: 'e', color: '#FFFFFF', label: 'RGB LED' }
       ],
       highlightPins: ['GPIO17', 'GPIO18', 'GPIO27', 'GND'],
-      highlightRows: [22, 23, 24, 25, 26, 27, 28, 29]
+      highlightRows: [22, 23, 24, 25, 26, 27, 28]
     },
     pythonCode: `import RPi.GPIO as GPIO
 import time
@@ -213,9 +212,8 @@ finally:
     wiring: [
       { from: 'GPIO17', to: 'Row 22a', description: 'LED control signal jumper wire' },
       { from: 'Row 22c → Row 23c', to: '220Ω Resistor', description: 'Current-limiting resistor spanning rows 22-23' },
-      { from: 'Row 23e', to: 'Row 24e', description: 'Jumper wire connecting resistor to LED' },
-      { from: 'Row 24c (anode)', to: 'Row 25c (cathode)', description: 'LED, long leg in row 24, short leg in row 25' },
-      { from: 'Row 25a', to: 'GND', description: 'LED ground jumper wire' },
+      { from: 'Row 23e (anode)', to: 'Row 24e (cathode)', description: 'LED, long leg in row 23, short leg in row 24' },
+      { from: 'Row 24a', to: 'GND', description: 'LED ground jumper wire' },
       { from: 'GPIO18', to: 'Row 27a', description: 'Button input signal jumper wire' },
       { from: 'Row 27e', to: 'Tactile button', description: 'Button straddling center channel at row 27' },
       { from: 'Row 27j', to: '3V3', description: 'Button power jumper wire' },
@@ -225,19 +223,19 @@ finally:
     wiringDiagram: {
       wires: [
         { from: 'cobbler:GPIO17', to: 'row:22:a', color: '#F97316' },
-        { from: 'row:25:a', to: 'cobbler:GND', color: '#333333' },
+        { from: 'row:24:a', to: 'cobbler:GND', color: '#333333' },
         { from: 'cobbler:GPIO18', to: 'row:27:a', color: '#3B82F6' },
         { from: 'row:27:j', to: 'cobbler:3V3', color: '#EF4444' },
         { from: 'row:29:a', to: 'cobbler:GND', color: '#333333' }
       ],
       components: [
         { type: 'resistor', row: 22, endRow: 23, col: 'c', value: '220Ω' },
-        { type: 'led', row: 24, endRow: 25, col: 'c', color: '#EF4444', label: 'Red LED' },
+        { type: 'led', row: 23, endRow: 24, col: 'e', color: '#EF4444', label: 'Red LED' },
         { type: 'button', row: 27, col: 'e', label: 'Button' },
         { type: 'resistor', row: 28, endRow: 29, col: 'c', value: '10kΩ' }
       ],
       highlightPins: ['GPIO17', 'GPIO18', 'GND', '3V3'],
-      highlightRows: [22, 23, 24, 25, 27, 28, 29]
+      highlightRows: [22, 23, 24, 27, 28, 29]
     },
     pythonCode: `import RPi.GPIO as GPIO
 import time
@@ -290,21 +288,20 @@ finally:
     wiring: [
       { from: 'GPIO18', to: 'Row 22a', description: 'PWM signal jumper wire' },
       { from: 'Row 22c → Row 23c', to: '220Ω Resistor', description: 'Current-limiting resistor spanning rows 22-23' },
-      { from: 'Row 23e', to: 'Row 24e', description: 'Jumper wire connecting resistor to LED' },
-      { from: 'Row 24c (anode)', to: 'Row 25c (cathode)', description: 'LED, long leg in row 24, short leg in row 25' },
-      { from: 'Row 25a', to: 'GND', description: 'Ground jumper wire' }
+      { from: 'Row 23e (anode)', to: 'Row 24e (cathode)', description: 'LED, long leg in row 23, short leg in row 24' },
+      { from: 'Row 24a', to: 'GND', description: 'Ground jumper wire' }
     ],
     wiringDiagram: {
       wires: [
         { from: 'cobbler:GPIO18', to: 'row:22:a', color: '#F97316' },
-        { from: 'row:25:a', to: 'cobbler:GND', color: '#333333' }
+        { from: 'row:24:a', to: 'cobbler:GND', color: '#333333' }
       ],
       components: [
         { type: 'resistor', row: 22, endRow: 23, col: 'c', value: '220Ω' },
-        { type: 'led', row: 24, endRow: 25, col: 'c', color: '#3B82F6', label: 'LED' }
+        { type: 'led', row: 23, endRow: 24, col: 'e', color: '#3B82F6', label: 'LED' }
       ],
       highlightPins: ['GPIO18', 'GND'],
-      highlightRows: [22, 23, 24, 25]
+      highlightRows: [22, 23, 24]
     },
     pythonCode: `import RPi.GPIO as GPIO
 import time
@@ -376,11 +373,12 @@ finally:
         { from: 'cobbler:GPIO23', to: 'row:26:a', color: '#EF4444' },
         { from: 'cobbler:GPIO24', to: 'row:27:a', color: '#EF4444' },
         { from: 'cobbler:GPIO25', to: 'row:28:a', color: '#EF4444' },
-        { from: 'cobbler:GPIO5', to: 'row:29:a', color: '#EF4444' }
+        { from: 'cobbler:GPIO5', to: 'row:29:a', color: '#EF4444' },
+        { from: 'cobbler:GND', to: 'row:30:a', color: '#333333' }
       ],
       components: [],
       highlightPins: ['GPIO17', 'GPIO18', 'GPIO27', 'GPIO22', 'GPIO23', 'GPIO24', 'GPIO25', 'GPIO5', 'GND'],
-      highlightRows: [22, 23, 24, 25, 26, 27, 28, 29]
+      highlightRows: [22, 23, 24, 25, 26, 27, 28, 29, 30]
     },
     pythonCode: `import RPi.GPIO as GPIO
 import time
@@ -433,7 +431,7 @@ finally:
       'Make sounds with an active buzzer. Learn the difference between active and passive buzzers, and create simple alert patterns.',
     components: [
       { name: 'Active Buzzer', quantity: 1 },
-      { name: 'Jumper Wires', quantity: 2 }
+      { name: 'Jumper Wires', quantity: 3 }
     ],
     theory:
       'An active buzzer has a built-in oscillator - just apply voltage and it beeps at a fixed frequency. A passive buzzer needs an external signal (PWM) to produce sound at different frequencies. Active buzzers are simpler (just HIGH/LOW) but can only make one tone. The "+" marking indicates the positive terminal.',
@@ -587,8 +585,8 @@ finally:
       'The L293D is an H-bridge motor driver. It has 4 half-bridges that can drive 2 motors. For one motor: Enable (PWM for speed), Input1 and Input2 control direction. When IN1=HIGH, IN2=LOW: motor spins one way. When IN1=LOW, IN2=HIGH: motor reverses. When both same: motor brakes. The enable pin accepts PWM to control speed. Always use an external power supply for motors - they draw too much current for the Pi.',
     wiring: [
       { from: 'GPIO17', to: 'L293D Pin 1 (Enable)', description: 'Speed control (PWM) — row 22' },
-      { from: 'GPIO27', to: 'L293D Pin 2 (Input 1)', description: 'Direction A — row 23' },
-      { from: 'GPIO22', to: 'L293D Pin 7 (Input 2)', description: 'Direction B — row 24' },
+      { from: 'GPIO27', to: 'L293D Pin 2 (Input 1)', description: 'Direction pin 1 — row 23' },
+      { from: 'GPIO22', to: 'L293D Pin 7 (Input 2)', description: 'Direction pin 2 — row 24' },
       { from: '5V', to: 'L293D Pin 16 (Vcc1)', description: 'Logic power for the driver chip' },
       { from: 'External 6–9V', to: 'L293D Pin 8 (Vcc2)', description: 'Motor power — separate supply required' },
       { from: 'GND', to: 'L293D Pins 4, 5, 12, 13', description: 'All four GND pins tied together' },
@@ -609,6 +607,7 @@ import time
 
 GPIO.setmode(GPIO.BCM)
 
+# Motor pins
 ENABLE = 17  # PWM speed control
 IN1 = 27     # Direction pin 1
 IN2 = 22     # Direction pin 2
@@ -893,11 +892,12 @@ finally:
         { from: 'cobbler:GPIO23', to: 'row:26:a', color: '#EF4444' },
         { from: 'cobbler:GPIO24', to: 'row:27:a', color: '#EF4444' },
         { from: 'cobbler:GPIO25', to: 'row:28:a', color: '#EF4444' },
-        { from: 'cobbler:GPIO5', to: 'row:29:a', color: '#EF4444' }
+        { from: 'cobbler:GPIO5', to: 'row:29:a', color: '#EF4444' },
+        { from: 'cobbler:GND', to: 'row:30:a', color: '#333333' }
       ],
       components: [],
       highlightPins: ['GPIO17', 'GPIO18', 'GPIO27', 'GPIO22', 'GPIO23', 'GPIO24', 'GPIO25', 'GPIO5', 'GND'],
-      highlightRows: [22, 23, 24, 25, 26, 27, 28, 29]
+      highlightRows: [22, 23, 24, 25, 26, 27, 28, 29, 30]
     },
     pythonCode: `import RPi.GPIO as GPIO
 import time
@@ -968,18 +968,16 @@ finally:
     theory:
       'Multiplexing rapidly cycles through each digit, lighting one at a time. At fast enough speed (>100Hz per digit), persistence of vision makes all digits appear lit simultaneously. Each digit has its own cathode pin (D1-D4) that we pull LOW to enable. The segment pins (a-g,dp) are shared between all digits. We rapidly cycle: enable D1 + set segments, disable D1, enable D2 + set segments, etc.',
     wiring: [
-      { from: 'GPIO17', to: 'Row 22a → Segment a', description: '220Ω resistor in-line' },
-      { from: 'GPIO18', to: 'Row 23a → Segment b', description: '220Ω resistor in-line' },
-      { from: 'GPIO27', to: 'Row 24a → Segment c', description: '220Ω resistor in-line' },
-      { from: 'GPIO22', to: 'Row 25a → Segment d', description: '220Ω resistor in-line' },
-      { from: 'GPIO23', to: 'Row 26a → Segment e', description: '220Ω resistor in-line' },
-      { from: 'GPIO24', to: 'Row 27a → Segment f', description: '220Ω resistor in-line' },
-      { from: 'GPIO25', to: 'Row 28a → Segment g', description: '220Ω resistor in-line' },
-      { from: 'GPIO16', to: 'Row 29a → Segment dp', description: '220Ω resistor in-line' },
-      { from: 'GPIO5', to: 'Row 30a → Digit 1 cathode', description: 'Digit select D1' },
-      { from: 'GPIO6', to: 'Row 31a → Digit 2 cathode', description: 'Digit select D2' },
-      { from: 'GPIO12', to: 'Row 32a → Digit 3 cathode', description: 'Digit select D3' },
-      { from: 'GPIO13', to: 'Row 33a → Digit 4 cathode', description: 'Digit select D4' }
+      { from: 'GPIO17', to: 'Row 22a', description: 'LED 1 signal — resistor row 22c, LED row 22h' },
+      { from: 'GPIO18', to: 'Row 23a', description: 'LED 2 signal — resistor row 23c, LED row 23h' },
+      { from: 'GPIO27', to: 'Row 24a', description: 'LED 3 signal — resistor row 24c, LED row 24h' },
+      { from: 'GPIO22', to: 'Row 25a', description: 'LED 4 signal — resistor row 25c, LED row 25h' },
+      { from: 'GPIO23', to: 'Row 26a', description: 'LED 5 signal — resistor row 26c, LED row 26h' },
+      { from: 'GPIO24', to: 'Row 27a', description: 'LED 6 signal — resistor row 27c, LED row 27h' },
+      { from: 'GPIO25', to: 'Row 28a', description: 'LED 7 signal — resistor row 28c, LED row 28h' },
+      { from: 'GPIO5', to: 'Row 29a', description: 'LED 8 signal — resistor row 29c, LED row 29h' },
+      { from: 'Row 22c–29c', to: '220Ω Resistors (x8)', description: 'One resistor per row between signal and LED' },
+      { from: 'All LED cathodes', to: 'GND rail', description: 'Connect all LED short legs to breadboard ground rail' }
     ],
     wiringDiagram: {
       wires: [
@@ -990,15 +988,12 @@ finally:
         { from: 'cobbler:GPIO23', to: 'row:26:a', color: '#EF4444' },
         { from: 'cobbler:GPIO24', to: 'row:27:a', color: '#EF4444' },
         { from: 'cobbler:GPIO25', to: 'row:28:a', color: '#EF4444' },
-        { from: 'cobbler:GPIO16', to: 'row:29:a', color: '#EF4444' },
-        { from: 'cobbler:GPIO5', to: 'row:30:a', color: '#22C55E' },
-        { from: 'cobbler:GPIO6', to: 'row:31:a', color: '#22C55E' },
-        { from: 'cobbler:GPIO12', to: 'row:32:a', color: '#22C55E' },
-        { from: 'cobbler:GPIO13', to: 'row:33:a', color: '#22C55E' }
+        { from: 'cobbler:GPIO5', to: 'row:29:a', color: '#EF4444' },
+        { from: 'cobbler:GND', to: 'row:30:a', color: '#333333' }
       ],
       components: [],
-      highlightPins: ['GPIO17', 'GPIO18', 'GPIO27', 'GPIO22', 'GPIO23', 'GPIO24', 'GPIO25', 'GPIO16', 'GPIO5', 'GPIO6', 'GPIO12', 'GPIO13'],
-      highlightRows: [22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]
+      highlightPins: ['GPIO17', 'GPIO18', 'GPIO27', 'GPIO22', 'GPIO23', 'GPIO24', 'GPIO25', 'GPIO5', 'GND'],
+      highlightRows: [22, 23, 24, 25, 26, 27, 28, 29, 30]
     },
     pythonCode: `import RPi.GPIO as GPIO
 import time
@@ -1181,9 +1176,8 @@ finally:
       { from: 'GND', to: 'PIR GND', description: 'Sensor ground' },
       { from: 'GPIO18', to: 'Row 26a', description: 'Alert LED signal jumper wire' },
       { from: 'Row 26c → Row 27c', to: '220Ω Resistor', description: 'LED current-limiting resistor spanning rows 26-27' },
-      { from: 'Row 27e', to: 'Row 28e', description: 'Jumper wire connecting resistor to LED' },
-      { from: 'Row 28c (anode)', to: 'Row 29c (cathode)', description: 'Alert LED, long leg in row 28, short leg in row 29' },
-      { from: 'Row 29a', to: 'GND', description: 'LED ground jumper wire' }
+      { from: 'Row 27e (anode)', to: 'Row 28e (cathode)', description: 'Alert LED, long leg in row 27, short leg in row 28' },
+      { from: 'Row 28a', to: 'GND', description: 'LED ground jumper wire' }
     ],
     wiringDiagram: {
       wires: [
@@ -1191,14 +1185,14 @@ finally:
         { from: 'cobbler:GPIO17', to: 'row:23:a', color: '#F97316' },
         { from: 'cobbler:GND', to: 'row:24:a', color: '#333333' },
         { from: 'cobbler:GPIO18', to: 'row:26:a', color: '#22C55E' },
-        { from: 'row:29:a', to: 'cobbler:GND', color: '#333333' }
+        { from: 'row:28:a', to: 'cobbler:GND', color: '#333333' }
       ],
       components: [
         { type: 'resistor', row: 26, endRow: 27, col: 'c', value: '220Ω' },
-        { type: 'led', row: 28, endRow: 29, col: 'c', color: '#EF4444', label: 'Alert LED' }
+        { type: 'led', row: 27, endRow: 28, col: 'e', color: '#EF4444', label: 'Alert LED' }
       ],
       highlightPins: ['GPIO17', 'GPIO18', '5V', 'GND'],
-      highlightRows: [22, 23, 24, 26, 27, 28, 29]
+      highlightRows: [22, 23, 24, 26, 27, 28]
     },
     pythonCode: `import RPi.GPIO as GPIO
 import time
@@ -1242,6 +1236,88 @@ finally:
     ]
   },
   {
+    id: 'dht11',
+    title: 'DHT11 Temperature & Humidity',
+    category: 'sensor',
+    difficulty: 'beginner',
+    description:
+      'Measure temperature and humidity with the DHT11 digital sensor. Learn how a single sensor can report both environmental readings using a one-wire protocol.',
+    components: [
+      { name: 'DHT11 Sensor', quantity: 1 },
+      { name: '10kΩ Resistor', quantity: 1 },
+      { name: 'Jumper Wires', quantity: 3 }
+    ],
+    theory:
+      'The DHT11 is an all-in-one digital sensor that measures both temperature (0-50°C) and humidity (20-90%). Inside, a humidity-sensitive capacitor and a thermistor feed readings to a small chip that transmits them as a 40-bit digital signal over a single data wire. The protocol works like this: the Pi pulls the data line LOW for 18ms as a start signal, then the DHT11 responds with a stream of 40 bits — 8 bits of humidity integer, 8 bits humidity decimal, 8 bits temperature integer, 8 bits temperature decimal, and 8 bits of checksum for error detection. A 10kΩ pull-up resistor between VCC and DATA keeps the data line HIGH when idle, which is required for reliable communication. Unlike analog sensors like a thermistor, the DHT11 gives you pre-calibrated digital readings — no ADC or voltage calculations required.',
+    wiring: [
+      { from: '3V3', to: 'Row 22a', description: 'Power — jumper wire from 3.3V' },
+      { from: 'Row 22c → Row 23c', to: '10kΩ Resistor', description: 'Pull-up resistor between VCC and DATA rows' },
+      { from: 'GPIO17', to: 'Row 23a', description: 'Signal — jumper wire to DATA row' },
+      { from: 'Row 22e → Row 24e', to: 'DHT11 Sensor', description: 'Sensor pins: VCC (row 22), DATA (row 23), GND (row 24)' },
+      { from: 'GND', to: 'Row 24a', description: 'Ground — jumper wire' }
+    ],
+    wiringDiagram: {
+      wires: [
+        { from: 'cobbler:3V3', to: 'row:22:a', color: '#EF4444' },
+        { from: 'cobbler:GPIO17', to: 'row:23:a', color: '#F97316' },
+        { from: 'cobbler:GND', to: 'row:24:a', color: '#333333' }
+      ],
+      components: [
+        { type: 'resistor', row: 22, endRow: 23, col: 'c', value: '10kΩ' },
+        { type: 'sensor', row: 22, endRow: 24, col: 'e', color: '#3B82F6', label: 'DHT11' }
+      ],
+      highlightPins: ['GPIO17', '3V3', 'GND'],
+      highlightRows: [22, 23, 24]
+    },
+    pythonCode: `import adafruit_dht
+import board
+import time
+
+# Initialize DHT11 on GPIO17
+dht = adafruit_dht.DHT11(board.D17)
+
+print("DHT11 Temperature & Humidity Sensor")
+print("Press Ctrl+C to stop")
+print()
+
+cycle = 0
+
+try:
+    while True:
+        cycle += 1
+        # DHT sensors are slow — retry up to 5 times per cycle
+        for attempt in range(5):
+            try:
+                temperature = dht.temperature
+                humidity = dht.humidity
+                if temperature is not None and humidity is not None:
+                    fah = temperature * 9.0 / 5.0 + 32.0
+                    print(f"Cycle #{cycle}:")
+                    print(f"  Temperature: {temperature:.1f}°C ({fah:.1f}°F)")
+                    print(f"  Humidity:    {humidity:.1f}%")
+                    print()
+                    break
+            except RuntimeError:
+                # Sensor misread — retry silently
+                time.sleep(0.5)
+        else:
+            print(f"Cycle #{cycle}: Failed to read sensor after 5 attempts")
+        time.sleep(2)
+except KeyboardInterrupt:
+    print("\\nStopping...")
+finally:
+    dht.exit()
+    print("Sensor released")
+`,
+    tips: [
+      'Install the library first: pip3 install adafruit-circuitpython-dht && sudo apt-get install libgpiod2',
+      'The DHT11 can only be read once every 2 seconds. Reading too fast will return errors.',
+      'RuntimeError exceptions are normal — the sensor uses tight timing and occasionally misses a reading. The retry logic handles this.',
+      'If you get repeated failures, check your wiring — the most common issue is swapping VCC and DATA pins.',
+      'For more precision (0.1°C resolution, wider range), upgrade to a DHT22 sensor — same wiring, just change DHT11 to DHT22 in the code.'
+    ]
+  },
+  {
     id: 'ultrasonic',
     title: 'Ultrasonic Distance Sensor',
     category: 'sensor',
@@ -1259,11 +1335,11 @@ finally:
     wiring: [
       { from: '5V', to: 'HC-SR04 VCC', description: 'Sensor power (must be 5V)' },
       { from: 'GPIO17', to: 'HC-SR04 TRIG', description: 'Trigger pulse output' },
-      { from: 'HC-SR04 ECHO', to: 'Row 24g', description: 'Echo signal (5V!) into voltage divider' },
-      { from: 'Row 24g → Row 25g', to: '1kΩ Resistor', description: 'Upper resistor of voltage divider, rows 24-25' },
-      { from: 'GPIO18', to: 'Row 25a', description: 'Divided signal (~3.3V) to Pi input' },
-      { from: 'Row 26g → Row 27g', to: '2kΩ Resistor', description: 'Lower resistor of voltage divider, rows 26-27' },
-      { from: 'Row 27a', to: 'GND', description: 'Voltage divider ground' },
+      { from: 'HC-SR04 ECHO', to: 'Row 24a', description: 'Echo signal (5V!) into voltage divider' },
+      { from: 'Row 24c → Row 25c', to: '1kΩ Resistor', description: 'Upper resistor of voltage divider, rows 24-25' },
+      { from: 'GPIO18', to: 'Row 25a', description: 'Divided signal (~3.3V) to Pi input at junction' },
+      { from: 'Row 25d → Row 26d', to: '2kΩ Resistor', description: 'Lower resistor of voltage divider, rows 25-26' },
+      { from: 'Row 26a', to: 'GND', description: 'Voltage divider ground' },
       { from: 'GND', to: 'HC-SR04 GND', description: 'Sensor ground' }
     ],
     wiringDiagram: {
@@ -1271,14 +1347,14 @@ finally:
         { from: 'cobbler:5V', to: 'row:22:a', color: '#EF4444' },
         { from: 'cobbler:GPIO17', to: 'row:23:a', color: '#F97316' },
         { from: 'cobbler:GPIO18', to: 'row:25:a', color: '#3B82F6' },
-        { from: 'cobbler:GND', to: 'row:27:a', color: '#333333' }
+        { from: 'cobbler:GND', to: 'row:26:a', color: '#333333' }
       ],
       components: [
-        { type: 'resistor', row: 24, endRow: 25, col: 'g', value: '1kΩ' },
-        { type: 'resistor', row: 26, endRow: 27, col: 'g', value: '2kΩ' }
+        { type: 'resistor', row: 24, endRow: 25, col: 'c', value: '1kΩ' },
+        { type: 'resistor', row: 25, endRow: 26, col: 'd', value: '2kΩ' }
       ],
       highlightPins: ['GPIO17', 'GPIO18', '5V', 'GND'],
-      highlightRows: [22, 23, 24, 25, 26, 27]
+      highlightRows: [22, 23, 24, 25, 26]
     },
     pythonCode: `import RPi.GPIO as GPIO
 import time
@@ -1439,7 +1515,7 @@ finally:
     category: 'input',
     difficulty: 'intermediate',
     description:
-      'Read a 4x4 matrix keypad using row-column scanning. Learn matrix scanning technique to read 16 keys with only 8 GPIO pins.',
+      'Read a 4x4 matrix keypad using row-column scanning. Learn matrix scanning technique to read 16 keys with fewer pins.',
     components: [
       { name: '4x4 Membrane Keypad', quantity: 1 },
       { name: 'Jumper Wires', quantity: 8 }

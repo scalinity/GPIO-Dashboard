@@ -8,7 +8,9 @@ const schema = {
       host: { type: 'string', default: '' },
       port: { type: 'number', default: 22 },
       username: { type: 'string', default: 'pi' },
-      password: { type: 'string', default: '' }
+      password: { type: 'string', default: '' },
+      authMethod: { type: 'string', default: 'key' },
+      keyPath: { type: 'string', default: '' }
     },
     default: {}
   },
@@ -37,7 +39,9 @@ const defaults = {
     host: '',
     port: 22,
     username: 'pi',
-    password: ''
+    password: '',
+    authMethod: 'key',
+    keyPath: ''
   },
   ui: {
     lastTab: 'gpio',

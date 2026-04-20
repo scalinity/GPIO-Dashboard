@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Plug, Play, Square, Upload } from 'lucide-react'
+import { Plug, Play, Square, Upload, KeyRound, FolderOpen } from 'lucide-react'
 import useConnectionStore from '../store/connectionStore'
 
 export default function ConnectPage() {
@@ -18,17 +18,21 @@ export default function ConnectPage() {
   useEffect(() => {
     async function loadSaved() {
       try {
-        const [host, port, username, password] = await Promise.all([
+        const [host, port, username, password, authMethod, keyPath] = await Promise.all([
           window.api.settings.get('connection.host'),
           window.api.settings.get('connection.port'),
           window.api.settings.get('connection.username'),
-          window.api.settings.get('connection.password')
+          window.api.settings.get('connection.password'),
+          window.api.settings.get('connection.authMethod'),
+          window.api.settings.get('connection.keyPath')
         ])
         const saved = {}
         if (host) saved.host = host
         if (port) saved.port = port
         if (username) saved.username = username
         if (password) saved.password = password
+        if (authMethod) saved.authMethod = authMethod
+        if (keyPath) saved.keyPath = keyPath
         if (Object.keys(saved).length > 0) setConfig(saved)
       } catch {
         // no saved config
@@ -48,6 +52,8 @@ export default function ConnectPage() {
         window.api.settings.set('connection.host', config.host),
         window.api.settings.set('connection.port', config.port),
         window.api.settings.set('connection.username', config.username),
+        window.api.settings.set('connection.authMethod', config.authMethod),
+        window.api.settings.set('connection.keyPath', config.keyPath),
         window.api.settings.setPassword(config.password)
       ])
     } catch {
@@ -107,15 +113,75 @@ export default function ConnectPage() {
             </div>
 
             <div>
-              <label className="section-title block mb-1.5">Password</label>
-              <input
-                type="password"
-                value={config.password}
-                onChange={(e) => setConfig({ password: e.target.value })}
-                disabled={inputDisabled}
-                placeholder="Enter password"
-                className="input-field"
-              />
+              <label className="section-title block mb-1.5">Authentication</label>
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={() => setConfig({ authMethod: 'key' })}
+                  disabled={inputDisabled}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-btn text-xs font-medium transition-colors ${
+                    config.authMethod === 'key'
+                      ? 'bg-accent text-white'
+                      : 'bg-white/[0.04] text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  <KeyRound className="w-3 h-3" />
+                  SSH Key
+                </button>
+                <button
+                  onClick={() => setConfig({ authMethod: 'password' })}
+                  disabled={inputDisabled}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-btn text-xs font-medium transition-colors ${
+                    config.authMethod === 'password'
+                      ? 'bg-accent text-white'
+                      : 'bg-white/[0.04] text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  Password
+                </button>
+              </div>
+
+              {config.authMethod === 'key' ? (
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={config.keyPath}
+                      onChange={(e) => setConfig({ keyPath: e.target.value })}
+                      disabled={inputDisabled}
+                      placeholder="~/.ssh/id_ed25519"
+                      className="input-field flex-1"
+                    />
+                    <button
+                      onClick={async () => {
+                        const result = await window.api.ssh.selectKeyFile()
+                        if (!result.canceled) setConfig({ keyPath: result.path })
+                      }}
+                      disabled={inputDisabled}
+                      className="btn-secondary px-3"
+                      title="Browse"
+                    >
+                      <FolderOpen className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <input
+                    type="password"
+                    value={config.password}
+                    onChange={(e) => setConfig({ password: e.target.value })}
+                    disabled={inputDisabled}
+                    placeholder="Passphrase (optional)"
+                    className="input-field"
+                  />
+                </div>
+              ) : (
+                <input
+                  type="password"
+                  value={config.password}
+                  onChange={(e) => setConfig({ password: e.target.value })}
+                  disabled={inputDisabled}
+                  placeholder="Enter password"
+                  className="input-field"
+                />
+              )}
             </div>
 
             {!isConnected && (
