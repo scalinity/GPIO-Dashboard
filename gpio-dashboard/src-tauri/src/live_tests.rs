@@ -13,6 +13,7 @@ use crate::{
 };
 
 const PORT: u16 = 2222;
+const PORT_NO_TTY: u16 = 2223;
 
 fn dir() -> PathBuf {
     PathBuf::from(
@@ -50,6 +51,38 @@ fn output_of(events: &Events, stream: &str) -> String {
         .filter(|(event, payload)| event == "tutorial:output" && payload["stream"] == stream)
         .map(|(_, payload)| payload["data"].as_str().unwrap().to_string())
         .collect()
+}
+
+/// The server-side process(es) of established connections to `port`.
+fn server_side_pids(port: u16) -> Vec<String> {
+    let me = std::process::id().to_string();
+    let lsof = std::process::Command::new("lsof")
+        .args([
+            "-nP",
+            &format!("-iTCP:{port}"),
+            "-sTCP:ESTABLISHED",
+            "-F",
+            "p",
+        ])
+        .output()
+        .unwrap();
+    let pids: Vec<String> = String::from_utf8_lossy(&lsof.stdout)
+        .lines()
+        .filter_map(|line| line.strip_prefix('p'))
+        .filter(|pid| *pid != me)
+        .map(String::from)
+        .collect();
+    assert!(!pids.is_empty(), "no server-side process found");
+    pids
+}
+
+fn signal(signal: &str, pids: &[String]) {
+    for pid in pids {
+        std::process::Command::new("kill")
+            .args([signal, pid])
+            .status()
+            .unwrap();
+    }
 }
 
 async fn connected(key: &str) -> (Ssh, Events) {
@@ -276,27 +309,9 @@ fn a_dropped_connection_is_reestablished_automatically() {
         let (ssh, events) = connected("k_ed25519").await;
 
         // Kill the server-side process of this connection.
-        let me = std::process::id().to_string();
-        let lsof = std::process::Command::new("lsof")
-            .args([
-                "-nP",
-                &format!("-iTCP:{PORT}"),
-                "-sTCP:ESTABLISHED",
-                "-F",
-                "p",
-            ])
-            .output()
-            .unwrap();
-        let pids: Vec<String> = String::from_utf8_lossy(&lsof.stdout)
-            .lines()
-            .filter_map(|line| line.strip_prefix('p'))
-            .filter(|pid| *pid != me)
-            .map(String::from)
-            .collect();
-        assert!(!pids.is_empty(), "no server-side process found");
-        for pid in &pids {
+        for pid in server_side_pids(PORT) {
             std::process::Command::new("kill")
-                .args(["-9", pid])
+                .args(["-9", &pid])
                 .status()
                 .unwrap();
         }
@@ -311,6 +326,66 @@ fn a_dropped_connection_is_reestablished_automatically() {
             .await
             .unwrap();
         assert_eq!(out.stdout, "back\n");
+        ssh.disconnect().await;
+    });
+}
+
+#[test]
+#[ignore = "needs a local sshd; run src-tauri/live-tests.sh"]
+fn shell_creation_fails_when_the_server_refuses_a_pty() {
+    run(async {
+        let (emit, _) = capture();
+        let ssh = Ssh::new(emit);
+        ssh.connect(key_target("k_ed25519", None, PORT_NO_TTY))
+            .await
+            .unwrap();
+
+        let error = ssh
+            .create_shell("t1")
+            .await
+            .expect_err("a refused PTY must be an error");
+        assert!(error.contains("PTY"), "{error}");
+
+        // Nothing was registered for the session, and the connection still works.
+        ssh.write_to_shell("t1", "ignored\n".into());
+        let out = ssh
+            .execute("echo ok", Duration::from_secs(5))
+            .await
+            .unwrap();
+        assert_eq!(out.stdout, "ok\n");
+        ssh.disconnect().await;
+    });
+}
+
+#[test]
+#[ignore = "needs a local sshd; run src-tauri/live-tests.sh"]
+fn a_stalled_server_cannot_hang_streaming_or_shell_creation() {
+    run(async {
+        let (ssh, _) = connected("k_ed25519").await;
+
+        // Freeze the server-side process: the connection stays open but nothing answers.
+        let pids = server_side_pids(PORT);
+        signal("-STOP", &pids);
+        let outcome = tokio::time::timeout(Duration::from_secs(25), async {
+            let started = std::time::Instant::now();
+            let streamed = ssh.execute_streaming("true", Duration::from_secs(2)).await;
+            let streaming_took = started.elapsed();
+            let started = std::time::Instant::now();
+            let shell = ssh.create_shell("stalled").await;
+            (streamed, streaming_took, shell, started.elapsed())
+        })
+        .await;
+        signal("-CONT", &pids);
+
+        let (streamed, streaming_took, shell, shell_took) =
+            outcome.expect("a stalled server hung the call past the safety timeout");
+        assert_eq!(streamed.unwrap(), json!({"code": -1, "timedOut": true}));
+        assert!(
+            streaming_took < Duration::from_secs(5),
+            "{streaming_took:?}"
+        );
+        assert!(shell.is_err());
+        assert!(shell_took < Duration::from_secs(15), "{shell_took:?}");
         ssh.disconnect().await;
     });
 }

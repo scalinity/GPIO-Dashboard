@@ -10,7 +10,7 @@ use std::{
 use russh::{
     client::{self, DisconnectReason, Handle},
     keys::{self, PrivateKeyWithHashAlg, PublicKeyOrCertificate},
-    ChannelMsg, Disconnect,
+    Channel, ChannelMsg, Disconnect,
 };
 use serde_json::{json, Value};
 use tokio::sync::{mpsc, Notify};
@@ -22,6 +22,7 @@ const KEEPALIVE_INTERVAL: Duration = Duration::from_secs(15);
 const KEEPALIVE_MAX: usize = 3;
 const MAX_RECONNECT_DELAY_MS: u64 = 30_000;
 const MAX_RECONNECT_ATTEMPTS: u32 = 10;
+const SHELL_INIT_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Clone)]
 pub enum Auth {
@@ -451,15 +452,46 @@ impl Ssh {
     /// Resolves to `{ code }`, or `{ code: -1, timedOut: true }` on timeout.
     pub async fn execute_streaming(&self, cmd: &str, timeout: Duration) -> Result<Value, String> {
         let handle = self.connected_handle()?;
-        let mut channel = handle.channel_open_session().await.map_err(error_text)?;
-        channel.exec(true, cmd).await.map_err(error_text)?;
 
+        // The stop signal exists before the channel is opened, so Stop works even while
+        // a stalled server has not yet answered.
         let kill = Arc::new(Notify::new());
         self.st().tutorial_kill = Some(kill.clone());
+        let result = self.stream_command(&handle, cmd, &kill, timeout).await;
+        {
+            let mut s = self.st();
+            if s.tutorial_kill
+                .as_ref()
+                .is_some_and(|k| Arc::ptr_eq(k, &kill))
+            {
+                s.tutorial_kill = None;
+            }
+        }
+        result
+    }
 
+    async fn stream_command(
+        &self,
+        handle: &Handle<ClientHandler>,
+        cmd: &str,
+        kill: &Notify,
+        timeout: Duration,
+    ) -> Result<Value, String> {
         let killed = kill.notified();
         let deadline = tokio::time::sleep(timeout);
         tokio::pin!(killed, deadline);
+
+        // Opening the channel is covered by the same deadline and stop signal.
+        let opened = async {
+            let channel = handle.channel_open_session().await.map_err(error_text)?;
+            channel.exec(true, cmd).await.map_err(error_text)?;
+            Ok::<_, String>(channel)
+        };
+        let mut channel = tokio::select! {
+            opened = opened => opened?,
+            _ = &mut killed => return Ok(json!({ "code": null })),
+            _ = &mut deadline => return Ok(json!({ "code": -1, "timedOut": true })),
+        };
 
         let (mut out_text, mut err_text) = (Utf8Stream::default(), Utf8Stream::default());
         let mut code = None;
@@ -486,16 +518,6 @@ impl Ssh {
                     timed_out = true;
                     break;
                 }
-            }
-        }
-
-        {
-            let mut s = self.st();
-            if s.tutorial_kill
-                .as_ref()
-                .is_some_and(|k| Arc::ptr_eq(k, &kill))
-            {
-                s.tutorial_kill = None;
             }
         }
 
@@ -554,12 +576,9 @@ impl Ssh {
 
     pub async fn create_shell(&self, session_id: &str) -> Result<(), String> {
         let handle = self.connected_handle()?;
-        let channel = handle.channel_open_session().await.map_err(error_text)?;
-        channel
-            .request_pty(true, "xterm-256color", 80, 24, 0, 0, &[])
+        let channel = tokio::time::timeout(SHELL_INIT_TIMEOUT, open_shell_channel(&handle))
             .await
-            .map_err(error_text)?;
-        channel.request_shell(true).await.map_err(error_text)?;
+            .map_err(|_| "Timed out opening the terminal".to_string())??;
         let (mut reader, writer) = channel.split();
 
         let (input_tx, mut input_rx) = mpsc::unbounded_channel::<ShellInput>();
@@ -631,6 +650,41 @@ impl Ssh {
 
     pub fn destroy_shell(&self, session_id: &str) {
         self.st().shells.remove(session_id);
+    }
+}
+
+/// Opens a session channel with a PTY and a shell, waiting for the server to accept
+/// both requests.
+async fn open_shell_channel(
+    handle: &Handle<ClientHandler>,
+) -> Result<Channel<client::Msg>, String> {
+    let mut channel = handle.channel_open_session().await.map_err(error_text)?;
+    channel
+        .request_pty(true, "xterm-256color", 80, 24, 0, 0, &[])
+        .await
+        .map_err(error_text)?;
+    await_reply(&mut channel, "PTY").await?;
+    channel.request_shell(true).await.map_err(error_text)?;
+    await_reply(&mut channel, "shell").await?;
+    Ok(channel)
+}
+
+/// Waits for the server's reply to a request sent with `want_reply`; the send itself
+/// only queues the request.
+async fn await_reply(channel: &mut Channel<client::Msg>, what: &str) -> Result<(), String> {
+    loop {
+        match channel.wait().await {
+            Some(ChannelMsg::Success) => return Ok(()),
+            Some(ChannelMsg::Failure) => {
+                return Err(format!("The server refused the {what} request"))
+            }
+            None | Some(ChannelMsg::Eof) | Some(ChannelMsg::Close) => {
+                return Err(format!(
+                    "The connection closed before the server accepted the {what} request"
+                ));
+            }
+            Some(_) => {}
+        }
     }
 }
 
