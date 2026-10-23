@@ -75,10 +75,17 @@ async fn run(emit: Emit, host: String, port: u16, auth_token: Option<String>) {
     }
 }
 
+/// Whether a raw frame is a `gpio_state` message, without parsing it. The agent uses
+/// Python's default JSON separators, so there is a space after the colon; the compact
+/// form is accepted too.
+fn is_gpio_state(raw: &str) -> bool {
+    raw.starts_with(r#"{"type": "gpio_state""#) || raw.starts_with(r#"{"type":"gpio_state""#)
+}
+
 /// Relays an agent message to the renderer. Unchanged `gpio_state` frames are dropped
 /// before parsing, since the agent resends the full pin state on every poll.
 fn forward(emit: &Emit, raw: &str, previous_gpio_state: &mut Option<String>) {
-    if raw.starts_with(r#"{"type":"gpio_state""#) {
+    if is_gpio_state(raw) {
         if previous_gpio_state.as_deref() == Some(raw) {
             return;
         }
@@ -146,12 +153,25 @@ mod tests {
     fn identical_consecutive_gpio_frames_are_dropped() {
         let (emit, events) = capture();
         let mut previous = None;
-        let a = r#"{"type":"gpio_state","pins":{"17":1}}"#;
-        let b = r#"{"type":"gpio_state","pins":{"17":0}}"#;
-        for raw in [a, a, b, b, a] {
-            forward(&emit, raw, &mut previous);
+        // The agent serializes with Python's default separators (a space after the
+        // colon); the compact form is accepted as well.
+        for (a, b) in [
+            (
+                r#"{"type": "gpio_state", "pins": {"17": 1}}"#,
+                r#"{"type": "gpio_state", "pins": {"17": 0}}"#,
+            ),
+            (
+                r#"{"type":"gpio_state","pins":{"17":1}}"#,
+                r#"{"type":"gpio_state","pins":{"17":0}}"#,
+            ),
+        ] {
+            events.lock().unwrap().clear();
+            previous = None;
+            for raw in [a, a, b, b, a] {
+                forward(&emit, raw, &mut previous);
+            }
+            assert_eq!(events.lock().unwrap().len(), 3, "{a}");
         }
-        assert_eq!(events.lock().unwrap().len(), 3);
     }
 
     #[test]
