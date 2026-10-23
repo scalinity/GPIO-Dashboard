@@ -51,6 +51,10 @@ fn is_safe_script_name(name: &str) -> bool {
     })
 }
 
+fn valid_port(port: i64) -> Option<u16> {
+    u16::try_from(port).ok().filter(|p| *p != 0)
+}
+
 // --- SSH ---
 
 #[tauri::command]
@@ -78,7 +82,9 @@ pub async fn ssh_select_key_file(app: AppHandle) -> CommandResult {
 #[serde(rename_all = "camelCase")]
 pub struct ConnectConfig {
     host: String,
-    port: u16,
+    // Wider than a port so an out-of-range value reaches `ssh_connect`, which reports it,
+    // instead of being rejected while the arguments are deserialized.
+    port: i64,
     username: String,
     #[serde(default)]
     password: String,
@@ -90,6 +96,9 @@ pub struct ConnectConfig {
 
 #[tauri::command]
 pub async fn ssh_connect(ssh: State<'_, Ssh>, config: ConnectConfig) -> CommandResult {
+    let Some(port) = valid_port(config.port) else {
+        return Ok(error_json(format!("Invalid port: {}", config.port)));
+    };
     let auth = if config.auth_method == "key" && !config.key_path.is_empty() {
         // Selecting the .pub file means its private key next to it, as OpenSSH does.
         let key_path = config
@@ -110,7 +119,7 @@ pub async fn ssh_connect(ssh: State<'_, Ssh>, config: ConnectConfig) -> CommandR
 
     let target = Target {
         host: config.host,
-        port: config.port,
+        port,
         username: config.username,
         auth,
     };
@@ -370,6 +379,15 @@ pub fn open_external(url: String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ports_must_be_in_range() {
+        assert_eq!(valid_port(22), Some(22));
+        assert_eq!(valid_port(65535), Some(65535));
+        for bad in [0, -1, 65536, i64::MAX, i64::MIN] {
+            assert_eq!(valid_port(bad), None, "{bad}");
+        }
+    }
 
     #[test]
     fn only_plain_python_filenames_are_allowed() {

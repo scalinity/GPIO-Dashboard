@@ -10,7 +10,8 @@
     "build": "tauri build",
     "tauri": "tauri",
     "web:dev": "vite",
-    "web:build": "vite build"
+    "web:build": "vite build",
+    "test": "node --test src/renderer/src/"
   },
   "dependencies": {
     "@codemirror/lang-python": "^6.2.1",
