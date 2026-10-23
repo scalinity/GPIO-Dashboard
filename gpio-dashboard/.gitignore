@@ -5,9 +5,9 @@ out
 .eslintcache
 *.log*
 
-# Build artifacts
-build/icon.icns
-build/icon.ico
+# Rust build output and generated Tauri schemas
+src-tauri/target
+src-tauri/gen
 
 # Environment
 .env

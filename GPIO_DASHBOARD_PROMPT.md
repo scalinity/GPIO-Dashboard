@@ -23,16 +23,16 @@ Paste this entire document into a new Claude Code session in **plan mode**. It c
 
 ## 2. Tech Stack
 
-### Desktop Framework: Electron
-- **Why Electron:** Mature ecosystem, excellent SSH libraries (ssh2, node-ssh), built-in terminal emulation (xterm.js), proven for developer tools. The ~200MB size is acceptable for a learning tool.
+### Desktop Framework: Tauri 2 (Rust backend + OS webview)
+- **Why Tauri:** A small native app (no bundled browser engine), a Rust backend with solid async SSH (`russh`), OS keychain access for secrets, and a titleless window. The React UI, including the xterm.js terminal, runs unchanged in the system webview.
 - **Frontend:** React 18+ with Vite (for fast HMR during development)
 - **Styling:** Tailwind CSS 3+ (dark theme, utility-first)
 - **State Management:** Zustand (lightweight, minimal boilerplate)
 - **Icons:** Lucide React
 - **Code Editor:** CodeMirror 6 (for viewing/editing tutorial Python code)
 - **Terminal:** xterm.js (for embedded SSH terminal)
-- **SSH:** ssh2 (Node.js native SSH2 client, runs in Electron main process)
-- **Packaging:** electron-builder (for creating .dmg/.app)
+- **SSH:** `russh` (pure-Rust async SSH client, runs in the Tauri Rust backend)
+- **Packaging:** `tauri build` (for creating .app/.dmg)
 
 ### Pi-Side Agent: Python
 - **GPIO Library:** `gpiod` (libgpiod Python bindings) — this is CRITICAL because RPi.GPIO does NOT work on Raspberry Pi 5. The Pi 5 uses the RP1 chip and requires gpiod with `/dev/gpiochip4`.
@@ -48,18 +48,18 @@ Paste this entire document into a new Claude Code session in **plan mode**. It c
 ┌─────────────────────────────────────────────────────┐
 │                 DESKTOP APP (Mac)                     │
 │  ┌───────────────────────────────────────────────┐   │
-│  │           Electron Main Process                │   │
+│  │             Tauri Rust Backend                 │   │
 │  │  ┌─────────────┐  ┌──────────────────────┐    │   │
 │  │  │ SSH Manager  │  │ WebSocket Client     │    │   │
-│  │  │ (ssh2)       │  │ (connects to Pi agent)│   │   │
+│  │  │ (russh)      │  │ (connects to Pi agent)│   │   │
 │  │  │ - Connect    │  │ - GPIO state stream   │   │   │
 │  │  │ - Execute    │  │ - System metrics      │   │   │
 │  │  │ - SCP files  │  │ - 10Hz update rate    │   │   │
 │  │  └──────┬───────┘  └──────────┬───────────┘   │   │
 │  └─────────┼─────────────────────┼────────────────┘  │
-│            │ IPC (contextBridge) │                     │
+│            │ IPC (invoke/events) │                     │
 │  ┌─────────┼─────────────────────┼────────────────┐  │
-│  │         ▼   Electron Renderer Process          │  │
+│  │         ▼   Webview Renderer Process           │  │
 │  │  ┌──────────────────────────────────────────┐  │  │
 │  │  │              React App                    │  │  │
 │  │  │  ┌────────┐ ┌────────┐ ┌──────────────┐  │  │  │
@@ -101,15 +101,15 @@ Paste this entire document into a new Claude Code session in **plan mode**. It c
 ### Data Flow for Live GPIO Monitoring
 1. Pi Agent reads all GPIO pin states via `gpiod` at 10Hz
 2. Agent sends JSON state updates over WebSocket to desktop app
-3. Electron main process receives WebSocket data, forwards via IPC to renderer
+3. The Rust backend receives the WebSocket data and forwards it to the renderer as Tauri events
 4. React components update the GPIO pinout diagram and breadboard view in real-time
 5. Pins that change state get a brief animation/pulse effect
 
 ### Data Flow for Tutorial Code Execution
 1. User selects a tutorial and clicks "Run"
-2. Electron main process SCPs the Python file to the Pi (`/tmp/gpio_dashboard/`)
-3. Main process sends SSH exec command: `python3 /tmp/gpio_dashboard/<script>.py`
-4. stdout/stderr streams back via SSH channel → IPC → React terminal component
+2. The Rust backend uploads the Python file to the Pi (`/tmp/gpio_dashboard/`)
+3. The backend sends an SSH exec command: `python3 /tmp/gpio_dashboard/<script>.py`
+4. stdout/stderr streams back via SSH channel → Tauri event → React terminal component
 5. User clicks "Stop" → SSH sends SIGINT to the process
 6. GPIO state changes from the running code are visible in real-time on the breadboard view
 
@@ -120,16 +120,21 @@ Paste this entire document into a new Claude Code session in **plan mode**. It c
 ```
 gpio-dashboard/
 ├── package.json
-├── electron-builder.yml
 ├── vite.config.js
 ├── tailwind.config.js
 ├── postcss.config.js
-├── electron/
-│   ├── main.js                  # Electron main process entry
-│   ├── preload.js               # Context bridge (IPC API)
-│   ├── ssh-manager.js           # SSH connection, exec, SCP
-│   ├── ws-client.js             # WebSocket client to Pi agent
-│   └── pi-agent-deployer.js     # Deploy agent to Pi via SCP
+├── src-tauri/
+│   ├── Cargo.toml
+│   ├── tauri.conf.json          # Window, CSP, bundle config
+│   ├── capabilities/default.json
+│   └── src/
+│       ├── main.rs              # App setup and shutdown
+│       ├── commands.rs          # Commands called by the renderer
+│       ├── ssh.rs               # SSH connection, exec, shell, upload
+│       ├── ws.rs                # WebSocket client to Pi agent
+│       ├── agent.rs             # Deploy agent to Pi
+│       ├── settings.rs          # JSON settings + OS keychain
+│       └── ai.rs                # OpenRouter streaming
 ├── pi-agent/                    # Deployed to the Pi
 │   ├── agent.py                 # Main agent entry point
 │   ├── gpio_monitor.py          # GPIO state monitoring (gpiod)
@@ -138,6 +143,7 @@ gpio-dashboard/
 │   └── install.sh               # Agent installation script
 ├── src/                         # React frontend
 │   ├── main.jsx                 # React entry
+│   ├── api.js                   # window.api bridge over Tauri invoke/listen
 │   ├── index.css                # Tailwind directives + custom styles
 │   ├── App.jsx                  # Root component with navigation
 │   ├── store/
@@ -184,10 +190,10 @@ gpio-dashboard/
 - Connection status: disconnected (red dot), connecting (yellow pulse), connected (green dot)
 - After first successful connection, show "Install GPIO Agent" button
 - Agent status indicator: not installed, installing, running, stopped
-- Save connection settings locally (electron-store) so user doesn't re-enter every time
+- Save connection settings locally (JSON settings file, secrets in the OS keychain) so user doesn't re-enter every time
 
-**Backend (main process):**
-- Use `ssh2` library to establish SSH connection
+**Backend (Rust):**
+- Use the `russh` crate to establish SSH connection
 - Test connection before marking as connected
 - Deploy pi-agent via SCP to `/home/<user>/gpio-dashboard-agent/`
 - Run `install.sh` which: installs Python deps (gpiod, websockets), creates systemd service
@@ -895,8 +901,8 @@ if __name__ == '__main__':
 ## 10. Development Phases
 
 ### Phase 1: Project Scaffolding + GPIO Pinout
-1. Initialize Electron + Vite + React + Tailwind project
-2. Configure Electron main/renderer process with IPC bridge
+1. Initialize Tauri + Vite + React + Tailwind project
+2. Configure the Tauri window and the renderer ↔ backend bridge (`invoke` commands and events)
 3. Build the Navbar with tab navigation
 4. Create `pins.js` data file with all 40 pins
 5. Build the interactive GPIO Header component (the 2x20 pin grid)
@@ -913,15 +919,15 @@ if __name__ == '__main__':
 
 ### Phase 3: SSH Connection + Pi Agent
 1. Build the Connection Manager page (hostname, user, password inputs)
-2. Implement SSH connection in the Electron main process using ssh2
-3. Build the preload.js IPC bridge for SSH operations
+2. Implement SSH connection in the Rust backend using `russh`
+3. Build the `window.api` bridge for SSH operations
 4. Write the Pi-side agent (Python: gpio_monitor.py, agent.py)
 5. Implement SCP file transfer for deploying the agent
 6. Implement agent installation (install.sh) and startup
-7. Store connection settings with electron-store
+7. Store connection settings in a JSON file and secrets in the OS keychain
 
 ### Phase 4: Live GPIO Monitoring
-1. Implement WebSocket client in Electron main process
+1. Implement WebSocket client in the Rust backend
 2. Connect to Pi agent's WebSocket server
 3. Create Zustand store for live GPIO state
 4. Wire live state data to the GPIO Header component (live overlay)
@@ -946,7 +952,7 @@ if __name__ == '__main__':
 3. Add keyboard shortcut toggle
 4. Polish all animations and transitions
 5. Add onboarding/welcome screen for first-time users
-6. Package with electron-builder for macOS .dmg
+6. Package with `tauri build` for macOS .app/.dmg
 7. Test end-to-end with real Pi 5 hardware
 
 ---
@@ -966,9 +972,9 @@ if __name__ == '__main__':
 - `gpiozero` works on Pi 5 when configured with the lgpio backend: `export GPIOZERO_PIN_FACTORY=lgpio`
 - WiringPi is deprecated and has limited Pi 5 support — the tutorials reference it for C code but we focus on Python
 
-### Electron IPC Security
-- Use `contextBridge.exposeInMainWorld()` in preload.js — never expose `ipcRenderer` directly
-- All SSH operations happen in the main process, never in the renderer
+### Tauri IPC Security
+- Expose only explicit `#[tauri::command]` functions and a minimal capability set — the renderer gets no filesystem or shell access of its own
+- All SSH operations happen in the Rust backend, never in the renderer
 - Sanitize all data received from the Pi before rendering
 
 ### SSH Connection Best Practices
@@ -985,8 +991,8 @@ if __name__ == '__main__':
 - **Kit Documentation:** https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/index.html
 - **Raspberry Pi 5 GPIO Docs:** https://www.raspberrypi.com/documentation/computers/raspberry-pi.html
 - **gpiod Python:** https://pypi.org/project/gpiod/
-- **Electron:** https://www.electronjs.org/docs
-- **ssh2 (Node.js):** https://github.com/mscdex/ssh2
+- **Tauri:** https://v2.tauri.app/
+- **russh:** https://docs.rs/russh
 - **xterm.js:** https://xtermjs.org/
 - **CodeMirror 6:** https://codemirror.net/
 - **Zustand:** https://github.com/pmndrs/zustand

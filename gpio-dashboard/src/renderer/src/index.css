@@ -16,14 +16,6 @@
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
-  .titlebar-drag {
-    -webkit-app-region: drag;
-  }
-  .titlebar-drag button,
-  .titlebar-drag a {
-    -webkit-app-region: no-drag;
-  }
-
   ::-webkit-scrollbar {
     @apply w-1.5;
   }

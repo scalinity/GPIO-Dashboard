@@ -86,7 +86,7 @@ function App() {
     return () => cleanups.forEach((fn) => typeof fn === 'function' && fn())
   }, [])
 
-  // Prevent Electron's built-in ctrl+wheel zoom so pinch gestures reach our handlers
+  // Prevent the webview's built-in ctrl+wheel zoom so pinch gestures reach our handlers
   useEffect(() => {
     const prevent = (e) => {
       if (e.ctrlKey) e.preventDefault()

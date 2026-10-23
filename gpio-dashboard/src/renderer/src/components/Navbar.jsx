@@ -15,7 +15,7 @@ export default function Navbar() {
   const setActiveTab = useUiStore((s) => s.setActiveTab)
 
   return (
-    <nav className="titlebar-drag flex items-center bg-surface-900/80 backdrop-blur-xl border-b border-white/[0.04] px-4 h-12 shrink-0">
+    <nav data-tauri-drag-region="deep" className="flex items-center bg-surface-900/80 backdrop-blur-xl border-b border-white/[0.04] pl-20 pr-4 h-12 shrink-0">
       {/* Left: App title */}
       <div className="flex items-center gap-2 mr-4">
         <Cpu className="w-5 h-5 text-accent-light" />

@@ -2,7 +2,8 @@
 
 ### A Desktop IDE for Raspberry Pi GPIO — Visual Wiring, Live Monitoring, and AI-Assisted Tutorials
 
-![Electron 39](https://img.shields.io/badge/Electron-39-47848F?logo=electron&logoColor=white)
+![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-stable-000000?logo=rust&logoColor=white)
 ![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Vite 7](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white)
 ![Tailwind 3](https://img.shields.io/badge/Tailwind-3-06B6D4?logo=tailwindcss&logoColor=white)
@@ -11,7 +12,7 @@
 ![Raspberry Pi 5](https://img.shields.io/badge/Raspberry%20Pi-5-C51A4A?logo=raspberrypi&logoColor=white)
 ![OpenRouter AI](https://img.shields.io/badge/AI-OpenRouter-8A2BE2)
 
-**GPIO Dashboard** is a production-grade cross-platform desktop application (macOS, Windows, Linux) that transforms a developer laptop into a fully instrumented IDE for Raspberry Pi hardware development. It fuses an Electron + React control plane with a self-deploying Python agent on the Pi to deliver **10 Hz live GPIO telemetry**, a **photo-realistic breadboard** with animated wiring overlays, an **interactive 40-pin pinout explorer**, an **embedded xterm.js SSH terminal**, an **in-app Python editor** with remote execution, and a **multi-model AI coding assistant** grounded in per-tutorial hardware context. The system ships with an **18-project SunFounder Basic Starter Kit curriculum** — each project carrying theory, wiring diagram, runnable code, and AI-generated variants — designed to take a learner from "blink an LED" to "read a temperature sensor over I2C" without leaving the window.
+**GPIO Dashboard** is a production-grade cross-platform desktop application (macOS, Windows, Linux) that transforms a developer laptop into a fully instrumented IDE for Raspberry Pi hardware development. It fuses a Tauri (Rust) + React control plane with a self-deploying Python agent on the Pi to deliver **10 Hz live GPIO telemetry**, a **photo-realistic breadboard** with animated wiring overlays, an **interactive 40-pin pinout explorer**, an **embedded xterm.js SSH terminal**, an **in-app Python editor** with remote execution, and a **multi-model AI coding assistant** grounded in per-tutorial hardware context. The system ships with an **18-project SunFounder Basic Starter Kit curriculum** — each project carrying theory, wiring diagram, runnable code, and AI-generated variants — designed to take a learner from "blink an LED" to "read a temperature sensor over I2C" without leaving the window.
 
 ---
 
@@ -50,7 +51,7 @@ This is the project I wanted when I was starting with microcontrollers — an ho
 
 A Python agent runs on the Pi and streams the state of all 28 BCM GPIO pins to the desktop app over WebSocket ten times a second. State is read via `pinctrl` — a hardware register read that **does not claim the pin**, so monitoring never conflicts with running scripts, `gpiod` consumers, or kernel drivers. When `gpiod` is available, line state is enriched with consumer name, friendly line name, and `used` flag so you can see *who* owns a pin, not just what voltage it's at.
 
-- **Fast path deduplication** in the main process skips `JSON.parse` on unchanged payloads (the hottest code path in the system)
+- **Fast path deduplication** in the Rust backend skips `JSON.parse` on unchanged payloads (the hottest code path in the system)
 - **Per-pin change tracking** in the Zustand store flashes only mutated pins, avoiding whole-table repaints
 - **Pin subscription filtering** — clients can request state for a subset of pins to reduce bandwidth during focused work
 - **Animated change highlight** with a 200ms decay visually reinforces every edge without being distracting
@@ -65,9 +66,9 @@ An SVG breadboard component renders the classic 63-row, 10-column layout with po
 
 ### Embedded SSH Terminal & Python Editor
 
-- **xterm.js terminal** with WebLinks + FitAddon running against a full PTY on the Pi (`xterm-256color`), resizable via `IPC → shell.setWindow`, and keyboard-toggleable via <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>`</kbd>
+- **xterm.js terminal** with WebLinks + FitAddon running against a full PTY on the Pi (`xterm-256color`), resizable via `IPC → window_change`, and keyboard-toggleable via <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>`</kbd>
 - **CodeMirror 6 editor** with Python language support, One-Dark theme, multi-cursor, and direct remote execution
-- **Streaming remote execution**: code is SCP'd to `/tmp/gpio_dashboard/` via an SFTP stream (no temp files on disk), launched via `python3 -u` with line-buffered stdout/stderr, and output is piped back to the renderer in real time
+- **Streaming remote execution**: code is uploaded to `/tmp/gpio_dashboard/` by streaming it into `cat` over an SSH exec channel (no temp files on disk), launched via `python3 -u` with line-buffered stdout/stderr, and output is piped back to the renderer in real time
 - **Graceful process termination**: per-tutorial `pkill -f` scoped to the uploaded filename, followed by a safe `GPIO.cleanup()` kicked from a one-liner to reset any pins the script left in OUTPUT mode
 
 ### Multi-Session Shell Management
@@ -103,7 +104,7 @@ Each tutorial is a self-contained specification containing:
 - **Difficulty** (Beginner / Intermediate / Advanced) with color-coded pills
 - **Tips** — gotchas the student will hit if they skim
 
-Completion state is persisted to `electron-store` so the library remembers what you've finished across launches.
+Completion state is persisted to the app's JSON settings file so the library remembers what you've finished across launches.
 
 ---
 
@@ -137,18 +138,18 @@ Thinking level (`off` / `low` / `medium` / `high`) is passed through via OpenRou
 
 ### Streaming Response Pipeline
 
-- Server-Sent Events (SSE) stream token-by-token over `fetch` with `ReadableStream`
-- In-flight `AbortController` is cancelled on every new request (no overlapping completions)
-- Per-chunk deltas are forwarded to the renderer as `ai:chunk` IPC events and appended to the editor buffer live
-- Trailing decoder flush ensures no partial UTF-8 multi-byte sequences are dropped
+- Server-Sent Events (SSE) stream token-by-token through `reqwest` in the Rust backend
+- The in-flight request is cancelled on every new request (no overlapping completions)
+- Per-chunk deltas are forwarded to the renderer as `ai:chunk` events and appended to the editor buffer live
+- Lines are split on raw bytes, so a multi-byte UTF-8 character cut across network chunks is decoded whole
 
 ### Hardened Against Abuse
 
 - **Model allowlist** — only whitelisted IDs are forwarded to OpenRouter; unknown models silently fall back to the default
 - **Thinking level allowlist** — enum-validated before hitting the API
 - **Prompt length cap** — 4000 character hard limit to prevent token stuffing
-- **API key encryption** — stored via Electron's `safeStorage` (OS-level keychain-backed) and never returned to the renderer process
-- **No key in renderer** — all outbound HTTPS from the main process; renderer only sees the streamed content
+- **API key in the OS keychain** — stored through the `keyring` crate (macOS Keychain) and never written to the settings file or returned to the renderer
+- **No key in renderer** — all outbound HTTPS from the Rust backend; renderer only sees the streamed content
 
 ---
 
@@ -156,10 +157,10 @@ Thinking level (`off` / `low` / `medium` / `high`) is passed through via OpenRou
 
 ```
    ┌────────────────────────────────────────────────┐
-   │                Electron Desktop App             │
+   │                Tauri Desktop App                │
    │                                                 │
    │  ┌─────────────────────────────────────────┐   │
-   │  │        Renderer Process (React 19)       │   │
+   │  │        Webview Renderer (React 19)       │   │
    │  │                                          │   │
    │  │  Pages:     Connect · Pinout ·           │   │
    │  │             Breadboard · Tutorials ·     │   │
@@ -169,20 +170,20 @@ Thinking level (`off` / `low` / `medium` / `high`) is passed through via OpenRou
    │  │  Editors:   CodeMirror 6 · xterm.js      │   │
    │  │  Canvas:    SVG breadboard + overlays    │   │
    │  └───────────────────┬─────────────────────┘   │
-   │                      │ contextBridge (api.*)     │
+   │                      │ window.api (api.js)       │
    │  ┌───────────────────▼─────────────────────┐   │
-   │  │     Preload (scoped, sandboxed)          │   │
+   │  │   Bridge (invoke / listen shim)          │   │
    │  │   ssh · gpio · terminal · agent ·        │   │
    │  │   settings · ai                          │   │
    │  └───────────────────┬─────────────────────┘   │
-   │                      │ ipcRenderer.invoke/on     │
+   │                      │ Tauri IPC (commands.rs)   │
    │  ┌───────────────────▼─────────────────────┐   │
-   │  │          Main Process (Node.js)          │   │
+   │  │           Rust Backend (tokio)           │   │
    │  │                                          │   │
-   │  │  SSHManager   (ssh2: connect/exec/shell) │   │
-   │  │  WSClient     (ws: GPIO stream / auth)    │   │
-   │  │  PiAgentDeployer (upload/install/start)  │   │
-   │  │  electron-store + safeStorage            │   │
+   │  │  SshManager  (russh: connect/exec/shell) │   │
+   │  │  WsClient     (tungstenite: GPIO feed)   │   │
+   │  │  agent        (upload/install/start)     │   │
+   │  │  settings.json + OS keychain             │   │
    │  │  OpenRouter SSE proxy                     │   │
    │  └──────┬───────────────────┬──────────────┘   │
    └─────────┼───────────────────┼──────────────────┘
@@ -211,9 +212,11 @@ Thinking level (`off` / `low` / `medium` / `high`) is passed through via OpenRou
    └─────────────────────────────────────────────────┘
 ```
 
-### Desktop App (Electron + React)
+### Desktop App (Tauri + React)
 
-Strict three-tier Electron architecture with **`contextIsolation: true`**, **`sandbox: false`** (to enable `ssh2` native module access in main), and no direct `nodeIntegration` in the renderer. All privileged operations — file I/O, SSH, WebSocket, OpenRouter API calls, keychain access — execute in the main process; the renderer talks to them only through an explicit, namespaced `contextBridge` API (`window.api.ssh`, `window.api.gpio`, `window.api.terminal`, `window.api.agent`, `window.api.settings`, `window.api.ai`).
+A two-tier architecture: the React UI runs in the operating system's own webview (WKWebView on macOS), and a Rust backend owns everything privileged. File I/O, SSH, WebSocket, OpenRouter API calls, and keychain access all execute in Rust; the renderer reaches them only through the explicit, namespaced `window.api` object (`window.api.ssh`, `window.api.gpio`, `window.api.terminal`, `window.api.agent`, `window.api.settings`, `window.api.ai`). `src/renderer/src/api.js` implements that object on top of Tauri's `invoke` (commands in `src-tauri/src/commands.rs`) and `listen` (events), so the React components never import Tauri directly. Because the webview is the OS's, the app ships without a bundled browser engine.
+
+The window is titleless: on macOS the title bar is an overlay, so the traffic-light buttons sit on top of the app's own navbar, which doubles as the drag region (`data-tauri-drag-region`).
 
 ### Control Plane (SSH) vs. Data Plane (WebSocket)
 
@@ -289,11 +292,11 @@ Defense-in-depth for a tool that connects to a remote machine and executes arbit
 
 ### Credential Protection
 
-- **OS-native encryption** via Electron `safeStorage` for both SSH passwords and the OpenRouter API key — backed by macOS Keychain, Windows DPAPI, or `libsecret` on Linux
-- **Renderer never sees secrets** — `settings:getAll` strips `connection.password` and `ai.apiKey` before returning
-- **Keys stay in main process** — renderer only sees `hasApiKey: boolean`, never the key itself
+- **OS keychain storage** via the `keyring` crate for both the SSH password and the OpenRouter API key — macOS Keychain, Windows Credential Manager, or Secret Service on Linux. Secrets are never written to the settings file
+- **Renderer never sees secrets in bulk** — `settings_get_all` returns only the plain settings file, which contains neither `connection.password` nor `ai.apiKey`
+- **Key stays in the Rust backend** — the renderer only sees `hasApiKey: boolean`, never the key itself
 - **`.pub` handling** — if the user selects `id_rsa.pub` as the SSH key, the app automatically reads the private key alongside it, matching OpenSSH's behavior
-- **Dedicated `settings:setPassword` / `settings:setApiKey` channels** — writes go through `safeStorage.encryptString()` before hitting disk
+- **Dedicated `settings_set_password` / `settings_set_api_key` commands** — writes go straight to the keychain; an empty password removes the entry
 
 ### Input Validation & Allowlisting
 
@@ -309,16 +312,16 @@ Defense-in-depth for a tool that connects to a remote machine and executes arbit
 
 ### Process Isolation
 
-- **Context isolation** enabled; **no nodeIntegration** in renderer
-- **Content Security Policy** in production: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'`
-- **Window open handler** forces all `target=_blank` / `window.open` URLs through `shell.openExternal` — no in-window navigation away from the app
-- **Built-in pinch-zoom disabled** so wheel events reach the breadboard's pan/zoom handler, preventing silent DOM scaling surprises
+- **No Node.js in the renderer** — the webview can only call the commands the app registers, and the window's capabilities are limited to dragging
+- **Content Security Policy** set in `tauri.conf.json`: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src ipc: http://ipc.localhost`
+- **External links** — clicks on `http(s)` anchors and `window.open` calls are routed to the system browser through the `open_external` command (http/https only), so the app never navigates away from itself
+- **Webview zoom disabled** (Ctrl+wheel is prevented in the renderer) so wheel events reach the breadboard's pan/zoom handler, preventing silent DOM scaling surprises
 
 ### Automatic Reconnection with Safety Limits
 
 - **SSH** — exponential backoff (1s → 2s → … → 30s cap), max 10 attempts, **auth errors suppress reconnect** (otherwise brute-force amplification)
 - **WebSocket** — same backoff schedule, same 10-attempt ceiling
-- **Graceful teardown** on `window-all-closed` — stops the remote agent, drains shells, then disconnects SSH
+- **Graceful teardown** on quit — stops the remote agent, closes shells, then disconnects SSH (bounded to 5 seconds if the Pi is unreachable)
 
 ### GPIO Cleanup Guardrail
 
@@ -336,9 +339,9 @@ After any tutorial exits — whether via normal completion, Ctrl+C, or kill — 
 - **Streaming code execution with process-group kill** — scripts respond to Ctrl+C semantics (so user `finally:` blocks that call `GPIO.cleanup()` actually run) instead of being SIGKILL'd
 - **Pin subscription protocol** — clients can send `{"type":"subscribe","pins":[17,18,22]}` to get filtered state updates, reducing bandwidth when focused on a small set of pins
 - **Agent log auth-token scrubbing** — token is scraped once on startup, then `sed -i '/AUTH_TOKEN=/d'` removes the line from the log file so subsequent `head agent.log` calls can't recover it
-- **SCP via SFTP stream** — file uploads go through `sftp.createWriteStream()` so binary buffers stream directly without temp files on either host
+- **Uploads over an exec channel** — file contents are piped into `cat > file` on the Pi, so binary buffers stream directly without temp files on either host and without needing the SFTP subsystem
 - **Multi-session shell muxing** — one SSH client, many concurrent PTY streams, each with independent resize and lifecycle
-- **Abortable AI streaming** — every new prompt cancels the previous `AbortController`, guaranteeing exactly one in-flight completion per tutorial
+- **Abortable AI streaming** — every new prompt cancels the previous request, guaranteeing exactly one in-flight completion per tutorial
 
 ---
 
@@ -346,20 +349,21 @@ After any tutorial exits — whether via normal completion, Ctrl+C, or kill — 
 
 | Layer                  | Technology                                                                         |
 | ---------------------- | ---------------------------------------------------------------------------------- |
-| **Desktop Shell**      | Electron 39 (`contextIsolation`, `safeStorage`, `dialog`, `shell.openExternal`)    |
-| **Renderer**           | React 19, Vite 7 (electron-vite), Tailwind CSS 3                                   |
+| **Desktop Shell**      | Tauri 2 (Rust backend, OS webview, overlay title bar, native file dialog)          |
+| **Renderer**           | React 19, Vite 7, Tailwind CSS 3                                                   |
 | **State**              | Zustand 5 with per-pin selectors                                                   |
 | **Code Editor**        | CodeMirror 6 (`@codemirror/lang-python`, `@codemirror/theme-one-dark`)             |
 | **Terminal Emulator**  | xterm.js 6 with FitAddon and WebLinksAddon                                         |
 | **Iconography**        | lucide-react                                                                       |
 | **Typography**         | Inter Variable (self-hosted) + JetBrains Mono                                      |
-| **SSH**                | `ssh2` (pure-JS SSH2 client with SFTP, exec, shell, keepalive)                     |
-| **WebSocket (client)** | `ws` 8.x                                                                           |
-| **Persistence**        | `electron-store` with JSON-schema validation + `safeStorage` encryption layer      |
-| **Build / Package**    | `electron-builder` (dmg, NSIS, AppImage, snap, deb)                                |
+| **SSH**                | `russh` (pure-Rust async SSH client: exec, PTY shell, keepalive)                   |
+| **WebSocket (client)** | `tokio-tungstenite`                                                                |
+| **HTTP (AI)**          | `reqwest` with streaming responses                                                 |
+| **Persistence**        | JSON settings file + OS keychain (`keyring`) for secrets                           |
+| **Build / Package**    | `tauri build` (`.app` + `.dmg` on macOS; the host platform's bundle types elsewhere) |
 | **Pi Agent**           | Python 3, `asyncio`, `websockets` 12, `gpiod` 2, `pinctrl` (raspi-utils)           |
 | **AI Provider**        | OpenRouter (Claude, GPT, Gemini, Grok, MiniMax) with SSE streaming                 |
-| **Linting / Format**   | ESLint 9 (flat config, @electron-toolkit presets), Prettier 3                      |
+| **Linting / Format**   | ESLint 9 (flat config), Prettier 3                                                 |
 
 ---
 
@@ -367,14 +371,17 @@ After any tutorial exits — whether via normal completion, Ctrl+C, or kill — 
 
 | Metric                              | Count                                     |
 | ----------------------------------- | ----------------------------------------- |
-| JS / JSX source files (app)         | ~40                                       |
-| JS / JSX lines of code              | ~6,900                                    |
+| JS / JSX source files (app)         | ~30                                       |
+| JS / JSX lines of code              | ~5,700                                    |
+| Rust source files (backend)         | 7                                         |
+| Rust lines of code                  | ~1,600                                    |
 | Python source files (agent)         | 4                                         |
 | Python lines of code                | ~565                                      |
 | React components                    | 17                                        |
 | Zustand stores                      | 4                                         |
-| IPC channels                        | 30+                                       |
-| `contextBridge` API namespaces      | 6 (ssh · gpio · terminal · agent · settings · ai) |
+| Tauri commands                      | 28                                        |
+| Backend → renderer event channels   | 10                                        |
+| `window.api` namespaces             | 6 (ssh · gpio · terminal · agent · settings · ai) |
 | Tutorials shipped                   | 18                                        |
 | Tutorial categories                 | 6                                         |
 | GPIO pins monitored                 | 28 (BCM 0-27)                             |
@@ -384,7 +391,7 @@ After any tutorial exits — whether via normal completion, Ctrl+C, or kill — 
 | System info rate                    | 0.2 Hz (every 5s)                         |
 | OpenRouter models supported         | 5                                         |
 | AI reasoning levels                 | 4 (off · low · medium · high)             |
-| Packaging targets                   | 5 (dmg · NSIS · AppImage · snap · deb)    |
+| Packaging                           | `tauri build` bundles for the host platform |
 
 ---
 
@@ -392,7 +399,7 @@ After any tutorial exits — whether via normal completion, Ctrl+C, or kill — 
 
 ### Prerequisites
 
-- **Desktop:** Node.js 20+, npm 10+ (or bun/pnpm — a lockfile is included for npm)
+- **Desktop:** Node.js 20+, npm 10+, and the Rust stable toolchain ([rustup](https://rustup.rs)). On macOS, install the Xcode Command Line Tools; other platforms need the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
 - **Raspberry Pi:** Pi 4 or Pi 5 running Debian/Raspberry Pi OS with SSH enabled
 - **OpenRouter API key** (optional — only needed for the AI panel)
 
@@ -408,7 +415,9 @@ npm install
 npm run dev
 ```
 
-Launches Vite's HMR for the renderer, hot-reloads the main process on changes, and opens the Electron window.
+Starts the Vite dev server (HMR for the renderer), compiles the Rust backend, and opens the app window. The first build compiles the Rust dependencies, which takes a few minutes; later runs are incremental and rebuild the backend automatically when `src-tauri/` changes.
+
+The Pi agent files in `pi-agent/` are compiled into the app (see `src-tauri/src/agent.rs`), so restart `npm run dev` after editing them. `npm run web:dev` serves just the renderer for previewing the UI in a browser, without the backend.
 
 ### First-Run Flow
 
@@ -424,17 +433,14 @@ Launches Vite's HMR for the renderer, hot-reloads the main process on changes, a
 ## Building
 
 ```bash
-# macOS (dmg + unsigned .app)
-npm run build:mac
+# Bundles for the host platform (macOS: .app + .dmg)
+npm run build
 
-# Windows (NSIS installer)
-npm run build:win
-
-# Linux (AppImage + .deb + .snap)
-npm run build:linux
+# Just the .app, skipping the .dmg
+npm run build -- --bundles app
 ```
 
-Outputs land in `dist/` per the `electron-builder.yml` configuration.
+Outputs land in `src-tauri/target/release/bundle/`. On macOS the bundle is ad-hoc signed. Keychain access is tied to the app's code signature, so macOS may ask you to re-approve access to the saved SSH password and API key after a rebuild. Set `APPLE_SIGNING_IDENTITY` to a certificate in your keychain (for example an Apple Development identity) before building to keep a stable identity across rebuilds.
 
 ---
 

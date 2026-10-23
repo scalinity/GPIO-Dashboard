@@ -1,0 +1,32 @@
+[package]
+name = "gpio-dashboard"
+version = "1.0.0"
+description = "Raspberry Pi GPIO dashboard"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+russh = { version = "0.64", default-features = false, features = ["flate2", "ring", "rsa"] }
+tokio = { version = "1", features = ["macros", "sync", "time"] }
+tokio-tungstenite = "0.30"
+futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
+reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
+keyring = { version = "4.2", default-features = false, features = ["v1"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+open = "5"
+
+[features]
+# Enabled by the Tauri CLI for production builds (serves the bundled frontend instead of devUrl).
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
