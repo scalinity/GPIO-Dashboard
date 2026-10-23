@@ -4,8 +4,12 @@
 mod agent;
 mod ai;
 mod commands;
+#[cfg(test)]
+mod live_tests;
 mod settings;
 mod ssh;
+#[cfg(test)]
+mod test_support;
 mod ws;
 
 use std::{

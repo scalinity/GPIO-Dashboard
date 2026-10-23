@@ -265,3 +265,140 @@ Rules:
         difficulty = text_or(get("difficulty"), "N/A"),
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    use super::*;
+    use crate::test_support::{capture, run};
+
+    /// Serves one canned HTTP response, one write per entry, then returns the port.
+    async fn serve(parts: Vec<Vec<u8>>) -> u16 {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tauri::async_runtime::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = vec![0u8; 8192];
+            let _ = socket.read(&mut request).await;
+            for part in parts {
+                socket.write_all(&part).await.unwrap();
+                socket.flush().await.unwrap();
+                tokio::time::sleep(Duration::from_millis(40)).await;
+            }
+        });
+        port
+    }
+
+    fn chunk(data: &[u8]) -> Vec<u8> {
+        let mut out = format!("{:x}\r\n", data.len()).into_bytes();
+        out.extend_from_slice(data);
+        out.extend_from_slice(b"\r\n");
+        out
+    }
+
+    #[test]
+    fn streams_content_across_split_lines_and_split_characters() {
+        run(async {
+            let first =
+                "data: {\"choices\":[{\"delta\":{\"content\":\"print('h\"}}]}\n\n".as_bytes();
+            let second = "data: {\"choices\":[{\"delta\":{\"content\":\"é✓')\"}}]}\n\n".as_bytes();
+            let cut = second.iter().position(|&b| b == 0xC3).unwrap() + 1; // inside 'é'
+            let port = serve(vec![
+                b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n".to_vec(),
+                chunk(&first[..20]),
+                chunk(&first[20..]),
+                chunk(&second[..cut]),
+                chunk(&second[cut..]),
+                chunk(b": comment\n\ndata: {\"choices\":[{\"delta\":{}}]}\n\ndata: not-json\n\ndata: [DONE]\n\n"),
+                b"0\r\n\r\n".to_vec(),
+            ])
+            .await;
+
+            let (emit, events) = capture();
+            let url = format!("http://127.0.0.1:{port}/v1");
+            stream(&reqwest::Client::new(), &emit, &url, "key", &json!({}))
+                .await
+                .unwrap();
+            let text: String = events
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|(event, _)| event == "ai:chunk")
+                .map(|(_, payload)| payload["content"].as_str().unwrap().to_string())
+                .collect();
+            assert_eq!(text, "print('hé✓')");
+        });
+    }
+
+    #[test]
+    fn reports_http_errors_with_status_and_body() {
+        run(async {
+            let body = b"{\"error\":\"bad key\"}";
+            let port = serve(vec![
+                format!(
+                    "HTTP/1.1 401 Unauthorized\r\nContent-Length: {}\r\n\r\n",
+                    body.len()
+                )
+                .into_bytes(),
+                body.to_vec(),
+            ])
+            .await;
+            let (emit, _) = capture();
+            let url = format!("http://127.0.0.1:{port}/v1");
+            let error = stream(&reqwest::Client::new(), &emit, &url, "key", &json!({}))
+                .await
+                .unwrap_err();
+            assert_eq!(error, "API error 401: {\"error\":\"bad key\"}");
+        });
+    }
+
+    #[test]
+    fn invalid_requests_are_rejected_before_any_network_call() {
+        let (emit, events) = capture();
+        let ai = Ai::new(emit);
+        ai.generate(json!("not an object"), || panic!("key must not be read"));
+        ai.generate(json!({"prompt": "   "}), || panic!("key must not be read"));
+        ai.generate(json!({"prompt": "x".repeat(MAX_PROMPT_LEN + 1)}), || {
+            panic!("key must not be read")
+        });
+        ai.generate(json!({"prompt": "blink an led"}), || Ok(String::new()));
+        ai.generate(json!({"prompt": "blink an led"}), || Err("locked".into()));
+        let errors: Vec<String> = events
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(_, payload)| payload["error"].as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(
+            errors,
+            [
+                "Invalid request parameters.",
+                "Prompt must be 1-4000 characters.",
+                "Prompt must be 1-4000 characters.",
+                "No API key configured. Please set your OpenRouter API key.",
+                "Could not read the API key from the keychain: locked",
+            ]
+        );
+    }
+
+    #[test]
+    fn system_prompt_uses_context_with_fallbacks_and_truncation() {
+        let prompt = system_prompt(Some(&json!({
+            "title": "Blink an LED",
+            "components": [{"quantity": 2, "name": "220Ω resistor"}],
+            "wiring": [{"from": "GPIO17", "to": "LED+", "description": "via resistor"}],
+            "theory": "θ".repeat(2500),
+        })));
+        assert!(prompt.contains("Tutorial: Blink an LED"));
+        assert!(prompt.contains("Description: N/A"));
+        assert!(prompt.contains("Components: 2x 220Ω resistor"));
+        assert!(prompt.contains("GPIO17 -> LED+: via resistor"));
+        assert!(prompt.contains(&"θ".repeat(2000)));
+        assert!(!prompt.contains(&"θ".repeat(2001)));
+        assert!(prompt.contains("# No code yet"));
+        assert!(system_prompt(None).contains("Tutorial: Untitled"));
+    }
+}

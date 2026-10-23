@@ -139,3 +139,19 @@ fn find_auth_token(log: &str) -> Option<&str> {
         .next()
         .filter(|_| !rest.starts_with(char::is_whitespace))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn finds_the_auth_token_in_the_agent_log() {
+        assert_eq!(
+            find_auth_token("starting\nAUTH_TOKEN=abc-123_X\nready"),
+            Some("abc-123_X")
+        );
+        assert_eq!(find_auth_token("no token here"), None);
+        assert_eq!(find_auth_token("AUTH_TOKEN= spaced"), None);
+        assert_eq!(find_auth_token("AUTH_TOKEN="), None);
+    }
+}

@@ -366,3 +366,21 @@ pub fn open_external(url: String) {
         let _ = open::that_detached(url);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_plain_python_filenames_are_allowed() {
+        for ok in ["tutorial_1.py", "a-b_c.py", "X9.py"] {
+            assert!(is_safe_script_name(ok), "{ok}");
+        }
+        for bad in [
+            "", ".py", "a.sh", "a.py.sh", "../a.py", "a/b.py", "a b.py", "a;rm.py", "a$(x).py",
+            "a.py\n",
+        ] {
+            assert!(!is_safe_script_name(bad), "{bad:?}");
+        }
+    }
+}
