@@ -277,7 +277,15 @@ pub async fn agent_get_status(ssh: State<'_, Ssh>) -> CommandResult {
 #[tauri::command]
 pub async fn settings_get(settings: State<'_, Settings>, key: String) -> CommandResult {
     if key == settings::PASSWORD_KEY {
-        return Ok(Value::String(settings::get_secret(&key)));
+        // A failed keychain read is not the same as "no password"; report it as null
+        // and log why, so the form still loads.
+        return Ok(match settings::get_secret(&key) {
+            Ok(password) => Value::String(password),
+            Err(e) => {
+                eprintln!("[settings] could not read {key} from the keychain: {e}");
+                Value::Null
+            }
+        });
     }
     if !SETTINGS_ALLOWLIST.contains(&key.as_str()) {
         return Ok(Value::Null);
@@ -329,7 +337,10 @@ pub async fn settings_set_api_key(value: String) -> CommandResult {
 
 #[tauri::command]
 pub async fn settings_has_api_key() -> CommandResult {
-    Ok(json!({ "hasKey": !settings::get_secret(settings::API_KEY).is_empty() }))
+    Ok(match settings::get_secret(settings::API_KEY) {
+        Ok(key) => json!({ "hasKey": !key.is_empty() }),
+        Err(e) => json!({ "hasKey": false, "error": e }),
+    })
 }
 
 // --- AI ---

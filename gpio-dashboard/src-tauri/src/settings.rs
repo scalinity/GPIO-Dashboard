@@ -119,18 +119,25 @@ impl Settings {
 }
 
 /// Secrets live in the keychain under the setting's own key, e.g. `ai.apiKey`.
-pub fn get_secret(name: &str) -> String {
-    keyring::Entry::new(KEYCHAIN_SERVICE, name)
-        .and_then(|entry| entry.get_password())
-        .unwrap_or_default()
+/// A missing entry is `Ok("")`; any other keychain failure is an error, so callers
+/// can tell "nothing saved" from "could not read".
+pub fn get_secret(name: &str) -> Result<String, String> {
+    let entry = keyring::Entry::new(KEYCHAIN_SERVICE, name).map_err(|e| e.to_string())?;
+    match entry.get_password() {
+        Ok(value) => Ok(value),
+        Err(keyring::Error::NoEntry) => Ok(String::new()),
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 pub fn set_secret(name: &str, value: &str) -> Result<(), String> {
     let entry = keyring::Entry::new(KEYCHAIN_SERVICE, name).map_err(|e| e.to_string())?;
     if value.is_empty() {
-        // Nothing to store; a missing entry is already the desired state.
-        let _ = entry.delete_credential();
-        return Ok(());
+        // An entry that is already absent is the state we want.
+        return match entry.delete_credential() {
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+            Err(e) => Err(e.to_string()),
+        };
     }
     entry.set_password(value).map_err(|e| e.to_string())
 }
@@ -194,5 +201,23 @@ mod tests {
             json!("pi-a")
         );
         let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    #[ignore = "touches the macOS keychain"]
+    fn keychain_distinguishes_missing_from_stored_and_replaces_and_deletes() {
+        let name = format!("test.secret.{}", std::process::id());
+        assert_eq!(
+            get_secret(&name),
+            Ok(String::new()),
+            "missing entry is not an error"
+        );
+        set_secret(&name, "s3cr€t").unwrap();
+        assert_eq!(get_secret(&name), Ok("s3cr€t".to_string()));
+        set_secret(&name, "replaced").unwrap();
+        assert_eq!(get_secret(&name), Ok("replaced".to_string()));
+        set_secret(&name, "").unwrap();
+        assert_eq!(get_secret(&name), Ok(String::new()));
+        set_secret(&name, "").unwrap(); // deleting an absent entry succeeds
     }
 }

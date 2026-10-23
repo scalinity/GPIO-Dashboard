@@ -42,7 +42,7 @@ impl Ai {
 
     /// Validates the request and starts streaming; progress and failures reach the
     /// renderer as `ai:chunk`, `ai:done` and `ai:error` events.
-    pub fn generate(&self, params: Value, api_key: impl FnOnce() -> String) {
+    pub fn generate(&self, params: Value, api_key: impl FnOnce() -> Result<String, String>) {
         if !params.is_object() {
             return self.fail("Invalid request parameters.".into());
         }
@@ -54,7 +54,12 @@ impl Ai {
         if prompt.is_empty() || prompt.chars().count() > MAX_PROMPT_LEN {
             return self.fail(format!("Prompt must be 1-{MAX_PROMPT_LEN} characters."));
         }
-        let api_key = api_key();
+        let api_key = match api_key() {
+            Ok(key) => key,
+            Err(e) => {
+                return self.fail(format!("Could not read the API key from the keychain: {e}"));
+            }
+        };
         if api_key.is_empty() {
             return self.fail("No API key configured. Please set your OpenRouter API key.".into());
         }
