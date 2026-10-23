@@ -152,7 +152,6 @@ mod tests {
     #[test]
     fn identical_consecutive_gpio_frames_are_dropped() {
         let (emit, events) = capture();
-        let mut previous = None;
         // The agent serializes with Python's default separators (a space after the
         // colon); the compact form is accepted as well.
         for (a, b) in [
@@ -166,7 +165,7 @@ mod tests {
             ),
         ] {
             events.lock().unwrap().clear();
-            previous = None;
+            let mut previous = None;
             for raw in [a, a, b, b, a] {
                 forward(&emit, raw, &mut previous);
             }
