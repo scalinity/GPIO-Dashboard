@@ -23,15 +23,21 @@ const MAX_PROMPT_LEN: usize = 4000;
 pub struct Ai {
     emit: Emit,
     client: reqwest::Client,
+    url: String,
     // Notified to abort the request currently streaming, if any.
     in_flight: Arc<Mutex<Option<Arc<Notify>>>>,
 }
 
 impl Ai {
     pub fn new(emit: Emit) -> Self {
+        Self::with_url(emit, API_URL.to_string())
+    }
+
+    fn with_url(emit: Emit, url: String) -> Self {
         Self {
             emit,
             client: reqwest::Client::new(),
+            url,
             in_flight: Arc::new(Mutex::new(None)),
         }
     }
@@ -95,21 +101,46 @@ impl Ai {
 
         let emit = self.emit.clone();
         let client = self.client.clone();
+        let url = self.url.clone();
         let in_flight = self.in_flight.clone();
         tauri::async_runtime::spawn(async move {
+            // Only the newest request may talk to the renderer: a superseded one goes
+            // quiet, so its cancellation cannot end or feed the request that replaced it.
+            let is_current = {
+                let (in_flight, abort) = (in_flight.clone(), abort.clone());
+                move || {
+                    in_flight
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .as_ref()
+                        .is_some_and(|current| Arc::ptr_eq(current, &abort))
+                }
+            };
+            let gated: Emit = {
+                let emit = emit.clone();
+                Arc::new(move |event, payload| {
+                    if is_current() {
+                        emit(event, payload);
+                    }
+                })
+            };
+
             let outcome = tokio::select! {
                 _ = abort.notified() => Ok(()),
-                result = stream(&client, &emit, API_URL, &api_key, &body) => result,
+                result = stream(&client, &gated, &url, &api_key, &body) => result,
             };
-            match outcome {
-                Ok(()) => emit("ai:done", json!({})),
-                Err(error) => emit("ai:error", json!({ "error": error })),
-            }
+
+            // Decide and emit while holding the slot, so a newer request cannot take it
+            // between the check and the event.
             let mut slot = in_flight.lock().unwrap_or_else(|e| e.into_inner());
             if slot
                 .as_ref()
                 .is_some_and(|current| Arc::ptr_eq(current, &abort))
             {
+                match outcome {
+                    Ok(()) => emit("ai:done", json!({})),
+                    Err(error) => emit("ai:error", json!({ "error": error })),
+                }
                 *slot = None;
             }
         });
@@ -273,7 +304,7 @@ mod tests {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use super::*;
-    use crate::test_support::{capture, run};
+    use crate::test_support::{capture, run, wait_for};
 
     /// Serves one canned HTTP response, one write per entry, then returns the port.
     async fn serve(parts: Vec<Vec<u8>>) -> u16 {
@@ -400,5 +431,120 @@ mod tests {
         assert!(!prompt.contains(&"θ".repeat(2001)));
         assert!(prompt.contains("# No code yet"));
         assert!(system_prompt(None).contains("Tutorial: Untitled"));
+    }
+
+    const SSE_HEAD: &[u8] =
+        b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n";
+    const SSE_END: &[u8] = b"0\r\n\r\n";
+
+    fn sse(content: &str) -> Vec<u8> {
+        chunk(
+            format!("data: {{\"choices\":[{{\"delta\":{{\"content\":\"{content}\"}}}}]}}\n\n")
+                .as_bytes(),
+        )
+    }
+
+    /// Serves one scripted response per connection: each step is (delay in ms, bytes).
+    async fn serve_scripts(scripts: Vec<Vec<(u64, Vec<u8>)>>) -> u16 {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tauri::async_runtime::spawn(async move {
+            for script in scripts {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                tauri::async_runtime::spawn(async move {
+                    let mut request = vec![0u8; 8192];
+                    let _ = socket.read(&mut request).await;
+                    for (delay, bytes) in script {
+                        tokio::time::sleep(Duration::from_millis(delay)).await;
+                        if socket.write_all(&bytes).await.is_err() {
+                            return; // the client gave up on this request
+                        }
+                    }
+                });
+            }
+        });
+        port
+    }
+
+    fn chunks(events: &crate::test_support::Events) -> Vec<String> {
+        events
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(event, _)| event == "ai:chunk")
+            .map(|(_, payload)| payload["content"].as_str().unwrap().to_string())
+            .collect()
+    }
+
+    fn count(events: &crate::test_support::Events, name: &str) -> usize {
+        events
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(event, _)| event == name)
+            .count()
+    }
+
+    #[test]
+    fn a_superseded_request_emits_nothing_into_the_new_one() {
+        run(async {
+            let port = serve_scripts(vec![
+                vec![
+                    (0, SSE_HEAD.to_vec()),
+                    (0, sse("A1")),
+                    (400, sse("A2")),
+                    (0, SSE_END.to_vec()),
+                ],
+                vec![
+                    (0, SSE_HEAD.to_vec()),
+                    (0, sse("B1")),
+                    (0, SSE_END.to_vec()),
+                ],
+            ])
+            .await;
+            let (emit, events) = capture();
+            let ai = Ai::with_url(emit, format!("http://127.0.0.1:{port}/v1"));
+
+            ai.generate(json!({"prompt": "first"}), || Ok("key".into()));
+            wait_for("the first chunk", || chunks(&events) == ["A1"]).await;
+            ai.generate(json!({"prompt": "second"}), || Ok("key".into()));
+            wait_for("the second request to finish", || {
+                count(&events, "ai:done") >= 1
+            })
+            .await;
+            tokio::time::sleep(Duration::from_millis(700)).await; // room for a stale A2 or done
+
+            assert_eq!(chunks(&events), ["A1", "B1"]);
+            assert_eq!(
+                count(&events, "ai:done"),
+                1,
+                "the superseded request reported completion"
+            );
+            assert_eq!(count(&events, "ai:error"), 0);
+        });
+    }
+
+    #[test]
+    fn abort_ends_the_current_request_with_a_single_done() {
+        run(async {
+            let port = serve_scripts(vec![vec![
+                (0, SSE_HEAD.to_vec()),
+                (0, sse("A1")),
+                (3000, sse("A2")),
+                (0, SSE_END.to_vec()),
+            ]])
+            .await;
+            let (emit, events) = capture();
+            let ai = Ai::with_url(emit, format!("http://127.0.0.1:{port}/v1"));
+
+            ai.generate(json!({"prompt": "first"}), || Ok("key".into()));
+            wait_for("the first chunk", || chunks(&events) == ["A1"]).await;
+            ai.abort();
+            wait_for("done", || count(&events, "ai:done") >= 1).await;
+            tokio::time::sleep(Duration::from_millis(300)).await;
+
+            assert_eq!(chunks(&events), ["A1"]);
+            assert_eq!(count(&events, "ai:done"), 1);
+        });
     }
 }
