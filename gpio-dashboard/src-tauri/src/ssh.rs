@@ -139,29 +139,31 @@ impl Utf8Stream {
     fn push(&mut self, bytes: &[u8]) -> String {
         self.pending.extend_from_slice(bytes);
         let mut out = String::new();
-        loop {
-            match std::str::from_utf8(&self.pending) {
-                Ok(s) => {
-                    out.push_str(s);
-                    self.pending.clear();
-                    return out;
+        // Walk the buffer by offset and drop the consumed prefix once at the end, so a
+        // chunk full of invalid bytes costs linear time instead of one shift per byte.
+        let mut consumed = 0;
+        while consumed < self.pending.len() {
+            match std::str::from_utf8(&self.pending[consumed..]) {
+                Ok(text) => {
+                    out.push_str(text);
+                    consumed = self.pending.len();
                 }
                 Err(e) => {
-                    let valid = e.valid_up_to();
-                    out.push_str(&String::from_utf8_lossy(&self.pending[..valid]));
+                    let valid_end = consumed + e.valid_up_to();
+                    out.push_str(&String::from_utf8_lossy(&self.pending[consumed..valid_end]));
+                    consumed = valid_end;
                     match e.error_len() {
                         Some(invalid) => {
                             out.push('\u{FFFD}');
-                            self.pending.drain(..valid + invalid);
+                            consumed += invalid;
                         }
-                        None => {
-                            self.pending.drain(..valid);
-                            return out;
-                        }
+                        None => break,
                     }
                 }
             }
         }
+        self.pending.drain(..consumed);
+        out
     }
 }
 
@@ -629,5 +631,58 @@ impl Ssh {
 
     pub fn destroy_shell(&self, session_id: &str) {
         self.st().shells.remove(session_id);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn utf8_stream_passes_valid_text_through() {
+        let mut stream = Utf8Stream::default();
+        assert_eq!(stream.push("héllo ✓".as_bytes()), "héllo ✓");
+        assert!(stream.pending.is_empty());
+    }
+
+    #[test]
+    fn utf8_stream_holds_back_a_character_split_across_chunks() {
+        let check = "✓".as_bytes(); // 3 bytes
+        let mut stream = Utf8Stream::default();
+        assert_eq!(stream.push(&[b'a', check[0]]), "a");
+        assert_eq!(stream.push(&check[1..2]), "");
+        assert_eq!(stream.push(&[check[2], b'b']), "✓b");
+        assert!(stream.pending.is_empty());
+    }
+
+    #[test]
+    fn utf8_stream_replaces_invalid_bytes_and_keeps_going() {
+        let mut stream = Utf8Stream::default();
+        assert_eq!(
+            stream.push(&[b'a', 0xFF, b'b', 0xC3, 0x28, b'c']),
+            "a\u{FFFD}b\u{FFFD}(c"
+        );
+    }
+
+    #[test]
+    fn utf8_stream_handles_a_large_invalid_chunk_in_linear_time() {
+        // Shifting the buffer once per invalid byte took about 8 s at this size; linear
+        // decoding takes milliseconds, so the bound leaves a wide margin either way.
+        let mut stream = Utf8Stream::default();
+        let started = std::time::Instant::now();
+        let out = stream.push(&vec![0xFF; 1 << 20]);
+        assert_eq!(out.chars().count(), 1 << 20);
+        assert!(stream.pending.is_empty());
+        assert!(
+            started.elapsed() < Duration::from_secs(2),
+            "decoding is no longer linear"
+        );
+    }
+
+    #[test]
+    fn shell_quote_escapes_single_quotes() {
+        assert_eq!(shell_quote("plain"), "'plain'");
+        assert_eq!(shell_quote("it's"), r"'it'\''s'");
+        assert_eq!(shell_quote("a b; rm -rf /"), "'a b; rm -rf /'");
     }
 }
