@@ -51,6 +51,22 @@ fn is_safe_script_name(name: &str) -> bool {
     })
 }
 
+/// The remote command that runs an uploaded tutorial script. `filename` must already
+/// have passed `is_safe_script_name`.
+pub(crate) fn tutorial_run_command(filename: &str) -> String {
+    format!("mkdir -p {TUTORIAL_DIR} && cd {TUTORIAL_DIR} && python3 -u {filename}")
+}
+
+/// The remote command that stops that script. The `[x]` keeps the pattern from matching
+/// the shell that runs this very command, and the interpreter is matched loosely because
+/// it shows up as `python3` on a Pi but `Python` on macOS.
+pub(crate) fn tutorial_kill_command(filename: &str) -> String {
+    let mut chars = filename.chars();
+    let first = chars.next().unwrap_or('x');
+    let rest = chars.as_str().replace('.', "\\.");
+    format!("pkill -f '[pP]ython3? -u [{first}]{rest}' 2>/dev/null; exit 0")
+}
+
 fn valid_port(port: i64) -> Option<u16> {
     u16::try_from(port).ok().filter(|p| *p != 0)
 }
@@ -141,9 +157,8 @@ pub async fn ssh_run_tutorial_script(ssh: State<'_, Ssh>, filename: String) -> C
     if !is_safe_script_name(&filename) {
         return Ok(json!({ "error": "Invalid script filename" }));
     }
-    let cmd = format!("mkdir -p {TUTORIAL_DIR} && cd {TUTORIAL_DIR} && python3 -u {filename}");
     Ok(ssh
-        .execute_streaming(&cmd, TUTORIAL_TIMEOUT)
+        .execute_streaming(&tutorial_run_command(&filename), TUTORIAL_TIMEOUT)
         .await
         .unwrap_or_else(|e| json!({ "error": e })))
 }
@@ -154,8 +169,7 @@ pub async fn ssh_kill_process(ssh: State<'_, Ssh>, filename: String) -> CommandR
         return Ok(json!({ "error": "Invalid script filename" }));
     }
     ssh.kill_tutorial_stream();
-    let cmd = format!("pkill -f \"python3 {filename}\" 2>/dev/null; exit 0");
-    Ok(exec_json(&ssh, &cmd).await)
+    Ok(exec_json(&ssh, &tutorial_kill_command(&filename)).await)
 }
 
 #[tauri::command]
@@ -379,6 +393,21 @@ pub fn open_external(url: String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_stop_command_does_not_match_its_own_shell() {
+        let run = tutorial_run_command("tutorial_1.py");
+        let kill = tutorial_kill_command("tutorial_1.py");
+        assert!(run.ends_with("python3 -u tutorial_1.py"));
+        assert_eq!(
+            kill,
+            "pkill -f '[pP]ython3? -u [t]utorial_1\\.py' 2>/dev/null; exit 0"
+        );
+        assert!(
+            !kill.contains("tutorial_1.py"),
+            "the literal name would match this shell"
+        );
+    }
 
     #[test]
     fn ports_must_be_in_range() {

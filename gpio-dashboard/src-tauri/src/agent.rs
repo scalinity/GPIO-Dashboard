@@ -70,21 +70,12 @@ pub async fn install(ssh: &Ssh) -> Result<Value, String> {
 
 pub async fn start(ssh: &Ssh) -> Result<Value, String> {
     let dir = remote_dir(ssh)?;
-    let quoted_dir = shell_quote(&dir);
     let log = shell_quote(&format!("{dir}/agent.log"));
 
     // Kill any existing agent, then start fresh with nohup so it survives the SSH channel closing.
-    let script = shell_quote(&format!("{dir}/agent.py"));
-    ssh.execute(
-        &format!("pkill -f {script} 2>/dev/null; sleep 0.5; exit 0"),
-        DEFAULT_TIMEOUT,
-    )
-    .await?;
-    ssh.execute(
-        &format!("cd {quoted_dir} && nohup python3 agent.py > agent.log 2>&1 &"),
-        DEFAULT_TIMEOUT,
-    )
-    .await?;
+    ssh.execute(&stop_command(&dir, "sleep 0.5; "), DEFAULT_TIMEOUT)
+        .await?;
+    ssh.execute(&start_command(&dir), DEFAULT_TIMEOUT).await?;
 
     // The agent may take a moment to print its auth token.
     let mut auth_token = None;
@@ -114,12 +105,8 @@ pub async fn stop(ssh: &Ssh) -> Result<Value, String> {
     if ssh.status() != "connected" {
         return Ok(json!({ "success": true }));
     }
-    let script = shell_quote(&format!("{}/agent.py", remote_dir(ssh)?));
-    ssh.execute(
-        &format!("pkill -f {script} 2>/dev/null; exit 0"),
-        DEFAULT_TIMEOUT,
-    )
-    .await?;
+    ssh.execute(&stop_command(&remote_dir(ssh)?, ""), DEFAULT_TIMEOUT)
+        .await?;
     Ok(json!({ "success": true }))
 }
 
@@ -133,6 +120,21 @@ pub async fn get_status(ssh: &Ssh) -> Result<Value, String> {
     Ok(json!({ "running": !out.stdout.trim().is_empty() }))
 }
 
+/// The remote command that launches the agent from `dir`. The script is given by its
+/// full path so `stop_command` can find the process by that path.
+pub(crate) fn start_command(dir: &str) -> String {
+    let quoted_dir = shell_quote(dir);
+    let script = shell_quote(&format!("{dir}/agent.py"));
+    format!("cd {quoted_dir} && nohup python3 {script} > agent.log 2>&1 &")
+}
+
+/// The remote command that stops the agent in `dir`; `then` runs after the kill. The
+/// `[a]` keeps the pattern from matching the shell that runs this very command.
+pub(crate) fn stop_command(dir: &str, then: &str) -> String {
+    let pattern = shell_quote(&format!("{dir}/[a]gent\\.py"));
+    format!("pkill -f {pattern} 2>/dev/null; {then}exit 0")
+}
+
 fn find_auth_token(log: &str) -> Option<&str> {
     let rest = log.split("AUTH_TOKEN=").nth(1)?;
     rest.split_whitespace()
@@ -143,6 +145,18 @@ fn find_auth_token(log: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_stop_pattern_matches_the_launched_script_but_not_its_own_command() {
+        let start = start_command("/home/pi/gpio-dashboard-agent");
+        let stop = stop_command("/home/pi/gpio-dashboard-agent", "");
+        assert!(start.contains("python3 '/home/pi/gpio-dashboard-agent/agent.py'"));
+        assert!(stop.contains("'/home/pi/gpio-dashboard-agent/[a]gent\\.py'"));
+        assert!(
+            !stop.contains("/agent.py"),
+            "the stop command must not contain the literal path"
+        );
+    }
 
     #[test]
     fn finds_the_auth_token_in_the_agent_log() {

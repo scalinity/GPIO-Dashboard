@@ -389,3 +389,97 @@ fn a_stalled_server_cannot_hang_streaming_or_shell_creation() {
         ssh.disconnect().await;
     });
 }
+
+/// Number of processes on this machine whose command line matches `pattern`.
+fn running(pattern: &str) -> usize {
+    let out = std::process::Command::new("pgrep")
+        .args(["-f", pattern])
+        .output()
+        .unwrap();
+    String::from_utf8_lossy(&out.stdout).lines().count()
+}
+
+#[test]
+#[ignore = "needs a local sshd; run src-tauri/live-tests.sh"]
+fn stop_ends_a_running_tutorial_script_on_the_remote() {
+    run(async {
+        let (ssh, _) = connected("k_ed25519").await;
+        let file = format!("tutorial_stoptest_{}.py", std::process::id());
+        let remote = format!("/tmp/gpio_dashboard/{file}");
+        ssh.execute("mkdir -p /tmp/gpio_dashboard", Duration::from_secs(5))
+            .await
+            .unwrap();
+        ssh.put_bytes(b"import time\ntime.sleep(120)\n".to_vec(), &remote)
+            .await
+            .unwrap();
+
+        let runner = ssh.clone();
+        let command = crate::commands::tutorial_run_command(&file);
+        let run_task = tauri::async_runtime::spawn(async move {
+            runner
+                .execute_streaming(&command, Duration::from_secs(120))
+                .await
+        });
+        wait_for("the script to start", || running(&file) > 0).await;
+
+        // What the app does when Stop is pressed.
+        ssh.kill_tutorial_stream();
+        ssh.execute(
+            &crate::commands::tutorial_kill_command(&file),
+            Duration::from_secs(5),
+        )
+        .await
+        .unwrap();
+        let _ = run_task.await;
+
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        let leftover = running(&file);
+        let _ = std::process::Command::new("pkill")
+            .args(["-f", &file])
+            .status(); // clean up
+        let _ = std::fs::remove_file(&remote);
+        assert_eq!(leftover, 0, "the script is still running after Stop");
+        ssh.disconnect().await;
+    });
+}
+
+#[test]
+#[ignore = "needs a local sshd; run src-tauri/live-tests.sh"]
+fn stopping_the_agent_ends_the_process_that_start_launched() {
+    run(async {
+        let (ssh, _) = connected("k_ed25519").await;
+        let dir = format!("/tmp/gpio_agent_test_{}", std::process::id());
+        ssh.execute(&format!("mkdir -p {dir}"), Duration::from_secs(5))
+            .await
+            .unwrap();
+        ssh.put_bytes(
+            b"import time\nprint('AUTH_TOKEN=abc', flush=True)\ntime.sleep(120)\n".to_vec(),
+            &format!("{dir}/agent.py"),
+        )
+        .await
+        .unwrap();
+
+        ssh.execute(&crate::agent::start_command(&dir), Duration::from_secs(5))
+            .await
+            .unwrap();
+        wait_for("the agent to start", || {
+            running(&format!("{dir}/agent.py")) > 0
+        })
+        .await;
+
+        ssh.execute(
+            &crate::agent::stop_command(&dir, ""),
+            Duration::from_secs(5),
+        )
+        .await
+        .unwrap();
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        let leftover = running(&format!("{dir}/agent.py"));
+        let _ = std::process::Command::new("pkill")
+            .args(["-f", &format!("{dir}/agent.py")])
+            .status();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(leftover, 0, "the agent is still running after stop");
+        ssh.disconnect().await;
+    });
+}
