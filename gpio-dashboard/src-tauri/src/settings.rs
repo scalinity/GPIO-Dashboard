@@ -81,7 +81,10 @@ impl Settings {
 
     pub fn set(&self, key: &str, value: Value) -> Result<(), String> {
         let mut data = self.data();
-        let mut node = &mut *data;
+        // Edit a copy and publish it only once it is on disk, so a failed save leaves
+        // memory and file in agreement.
+        let mut next = data.clone();
+        let mut node = &mut next;
         let mut parts = key.split('.').peekable();
         while let Some(part) = parts.next() {
             if !node.is_object() {
@@ -94,7 +97,9 @@ impl Settings {
             }
             node = map.entry(part.to_string()).or_insert_with(|| json!({}));
         }
-        self.save(&data)
+        self.save(&next)?;
+        *data = next;
+        Ok(())
     }
 
     pub fn all(&self) -> Value {
@@ -128,4 +133,66 @@ pub fn set_secret(name: &str, value: &str) -> Result<(), String> {
         return Ok(());
     }
     entry.set_password(value).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("gpio-settings-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        dir
+    }
+
+    #[test]
+    fn defaults_are_available_and_unknown_keys_are_null() {
+        let dir = temp_dir("defaults");
+        let settings = Settings::load(dir.clone());
+        assert_eq!(settings.get("connection.port"), json!(22));
+        assert_eq!(settings.get("ai.model"), json!("anthropic/claude-opus-4.6"));
+        assert_eq!(settings.get("nope.nothing"), Value::Null);
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn values_persist_and_merge_over_defaults() {
+        let dir = temp_dir("persist");
+        let settings = Settings::load(dir.clone());
+        settings.set("connection.host", json!("pi.local")).unwrap();
+        settings
+            .set("ui.completedTutorials", json!(["a", "b"]))
+            .unwrap();
+        settings.set("brand.new.path", json!(1)).unwrap();
+
+        let reloaded = Settings::load(dir.clone());
+        assert_eq!(reloaded.get("connection.host"), json!("pi.local"));
+        assert_eq!(
+            reloaded.get("connection.username"),
+            json!("pi"),
+            "defaults still merged"
+        );
+        assert_eq!(reloaded.get("ui.completedTutorials"), json!(["a", "b"]));
+        assert_eq!(reloaded.get("brand.new.path"), json!(1));
+        assert!(reloaded.all()["connection"].get("password").is_none());
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_failed_save_leaves_the_stored_value_unchanged() {
+        let dir = temp_dir("failed-save");
+        let settings = Settings::load(dir.clone());
+        settings.set("connection.host", json!("pi-a")).unwrap();
+
+        // A directory where the temp file should go makes the write fail.
+        fs::create_dir(dir.join("config.json.tmp")).unwrap();
+        assert!(settings.set("connection.host", json!("pi-b")).is_err());
+
+        assert_eq!(settings.get("connection.host"), json!("pi-a"));
+        assert_eq!(
+            Settings::load(dir.clone()).get("connection.host"),
+            json!("pi-a")
+        );
+        let _ = fs::remove_dir_all(dir);
+    }
 }
