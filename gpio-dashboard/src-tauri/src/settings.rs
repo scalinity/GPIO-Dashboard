@@ -1,6 +1,10 @@
 //! Persistent settings: a JSON file for plain values, the OS keychain for secrets.
 
-use std::{fs, path::PathBuf, sync::Mutex};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    sync::Mutex,
+};
 
 use serde_json::{json, Value};
 
@@ -51,15 +55,29 @@ fn merge(base: &mut Value, over: Value) {
     }
 }
 
+/// Moves a settings file that cannot be read or parsed aside, so starting from defaults
+/// and saving again does not destroy what was in it.
+fn keep_unusable_file(path: &Path, why: &str) {
+    let backup = path.with_extension("json.bak");
+    eprintln!(
+        "[settings] {} is unusable ({why}); keeping it as {}",
+        path.display(),
+        backup.display()
+    );
+    let _ = fs::rename(path, backup);
+}
+
 impl Settings {
     pub fn load(dir: PathBuf) -> Self {
         let path = dir.join("config.json");
         let mut data = defaults();
-        if let Some(saved) = fs::read_to_string(&path)
-            .ok()
-            .and_then(|text| serde_json::from_str::<Value>(&text).ok())
-        {
-            merge(&mut data, saved);
+        match fs::read_to_string(&path) {
+            Ok(text) => match serde_json::from_str::<Value>(&text) {
+                Ok(saved) => merge(&mut data, saved),
+                Err(e) => keep_unusable_file(&path, &e.to_string()),
+            },
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => keep_unusable_file(&path, &e.to_string()),
         }
         Self {
             path,
@@ -219,5 +237,37 @@ mod tests {
         set_secret(&name, "").unwrap();
         assert_eq!(get_secret(&name), Ok(String::new()));
         set_secret(&name, "").unwrap(); // deleting an absent entry succeeds
+    }
+
+    #[test]
+    fn a_malformed_file_is_kept_as_a_backup_and_defaults_are_used() {
+        let dir = temp_dir("malformed");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("config.json"), "{ not json").unwrap();
+
+        let settings = Settings::load(dir.clone());
+        assert_eq!(settings.get("connection.port"), json!(22));
+        assert_eq!(
+            fs::read_to_string(dir.join("config.json.bak")).unwrap(),
+            "{ not json"
+        );
+
+        // Saving afterwards writes a fresh, valid file and leaves the backup alone.
+        settings.set("connection.host", json!("x")).unwrap();
+        assert_eq!(
+            Settings::load(dir.clone()).get("connection.host"),
+            json!("x")
+        );
+        assert!(dir.join("config.json.bak").exists());
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_missing_file_is_not_treated_as_a_problem() {
+        let dir = temp_dir("missing");
+        let settings = Settings::load(dir.clone());
+        assert_eq!(settings.get("connection.username"), json!("pi"));
+        assert!(!dir.join("config.json.bak").exists());
+        let _ = fs::remove_dir_all(dir);
     }
 }
