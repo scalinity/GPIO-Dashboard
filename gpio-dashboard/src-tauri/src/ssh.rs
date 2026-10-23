@@ -3,6 +3,7 @@
 
 use std::{
     collections::HashMap,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex, MutexGuard},
     time::Duration,
 };
@@ -49,14 +50,14 @@ pub struct ExecOutput {
 
 struct ConnectError {
     message: String,
-    is_auth: bool,
+    permanent: bool,
 }
 
 impl ConnectError {
     fn other(message: impl ToString) -> Self {
         Self {
             message: message.to_string(),
-            is_auth: false,
+            permanent: false,
         }
     }
 }
@@ -66,17 +67,27 @@ impl ConnectError {
 struct ClientHandler {
     generation: u64,
     closed: mpsc::UnboundedSender<(u64, Option<String>)>,
+    host: String,
+    port: u16,
+    known_hosts: PathBuf,
+    // Why the host key was refused, so the user sees that instead of a generic error.
+    rejection: Arc<Mutex<Option<String>>>,
 }
 
 impl client::Handler for ClientHandler {
     type Error = russh::Error;
 
-    // Host keys are accepted as presented; there is no known_hosts check.
     async fn check_server_key(
         &mut self,
-        _server_public_key: &PublicKeyOrCertificate,
+        server_public_key: &PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
-        Ok(true)
+        match verify_host_key(&self.host, self.port, &self.known_hosts, server_public_key) {
+            Ok(()) => Ok(true),
+            Err(reason) => {
+                *self.rejection.lock().unwrap_or_else(|e| e.into_inner()) = Some(reason);
+                Ok(false)
+            }
+        }
     }
 
     async fn disconnected(
@@ -122,6 +133,7 @@ struct State {
 
 struct Shared {
     emit: Emit,
+    known_hosts: PathBuf,
     closed_tx: mpsc::UnboundedSender<(u64, Option<String>)>,
     state: Mutex<State>,
 }
@@ -168,6 +180,31 @@ impl Utf8Stream {
     }
 }
 
+/// Trust on first use, like OpenSSH's `accept-new`: an unknown host's key is recorded in
+/// `known_hosts`, a known one must match, and a changed key is refused.
+fn verify_host_key(
+    host: &str,
+    port: u16,
+    known_hosts: &Path,
+    server_key: &PublicKeyOrCertificate,
+) -> Result<(), String> {
+    let PublicKeyOrCertificate::PublicKey { key, .. } = server_key else {
+        return Err("The server presented a host certificate, which is not supported".into());
+    };
+    match keys::check_known_hosts_path(host, port, key, known_hosts) {
+        Ok(true) => Ok(()),
+        Ok(false) => keys::known_hosts::learn_known_hosts_path(host, port, key, known_hosts)
+            .map_err(|e| format!("Could not save the host key to {}: {e}", known_hosts.display())),
+        Err(keys::Error::KeyChanged { line }) => Err(format!(
+            "The host key for {host}:{port} has changed since it was first saved ({}, line {line}). \
+             If that is expected, for example after reinstalling the Pi, delete that line and \
+             connect again; otherwise someone may be impersonating it.",
+            known_hosts.display()
+        )),
+        Err(e) => Err(format!("Could not check {}: {e}", known_hosts.display())),
+    }
+}
+
 pub fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', r"'\''"))
 }
@@ -177,10 +214,12 @@ fn error_text(e: impl std::fmt::Display) -> String {
 }
 
 impl Ssh {
-    pub fn new(emit: Emit) -> Self {
+    /// `known_hosts` is where the SSH servers' keys are remembered between runs.
+    pub fn new(emit: Emit, known_hosts: PathBuf) -> Self {
         let (closed_tx, mut closed_rx) = mpsc::unbounded_channel::<(u64, Option<String>)>();
         let ssh = Ssh(Arc::new(Shared {
             emit,
+            known_hosts,
             closed_tx,
             state: Mutex::new(State {
                 status: "disconnected",
@@ -276,10 +315,10 @@ impl Ssh {
                     if s.generation != generation {
                         return Err(e.message);
                     }
-                    if e.is_auth {
+                    if e.permanent {
                         s.should_reconnect = false;
                     }
-                    !e.is_auth && s.should_reconnect
+                    !e.permanent && s.should_reconnect
                 };
                 self.set_status("error", Some(e.message.clone()));
                 if reconnect {
@@ -308,13 +347,30 @@ impl Ssh {
             keepalive_max: KEEPALIVE_MAX,
             ..Default::default()
         });
+        let rejection = Arc::new(Mutex::new(None));
         let handler = ClientHandler {
             generation,
             closed: self.0.closed_tx.clone(),
+            host: target.host.clone(),
+            port: target.port,
+            known_hosts: self.0.known_hosts.clone(),
+            rejection: rejection.clone(),
         };
-        let mut handle = client::connect(config, (target.host.as_str(), target.port), handler)
-            .await
-            .map_err(ConnectError::other)?;
+        let mut handle =
+            match client::connect(config, (target.host.as_str(), target.port), handler).await {
+                Ok(handle) => handle,
+                Err(e) => {
+                    // A refused host key is reported with its reason and is never retried.
+                    let refused = rejection.lock().unwrap_or_else(|e| e.into_inner()).take();
+                    return Err(match refused {
+                        Some(message) => ConnectError {
+                            message,
+                            permanent: true,
+                        },
+                        None => ConnectError::other(e),
+                    });
+                }
+            };
 
         let authenticated = match (key, &target.auth) {
             (Some(key), _) => {
@@ -345,7 +401,7 @@ impl Ssh {
         } else {
             Err(ConnectError {
                 message: "All configured authentication methods failed".into(),
-                is_auth: true,
+                permanent: true,
             })
         }
     }

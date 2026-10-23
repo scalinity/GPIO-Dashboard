@@ -85,9 +85,14 @@ fn signal(signal: &str, pids: &[String]) {
     }
 }
 
+/// An `Ssh` that remembers host keys in the test directory, as the app does.
+fn new_ssh(emit: crate::Emit) -> Ssh {
+    Ssh::new(emit, dir().join("known_hosts"))
+}
+
 async fn connected(key: &str) -> (Ssh, Events) {
     let (emit, events) = capture();
-    let ssh = Ssh::new(emit);
+    let ssh = new_ssh(emit);
     ssh.connect(key_target(key, None, PORT)).await.unwrap();
     (ssh, events)
 }
@@ -103,7 +108,7 @@ fn all_key_types_authenticate() {
             ("k_ecdsa", None),
         ] {
             let (emit, events) = capture();
-            let ssh = Ssh::new(emit);
+            let ssh = new_ssh(emit);
             ssh.connect(key_target(key, passphrase, PORT))
                 .await
                 .unwrap_or_else(|e| panic!("{key}: {e}"));
@@ -118,7 +123,7 @@ fn all_key_types_authenticate() {
 fn authentication_failures_are_reported_and_never_retried() {
     run(async {
         let (emit, events) = capture();
-        let ssh = Ssh::new(emit);
+        let ssh = new_ssh(emit);
         let error = ssh
             .connect(key_target("k_unauthorized", None, PORT))
             .await
@@ -145,7 +150,7 @@ fn authentication_failures_are_reported_and_never_retried() {
 fn a_refused_connection_is_an_error_and_commands_fail_cleanly() {
     run(async {
         let (emit, events) = capture();
-        let ssh = Ssh::new(emit);
+        let ssh = new_ssh(emit);
         assert!(ssh.connect(key_target("k_ed25519", None, 1)).await.is_err());
         assert_eq!(statuses(&events), ["connecting", "error"]);
         let error = ssh
@@ -335,7 +340,7 @@ fn a_dropped_connection_is_reestablished_automatically() {
 fn shell_creation_fails_when_the_server_refuses_a_pty() {
     run(async {
         let (emit, _) = capture();
-        let ssh = Ssh::new(emit);
+        let ssh = new_ssh(emit);
         ssh.connect(key_target("k_ed25519", None, PORT_NO_TTY))
             .await
             .unwrap();
@@ -481,5 +486,64 @@ fn stopping_the_agent_ends_the_process_that_start_launched() {
         let _ = std::fs::remove_dir_all(&dir);
         assert_eq!(leftover, 0, "the agent is still running after stop");
         ssh.disconnect().await;
+    });
+}
+
+fn known_hosts_lines(path: &std::path::Path) -> Vec<String> {
+    std::fs::read_to_string(path)
+        .unwrap_or_default()
+        .lines()
+        .filter(|line| !line.is_empty()) // a new file starts with a blank line
+        .map(String::from)
+        .collect()
+}
+
+#[test]
+#[ignore = "needs a local sshd; run src-tauri/live-tests.sh"]
+fn a_host_key_is_recorded_on_first_use_and_accepted_afterwards() {
+    run(async {
+        let path = dir().join("known_hosts_first_use");
+        let _ = std::fs::remove_file(&path);
+        for _ in 0..2 {
+            let (emit, _) = capture();
+            let ssh = Ssh::new(emit, path.clone());
+            ssh.connect(key_target("k_ed25519", None, PORT))
+                .await
+                .unwrap();
+            ssh.disconnect().await;
+        }
+        let lines = known_hosts_lines(&path);
+        assert_eq!(lines.len(), 1, "{lines:?}");
+        assert!(
+            lines[0].starts_with(&format!("[127.0.0.1]:{PORT} ssh-ed25519 ")),
+            "{}",
+            lines[0]
+        );
+    });
+}
+
+#[test]
+#[ignore = "needs a local sshd; run src-tauri/live-tests.sh"]
+fn a_changed_host_key_is_refused_and_not_retried() {
+    run(async {
+        // Pretend this host was first seen with a different key.
+        let path = dir().join("known_hosts_changed");
+        let other_key = std::fs::read_to_string(dir().join("k_unauthorized.pub")).unwrap();
+        std::fs::write(&path, format!("[127.0.0.1]:{PORT} {other_key}")).unwrap();
+        let before = known_hosts_lines(&path);
+
+        let (emit, events) = capture();
+        let ssh = Ssh::new(emit, path.clone());
+        let error = ssh
+            .connect(key_target("k_ed25519", None, PORT))
+            .await
+            .unwrap_err();
+        assert!(error.contains("has changed"), "{error}");
+        assert!(error.contains(&path.display().to_string()), "{error}");
+
+        // It is not retried on its own, and the saved key was left alone.
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        assert_eq!(statuses(&events), ["connecting", "error"]);
+        assert_eq!(known_hosts_lines(&path), before);
     });
 }

@@ -53,10 +53,11 @@ fn main() {
             let emit: Emit = Arc::new(move |event, payload| {
                 let _ = handle.emit(event, payload);
             });
-            app.manage(Ssh::new(emit.clone()));
+            let config_dir = app.path().app_config_dir()?;
+            app.manage(Ssh::new(emit.clone(), config_dir.join("known_hosts")));
             app.manage(Ws::new(emit.clone()));
             app.manage(Ai::new(emit));
-            app.manage(Settings::load(app.path().app_config_dir()?));
+            app.manage(Settings::load(config_dir));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
