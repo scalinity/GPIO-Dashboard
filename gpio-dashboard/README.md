@@ -297,6 +297,11 @@ Defense-in-depth for a tool that connects to a remote machine and executes arbit
 - **Key stays in the Rust backend** — the renderer only sees `hasApiKey: boolean`, never the key itself
 - **`.pub` handling** — if the user selects `id_rsa.pub` as the SSH key, the app automatically reads the private key alongside it, matching OpenSSH's behavior
 - **Dedicated `settings_set_password` / `settings_set_api_key` commands** — writes go straight to the keychain; an empty password removes the entry
+- **Keychain failures are not "no password"** — only a missing entry reads as empty; a keychain error is logged (SSH password) or reported to the AI panel (API key) instead of being treated as absent
+
+### SSH Host Keys
+
+Host keys are trusted on first use, like OpenSSH's `accept-new`. The first connection to a host and port records its key in `known_hosts` in the app config directory (`~/Library/Application Support/com.gpio-dashboard/` on macOS); later connections must present the same key. A changed key is refused with a message naming the file and line, and is never retried automatically. After reinstalling a Pi, delete that line to connect again. Servers that present a host certificate are refused, since the certificate authority is not checked.
 
 ### Input Validation & Allowlisting
 
@@ -305,6 +310,7 @@ Defense-in-depth for a tool that connects to a remote machine and executes arbit
 | Tutorial script filename | `/^[a-zA-Z0-9_-]+\.py$/` — rejects path separators, `..`, shell metacharacters |
 | SCP remote path         | Must start with `/tmp/gpio_dashboard/`, no `..`                        |
 | SSH username (deploy)   | `/^[a-zA-Z0-9_-]+$/` — prevents path injection via `/home/${user}`     |
+| SSH port                | 1–65535; anything else is reported as `Invalid port` in the normal result shape |
 | Settings keys           | Hard-coded allowlist of 9 `ui.*` / `connection.*` / `ai.*` keys        |
 | AI model                | Set-membership check against 5 known OpenRouter model IDs              |
 | AI thinking level       | Enum: `off` / `low` / `medium` / `high`                                |
@@ -312,14 +318,14 @@ Defense-in-depth for a tool that connects to a remote machine and executes arbit
 
 ### Process Isolation
 
-- **No Node.js in the renderer** — the webview can only call the commands the app registers, and the window's capabilities are limited to dragging
+- **No Node.js in the renderer** — the webview can only call the commands the app registers. The main window holds Tauri's default core permissions (events and window queries) plus dragging and maximize; no filesystem, shell or HTTP plugin is exposed to it
 - **Content Security Policy** set in `tauri.conf.json`: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src ipc: http://ipc.localhost`
 - **External links** — clicks on `http(s)` anchors and `window.open` calls are routed to the system browser through the `open_external` command (http/https only), so the app never navigates away from itself
 - **Webview zoom disabled** (Ctrl+wheel is prevented in the renderer) so wheel events reach the breadboard's pan/zoom handler, preventing silent DOM scaling surprises
 
 ### Automatic Reconnection with Safety Limits
 
-- **SSH** — exponential backoff (1s → 2s → … → 30s cap), max 10 attempts, **auth errors suppress reconnect** (otherwise brute-force amplification)
+- **SSH** — exponential backoff (1s → 2s → … → 30s cap), max 10 attempts, **auth errors and changed host keys suppress reconnect** (otherwise brute-force amplification, or silently re-trusting a swapped server)
 - **WebSocket** — same backoff schedule, same 10-attempt ceiling
 - **Graceful teardown** on quit — stops the remote agent, closes shells, then disconnects SSH (bounded to 5 seconds if the Pi is unreachable)
 
@@ -373,8 +379,8 @@ After any tutorial exits — whether via normal completion, Ctrl+C, or kill — 
 | ----------------------------------- | ----------------------------------------- |
 | JS / JSX source files (app)         | ~30                                       |
 | JS / JSX lines of code              | ~5,700                                    |
-| Rust source files (backend)         | 7                                         |
-| Rust lines of code                  | ~1,600                                    |
+| Rust source files (backend)         | 7 (plus 2 test-support files)             |
+| Rust lines of code                  | ~2,000 (plus ~1,100 of tests)             |
 | Python source files (agent)         | 4                                         |
 | Python lines of code                | ~565                                      |
 | React components                    | 17                                        |
@@ -418,6 +424,16 @@ npm run dev
 Starts the Vite dev server (HMR for the renderer), compiles the Rust backend, and opens the app window. The first build compiles the Rust dependencies, which takes a few minutes; later runs are incremental and rebuild the backend automatically when `src-tauri/` changes.
 
 The Pi agent files in `pi-agent/` are compiled into the app (see `src-tauri/src/agent.rs`), so restart `npm run dev` after editing them. `npm run web:dev` serves just the renderer for previewing the UI in a browser, without the backend.
+
+### Testing
+
+```bash
+(cd src-tauri && cargo test)   # backend unit tests plus WebSocket and OpenRouter tests against mock servers
+npm test                       # the renderer bridge (Node's built-in test runner)
+src-tauri/live-tests.sh        # SSH tests against throwaway local sshd servers (macOS)
+```
+
+`live-tests.sh` starts two OpenSSH servers on `127.0.0.1` with freshly generated keys (one refuses PTYs), runs the ignored integration tests against them, and removes everything afterwards. It also runs the keychain test, which uses your login keychain under a temporary entry name.
 
 ### First-Run Flow
 
