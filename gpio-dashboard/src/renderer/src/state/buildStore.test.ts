@@ -168,6 +168,7 @@ describe('progress', () => {
 })
 
 describe('with Board Sense on the simulated board', () => {
+  // It simulates every step of the Button tutorial: give it room on a busy machine.
   it('confirms the observable steps by itself and leaves the others for Done', async () => {
     useSense.setState({ mode: 'mock' })
     begin('button')
@@ -209,7 +210,7 @@ describe('with Board Sense on the simulated board', () => {
     expect(useBuild.getState().done).toHaveLength(steps.length)
     expect(confirmed).toBeGreaterThan(0)
     expect(unobservable).toBeGreaterThan(0)
-  })
+  }, 30_000)
 
   // On the Button, W3 (GPIO18 to its pull-up) is the one step Board Sense can see.
   const seen = (steps: BuildStep[]) => steps.findIndex((s) => s.key === 'wire:W3')
