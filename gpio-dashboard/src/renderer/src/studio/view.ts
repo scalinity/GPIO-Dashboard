@@ -37,9 +37,14 @@ import type { Problem } from '../core/ops/validate'
 import { useBuild } from '../state/buildStore'
 import { circuit } from '../state/circuit'
 import { LOCKED_MESSAGE } from '../state/circuitStore'
+import { activeBadges } from '../state/badges'
+import '../state/liveDivergence'
+import '../state/liveSim'
+import { useLive } from '../state/liveStore'
 import { useSense } from '../state/senseStore'
 import { BUILDING_MESSAGE, edit, type Selection, type Tool, useStudio } from '../state/studioStore'
 import { useWorkbench } from '../state/workbenchStore'
+import { BadgeLayer } from './badges'
 import { BenchLayer } from './bench'
 import { bodyBox, pickBody, pointsBox } from './bodies'
 import { BUILD_GHOST } from './build'
@@ -61,9 +66,10 @@ import {
 import { Halos } from './halos'
 import { Insertion, reseated } from './insertion'
 import { LabelLayer, labelsOf } from './labels'
+import { LivePins, type LivePinsReport, liveText } from './livepins'
 import { collidersNow, configureModels, disposeModels, onArrival } from './loaders'
 import { type Marker, Markers } from './markers'
-import { netMarkers, stripIndex } from './nets'
+import { netAnchor, netMarkers, stripIndex } from './nets'
 import { type PartHandle, PartLayer } from './parts'
 import { hoverInfo, type HoverInfo, pickHole, pickModulePin } from './picking'
 import { holeFree, holeLegality, removePartOps, turned, turnedPart } from './placement'
@@ -128,6 +134,10 @@ export interface SceneReport {
   leadEnds: { id: string; offAxisMm: number; depthMm: number }[]
   /** What the simulation and Board Sense paint: glow, motion, flow, halos, tags, tints. */
   sim: VisualsReport
+  /** The Pi's pins as painted by Live Pi state: header colours and T-board strip marks. */
+  live: LivePinsReport
+  /** The divergence badges on the stage. */
+  badges: { id: string; severity: 'error' | 'warning' }[]
   /** The parts and leads drawn only as the assistant's ghosts. */
   ghosts: string[]
   /** How many places the assistant's cue marks. */
@@ -199,6 +209,15 @@ export class StudioView {
     new Markers(this.layers, 0.12),
     () => this.invalidate()
   )
+  /** The Pi's pins painted on the header and the T-board's strips (Live Pi state). */
+  private readonly livePins = new LivePins(
+    new Markers(this.layers, 0.2),
+    (physical, color) => this.bench.setPiPin(physical, color),
+    () => this.invalidate()
+  )
+  /** The divergence badges, set while the Studio is attached; they stand outside the orbit element. */
+  private badges: BadgeLayer | null = null
+  private badgeKey = ''
   private readonly insertion = new Insertion()
   /** The cables' physics (SPEC 10.5): the solver runs in physics.worker. */
   private readonly cables = new Cables()
@@ -310,6 +329,7 @@ export class StudioView {
       this.labels?.project(this.camera, w, h)
       this.visuals.tags?.project(this.camera, w, h)
       this.stepMarks?.project(this.camera, w, h)
+      this.badges?.project(this.camera, w, h)
     }
     const more = this.loop.tick(moving, now)
     this.hover.shownFrame ??= this.loop.frames
@@ -453,6 +473,8 @@ export class StudioView {
       ),
       leadEnds: [...this.parts.leadEnds(), ...this.wires.maleTips()],
       sim: this.visuals.report(),
+      live: this.livePins.report(),
+      badges: this.badges?.ids() ?? [],
       ghosts: ghostIds(this.base(), this.ghosted()),
       cueMarks: this.cueMarkers.count,
       build: this.buildReport()
@@ -483,13 +505,16 @@ export class StudioView {
     tooltip: HTMLElement,
     labels: HTMLElement,
     tags: HTMLElement,
-    marks: HTMLElement
+    marks: HTMLElement,
+    badges: HTMLElement
   ): () => void {
     this.tooltip = tooltip
     this.labels = new LabelLayer(labels)
     this.visuals.tags = new LabelLayer(tags)
     this.stepMarks = new StepMarks(marks)
     this.marksKey = ''
+    this.badges = new BadgeLayer(badges, (id) => useStudio.setState({ badge: id }))
+    this.badgeKey = ''
     this.controls.connect(element)
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
@@ -543,6 +568,12 @@ export class StudioView {
           now.tinted !== before.tinted
         )
           this.syncVisuals()
+        if (now.live !== before.live) {
+          this.syncVisuals()
+          this.syncLive()
+          this.refreshHover()
+        }
+        if (now.live !== before.live || now.sense !== before.sense) this.syncBadges()
         if (now.cue !== before.cue) this.showCue()
       }),
       // The simulation's snapshots, the part inputs and the issues, and Board Sense's states.
@@ -554,8 +585,21 @@ export class StudioView {
           now.states !== before.states ||
           now.mode !== before.mode ||
           now.candidates !== before.candidates
-        )
+        ) {
           this.syncVisuals()
+          this.syncBadges()
+        }
+      }),
+      // The Pi's pins: painted on the header and the T-board, the bench lit by their levels, the
+      // badges where they contradict the document. Each asks for a frame only if it changed.
+      useLive.subscribe((now, before) => {
+        if (now.pins !== before.pins || now.online !== before.online) {
+          this.syncLive()
+          this.refreshHover()
+        }
+        if (now.sim !== before.sim || now.online !== before.online) this.syncVisuals()
+        if (now.divergences !== before.divergences || now.online !== before.online)
+          this.syncBadges()
       }),
       // Build Mode: the step in hand changes what is drawn, where the camera looks, and the marks.
       useBuild.subscribe((now, before) => {
@@ -597,6 +641,7 @@ export class StudioView {
       this.labels = null
       this.visuals.tags = null
       this.stepMarks = null
+      this.badges = null
       // GPU resources go with the Studio (SPEC 10.8); a later attach draws them again.
       this.bench.dispose()
       this.visuals.dispose()
@@ -1006,6 +1051,8 @@ export class StudioView {
     this.placeSelection(doc, selection)
     this.labels?.set(labels ? labelsOf(doc) : [])
     this.syncVisuals()
+    this.syncLive()
+    this.syncBadges()
     this.syncMarks()
     // A highlight follows what it names as the document changes.
     if (useStudio.getState().cue?.marks) this.showCue()
@@ -1080,6 +1127,11 @@ export class StudioView {
     // time; the step card reports what the sweeps say of the step instead.
     const build = useBuild.getState()
     const partial = build.on && build.index < build.steps.length
+    // Live Pi state (SPEC 11.5): while it is on and the Pi is there, the bench glows and moves with
+    // the Pi's real pins, not with Simulate.
+    const real = useLive.getState()
+    const live = useStudio.getState().live && real.online
+    const shown = live ? real.sim : sim
     this.visuals.sync({
       doc,
       review: {
@@ -1092,9 +1144,9 @@ export class StudioView {
           ...doc.wires.filter((w) => ghosts.has(w.id)).map((w) => w.id)
         ]
       },
-      snapshot: partial ? null : (sim?.snapshot ?? null),
+      snapshot: partial ? null : (shown?.snapshot ?? null),
       env,
-      issues: sim?.issues ?? [],
+      issues: shown?.issues ?? [],
       voltages,
       current,
       sense: {
@@ -1104,6 +1156,45 @@ export class StudioView {
         findCauses: (pin) => void useSense.getState().findCauses(pin)
       }
     })
+  }
+
+  /** The Pi's pins on the header and the T-board's strips, while Live Pi state is on. */
+  private syncLive(): void {
+    const { pins, online } = useLive.getState()
+    this.livePins.sync(this.drawnDoc(), useStudio.getState().live && online ? pins : null)
+  }
+
+  /** The divergence badges, each over the net it is about. */
+  private syncBadges(): void {
+    if (!this.badges) return
+    const studio = useStudio.getState()
+    const real = useLive.getState()
+    const board = useSense.getState()
+    const build = useBuild.getState()
+    const badges = activeBadges({
+      live: studio.live,
+      senseOverlay: studio.sense,
+      online: real.online,
+      divergences: real.divergences,
+      senseMode: board.mode,
+      senseStates: board.states,
+      candidates: board.candidates,
+      building: build.on && build.index < build.steps.length,
+      buildMode: build.on
+    })
+    const doc = this.base()
+    const nl = this.conn().netlist
+    const index = stripIndex(doc)
+    const placed = badges.flatMap((badge) => {
+      const net = nl.byName.get(`GPIO${badge.bcm}`)
+      const at = net && netAnchor(doc, index, net)
+      return at ? [{ badge, at: at.clone() }] : []
+    })
+    const key = JSON.stringify(placed.map((p) => [p.badge.id, p.badge.title, p.at.toArray()]))
+    if (key === this.badgeKey) return
+    this.badgeKey = key
+    this.badges.set(placed)
+    this.invalidate()
   }
 
   /**
@@ -1297,7 +1388,7 @@ export class StudioView {
   private show(info: HoverInfo | null): void {
     this.hover = { info, eventFrame: this.loop.frames, shownFrame: null }
     if (this.tooltip) {
-      this.tooltip.textContent = info?.text ?? ''
+      this.tooltip.textContent = info ? info.text + liveSuffix(info.net) : ''
       this.tooltip.hidden = !info
     }
     const doc = this.base()
@@ -1313,6 +1404,15 @@ export class StudioView {
     this.highlights.set(markers)
     this.invalidate()
   }
+}
+
+/** What the Pi reports for the GPIO a hovered net is, while Live Pi state is on. */
+function liveSuffix(net: string | null): string {
+  const bcm = net && /^GPIO(\d+)$/.exec(net)?.[1]
+  if (!bcm || !useStudio.getState().live) return ''
+  const { online, pins } = useLive.getState()
+  const pin = online ? pins[Number(bcm)] : undefined
+  return pin ? ` · Pi: ${liveText(pin)}` : ''
 }
 
 /** The lead end on a module pin, if one is there. */

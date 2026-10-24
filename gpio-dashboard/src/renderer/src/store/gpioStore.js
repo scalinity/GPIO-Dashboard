@@ -23,7 +23,14 @@ const useGpioStore = create((set, get) => ({
       const direction = String(pinState.direction).toUpperCase()
       normalized[bcm] = { bcm: pinState.bcm, state, direction, pull: pinState.pull, function: pinState.function, info: pinState.info, consumer: pinState.consumer, name: pinState.name, used: pinState.used }
       const old = prev[bcm]
-      if (!old || old.state !== state || old.direction !== direction) {
+      // A pull or a function change (a program setting a pull-up, I2C turned on) is news too.
+      if (
+        !old ||
+        old.state !== state ||
+        old.direction !== direction ||
+        old.pull !== pinState.pull ||
+        old.function !== pinState.function
+      ) {
         changed.add(bcm)
       }
     }

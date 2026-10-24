@@ -40,6 +40,10 @@ interface StudioState {
   current: boolean
   nets: boolean
   sense: boolean
+  /** Live Pi state (SPEC 11.5): the Pi's pins, painted and simulated, and where they diverge. */
+  live: boolean
+  /** The divergence badge whose explanation is open (state/badges.ts), by id. */
+  badge: string | null
   pinMenu: PinMenu | null
   /** The open drawer tab; null while the drawer is folded. */
   drawer: DrawerTab | null
@@ -62,6 +66,8 @@ export const useStudio = create<StudioState>(() => ({
   current: false,
   nets: false,
   sense: true,
+  live: false,
+  badge: null,
   pinMenu: null,
   drawer: null,
   preview: null,

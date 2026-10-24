@@ -9,7 +9,12 @@ import { useCallback, useRef } from 'react'
 import { AgXToneMapping, type WebGPURenderer } from 'three/webgpu'
 import type { GpioState } from '../core/sim/circuit'
 import type { CircuitDoc } from '../core/model/types'
+import { holeText } from '../core/steps/steps'
 import { bindStage, keep, reviewText, stop, undoAll, useAssistant } from '../state/assistantStore'
+import { activeBadges } from '../state/badges'
+import { useBuild } from '../state/buildStore'
+import { useLive } from '../state/liveStore'
+import { useSense } from '../state/senseStore'
 import { useStudio } from '../state/studioStore'
 import { useWorkbench } from '../state/workbenchStore'
 import Models from './Models'
@@ -164,11 +169,89 @@ function Cue() {
   )
 }
 
+/**
+ * The explanation a divergence badge opens (SPEC 14.4, 14.5): what differs, the likeliest cause,
+ * the ranked causes with their holes where Board Sense found them, and a way to the Board tab.
+ * It sits outside the element the orbit controls listen on, so its clicks reach it.
+ */
+function BadgeCard({ doc }: { doc: CircuitDoc }) {
+  const open = useStudio((s) => s.badge)
+  const live = useStudio((s) => s.live)
+  const senseOverlay = useStudio((s) => s.sense)
+  const online = useLive((s) => s.online)
+  const divergences = useLive((s) => s.divergences)
+  const mode = useSense((s) => s.mode)
+  const states = useSense((s) => s.states)
+  const candidates = useSense((s) => s.candidates)
+  const buildMode = useBuild((s) => s.on)
+  const building = useBuild((s) => s.on && s.index < s.steps.length)
+  const badge = activeBadges({
+    live,
+    senseOverlay,
+    online,
+    divergences,
+    senseMode: mode,
+    senseStates: states,
+    candidates,
+    building,
+    buildMode
+  }).find((b) => b.id === open)
+  if (!badge) return null
+  const close = () => useStudio.setState({ badge: null })
+  return (
+    <section
+      role="dialog"
+      aria-label={badge.title}
+      className="absolute right-3 top-3 z-30 w-80 max-w-[90%] glass-panel rounded-btn space-y-2 px-3 py-2 text-xs text-gray-200"
+    >
+      <div className="flex items-start gap-2">
+        <span
+          aria-hidden
+          className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${badge.severity === 'error' ? 'bg-red-500' : 'bg-amber-400'}`}
+        />
+        <h3 className="flex-1 text-sm font-semibold text-gray-100">{badge.title}</h3>
+        <button
+          aria-label="Close the explanation"
+          className="text-gray-400 hover:text-gray-100"
+          onClick={close}
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      <p>{badge.why}</p>
+      <p className="text-gray-400">{badge.cause}</p>
+      {badge.causes.length > 0 && (
+        <ol aria-label="Likely causes" className="list-decimal space-y-1 pl-5 text-gray-300">
+          {badge.causes.map((c, i) => (
+            <li key={i}>
+              {c.text}
+              {c.holes.length > 0 && (
+                <span className="text-gray-500">
+                  {' '}
+                  ({c.holes.map((h) => holeText(doc, h)).join(' → ')})
+                </span>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+      {badge.refs.length > 0 && <p className="text-gray-500">Involves {badge.refs.join(', ')}.</p>}
+      <button
+        className="btn-ghost px-2 py-1 text-xs"
+        onClick={() => useStudio.setState({ drawer: 'board', badge: null })}
+      >
+        Open the Board tab
+      </button>
+    </section>
+  )
+}
+
 export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDoc }) {
   const tooltip = useRef<HTMLDivElement>(null)
   const labels = useRef<HTMLDivElement>(null)
   const tags = useRef<HTMLDivElement>(null)
   const marks = useRef<HTMLDivElement>(null)
+  const badges = useRef<HTMLDivElement>(null)
   const notice = useStudio((s) => s.notice)
   const attach = useCallback(
     (element: HTMLDivElement) => {
@@ -177,7 +260,8 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
         tooltip.current!,
         labels.current!,
         tags.current!,
-        marks.current!
+        marks.current!,
+        badges.current!
       )
       bindStage(view)
       if (import.meta.env.DEV) window.__studio = view
@@ -193,6 +277,8 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
   // capture would otherwise take its clicks.
   return (
     <div className="relative flex-1 min-h-0 min-w-0">
+      {/* Before the stage, so that its ref is set when the stage attaches. */}
+      <div ref={badges} className="absolute inset-0 z-10 overflow-hidden pointer-events-none" />
       <div ref={attach} className="absolute inset-0" data-testid="studio">
         <Canvas
           gl={createRenderer}
@@ -225,6 +311,7 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
       <PinMenu />
       <Working />
       <Cue />
+      <BadgeCard doc={doc} />
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 max-w-[80%] flex flex-col items-center gap-2">
         {notice && (
           <div role="status" className="glass-panel rounded-btn px-3 py-1.5 text-xs text-amber-300">
