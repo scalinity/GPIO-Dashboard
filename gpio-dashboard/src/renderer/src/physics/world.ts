@@ -175,6 +175,7 @@ export class CableWorld {
   private nextGroup = 1
   /** Frames stepped, and each particle's position in the last SLEEP_WINDOW frames (a ring). */
   private tick = 0
+  private settling = false
   private readonly ring: Float64Array
   /** Per-phase milliseconds of the last frame, when `profile` is on. */
   private readonly frameMs: Float64Array | null
@@ -571,7 +572,7 @@ export class CableWorld {
       this.collectPairs(awake)
       this.lap(PAIRS)
       for (const b of awake) {
-        const c = b.speed < SLOW_SPEED ? SLOW_DAMPING : DAMPING
+        const c = this.settling || b.speed < SLOW_SPEED ? SLOW_DAMPING : DAMPING
         b.damp = 1 / (1 + c * h)
       }
       for (let k = 1; k <= n; k++) this.substep(awake, moving, k / n, h)
@@ -582,15 +583,19 @@ export class CableWorld {
 
   /**
    * Steps until every island sleeps or `maxFrames` have run, so a project opened from a
-   * design-curve guess is shown at rest. Returns the frames run. It is the same stepping as
-   * `step`, so the result does not depend on whether a scene was settled or simply run.
+   * design-curve guess is shown at rest. Returns the frames run. Bodies are damped as the slow
+   * ones are throughout, so a lead creeps to its resting shape the way it does when a hand lets
+   * it down: dropped freely it can fall to the other side of a ridge and rest in a different, equally
+   * valid shape, and a reopened project would not look the way it was saved.
    */
   settle(maxFrames = 240): number {
+    this.settling = true
     let frames = 0
     while (frames < maxFrames && !this.allAsleep()) {
       this.step()
       frames++
     }
+    this.settling = false
     return frames
   }
 
