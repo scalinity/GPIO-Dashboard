@@ -1,0 +1,100 @@
+{
+  "id": "rgb-led-cc",
+  "name": "RGB LED, 5 mm, common cathode",
+  "category": "led",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "R",
+      "label": "Red anode (pin 1)",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "K",
+      "label": "Common cathode (pin 2, longest lead)",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0]
+    },
+    {
+      "id": "G",
+      "label": "Green anode (pin 3)",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [2, 0]
+    },
+    {
+      "id": "B",
+      "label": "Blue anode (pin 4)",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [3, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": {
+    "kind": "rigid"
+  },
+  "sim": {
+    "model": "rgb-led",
+    "params": {
+      "red.vfMinV": 1.8,
+      "red.vfTypV": 2.0,
+      "red.vfMaxV": 2.2,
+      "red.ifTestMa": 20,
+      "red.ifMaxMa": 20,
+      "red.ifPeakMa": 30,
+      "red.irMaxA": 1e-5,
+      "red.vrTestV": 5,
+      "green.vfMinV": 3.0,
+      "green.vfTypV": 3.2,
+      "green.vfMaxV": 3.4,
+      "green.ifTestMa": 20,
+      "green.ifMaxMa": 20,
+      "green.ifPeakMa": 30,
+      "green.irMaxA": 1e-5,
+      "green.vrTestV": 5,
+      "blue.vfMinV": 3.0,
+      "blue.vfTypV": 3.2,
+      "blue.vfMaxV": 3.4,
+      "blue.ifTestMa": 20,
+      "blue.ifMaxMa": 20,
+      "blue.ifPeakMa": 30,
+      "blue.irMaxA": 1e-5,
+      "blue.vrTestV": 5,
+      "commonPin": "K",
+      "commonType": "cathode"
+    }
+  },
+  "properties": {},
+  "bodyMm": [5.8, 5.8, 8.7],
+  "geometry": {
+    "family": "rgb-led",
+    "params": {
+      "domeDiameterMm": 5.0,
+      "flangeDiameterMm": 5.8,
+      "flangeThicknessMm": 1.0,
+      "bodyHeightMm": 8.7,
+      "commonLeadLengthMm": 29.5,
+      "redLeadLengthMm": 27.5,
+      "greenLeadLengthMm": 26.5,
+      "blueLeadLengthMm": 25.5,
+      "leadPitchNativeMm": 1.27,
+      "leadSquareMm": 0.5
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://www.sparkfun.com/datasheets/Components/YSL-R596CR3G4B5C-C10.pdf",
+      "https://www.sparkfun.com/led-rgb-clear-common-cathode.html",
+      "https://docs.sunfounder.com/projects/sf-components/en/latest/component_rgb_led.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.1.2%20RGB%20LED.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html",
+      "https://static.chipdip.ru/lib/085/DOC015085797.pdf",
+      "https://atta.szlcsc.com/upload/public/pdf/source/20250630/29DF0A225F74CB001860CB26889C1712.pdf"
+    ],
+    "notes": "Primary datasheet: China Young Sun LED YSL-R596CR3G4B5C-C10 (SparkFun-hosted copy), 4 pages. Pin map from the drawing on p.2: 1 RED, 2 common (longest lead, 29.5 mm), 3 GREEN, 4 BLUE; the schematic joins the three cathodes at pin 2, so it is common cathode. The SparkFun product page adds that the datasheet labels were corrected in 1/2010 (pin 3 green, pin 4 blue; earlier units had blue and green swapped). Electrical (p.1): VF at 20 mA red 1.8/2.0/2.2 V, green and blue 3.0/3.2/3.4 V (min/typ/max); IF 20 mA; peak IF 30 mA (duty 1/10, 10 kHz); IR 10 µA at VR = 5 V. That 5 V is the IR test condition in the absolute-maximum table; the sheet states no separate reverse-voltage rating, so the key is vrTestV and not vrMaxV. The luminous-intensity column is headed Max and reads 800/4000/900 mcd. Package (p.2): dome ø5.00, flange ø5.80, flange 1.00, overall 8.70 mm. Lead pitch is not on the Young Sun sheet; 1.27 mm (3 gaps) is read from the Dialight 521-8559F and Kingbright L-154A4SURKQBDZGW drawings of the same 4-lead 5 mm format. The leads are bent to the 2.54 mm grid when used on a breadboard, which is why the offsets are [0..3, 0]. Kit tag: the component list image shows one LED-RGB. No kit page says common cathode in words. It is inferred from project 1.1.2: the 2nd (longest) lead goes to GND, GPIO17, 18 and 27 drive R, G and B, and the code sets each pin high to light it. SunFounder's own Components documentation (sf-components, RGB LED page) does state it: Common Cathode, 5 mm clear lens, VF red 2.0-2.2 V and blue/green 3.0-3.2 V at 20 mA (the same figures as the YSL sheet), pin order Red, GND, Green, Blue with the longest lead second from the left, and 'We use the common cathode one'. CONFLICT in pin order between manufacturers: Kingbright L-154A4SURKQBDZGW (p.1 drawing) orders the leads R, cathode, BLUE, GREEN, while Young Sun and SunFounder use R, cathode, GREEN, BLUE. This definition follows the Young Sun sheet because it matches the kit's wiring; check the order of any other RGB LED with a diode test. bodyMm is [flange, flange, overall height]."
+  }
+}

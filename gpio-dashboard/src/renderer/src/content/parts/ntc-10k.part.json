@@ -1,0 +1,78 @@
+{
+  "id": "ntc-10k",
+  "name": "NTC thermistor 10 kΩ, B 3950",
+  "category": "sensor",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "Lead 1",
+      "role": "passive",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "Lead 2",
+      "role": "passive",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": {
+    "kind": "flex-2lead",
+    "minSpan": 1,
+    "maxSpan": 6
+  },
+  "sim": {
+    "model": "ntc",
+    "params": {
+      "r25Ohm": 10000,
+      "r25TolPct": 1,
+      "betaK": 3950,
+      "betaTolPct": 1,
+      "rAtMinus20CelsiusOhm": 97839.6,
+      "rAt0CelsiusOhm": 32754.7,
+      "rAt50CelsiusOhm": 3588.2,
+      "rAt85CelsiusOhm": 1058.0,
+      "rAt100CelsiusOhm": 667.6,
+      "rAt125CelsiusOhm": 332.6,
+      "dissipationMinWPerK": 0.002,
+      "timeConstantMaxS": 7,
+      "tempMinC": -20,
+      "tempMaxC": 120
+    }
+  },
+  "properties": {
+    "temperatureC": {
+      "type": "number",
+      "label": "Temperature",
+      "unit": "°C",
+      "min": -20,
+      "max": 120,
+      "default": 25
+    }
+  },
+  "bodyMm": [2.2, 2.2, 4.0],
+  "geometry": {
+    "family": "ntc",
+    "params": {
+      "bodyDiameterMm": 2.2,
+      "bodyDiameterMinMm": 1.8,
+      "bodyLengthMm": 4.0,
+      "totalLengthMaxMm": 32,
+      "leadDiameterMm": 0.36,
+      "leadSpacingMm": 2.0
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://en.semiware.com/uploads/datasheet/MF52A103F3950.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/2.2.2%20Thermistor.html",
+      "https://docs.sunfounder.com/projects/sf-components/en/latest/component_thermistor.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "Datasheet: Semiware (Nanjing Shiheng) MF52A103F3950, product datasheet Rev. A2.0 (5 pages), bead-type NTC. Electrical characteristics table p.1: R25 10 kΩ ±1% at 25 °C, B25/50 3950 K ±1%, dissipation coefficient at least 2 mW/°C in still air, time constant at most 7 s, operating range -20 to 120 °C. Resistance-temperature table (Exhibit 1, p.3-4): -20 °C 97.8396 kΩ, 0 °C 32.7547 kΩ, 25 °C 10.0000 kΩ, 50 °C 3.5882 kΩ, 85 °C 1.0580 kΩ, 100 °C 0.6676 kΩ, 125 °C 0.3326 kΩ; B computed from the 25 and 50 °C rows is about 3950 K, so the table agrees with B25/50. A single B is only accurate near 25-50 °C (the 0 °C row implies about 3865 K), so the table points are kept for interpolation. Outline drawing p.1: body D 1.8-2.2 mm (max 2.2), body length L1 4 mm, total length L at most 32 mm, lead ø0.36 (printed '0.36±2mm', an obvious typo for a tolerance), lead spacing F 2.0 mm. The drawing shows a black epoxy drop, consistent with the kit photo. The sheet gives no thickness, so the body is assumed round for bodyMm [D, D, L1]. Kit: 'Thermistor x1' on the component list image; SunFounder 2.2.2 and its Components page say NTC, 10 kΩ at 25 °C and B = 3950, which equal this part's R25 and B25/50. SunFounder names no manufacturer or model, so this is the matching documented part. Spans: minSpan 1 (native 2.0 mm lead spacing bends to 2.54 mm). The sheet states only the maximum overall length (32 mm), not a minimum lead length, so maxSpan 6 is deliberately conservative (floor((2.0 + 2 x (15 - 8)) / 2.54) for an assumed 15 mm of lead, with the 8 mm bend/insertion allowance also a modelling assumption). This value is not verified by the datasheet."
+  }
+}

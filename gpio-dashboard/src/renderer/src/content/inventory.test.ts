@@ -1,5 +1,6 @@
 // The seeded inventory (SPEC 7): its structure, its part ids, and the kit's list as transcribed.
 import { describe, expect, it } from 'vitest'
+import { PART_DEFS } from '../core/defs/parts'
 import raw from './inventory.json'
 
 interface Item {
@@ -22,47 +23,6 @@ interface Inventory {
 
 const inventory: Inventory = raw
 
-const PART_IDS = new Set([
-  'pn2222',
-  'ads7830-module',
-  'resistor',
-  'led',
-  'rgb-led-cc',
-  'rgb-led-ca',
-  'ceramic-capacitor',
-  'electrolytic-capacitor',
-  'diode-1n4007',
-  'potentiometer-10k',
-  'ldr',
-  'ntc-10k',
-  'tact-switch-6mm',
-  'tilt-switch',
-  's8050',
-  's8550',
-  'active-buzzer',
-  'passive-buzzer',
-  'dc-motor',
-  'relay-module-5v',
-  'relay-5v',
-  'breadboard-power-module',
-  'ic-74hc595',
-  'ic-adc0834',
-  'ic-l293d',
-  'seven-segment-cc',
-  'seven-segment-ca',
-  'seven-segment-4digit',
-  'led-matrix-8x8',
-  'bar-graph-10',
-  'dht11-module',
-  'dht11',
-  'joystick-module',
-  'sg90',
-  'hc-sr04',
-  'hc-sr501',
-  'lcd1602-i2c',
-  'keypad-4x4',
-  'ads1115-module'
-])
 const LEAD_KINDS = new Set(['dupont-mm', 'dupont-mf', 'dupont-ff', 'solid-arc', 'solid-flat'])
 
 const allItems = [...inventory.kit.items, ...inventory.tboardKit.items]
@@ -91,10 +51,10 @@ describe('inventory structure', () => {
     }
   })
 
-  it('uses only known part ids, or null', () => {
+  it('uses only part ids the library defines, or null', () => {
     for (const item of allItems) {
       if (item.partId !== null) {
-        expect(PART_IDS.has(item.partId), `${item.name}: ${item.partId}`).toBe(true)
+        expect(PART_DEFS.has(item.partId), `${item.name}: ${item.partId}`).toBe(true)
       }
     }
   })

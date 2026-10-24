@@ -1,0 +1,82 @@
+{
+  "id": "potentiometer-10k",
+  "name": "Potentiometer 10 kΩ, rotary",
+  "category": "passive",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "End terminal 1 (pin 1)",
+      "role": "passive",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "Wiper (pin 2, centre)",
+      "role": "wiper",
+      "electricalType": "passive",
+      "offsetPitch": [2, 0]
+    },
+    {
+      "id": "3",
+      "label": "End terminal 2 (pin 3)",
+      "role": "passive",
+      "electricalType": "passive",
+      "offsetPitch": [4, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": {
+    "kind": "rigid"
+  },
+  "sim": {
+    "model": "potentiometer",
+    "params": {
+      "totalResistanceOhm": 10000,
+      "rotationDeg": 300,
+      "rotationTolDeg": 5,
+      "taper": "linear",
+      "ratedPowerW": 0.2,
+      "maxVoltageV": 150
+    }
+  },
+  "properties": {
+    "wiper": {
+      "type": "number",
+      "label": "Wiper position",
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "default": 50
+    }
+  },
+  "bodyMm": [17, 24.1, 20.75],
+  "geometry": {
+    "family": "potentiometer",
+    "params": {
+      "pinPitchMm": 5.0,
+      "pinWidthMm": 1.0,
+      "pinThicknessMm": 0.5,
+      "pinLengthBelowBodyMm": 3.5,
+      "bodyDiameterMm": 16.5,
+      "frontWidthMm": 17,
+      "bodyDepthMm": 9.1,
+      "bushingThread": "M7x0.75",
+      "bushingLengthMm": 6.5,
+      "shaftDiameterMm": 6,
+      "shaftLengthMm": 15,
+      "shaftAxisHeightMm": 12.5
+    }
+  },
+  "provenance": {
+    "sources": [
+      "http://www.taiwanalpha.com.tw/downloads?id=97&target=products",
+      "https://asset.conrad.com/media10/add/160267/c1/-/de/001644141DS01/tehnicni-podatki-1644141-potentiometer-service-rv16af-20-15k-b5k-3-rv16af-20-15k-b5k-vrtljivi-potenciometer-1-stopenjski-mono-0125-w-1-kos.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/2.1.3%20Potentiometer.html",
+      "https://docs.sunfounder.com/projects/sf-components/en/latest/component_potentiometer.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "Datasheet: Taiwan Alpha Electronic '16mm Rotary Type, Metal Shaft Series' (6 pages), model RV16AF-20 (single unit, horizontal terminals, metal bushing). Specification table p.1: total rotational angle 300±5°, maximum operating voltage 150 V AC. Outline drawing for RV16AF-20, p.3: three terminals 1.0 wide x 0.5 thick on a 5 + 5 mm pitch (PCB holes 3 x ø1.2 at 5 mm), 3.5 mm of terminal below the body, shaft axis 12.5 mm above the terminal shoulder, front ø17, body ø16.5, depth 9.1 mm, bushing M7x0.75 x 6.5, shaft ø6. The circuit drawing shows the wiper on terminal 2 (centre). Rated power 0.2 W for linear taper (0.05 W log) comes from the Conrad-hosted Alpha RV16A-20 sheet (Potentiometer-Service GmbH), which also gives shaft Ø6 x L 15 mm and 300° ± 5; the Alpha sheet itself has no power rating and no resistance tolerance. Pin pitch: 5.0 mm is 1.97 pitches, so the terminals map to a 2-pitch stride at [0,0], [2,0], [4,0] (0.08 mm off the grid, taken up by the bendable terminals). Kit: the component list reads 'Potentiometer (10k) x1'; SunFounder 2.1.3 says terminals 1 and 3 are the ends of the 10 kΩ track and terminal 2 is the moving contact. The kit photo shows a 3-terminal pot on an orange base in the common WH148/RV16 style, but SunFounder names no model, so the Alpha RV16AF-20 numbers are a documented stand-in. The 5 mm pitch, 300° travel and linear taper are verified for the Alpha part and are assumptions for the kit's actual pot. bodyMm is [front width along the terminal row, depth from rear of body to shaft tip (9.1 + 15), shaft-axis height + body radius (12.5 + 8.25)]."
+  }
+}
