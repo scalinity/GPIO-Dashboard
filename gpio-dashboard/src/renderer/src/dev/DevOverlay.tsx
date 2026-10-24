@@ -66,7 +66,7 @@ function ProbeRows({ probe }: { probe: Promise<PlatformProbe> }) {
 }
 
 function StudioRows() {
-  const { backend, frames, fps } = useSyncExternalStore(subscribeStatus, getStatus)
+  const { backend, frames, fps, physics } = useSyncExternalStore(subscribeStatus, getStatus)
   if (!backend) return <Row label="renderer" value="not started (open the Studio)" />
   return (
     <>
@@ -75,6 +75,13 @@ function StudioRows() {
         label="frames"
         value={`${frames}${fps === null ? '' : ` · last run ${fps.toFixed(0)} fps`}`}
       />
+      {physics && (
+        <Row
+          label="physics step"
+          value={`${physics.last.toFixed(2)} ms · run mean ${physics.mean.toFixed(2)} · max ${physics.max.toFixed(2)}`}
+          ok={physics.mean <= 4}
+        />
+      )}
     </>
   )
 }

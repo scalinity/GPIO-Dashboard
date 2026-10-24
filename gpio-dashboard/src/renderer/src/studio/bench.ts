@@ -1,9 +1,9 @@
-// What joins the Pi to the breadboard (SPEC 6.2–6.4, 10.4): the Pi's 40 header pins, the T-board,
-// an IDC socket on each header and the ribbon between them. The pins are instanced and addressable
-// by physical number; the T-board and the sockets are copies of their models; the ribbon is a
-// strip along its design curve until the physics lane drives it.
+// What joins the Pi to the breadboard (SPEC 6.2–6.4, 10.4, 10.5): the Pi's 40 header pins, the
+// T-board, an IDC socket on each header and the ribbon between them. The pins are instanced and
+// addressable by physical number; the T-board and the sockets are copies of their models; the
+// ribbon is simulated, clamped in both sockets' cable lines with conductor 1 on the same side, and
+// drawn as a strip through the solver's rows of particles.
 import piBoardJson from '../content/controllers/pi5-board.json'
-import ribbonJson from '../content/controllers/ribbon.json'
 import {
   BoxGeometry,
   Color,
@@ -15,13 +15,15 @@ import {
   Quaternion,
   Vector3
 } from 'three/webgpu'
-import { boardDef } from '../core/defs/boards'
+import type { Pose } from '../physics'
 import type { CircuitDoc } from '../core/model/types'
 import { PI_PIN_TIPS_ABOVE_TABLE_MM } from '../core/reach/reach'
+import { type CableIn, type CableState, fromCore, type Placement, toCore } from './cables'
 import { poseMatrix, tboardPose } from './coords'
 import { ModelInstances } from './instances'
 import { modelNow, textureNow } from './loaders'
-import { type CableEnd, ribbonDesign, ribbonGeometry, ribbonMaterial } from './ribbon'
+import { type CableEnd, ribbonGeometry, ribbonMaterial } from './ribbon'
+import { SUBDIVISIONS } from './tube'
 
 // Heights in the Pi's model, from pi5.colliders.json (bench.test.ts holds them to it).
 /** The header's posts run from below the PCB (header-pins) to PI_PIN_TIPS_ABOVE_TABLE_MM. */
@@ -36,6 +38,10 @@ const GOLD = new Color('#d8b15a')
 const up = new Vector3(0, 1, 0)
 /** Socket frames' way out of the cable wall: core −x. */
 const cableWall = new Vector3(-1, 0, 0)
+/** Particles across the simulated ribbon (the solver takes 5 to 9). */
+const RIBBON_COLUMNS = 7
+/** An over-span ribbon is tinted toward this red (SPEC 10.5). */
+const TAUT = new Color('#ff6b6b')
 
 /** Each header pin's centre in the Pi's frame: odd pins on the inner row, from the end away from the ports. */
 function piPinXY(physical: number): [number, number] {
@@ -54,30 +60,56 @@ function cableEnd(sockets: ModelInstances, pose: Matrix4): CableEnd | null {
   return { a: at(a), b: at(b), out }
 }
 
-/** How high the ribbon's middle must stay above a point: the table, a board's top or the Pi's PCB. */
-function floorOf(doc: CircuitDoc): (p: Vector3) => number {
-  const clear = ribbonJson.thicknessMm / 2
-  const tops = [
-    ...doc.boards.map((b) => {
-      const { lengthMm, widthMm, heightMm } = boardDef(b.defId).body
-      return { transform: b.transform, size: [lengthMm, widthMm], top: heightMm }
-    }),
-    {
-      transform: doc.controller.pi.transform,
-      size: [piBoardJson.outline.widthMm, piBoardJson.outline.depthMm],
-      top: PI_PCB_TOP_MM
+/**
+ * The solver's frame at a socket (physics/types RibbonDef): at the middle of the cable's exit
+ * line, +y out into the cable and +x from conductor 1 toward 40, so the column at -x is conductor
+ * 1 at both ends.
+ */
+function ribbonFrame(end: CableEnd): Pose {
+  const [a, b] = [new Vector3(...toCore(end.a)), new Vector3(...toCore(end.b))]
+  const x = b.clone().sub(a).normalize()
+  const y = new Vector3(...toCore(end.out))
+  y.addScaledVector(x, -y.dot(x)).normalize()
+  const q = new Quaternion().setFromRotationMatrix(
+    new Matrix4().makeBasis(x, y, x.clone().cross(y))
+  )
+  const o = a.add(b).multiplyScalar(0.5)
+  return { position: [o.x, o.y, o.z], rotation: [q.x, q.y, q.z, q.w] }
+}
+
+/** Points between each pair of rows along a uniform Catmull-Rom spline, column by column. */
+function smoothRows(rows: Vector3[][]): Vector3[][] {
+  const n = rows.length
+  const at = (i: number, j: number) =>
+    i < 0
+      ? rows[0]![j]!.clone().multiplyScalar(2).sub(rows[1]![j]!)
+      : i >= n
+        ? rows[n - 1]![j]!.clone()
+            .multiplyScalar(2)
+            .sub(rows[n - 2]![j]!)
+        : rows[i]![j]!
+  const out: Vector3[][] = []
+  for (let i = 0; i + 1 < n; i++)
+    for (let s = 0; s < SUBDIVISIONS; s++) {
+      const t = s / SUBDIVISIONS
+      const [t2, t3] = [t * t, t * t * t]
+      const c = [
+        -0.5 * t3 + t2 - 0.5 * t,
+        1.5 * t3 - 2.5 * t2 + 1,
+        -1.5 * t3 + 2 * t2 + 0.5 * t,
+        0.5 * t3 - 0.5 * t2
+      ]
+      out.push(
+        rows[i]!.map((_, j) =>
+          [i - 1, i, i + 1, i + 2].reduce(
+            (p, r, k) => p.addScaledVector(at(r, j), c[k]!),
+            new Vector3()
+          )
+        )
+      )
     }
-  ].map((t) => ({ ...t, toLocal: poseMatrix(t.transform, 0).invert() }))
-  const local = new Vector3()
-  return (p) => {
-    let y = 0
-    for (const t of tops) {
-      local.copy(p).applyMatrix4(t.toLocal)
-      const [x, cy] = [local.x, -local.z]
-      if (x >= 0 && x <= t.size[0]! && cy >= 0 && cy <= t.size[1]!) y = Math.max(y, t.top)
-    }
-    return y + clear
-  }
+  out.push(rows[n - 1]!)
+  return out
 }
 
 export class BenchLayer {
@@ -86,8 +118,13 @@ export class BenchLayer {
   tboard: ModelInstances | null = null
   sockets: ModelInstances | null = null
   ribbon: Mesh | null = null
-  private ribbonKey = ''
-  /** Points across each of the ribbon's rows. */
+  /** The two sockets' cable exits, the Pi's first; null until both sockets are placed. */
+  private ends: [CableEnd, CableEnd] | null = null
+  private poses: { tboard: Matrix4 | null; sockets: Matrix4[] } = { tboard: null, sockets: [] }
+  private lengthMm = 0
+  private textures = ''
+  private taut = false
+  /** Points across each of the ribbon's drawn rows. */
   private columns = 0
   private readonly pinMaterial = new MeshStandardNodeMaterial({
     color: 0xffffff,
@@ -145,25 +182,83 @@ export class BenchLayer {
       .premultiply(pi)
     const rim = this.tboard?.node('socket')
     const onTboard = tbPose && rim ? rim.clone().premultiply(tbPose) : null
-    this.sockets?.set(onTboard ? [onPi, onTboard] : [onPi])
+    const sockets = onTboard ? [onPi, onTboard] : [onPi]
+    this.sockets?.set(sockets)
+    this.poses = { tboard: tbPose, sockets }
 
     const ends = this.sockets &&
       onTboard && [cableEnd(this.sockets, onPi), cableEnd(this.sockets, onTboard)]
+    this.ends = ends?.[0] && ends[1] ? [ends[0], ends[1]] : null
+    this.lengthMm = doc.controller.ribbon.lengthMm
     const colors = textureNow('/models/ribbon-colors.ktx2')
     const ridges = textureNow('/models/ribbon-ridges.ktx2')
-    const key =
-      ends?.[0] && ends[1]
-        ? JSON.stringify([ends, doc.controller.ribbon.lengthMm, colors?.uuid, ridges?.uuid])
-        : ''
-    if (key === this.ribbonKey) return
-    this.ribbonKey = key
-    this.removeRibbon()
-    if (!ends?.[0] || !ends[1]) return
-    const rows = ribbonDesign(ends[0], ends[1], doc.controller.ribbon.lengthMm, floorOf(doc))
-    this.columns = rows[0]!.length
-    this.ribbon = new Mesh(ribbonGeometry(rows), ribbonMaterial(colors, ridges))
-    this.ribbon.castShadow = this.ribbon.receiveShadow = true
-    this.group.add(this.ribbon)
+    const textures = JSON.stringify([colors?.uuid, ridges?.uuid])
+    if (!this.ends) this.removeRibbon()
+    else if (this.ribbon && textures !== this.textures) {
+      ;(this.ribbon.material as MeshStandardNodeMaterial).dispose()
+      this.ribbon.material = this.ribbonMaterial(colors, ridges)
+    }
+    this.textures = textures
+  }
+
+  /** Whether the models the ribbon's ends come from have settled. */
+  get ready(): boolean {
+    return (
+      modelNow('/models/tboard.glb') !== undefined &&
+      modelNow('/models/idc-socket.glb') !== undefined
+    )
+  }
+
+  /** The T-board and the sockets, as collider placements. */
+  placements(): Placement[] {
+    const { tboard, sockets } = this.poses
+    return [
+      ...(tboard ? [{ key: 'tboard', url: '/models/tboard.colliders.json', pose: tboard }] : []),
+      ...sockets.map((pose, i) => ({
+        key: `socket${i}`,
+        url: '/models/idc-socket.colliders.json',
+        pose
+      }))
+    ]
+  }
+
+  /** The ribbon, as the solver's cable: clamped at both sockets' cable lines. */
+  cable(): CableIn | null {
+    if (!this.ends) return null
+    const [a, b] = this.ends.map(ribbonFrame) as [Pose, Pose]
+    return {
+      key: 'ribbon',
+      build: `ribbon ${this.lengthMm}`,
+      spec: { kind: 'ribbon', a, b, lengthMm: this.lengthMm, columns: RIBBON_COLUMNS }
+    }
+  }
+
+  /** Draws the ribbon through its particles; hidden until the settled scene is `ready`. */
+  simulate(state: CableState | null, ready: boolean): void {
+    if (!ready || !state || !this.ends) {
+      if (!ready) this.removeRibbon()
+      return
+    }
+    const { body, positions } = state
+    const rows = Array.from({ length: body.rows }, (_, r) =>
+      Array.from({ length: body.columns }, (_, c) =>
+        fromCore(positions, body.offset + r * body.columns + c)
+      )
+    )
+    const smooth = smoothRows(rows)
+    this.columns = body.columns
+    if (!this.ribbon) {
+      const colors = textureNow('/models/ribbon-colors.ktx2')
+      const ridges = textureNow('/models/ribbon-ridges.ktx2')
+      this.ribbon = new Mesh(ribbonGeometry(smooth), this.ribbonMaterial(colors, ridges))
+      this.ribbon.castShadow = this.ribbon.receiveShadow = true
+      this.ribbon.frustumCulled = false
+      this.group.add(this.ribbon)
+    } else ribbonGeometry(smooth, this.ribbon.geometry)
+    if (body.taut !== this.taut) {
+      this.taut = body.taut
+      this.tint(this.ribbon.material as MeshStandardNodeMaterial)
+    }
   }
 
   /** The ribbon's length along its middle, measured from its mesh; null when it isn't drawn. */
@@ -191,7 +286,21 @@ export class BenchLayer {
     this.sockets?.dispose()
     this.tboard = this.sockets = null
     this.removeRibbon()
-    this.ribbonKey = ''
+  }
+
+  private ribbonMaterial(
+    colors: ReturnType<typeof textureNow>,
+    ridges: ReturnType<typeof textureNow>
+  ): MeshStandardNodeMaterial {
+    return this.tint(ribbonMaterial(colors, ridges))
+  }
+
+  /** Over-span, the PVC takes a red tint; in span, its own colour. */
+  private tint(m: MeshStandardNodeMaterial): MeshStandardNodeMaterial {
+    const base = m.map ? new Color(0xffffff) : new Color(0x9a9a9e)
+    m.color.copy(this.taut ? base.multiply(TAUT) : base)
+    m.emissive.copy(this.taut ? TAUT.clone().multiplyScalar(0.2) : new Color(0))
+    return m
   }
 
   private removeRibbon(): void {

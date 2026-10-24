@@ -7,6 +7,7 @@ import type { Group, Material, Mesh, Texture, WebGPURenderer } from 'three/webgp
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js'
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
+import type { ColliderFile } from './cables'
 
 const ktx2 = new KTX2Loader().setTranscoderPath('/basis/')
 const gltf = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).setKTX2Loader(ktx2)
@@ -85,6 +86,25 @@ export function textureNow(url: string): Texture | null | undefined {
       .finally(() => arrivals.forEach((notify) => notify()))
   }
   return textures.get(url)
+}
+
+const colliderFiles = new Map<string, ColliderFile | null>()
+const collidersRequested = new Set<string>()
+
+/** A model's colliders file (null when it could not be read), else undefined while it loads. */
+export function collidersNow(url: string): ColliderFile | null | undefined {
+  if (!collidersRequested.has(url)) {
+    collidersRequested.add(url)
+    fetch(url)
+      .then((r) => (r.ok ? (r.json() as Promise<ColliderFile>) : null))
+      .catch(() => null)
+      .then((file) => {
+        if (!file) console.warn(`[studio] ${url} did not load`)
+        colliderFiles.set(url, file)
+        arrivals.forEach((notify) => notify())
+      })
+  }
+  return colliderFiles.get(url)
 }
 
 /** One entry of public/models/parts/index.json: a file, and the props that select it. */

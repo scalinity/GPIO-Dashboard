@@ -1,5 +1,6 @@
 // The Studio's imperative side: the camera and its damped orbit, hover picking and highlights, the
-// gestures that edit the document, the bench, parts and leads it draws, and the frame loop.
+// gestures that edit the document, the bench, parts and leads it draws, the cables' physics, and
+// the frame loop.
 // Pointer and key handlers act directly on three objects and request a frame, so a hover shows on
 // the very next frame (SPEC 11.3, acceptance 8) without waiting on React. Edits go through the
 // studio store's edit(), one transaction each.
@@ -14,6 +15,7 @@ import {
   Raycaster,
   type Scene,
   Vector2,
+  Vector3,
   type WebGPURenderer
 } from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
@@ -22,7 +24,7 @@ import { PI_HEADER } from '../core/defs/controllers'
 import { partDef } from '../core/defs/parts'
 import { holeKey, isValidHole, parseHoleKey } from '../core/geometry/breadboard'
 import { tboardPinHoles } from '../core/geometry/tboard'
-import type { CircuitDoc, Endpoint, Op } from '../core/model/types'
+import type { CircuitDoc, Endpoint, Op, Wire } from '../core/model/types'
 import type { Problem } from '../core/ops/validate'
 import { circuit } from '../state/circuit'
 import { useSense } from '../state/senseStore'
@@ -30,8 +32,9 @@ import { edit, type Selection, type Tool, useStudio } from '../state/studioStore
 import { useWorkbench } from '../state/workbenchStore'
 import { BenchLayer } from './bench'
 import { bodyBox, pickBody, pointsBox } from './bodies'
+import { Cables, type CablesReport, placeColliders, type Placement, TABLE, toCore } from './cables'
 import { CameraTween, type Preset, presetView } from './camera'
-import { endpointInScene, holeInScene } from './coords'
+import { endpointInScene, holeInScene, poseMatrix } from './coords'
 import { FrameLoop } from './frameLoop'
 import {
   boardTop,
@@ -45,7 +48,7 @@ import {
 import { Halos } from './halos'
 import { Insertion, reseated } from './insertion'
 import { LabelLayer, labelsOf } from './labels'
-import { configureModels, disposeModels, onArrival } from './loaders'
+import { collidersNow, configureModels, disposeModels, onArrival } from './loaders'
 import { type Marker, Markers } from './markers'
 import { netMarkers, stripIndex } from './nets'
 import { type PartHandle, PartLayer } from './parts'
@@ -71,6 +74,9 @@ const LEGAL = new Color('#22C55E')
 const ILLEGAL = new Color('#EF4444')
 /** A press that moves further than this, in pixels, is a drag rather than a click. */
 const CLICK_PX = 4
+/** A lead grabbed this close to one of its route hints moves that hint rather than adding one. */
+const HINT_GRAB_MM = 15
+const MAX_HINTS = 3
 
 /** What the last hover showed, and on which frame (tests read it). */
 export interface HoverRecord {
@@ -135,6 +141,14 @@ export class StudioView {
     () => this.invalidate()
   )
   private readonly insertion = new Insertion()
+  /** The cables' physics (SPEC 10.5): the solver runs in physics.worker. */
+  private readonly cables = new Cables()
+  /** A fresh world settles offscreen before the cables show: on first drawing, and on opening. */
+  private settle = true
+  /** The leads the solver runs, as committed: a lead only a preview holds is a ghost. */
+  private committedWire: (id: string) => Wire | null = () => null
+  /** The layers changed what the cables are drawn from: the next frame draws them again. */
+  private redrawCables = false
   /** The committed document last drawn: what a commit's insertion is measured against. */
   private committed: CircuitDoc | null = null
   private readonly selectionBox = new LineSegments(
@@ -198,10 +212,15 @@ export class StudioView {
     }
     if (this.insertion.settle(now)) {
       const lift = (key: string) => this.insertion.lift(key, now)
+      const doc = this.drawnDoc()
       this.parts.animate(lift)
-      this.wires.animate(this.drawnDoc(), lift)
+      this.wires.update(doc, lift, this.committedWire)
+      this.syncCables(doc, lift)
       moving = true
     }
+    // The newest step the worker published; it keeps frames coming while an island is awake.
+    if (this.cables.poll() || this.redrawCables) this.showCables()
+    if (this.cables.moving) moving = true
     if (this.visuals.step(now)) moving = true
     this.post.render()
     if (this.canvas) {
@@ -212,7 +231,7 @@ export class StudioView {
     const more = this.loop.tick(moving, now)
     this.hover.shownFrame ??= this.loop.frames
     if (!more || this.loop.frames % 30 === 0) {
-      setStatus({ frames: this.loop.frames, fps: this.loop.fps })
+      setStatus({ frames: this.loop.frames, fps: this.loop.fps, physics: this.cables.stepMs })
     }
     return more
   }
@@ -362,6 +381,8 @@ export class StudioView {
     const onUp = (e: PointerEvent) => this.up(e)
     const unsubscribe = [
       circuit.subscribe(() => {
+        // Opening a document clears its history: its cables settle afresh, offscreen.
+        if (!circuit.canUndo && !circuit.canRedo) this.settle = true
         this.refreshHover()
         this.draw()
       }),
@@ -427,6 +448,25 @@ export class StudioView {
     }
   }
 
+  /**
+   * The solver's side of the cables (tests measure from it): the colliders it was last sent, and
+   * each cable's drawn particles in the core frame, from the latest step.
+   */
+  cablesReport(): CablesReport | null {
+    return this.cables.report()
+  }
+
+  /** A core-frame point's position on screen, in client pixels (for tests). */
+  projectPoint([x, y, z]: readonly [number, number, number]): { x: number; y: number } | null {
+    if (!this.canvas) return null
+    const p = new Vector3(x, z, -y).project(this.camera)
+    const rect = this.canvas.getBoundingClientRect()
+    return {
+      x: rect.left + ((p.x + 1) / 2) * rect.width,
+      y: rect.top + ((1 - p.y) / 2) * rect.height
+    }
+  }
+
   /** A hole's position on screen, in client pixels (for tests). */
   projectHole(key: string): { x: number; y: number } | null {
     const hole = parseHoleKey(key)
@@ -478,7 +518,7 @@ export class StudioView {
     const body = pickBody(doc, p.ray)
     const wire = this.wires.pick(p.ray)
     if (wire && (!body || wire.distance < body.distance))
-      return { select: { kind: 'wire', id: wire.id }, drag: null }
+      return { select: { kind: 'wire', id: wire.id }, drag: this.routeOf(doc, wire.id, wire.at) }
     // A part's pin in the hole wins over the board around it.
     const sel: Selection | null =
       occupant?.kind === 'part' && (!body || body.sel.kind === 'board')
@@ -518,6 +558,26 @@ export class StudioView {
       case 'wire':
         return null
     }
+  }
+
+  /**
+   * Grabbing a simulated lead mid-span drags a route hint (SPEC 10.5, 11.3): the one near the grab,
+   * else a new one while it has fewer than three, else the nearest. It moves across the plane
+   * through the grab that faces the camera.
+   */
+  private routeOf(doc: CircuitDoc, id: string, at: Vector3): Gesture | null {
+    const wire = doc.wires.find((w) => w.id === id)
+    if (!wire?.kind.startsWith('dupont') || !this.cables.available) return null
+    const hints = wire.routeHints ?? []
+    const [x, y, z] = toCore(at)
+    const gap = hints.map((h) => Math.hypot(h[0] - x, h[1] - y, h[2] - z))
+    const nearest = gap.indexOf(Math.min(...gap))
+    const index =
+      nearest >= 0 && (gap[nearest]! < HINT_GRAB_MM || hints.length >= MAX_HINTS)
+        ? nearest
+        : hints.length
+    const normal = this.camera.getWorldDirection(new Vector3()).negate()
+    return { kind: 'route', id, index, normal: normal.toArray(), constant: -normal.dot(at) }
   }
 
   private down(e: PointerEvent): void {
@@ -711,7 +771,11 @@ export class StudioView {
     this.bench.update(doc)
     // Parts first: a module's model tells where its pins are, which its leads' ends need.
     this.parts.update(doc, lift)
-    this.wires.update(doc, lift)
+    const held = new Map(committed.wires.map((w) => [w.id, w]))
+    this.committedWire = (id) => (this.cables.available && held.get(id)) || null
+    this.wires.update(doc, lift, this.committedWire)
+    this.syncCables(doc, lift)
+    this.redrawCables = true
     const markers: Marker[] = []
     const tb = doc.controller.tboard
     const tbBoard = doc.boards.find((b) => b.id === tb.board)
@@ -734,14 +798,65 @@ export class StudioView {
       }
     }
     this.footprints.set(markers)
+    this.placeSelection(doc, selection)
+    this.labels?.set(labels ? labelsOf(doc) : [])
+    this.syncVisuals()
+    this.invalidate()
+  }
+
+  /** The selection's box: a lead's from where it is drawn, anything else's from the document. */
+  private placeSelection(doc: CircuitDoc, selection: Selection | null): void {
     const points = selection?.kind === 'wire' ? this.wires.points(selection.id) : null
     const box = selection && (points ? pointsBox(points) : bodyBox(doc, selection))
     this.selectionBox.visible = !!box
     if (box) this.selectionBox.matrix.copy(box)
     this.selectionBox.matrixWorldNeedsUpdate = true
-    this.labels?.set(labels ? labelsOf(doc) : [])
-    this.syncVisuals()
-    this.invalidate()
+  }
+
+  /**
+   * Hands the solver the scene as drawn (SPEC 10.5): every collider file the bench uses at its
+   * model's pose, and each committed lead's and the ribbon's anchors, so a drag moves them as it
+   * goes. Opening waits until every model and collider file it needs has arrived, then settles.
+   */
+  private syncCables(doc: CircuitDoc, lift: (key: string) => number): void {
+    if (!this.cables.available) return
+    const placed: Placement[] = [
+      ...doc.boards.map((b) => ({
+        key: b.id,
+        url: `/models/${b.defId}.colliders.json`,
+        pose: poseMatrix(b.transform, boardDef(b.defId).body.heightMm)
+      })),
+      {
+        key: 'pi',
+        url: '/models/pi5.colliders.json',
+        pose: poseMatrix(doc.controller.pi.transform, 0)
+      },
+      ...this.bench.placements(),
+      ...this.parts.placements(lift),
+      ...this.wires.placements()
+    ]
+    const exits = this.wires.exits()
+    const colliders = [TABLE]
+    let complete = this.parts.ready && this.bench.ready && this.wires.ready
+    for (const p of placed) {
+      const file = collidersNow(p.url)
+      if (file === undefined) complete = false
+      else if (file) colliders.push(...placeColliders(p, file, exits))
+    }
+    if (this.settle && !complete) return
+    const ribbon = this.bench.cable()
+    this.cables.sync(colliders, [...this.wires.cables(), ...(ribbon ? [ribbon] : [])], this.settle)
+    this.settle = false
+  }
+
+  /** Draws the cables from the latest step the worker published. */
+  private showCables(): void {
+    this.redrawCables = false
+    const ready = this.cables.ready
+    this.wires.simulate((id) => this.cables.state(id), ready)
+    this.bench.simulate(this.cables.state('ribbon'), ready)
+    const selection = useStudio.getState().selection
+    if (selection?.kind === 'wire') this.placeSelection(this.drawnDoc(), selection)
   }
 
   /** Brings the simulation's visuals onto the stores' present state. */

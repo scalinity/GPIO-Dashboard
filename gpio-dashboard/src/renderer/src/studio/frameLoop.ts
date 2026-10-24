@@ -30,6 +30,11 @@ export class FrameLoop {
     return moving || this.remaining > 0
   }
 
+  /** When the last frame was drawn (ms, the clock `tick` was given); tests time the stop with it. */
+  get lastAt(): number {
+    return this.run.last
+  }
+
   /** Frames per second over the current (or last) run of consecutive frames, once it has some. */
   get fps(): number | null {
     const { start, last, frames } = this.run

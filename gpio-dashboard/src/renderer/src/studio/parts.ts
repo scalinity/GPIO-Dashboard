@@ -21,6 +21,7 @@ import { holePosition } from '../core/geometry/breadboard'
 import type { CircuitDoc, HoleRef, PartDef, PartInstance } from '../core/model/types'
 import { toTable } from '../core/reach/reach'
 import { resistorBands } from '../core/steps/steps'
+import type { Placement } from './cables'
 import { holeInScene, type ModulePinFrame, poseMatrix, setModuleModel } from './coords'
 import { ModelInstances } from './instances'
 import { bentLeadGeometry, leadDiameterMm, leadPath, RADIAL } from './leads'
@@ -146,6 +147,8 @@ export class PartLayer {
     roughness: 0.3
   })
   private doc: CircuitDoc | null = null
+  /** Parts whose model was still loading at the last update. */
+  private loading = 0
 
   constructor(
     private readonly group: Group,
@@ -156,14 +159,19 @@ export class PartLayer {
   update(doc: CircuitDoc, lift: (id: string) => number): void {
     this.doc = doc
     const index = partIndexNow()
+    this.loading = doc.parts.length
     if (index === undefined) return
+    this.loading = 0
     const poses = new Map<string, { id: string; pose: Matrix4 }[]>()
     const seen = new Set<string>()
     for (const part of doc.parts) {
       const def = partDef(part.defId)
       const file = index && fileOf(index, part, def)
       const model = file ? modelNow(file) : null
-      if (model === undefined) continue
+      if (model === undefined) {
+        this.loading++
+        continue
+      }
       const instances = file && model ? this.instancesOf(file, model) : null
       const placed = this.place(doc, part, def, instances)
       if (!placed) continue
@@ -199,6 +207,20 @@ export class PartLayer {
     for (const [id, slot] of this.slots)
       this.files.get(slot.file)!.move(slot.index, this.lifted(slot.pose, lift(id)))
     for (const [id, drawn] of this.leads) drawn.mesh.position.y = lift(id)
+  }
+
+  /** Whether every part's model has settled, so each body is where it will stay. */
+  get ready(): boolean {
+    return this.loading === 0
+  }
+
+  /** The drawn bodies, each raised `lift(id)` mm, as collider placements. */
+  placements(lift: (id: string) => number): Placement[] {
+    return [...this.slots].map(([id, { file, pose }]) => ({
+      key: id,
+      url: file.replace(/\.glb$/, '.colliders.json'),
+      pose: this.lifted(pose, lift(id))
+    }))
   }
 
   /** The handle for a placed part's model, or null when it has none drawn. */

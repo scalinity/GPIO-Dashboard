@@ -1,6 +1,6 @@
 // What each Studio gesture proposes for the pointer's current place (SPEC 11.3): placing from the
 // library, moving a part, a flexible part's leg, a lead end, a module, a board, the Pi or the
-// T-board, and the wire tool's second click. The view checks each proposal with
+// T-board, a lead's route hint, and the wire tool's second click. The view checks each proposal with
 // circuitStore.check() for the green/red glow and commits it on release.
 import { Plane, type Ray, Vector3 } from 'three/webgpu'
 import { boardDef } from '../core/defs/boards'
@@ -41,6 +41,14 @@ export type Gesture =
   | { kind: 'board'; id: string; from: Vec2; transform: Transform2D }
   | { kind: 'pi'; from: Vec2; transform: Transform2D }
   | { kind: 'tboard'; from: HoleRef; placement: TboardPlacement }
+  /** Route hint `index` of a lead (a new one when it has that many), across a plane in the scene. */
+  | {
+      kind: 'route'
+      id: string
+      index: number
+      normal: [number, number, number]
+      constant: number
+    }
   | { kind: 'wire'; from: Endpoint }
 
 export interface Proposal {
@@ -57,6 +65,7 @@ export interface Proposal {
 }
 
 const plane = new Plane(new Vector3(0, 1, 0), 0)
+const routePlane = new Plane()
 const hit = new Vector3()
 
 /** Where the ray meets the horizontal plane at `height` mm, in the table frame. */
@@ -208,6 +217,22 @@ export function propose(g: Gesture, p: Pointer, doc: CircuitDoc): Proposal | nul
         ...(pair >= 0 && pair < COL_PAIRS.length
           ? {}
           : { refused: 'The T-board takes columns b/f, c/g, d/h or e/i' })
+      }
+    }
+    case 'route': {
+      // The hint is stored in the table frame (core, z up), as the solver reads it.
+      const wire = doc.wires.find((w) => w.id === g.id)
+      routePlane.normal.set(...g.normal)
+      routePlane.constant = g.constant
+      if (!wire || !p.ray.intersectPlane(routePlane, hit)) return null
+      const routeHints = [...(wire.routeHints ?? [])]
+      routeHints[g.index] = [round(hit.x), round(-hit.z), round(hit.y)]
+      return {
+        label: `Route ${wire.id}`,
+        ops: [{ type: 'SetWireProps', id: wire.id, props: { routeHints } }],
+        holes: [],
+        pins: [],
+        select: { kind: 'wire', id: wire.id }
       }
     }
     case 'wire': {
