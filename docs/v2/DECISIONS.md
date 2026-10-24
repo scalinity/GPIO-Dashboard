@@ -211,7 +211,14 @@ decision and consequences. Numbering is stable; superseded records say so.
   - GPIO output resistance in the simulator comes from V_OH/V_OL and I_OH/I_OL at the
     configured drive strength.
   - Per-pin and total current limits for ERC use the 16 mA / 50 mA statement.
-- **Consequences.** These numbers live in `core/constants` with this source. The spec's
+- **Addendum (2026-10-24).** The RP1 table gives no default drive strength. The RP1
+  peripherals datasheet (RP-008370-DS-1, SHA-256 `87fb7b24…6c3d`), Table 21 (pad control
+  register for GPIO0–27), gives the reset values: `DRIVE` = 0x1 (**4 mA**), `SCHMITT` = 1,
+  `SLEWFAST` = 0, `OD` = 1 (output disabled), and `PUE`/`PDE` varying per pin. §3.1.3 lists
+  pull-up, pull-down, bus-keeper and high-impedance pad behaviour. The simulator models a
+  driven output as a Thévenin source: about 42 Ω high and 28 Ω low at 4 mA, i.e. the VOH/VOL
+  margin over the typical I_OH/I_OL (`core/constants/rp1.ts`).
+- **Consequences.** These numbers live in `core/constants/rp1.ts` with this source. The spec's
   "no official source" premise no longer holds for Raspberry Pi 5, and the code follows
   the official document. The leakage (≤ 3 µA) bounds how long an isolated net holds its
   precharge in the pair test (SPEC 14.5).
