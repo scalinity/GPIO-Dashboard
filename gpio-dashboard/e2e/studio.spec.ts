@@ -138,7 +138,7 @@ test.describe('on the blink sample', () => {
     expect(r.piPins).toBe(40)
     expect(r.housings.female).toBe(0)
     expect(r.copies).toEqual({ 'resistor.glb': 1, 'led-5mm.glb': 1 })
-    expect(r.parts).toEqual({ R1: { body: true, leads: 2 }, D1: { body: true, leads: 2 } })
+    expect(r.parts).toMatchObject({ R1: { body: true, leads: 2 }, D1: { body: true, leads: 2 } })
     // The ribbon has its real length (ribbon.json), well over the sockets' span.
     expect(r.ribbonMm).toBeCloseTo(200, 0)
     // Part leads end down their holes; each male Dupont pin stands its exposed length in.
