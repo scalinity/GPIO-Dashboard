@@ -5,12 +5,11 @@ import { partDef } from '../defs/parts'
 import type { CircuitDoc, PartDef } from '../model/types'
 import { at, emptyDoc, hole, part, wire } from '../testing/fixtures'
 import type { BehaviorFactory } from './behavior'
-import { createActiveBuzzer } from './behaviors/active-buzzer'
-import { createDcMotor } from './behaviors/dc-motor'
+import { BEHAVIORS } from './behaviors'
 import { Circuit } from './circuit'
 import { SimSession } from './session'
 
-const FACTORIES = { 'dc-motor': createDcMotor, 'active-buzzer': createActiveBuzzer }
+const FACTORIES = BEHAVIORS
 const session = (
   doc: CircuitDoc,
   extra: Partial<Record<PartDef['sim']['model'], BehaviorFactory>> = {}
@@ -218,5 +217,37 @@ describe('behavioural parts', () => {
     s.setGpio(17, { mode: 'out', level: false, pwm: { frequencyHz: 50, duty: 0.075, startS: 0 } })
     s.advanceTo(0.1)
     expect(rises.map((t) => Math.round(t * 1000))).toEqual([0, 20, 40, 60, 80, 100])
+  })
+
+  it('switches a relay module from GPIO17 after its operate time, and the contact lights an LED', () => {
+    // S from GPIO17 (row 6 a-e), + from 5V (row 1 f-j), − to GND (row 10 f-j); COM on 3V3
+    // (row 9 a-e), NO → 220 Ω → LED → GND (row 5 a-e).
+    const d = emptyDoc()
+    const relay = Object.fromEntries(partDef('relay-module-5v').pins.map((p) => [p.id, null]))
+    const pin = (id: string) => ({ pin: { part: 'K1', pin: id } })
+    d.parts.push(
+      part('K1', 'relay-module-5v', relay),
+      part('R1', 'resistor', { 1: hole(30, 'b'), 2: hole(34, 'b') }, { resistance: 220 }),
+      part('D1', 'led', { A: hole(34, 'c'), K: hole(35, 'c') }, { color: 'red', size: '5mm' })
+    )
+    d.wires.push(
+      wire('W1', at(6, 'a'), pin('S'), 'dupont-mf'),
+      wire('W2', at(1, 'j'), pin('+'), 'dupont-mf'),
+      wire('W3', at(10, 'j'), pin('-'), 'dupont-mf'),
+      wire('W4', at(9, 'a'), pin('COM')),
+      wire('W5', at(30, 'a'), pin('NO')),
+      wire('W6', at(35, 'a'), at(5, 'a'))
+    )
+    const s = session(d)
+    s.setGpio(17, { mode: 'out', level: true })
+    expect(s.snapshot().parts['K1']).toMatchObject({ coilDriven: true, energised: false })
+    expect(s.snapshot().dies['D1.D']!.currentA).toBeLessThan(1e-9)
+    // The Songle datasheet's operate time is at most 10 ms.
+    s.advanceTo(0.011)
+    const snap = s.snapshot()
+    expect(snap.parts['K1']).toMatchObject({ energised: true, contact: 'NO' })
+    expect(snap.dies['D1.D']!.currentA).toBeGreaterThan(5e-3)
+    // The coil's 70 Ω on 5 V plus the 1 kΩ S input on GPIO17: the GPIO stays under its limit.
+    expect(snap.gpio[17]!.currentA).toBeLessThan(4e-3)
   })
 })
