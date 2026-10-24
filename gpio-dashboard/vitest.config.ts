@@ -7,7 +7,7 @@ export default defineConfig({
     alias: { '@renderer': resolve('src/renderer/src') }
   },
   test: {
-    include: ['src/renderer/src/**/*.test.{ts,tsx}'],
+    include: ['src/renderer/src/**/*.test.{ts,tsx}', 'scripts/assistant-evals/**/*.test.ts'],
     // The content registries expand import.meta.glob when their module is transformed, and the
     // on-disk transform cache keys on that module's text, not on the folder it lists. A new
     // content file would be silently missing from the next run, so the cache stays off.

@@ -15,6 +15,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "assets:build": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/assets/resolve-ts.ts scripts/assets/build.ts",
     "assets:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/assets/resolve-ts.ts scripts/assets/check.ts",
+    "evals": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/assistant-evals/cli.ts",
+    "evals:live": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/assistant-evals/cli.ts --live",
+    "evals:proxy": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/assistant-evals/proxyTest.ts",
     "e2e": "playwright test"
   },
   "dependencies": {
