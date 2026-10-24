@@ -123,14 +123,23 @@ M2 exit suite (2026-10-24):
 - `npm test`: node 7/7 + Vitest 491/491 (23 files). Lint 0 errors (167 warnings, all prettier/react-refresh in v1 files). Typecheck clean. `npm run build` produced the .app and .dmg.
 - All subagent worktrees removed after file-by-file comparison with the integrated copies.
 
-## M3 simulation — in progress (2026-10-24)
+## M3 simulation — done (2026-10-24)
 
 | Task | Status | Verified / notes |
 |------|--------|------------------|
 | 3.1 solver | done | `core/sim/solver.ts`: dense LU with partial pivoting, Newton with pnjlim limiting, 1 V step damping, gmin stepping (1e-2 → 1e-12), BE first step then trapezoidal. Singular and non-convergent circuits throw. 16 hand-worked tests (divider, Norton source, switch, diode KCL, NPN saturation and active β, PNP, RC and RL against analytic curves within 0.1%) |
-| 3.2 device models | partial | Primitives in `devices.ts`; `fit.ts` (ADR-0012); `circuit.ts` builds every library part: LEDs/RGB/displays/bar graph as fitted dies (one per labelled anode–cathode pair), BJTs, tact and tilt switches, potentiometer, LDR (R10, γ), NTC (Beta), passive buzzer coil (R only: no inductance in its datasheet), power module. Behaviours: `dc-motor` (steady state from the no-load and stall points), `active-buzzer` (rated current at rated voltage). **Pending:** the 12 behavioural ICs/modules from two Sonnet subagents (logic: 595, L293D, ADC0834, relay, keypad, joystick, HC-SR501; protocol: DHT11, HC-SR04, SG90, LCD1602, ADS1115, ADS7830), then register them in `behaviors/index.ts` |
+| 3.2 device models | done | Primitives in `devices.ts`; `fit.ts` (ADR-0012); `circuit.ts` builds every library part (LEDs/RGB/displays/bar graph as fitted dies, BJTs, switches, pot, LDR, NTC, passive-buzzer coil (R only: no inductance in its datasheet), power module). 15 behaviours: dc-motor, active-buzzer (mine); 74HC595, L293D, ADC0834, relay module, keypad, joystick, HC-SR501 (Sonnet subagent, 136 tests, 13 mutations each caught); DHT11, HC-SR04, SG90, LCD1602 (PCF8574 + HD44780), ADS1115, ADS7830 (Sonnet subagent, 107 tests). `circuit.test.ts`: all 38 parts build and solve. Relay polarity settled: S high energises (SunFounder module page and Davinci lesson 1.3.4; the Basic kit page's comments contradict its own prints). Integration test: GPIO17 → relay → COM-NO lights an LED after the 10 ms operate time |
 | 3.3 ngspice fixtures | done | `scripts/reference/ngspice_fixtures.py` → `core/sim/fixtures/ngspice.json` (ngspice 47). 23 fixtures, all within ±2%; `fit.ts` reproduces the parameters ngspice was given. **Finding:** ngspice floors diode IS at 1e-28 A; InGaN dies use N = 3 (ADR-0012) |
 | session | done | `session.ts`: stimulus, behaviour fixed point (tolerance 1e-6), behaviour timers and listened PWM edges in time, PWM-averaged snapshots (exact over 2^n on/off states up to 4 pins). GPIO reads are low/high/ambiguous/**floating** (Thévenin resistance × the 3 µA max input leakage > VIL) |
 | sim ERC | done | `checks.ts`: PIN_OVERCURRENT (16 mA), RAIL_BUDGET (50 mA all GPIOs), LED_NO_LIMIT current vs `ifMaxMa`. No 3V3/5V limit is invented (ADR-0014) |
 | 3.4 probe-signature mode | done | `probe.ts`: bias test at both ends of the pull range; pair test as a transient from precharge with a 10–100 pF node range and 100 µs settle (ADR-0013); skips by pin role with reasons; observability. 9 hand-worked tests incl. SPEC 14.5's own example (tied-high released, tied-low pressed, follows-bias one row off), LED path unobservable, GPIO2 tied-high from the board pull-up. Mutation check: replacing node capacitance with nothing fails the isolated-net test. 26-pin prediction in the worker: 94 ms on the button sample |
 | 3.5 sim.worker + Workbench | done | `workers/simHost.ts` (pure, tested) + `sim.worker.ts`; `state/simClient.ts`, `state/workbenchStore.ts` (zustand, no effects); `pages/WorkbenchPage.tsx`, `panels/ErcPanel.tsx`, `panels/SimPanel.tsx`. Two sample circuits in `content/samples/` (this app's own, not the kit's tutorials). Checked in Chromium against `vite` on localhost:5173: blink sample GPIO17 HIGH → 3.069 V, 5.49 mA, D1 lit; button sample GPIO18 reads low → high (held) → low; probe prediction GPIO18 tied-low observable, GPIO2/3 tied-high. `web:build` emits the worker as its own chunk |
+
+M3 exit suite (2026-10-24, at 3f7d886):
+- `cargo test`: 85 passed / 20 ignored. `live-tests.sh` not re-run: no Rust changed since the M2 run (19/19).
+- `npm test`: node 7/7 + Vitest 817/817 (43 files). Lint 0 errors. Typecheck clean. `npm run build`: app bundled and signed.
+
+Notes carried into M5 (Pyodide shims):
+- I2C devices are transaction-level (`behavior.i2c`); after each transaction the session must settle (call `update`) so time-stamped behaviour (ADS1115 conversion start) uses the transaction time.
+- The DHT11 counts its power-up wait from its first powered update: start sessions at t = 0.
+- The kit's code is at https://github.com/lafvintech/Basic-Starter-Kit-for-Raspberry-Pi (from its "Download the Code" page); `python/ADCDevice.py` drives the ADS7830 at 0x48 with cmd 0x84.
