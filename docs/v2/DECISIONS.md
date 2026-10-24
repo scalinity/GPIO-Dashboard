@@ -705,3 +705,137 @@ decision and consequences. Numbering is stable; superseded records say so.
   server, is never tested by mistake. Results go to `out/e2e`, which is ignored.
 - **Consequences.** `npm run e2e` exercises the WebGPU path, as the Tauri window does. A
   machine without a GPU would fall back to WebGL2 and may miss the 2 s settle bound.
+
+## ADR-A3a-1 Every passive, switch, transistor and buzzer family is built in Blender, without textures
+
+- **Context.**
+  - SPEC 10.4 lets a family stay runtime-procedural only if a Blender version adds no visible
+    fidelity at close range, and asks for the decision per family.
+  - A runtime body is a primitive (a cylinder, a box, a lathe) with a material. What it lacks at
+    close range is the moulded detail that tells the parts apart: the resistor's end caps, the
+    LED's lead frame inside its dome, the TO-92's flat face and printed number, the LDR's
+    serpentine track.
+  - The parts share the 40 MB models budget with the boards, the Pi and the other part
+    families (about 7 MB used when these were built).
+- **Decision.** All 13 families are Blender scripts, one per family, parameterized by the
+  definition's `geometry.params`. None stays runtime-procedural. What each adds:
+  - axial-resistor: metal end caps, a lacquered body necked under them, four ring primitives
+  - diode: the DO-41 body with moulded rounded ends and a flush cathode band
+  - led (3 and 5 mm, two files): the flange with its flat on the cathode side, the dome, and
+    through the clear epoxy the cathode's cup, the anode's post, the bond wire and the die
+  - rgb-led (two files): one dome over three dies on one anvil, and the four leads formed to
+    the grid
+  - ceramic-cap: a moulded block with bevelled edges and a rounded top
+  - electrolytic-cap: the crimped base, rolled groove, sleeve with its stripe and minus signs,
+    and the scored vent
+  - ldr: the face's serpentine track and electrodes, as geometry on a 2.1 mm disc cut flat
+  - ntc: the epoxy drop
+  - to92 (three files): the cylinder cut flat by a plane, the part number printed on the flat as
+    geometry, the leads formed outward
+  - tact-switch: the housing, steel cover with its round opening, and the plunger
+  - tilt-switch: the tin can with its crimp groove over the resin plug
+  - potentiometer: the case, bezel, bushing and shaft with its slot, and the three flat
+    terminals
+  - buzzer (two files): the chamfered case, sound hole, + mark, the seal sticker of the active
+    one and the green board under the passive one
+- **No textures.** The parts carry geometry and material parameters only.
+  - Ambient occlusion at this scale comes from the runtime GTAO pass (ADR-0025). A baked map
+    would add a KTX2 file per part for contact darkening the pass already draws.
+  - What is printed and fixed is geometry (the TO-92 number, the minus signs, the + marks). What
+    depends on the value (the resistor's bands, the capacitors' printed values) is the studio's.
+  - `assets:check` asserts a part has no textures, so adding a bake is a decision, not drift.
+- **Budgets.** One triangle cap per family, about a third over its largest file; 40 KB per
+  file. The 18 files build to 252 to 1,232 triangles and 4.6 to 16 KB each, 179 KB together.
+- **Consequences.** Cycles bakes nothing for parts, so the fixed samples and seed matter only to
+  the boards. Geometry hashes reproduce exactly (`assets:check -- --rebuild parts`); there are
+  no textures to compare by SSIM. If the look-dev pass (M7.7) wants detail normals on the
+  moulded bodies, the family scripts bake them through `lib/bake.py` and the check's no-texture
+  assertion changes for that family.
+
+## ADR-A3a-2 Part pins sit on the definition's grid; formed leads are part of the body
+
+- **Context.** The part GLB contract puts a `pin-<id>` empty where each lead leaves the body,
+  and has `assets:check` hold every rigid pin within 0.05 mm of its `offsetPitch` position.
+  Several parts' real leads leave the body at another pitch: the TO-92 and the RGB LED at
+  1.27 mm, the tact switch's terminals 6.5 x 4.5 mm apart, the potentiometer's 5.0 mm, the
+  tilt switch's 2.4 mm, and the ceramic capacitor's 5.08 mm spacing is wider than its 4.83 mm
+  body. The definitions put their pins on the 2.54 mm grid, where they plug in.
+- **Decision.**
+  - The empties are at the grid positions, and the lead's section between the body and the
+    grid is modelled, as formed stubs in a material named `lead` that the body-dimension check
+    leaves out. The runtime's straight lead starts at the empty. This applies to the TO-92
+    (outer leads fan from 1.27 to 2.54 mm), the RGB LED (all four), the tact switch (a foot out
+    of the wall nearest each terminal), the potentiometer (three flat strips down from the
+    case) and the ceramic capacitor (a 0.6 mm jog under the body).
+  - The tilt switch's leads leave its plug at the grid, 0.14 mm wider than the datasheet's
+    2.4 mm, which the definition says the leads' bend absorbs.
+  - An empty's +z axis (Blender; the empty's local +y in glTF) runs along the lead out of the
+    body: down for radial and rigid parts, along -x (pin 1) and +x (pin 2) for the axial ones.
+    `assets:check` measures it from the GLB.
+  - Flex-2lead parts have the origin at the pins' midpoint and both pins at model z = 0, so
+    `seatMm` is the height of the pins above the board: one body radius for the axial parts
+    (they lie on it), 1.0 mm for the radial ones. That 1.0 mm is a modelling choice, not a
+    datasheet figure; the studio may seat the part lower or higher.
+  - Pin spacing is the params' lead spacing (`leadPitchMm`, `leadSpacingMm`), and for the axial
+    resistor and diode the body length, because the leads leave the end caps.
+  - Rigid parts stand where they seat: the tact switch and buzzers flat on the board, the
+    potentiometer with its case 4 mm up on its terminals, the TO-92 and RGB LED 3.0 mm up on
+    their formed leads and the tilt switch 2.0 mm up. These heights are modelling choices.
+  - The TO-92's flat face points toward -y (column a at rotation 0), pin 1 on the left seen from
+    that face, as the definitions' notes place it. The potentiometer's shaft points toward -y,
+    with the terminals on the rear plane at y = 0.3 and the shaft over the middle terminal.
+- **Consequences.** The studio draws each lead from its empty: straight down for rigid parts,
+  bent to the holes for flex ones. The `lead` material is not a runtime lead and keeps its
+  place if the studio draws the runtime lead in the same colour.
+
+## ADR-A3a-3 Animated nodes and value-driven materials
+
+- **Context.**
+  - The studio drives the tact switch's plunger and the potentiometer's shaft as nodes, and the
+    resistor's rings and the LEDs' lenses and dies as materials, by name (SPEC 10.6).
+  - gltf-transform's dedup, which `optimize.ts` runs, merges materials equal in every
+    parameter but the name. The default resistor, 220 ohm at 5 %, has two red rings.
+  - Meshopt quantization gives each mesh node a translation and scale; the node's origin
+    becomes the centre of its mesh's bounding box.
+- **Decision.**
+  - `plunger` and `shaft` are their own mesh nodes under the root, built around their axes.
+    The plunger travels along -z; the shaft turns about core y (glTF local z) and is modelled
+    at 50 % wiper with its screwdriver slot upright. The shaft's cross-section is symmetric about
+    its axis, which puts the bounding-box centre, and so the node's origin, on it; the slot is a
+    decal inside that section, not a flat on one side.
+  - The studio animates relative to each node's loaded transform. Both nodes load with an
+    identity rotation and a uniform scale (quantization's), so a rotation about the node's own
+    axis, or a translation along -z, composes with the load transform as written.
+  - Value-driven materials carry a custom property `driven` equal to their name, exported as
+    glTF `extras` (`partkit.driven`), which keeps equal-looking materials apart through dedup.
+  - The resistor has four ring primitives, `band-1` to `band-4`; the five-ring variant is not
+    modelled. Rings stand 0.012 mm off the body, which is narrowed so the rings, not the body,
+    are the widest part.
+  - Single-colour LEDs have one `lens` (the whole epoxy body, with `KHR_materials_transmission`)
+    and one `die`; RGB LEDs have one `lens` and the dies `die-r`, `die-g` and `die-b`.
+- **Consequences.** A part that adds an animated node whose axis is not through its bounding
+  box's centre would turn about the wrong point; the family script must keep the section
+  symmetric, as the shaft's is.
+
+## ADR-A3a-4 Part files go through the asset registry, in a parts/ folder
+
+- **Context.** The asset pipeline built one GLB per entry in `assets.ts`, flat in
+  `public/models`, and checked it with `verify.ts`, which this change leaves as it is.
+- **Decision.**
+  - `parts.ts` holds the 13 families (script, triangle cap, and the expectation read from the
+    definition's `geometry.params`) and the 18 files, and `assets.ts` adds them to `ASSETS` with
+    `kind: 'part'`. `Asset.name` is a plain string, and `assetDir` puts a part's files in
+    `parts/`.
+  - `verify-parts.ts` holds the part checks; `check.ts` and `models.test.ts` choose between it
+    and `verify.ts` by kind.
+  - `build.ts` merges each part's entry into `parts/index.json` and records the shared helper
+    `blender/partkit.py` in the manifest's script hashes.
+  - `assets:build` and `assets:check` accept asset names, and `parts` for all the parts, so a
+    part can be rebuilt and compared without rebuilding the Pi.
+  - The folder-size check counts the files in `parts/`.
+  - The family scripts use `blender/partkit.py`, not `lib/`: it exports with custom properties
+    (for `seatMm`, which `lib/export.glb` drops), and builds meshes from lathes, prisms and
+    sweeps, welding seams and shading by angle.
+- **Consequences.** Another lane's parts register the same way, in their own families and
+  entries. Each build merges into `index.json`, so lanes' entries combine; a clash is two
+  entries for one file, resolved by rebuilding.
