@@ -377,3 +377,26 @@ decision and consequences. Numbering is stable; superseded records say so.
     allows it.
   - Bodies that overhang their pins to one side (the potentiometer) are approximated
     centred on their pins. The Studio's 3D colliders (M7) are exact.
+
+## ADR-0016 Tutorial code and theory are written for this app, not copied from the kit
+
+- **Context.** The kit's code is at https://github.com/lafvintech/Basic-Starter-Kit-for-Raspberry-Pi
+  (linked from the kit's "Download the Code" page), licensed **GPL-3.0**. This repository
+  is public and has no license file. Copying the kit's code into `content/tutorials/`
+  would make those files GPL-3.0 derived works inside an otherwise unlicensed repository.
+  The kit's documentation prose has no stated license.
+- **Decision.**
+  - Each tutorial's Python is written for this app. It follows what the kit's project page
+    establishes: the same GPIOs, the same circuit polarity (for example, active-low for
+    Blinking LED), the same libraries where the kit names them, and the same observable
+    behaviour. No code is copied from the kit's repository.
+  - Theory is written in this app's own words, or reused from the baseline's own
+    `data/tutorials.js` where the audit finds it correct. Values are templated from the
+    circuit document.
+  - Each tutorial cites the kit page it follows (`sources.kit`), plus the datasheets and
+    Raspberry Pi pages it relies on.
+  - Reading the kit's code to confirm a protocol detail is allowed, with the file cited
+    (as the ADS7830 behaviour does for the command byte).
+- **Consequences.** The repository's license is the owner's choice. If it ever becomes
+  GPL-3.0-compatible, the kit's code could be used directly with attribution. Until then,
+  nothing in this repo is copied from it.
