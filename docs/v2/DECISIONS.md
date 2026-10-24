@@ -1717,3 +1717,120 @@ decision and consequences. Numbering is stable; superseded records say so.
     colours, are what the numbers above measure.
   - The breadboard and the yellow spacers stay a little below the photos' brightness and
     saturation (the photos are lit by a ring of lights; the Studio by one key and the HDRI).
+
+## ADR-B5-1 The physics worker: scenes in by message, steps out through a double-buffered SharedArrayBuffer
+
+- **Context.** SPEC 4.3 and 10.5: the solver runs in `workers/physics.worker.ts`; the main thread
+  sends kinematic anchors, colliders and route hints, never the document; positions and per-island
+  flags come back through a SharedArrayBuffer, double-buffered so the renderer never reads a
+  half-written step; nothing renders once everything sleeps.
+- **Decision.**
+  - The Studio (`studio/cables.ts`) sends the whole cable scene whenever it changes: every
+    collider by key (`bb1/0`, `pi/12`, `R1/0`, `W3:a/0`) with its shape and core-frame pose, and
+    every cable by a handle the Studio assigns, with its two anchor poses, wire length, live
+    route hints and, for a routed lead, its start (ADR-B5-4). An unchanged scene is not sent.
+    The worker (`PhysicsHost`) diffs it against its world: same key and shape moves a collider,
+    a known handle moves its anchors and hints, a new handle builds a body, a missing one is
+    removed. A handle changes when what the body was built from changes (its length, its
+    committed route), so the worker never rebuilds a body on its own judgement.
+  - The buffer (`workers/physicsTransport.ts`) is sized from the solver's pool (8192 particles,
+    197 KB of positions): a 9-word header (front half, publish count, last applied scene, awake,
+    last/mean/longest step in µs, two half generations) and two halves, each a table of up to
+    256 bodies (handle, particle offset and count, rows, columns, drawn range, asleep and taut
+    flags) and the particles in the core frame. The worker writes the half not at the front with
+    its generation odd, makes it even, then publishes it as the front. The Studio copies the front
+    half once per drawn frame and rereads its generation; a changed one means a torn read, and it
+    reads again. Each half is one whole step, so its table always matches its particles.
+  - The worker steps on its own 60 Hz `setTimeout` clock (a late step resets the clock rather
+    than catching up), publishes every step, and stops when the world is still: every island
+    asleep, or no particle faster than 0.5 mm/s for 30 frames (SPEC 10.5's sleep test over the
+    whole world). The second test is there because two islands whose padded boxes overlap
+    without touching wake each other in turn and never both sleep (seven-segment: 18 leads and
+    the ribbon awake indefinitely at 1e-11 mm/s). A scene message starts it again.
+  - The Studio counts frames as moving while the header says awake or a sent scene is not yet
+    applied, so the frame loop stops 16 frames after the worker does.
+  - Opening a document (the store's history is empty after the change) asks for a fresh world
+    settled offscreen for at most 1 s; the Studio waits until every model and collider file the
+    scene needs has arrived before it asks, and shows no cable until that settle is applied.
+- **Consequences.**
+  - The drawn cables trail their anchors by one or two frames. Each lead's two end points are
+    drawn at the housings' current exits, so no gap opens at a housing while a drag moves it.
+  - Without cross-origin isolation there is no SharedArrayBuffer: leads then draw their design
+    curves and the ribbon is not drawn. The app is isolated in Vite and in Tauri (SPEC 13.2).
+  - The dev overlay shows the worker's last step and the current run's mean and longest.
+
+## ADR-B5-2 Cable geometry is rebuilt on the CPU, not in a TSL vertex stage
+
+- **Context.** SPEC 10.5 asks for both to be measured: tubes and the ribbon strip rebuilt on the
+  CPU each frame, or a TSL vertex stage that reads particle positions from a storage buffer.
+- **Measured.** Heaviest tutorial (four-digit seven-segment: 37 leads and the ribbon), the board
+  dragged back and forth for 4 s so every cable is awake, headless Chromium on the GPU (WebGPU,
+  M-series Mac), GPU time from timestamp queries over all render passes:
+  - CPU rebuild (`studio/tube.ts`: Catmull-Rom smoothing, three points per span, and
+    double-reflection parallel-transport frames, written straight into the attributes): 0.75 ms
+    per frame for the leads (p95 0.82), 0.91 ms with the ribbon (p95 0.98); GPU 1.9 to 2.8 ms
+    a frame. A first version that went through `setXYZ` and built small arrays per vertex took
+    3.1 to 3.3 ms.
+  - TSL prototype (each vertex finds its ring on the spline from the storage buffer and carries
+    the transport frame from the lead's start to its ring in a loop): 0.06 ms per frame on the
+    main thread (copying the particles in); GPU 2.2 to 2.3 ms a frame. Both held 60 fps.
+- **Decision.** The CPU rebuild. It costs under 1 ms of the 16.7 ms frame only while cables
+  move; it keeps one path for the current-flow overlay (its dashes run on the tube's u, which a
+  vertex stage would have to integrate too), for picking and the selection box (which read the
+  smoothed centreline), and for the WebGL2 fallback, where storage buffers in a vertex stage
+  depend on three's emulation. Geometry is refitted in place; it is reallocated only when a
+  cable's particle count changes.
+- **Consequences.** A scene several times heavier would want the vertex stage; the prototype's
+  numbers say the GPU would absorb it.
+
+## ADR-B5-3 How the bench becomes the solver's scene
+
+- **Context.** SPEC 10.5: colliders from every `*.colliders.json`, placed by the documents'
+  transforms; leads anchored at their housings; the ribbon clamped at both sockets with
+  conductor 1 consistent; solid jumpers keep their shape; assistant ghosts are not simulated.
+- **Decision.**
+  - The solver runs in the core frame; a scene matrix M of a model built in core axes becomes
+    the pose C·M·C⁻¹ with C a quarter turn about x. Each layer hands over what it placed: boards
+    and the Pi by their transforms, the T-board and both IDC sockets as the bench draws them,
+    part bodies at their drawn (and lifted) poses, the Dupont housings at their drawn poses, and
+    a table box with its top at z = 0.
+  - A lead's frame sits a housing length (12 mm) back along the housing axis from where the drawn
+    housing's `wire` empty puts the exit, so the solver's exit is the drawn one, male or female,
+    in a hole or on a module pin. Its rest length is `wireLengthMm` of the resolved length
+    (ADR-0042), the figure `leadReach` uses.
+  - A housing's box stops 0.75 mm (wire radius plus 0.25) short of its own exit, or its own
+    wire would always touch it. A box that holds any lead's exit is left out: the exit is
+    clamped and could never be pushed out. That drops the bounding boxes of modules whose box
+    covers their header (the joystick's 32 mm-tall box encloses its pins).
+  - The ribbon's frames sit on each socket's cable exit line, +y out of the wall and +x from
+    `cable-a` (conductor 1) to `cable-b`, so column 0 is conductor 1 at both ends. Seven
+    columns: with nine, the dht11 scene's ribbon settled 0.69 mm into the Pi's micro-HDMI box
+    (single-particle contacts, ADR-0061); with seven it stays within 0.12 mm.
+  - A solid jumper's frames sit 0.75 mm above its holes and its authored shape is the design
+    curve between them; the drawn tube adds the 2 mm down each hole.
+  - A lead that only a preview holds (the wire tool's ghost, an assistant ghost) keeps its
+    design curve and is not sent; once committed it is built from the solver's own design curve
+    and drops into place.
+- **Consequences.** In the drag scenes (dht11 and the bench layout) nothing reaches more than
+  0.12 mm into a collider or another cable after it settles, measured from the worker's
+  positions. A module's crude box still holds leads draped over it at its full height.
+
+## ADR-B5-4 Route hints pull while dragged and start the lead when committed
+
+- **Context.** SPEC 10.5 and 11.3: dragging a lead mid-span sets a soft target stored through
+  `SetWireProps.routeHints` (at most 3), so a reopened project looks the same. A lead is a soft
+  chain (ADR-0060): its slack comes to rest on the board or table wherever its history left it.
+  Measured on Blinking LED: after a hint was dragged in and the project reopened, the settled
+  lead differed from what had been on screen by 19 to 25 mm.
+- **Decision.**
+  - Pressing on a simulated lead and moving it more than 4 px drags a hint: the one within
+    15 mm of the grab, else a new one while there are fewer than three, else the nearest. It
+    moves across the plane through the grab that faces the camera, rounded to 0.1 mm, as a
+    preview `SetWireProps`; the solver pulls the lead toward it as it goes. Release commits that
+    one transaction. A tutorial template refuses it, as it refuses every edit.
+  - Committed hints start the lead again: its handle changes, it is built from `routeGuess` (out
+    of both exits, through its hints, every span between bowed upward until the whole is the
+    wire's length) and settled offscreen at once, the way opening a project settles it.
+- **Consequences.** A reopened project shows the lead within 1.4 mm of where it was left
+  (three runs). On release the lead's slack takes that settled shape at once rather than
+  staying where the drag left it.
