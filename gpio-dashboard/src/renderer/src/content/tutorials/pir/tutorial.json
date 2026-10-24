@@ -44,7 +44,8 @@
           "read": 17,
           "is": "low"
         }
-      ]
+      ],
+      "code": false
     },
     {
       "name": "After the warm-up, with nothing moving, OUT is LOW",
@@ -147,7 +148,8 @@
           "read": 17,
           "is": "low"
         }
-      ]
+      ],
+      "code": false
     },
     {
       "name": "GPIO18 HIGH lights the alert LED within its rating",
@@ -172,7 +174,12 @@
             "max": 0.016
           }
         }
-      ]
+      ],
+      "inputs": {
+        "U1": {
+          "motion": true
+        }
+      }
     },
     {
       "name": "GPIO18 LOW turns the alert LED off",

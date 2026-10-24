@@ -149,7 +149,12 @@
             "min": -0.016
           }
         }
-      ]
+      ],
+      "inputs": {
+        "SW1": {
+          "pressed": true
+        }
+      }
     },
     {
       "name": "GPIO17 HIGH turns D1 off",

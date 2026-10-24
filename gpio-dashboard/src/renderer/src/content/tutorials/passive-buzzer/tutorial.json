@@ -62,7 +62,8 @@
             "max": 0.016
           }
         }
-      ]
+      ],
+      "code": false
     },
     {
       "name": "A 440 Hz, 50 % PWM signal switches the coil on half the time",
@@ -120,7 +121,8 @@
             "max": 0.016
           }
         }
-      ]
+      ],
+      "code": false
     }
   ],
   "checkpoints": []

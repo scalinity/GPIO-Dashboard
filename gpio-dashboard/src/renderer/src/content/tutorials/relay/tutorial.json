@@ -74,7 +74,8 @@
             "max": 1e-6
           }
         }
-      ]
+      ],
+      "code": false
     },
     {
       "name": "S HIGH: after the operate time COM joins NO and D1 lights within its rating",

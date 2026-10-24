@@ -13,6 +13,11 @@ import type { Assertion } from '../core/tutorials/tutorial'
 import { Bridge } from './bridge'
 import { runProgram } from './python'
 
+/** Shim calls between samples of a program that does not sleep. */
+const CALLS_PER_SAMPLE = 4
+/** What input() reads in a check: a short message for programs that ask for one. */
+const STDIN = 'SOS\n'
+
 export interface CodeCheck {
   ok: boolean
   /** The failures at the sample closest to passing, or the error that ended the program. */
@@ -36,19 +41,27 @@ export function checkCode(
   const bridge = new Bridge(session)
   const interrupt = new Int32Array(new SharedArrayBuffer(4))
   let best: string[] | null = null
+  /** Records how close this moment comes; true once every expectation holds. */
   const sample = () => {
-    if (best?.length === 0) return
+    if (best?.length === 0) return true
     const failures = expectationFailures(session, expect)
     if (!best || failures.length < best.length) best = failures
-    if (failures.length === 0) interrupt[0] = 2
+    return failures.length === 0
+  }
+  const stopIf = (done: boolean) => {
+    if (done || bridge.now() >= seconds) interrupt[0] = 2
   }
   const sleep = (s: number) => {
     bridge.sleep(s)
-    sample()
-    if (bridge.now() >= seconds) interrupt[0] = 2
+    stopIf(sample())
+  }
+  // A program that busy-waits (a DHT11 read) never sleeps; sample it every so many calls.
+  let calls = 0
+  bridge.onCall = () => {
+    if (++calls % CALLS_PER_SAMPLE === 0) stopIf(sample())
   }
   try {
-    runProgram(py, bridge, doc.code.source, sleep, interrupt)
+    runProgram(py, bridge, doc.code.source, sleep, interrupt, STDIN)
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
     // Ctrl+C that the program did not catch is how a passing or timed-out run ends.

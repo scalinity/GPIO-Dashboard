@@ -20,70 +20,204 @@
     {
       "name": "Byte 0xA5 lights LEDs 1, 3, 6 and 8 and no others",
       "gpio": {
-        "17": { "mode": "out", "level": false },
-        "18": { "mode": "out", "level": false },
-        "27": { "mode": "out", "level": false }
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
       },
       "sequence": [
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
-        { "gpio": { "27": { "mode": "out", "level": false } } },
-        { "gpio": { "18": { "mode": "out", "level": true } } },
-        { "gpio": { "18": { "mode": "out", "level": false } } }
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "18": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "18": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        }
       ],
       "expect": [
         {
@@ -94,496 +228,1449 @@
         },
         {
           "die": "D1.D",
-          "currentA": { "min": 0.001, "max": 0.025 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
         },
-        { "die": "D2.D", "currentA": { "max": 0.000001 } },
+        {
+          "die": "D2.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
         {
           "die": "D3.D",
-          "currentA": { "min": 0.001, "max": 0.025 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
         },
-        { "die": "D4.D", "currentA": { "max": 0.000001 } },
-        { "die": "D5.D", "currentA": { "max": 0.000001 } },
+        {
+          "die": "D4.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D5.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
         {
           "die": "D6.D",
-          "currentA": { "min": 0.001, "max": 0.025 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
         },
-        { "die": "D7.D", "currentA": { "max": 0.000001 } },
+        {
+          "die": "D7.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
         {
           "die": "D8.D",
-          "currentA": { "min": 0.001, "max": 0.025 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
         }
       ]
     },
     {
       "name": "Byte 0x01 lights LED 1 alone (bit 0 is QA)",
       "gpio": {
-        "17": { "mode": "out", "level": false },
-        "18": { "mode": "out", "level": false },
-        "27": { "mode": "out", "level": false }
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
       },
       "sequence": [
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
-        { "gpio": { "27": { "mode": "out", "level": false } } },
-        { "gpio": { "18": { "mode": "out", "level": true } } },
-        { "gpio": { "18": { "mode": "out", "level": false } } }
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "18": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "18": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        }
       ],
       "expect": [
         {
           "die": "D1.D",
-          "currentA": { "min": 0.001, "max": 0.025 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
         },
-        { "die": "D2.D", "currentA": { "max": 0.000001 } },
-        { "die": "D3.D", "currentA": { "max": 0.000001 } },
-        { "die": "D4.D", "currentA": { "max": 0.000001 } },
-        { "die": "D5.D", "currentA": { "max": 0.000001 } },
-        { "die": "D6.D", "currentA": { "max": 0.000001 } },
-        { "die": "D7.D", "currentA": { "max": 0.000001 } },
-        { "die": "D8.D", "currentA": { "max": 0.000001 } }
+        {
+          "die": "D2.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D3.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D4.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D5.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D6.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D7.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D8.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        }
       ]
     },
     {
       "name": "Byte 0x80 lights LED 8 alone (bit 7 is QH)",
       "gpio": {
-        "17": { "mode": "out", "level": false },
-        "18": { "mode": "out", "level": false },
-        "27": { "mode": "out", "level": false }
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
       },
       "sequence": [
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
-        { "gpio": { "27": { "mode": "out", "level": false } } },
-        { "gpio": { "18": { "mode": "out", "level": true } } },
-        { "gpio": { "18": { "mode": "out", "level": false } } }
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "18": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "18": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        }
       ],
       "expect": [
-        { "die": "D1.D", "currentA": { "max": 0.000001 } },
-        { "die": "D2.D", "currentA": { "max": 0.000001 } },
-        { "die": "D3.D", "currentA": { "max": 0.000001 } },
-        { "die": "D4.D", "currentA": { "max": 0.000001 } },
-        { "die": "D5.D", "currentA": { "max": 0.000001 } },
-        { "die": "D6.D", "currentA": { "max": 0.000001 } },
-        { "die": "D7.D", "currentA": { "max": 0.000001 } },
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D2.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D3.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D4.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D5.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D6.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D7.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
         {
           "die": "D8.D",
-          "currentA": { "min": 0.001, "max": 0.025 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
         }
       ]
     },
     {
       "name": "Byte 0xFF lights all eight LEDs, each output under its 6 mA rating",
       "gpio": {
-        "17": { "mode": "out", "level": false },
-        "18": { "mode": "out", "level": false },
-        "27": { "mode": "out", "level": false }
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
       },
       "sequence": [
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
-        { "gpio": { "27": { "mode": "out", "level": false } } },
-        { "gpio": { "18": { "mode": "out", "level": true } } },
-        { "gpio": { "18": { "mode": "out", "level": false } } }
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "18": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "18": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        }
       ],
       "expect": [
         {
           "die": "D1.D",
-          "currentA": { "min": 0.001, "max": 0.006 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.006
+          }
         },
         {
           "die": "D2.D",
-          "currentA": { "min": 0.001, "max": 0.006 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.006
+          }
         },
         {
           "die": "D3.D",
-          "currentA": { "min": 0.001, "max": 0.006 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.006
+          }
         },
         {
           "die": "D4.D",
-          "currentA": { "min": 0.001, "max": 0.006 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.006
+          }
         },
         {
           "die": "D5.D",
-          "currentA": { "min": 0.001, "max": 0.006 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.006
+          }
         },
         {
           "die": "D6.D",
-          "currentA": { "min": 0.001, "max": 0.006 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.006
+          }
         },
         {
           "die": "D7.D",
-          "currentA": { "min": 0.001, "max": 0.006 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.006
+          }
         },
         {
           "die": "D8.D",
-          "currentA": { "min": 0.001, "max": 0.006 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.006
+          }
         }
       ]
     },
     {
       "name": "Byte 0x00 leaves every LED dark",
       "gpio": {
-        "17": { "mode": "out", "level": false },
-        "18": { "mode": "out", "level": false },
-        "27": { "mode": "out", "level": false }
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
       },
       "sequence": [
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
-        { "gpio": { "27": { "mode": "out", "level": false } } },
-        { "gpio": { "18": { "mode": "out", "level": true } } },
-        { "gpio": { "18": { "mode": "out", "level": false } } }
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "18": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "18": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        }
       ],
       "expect": [
-        { "die": "D1.D", "currentA": { "max": 0.000001 } },
-        { "die": "D2.D", "currentA": { "max": 0.000001 } },
-        { "die": "D3.D", "currentA": { "max": 0.000001 } },
-        { "die": "D4.D", "currentA": { "max": 0.000001 } },
-        { "die": "D5.D", "currentA": { "max": 0.000001 } },
-        { "die": "D6.D", "currentA": { "max": 0.000001 } },
-        { "die": "D7.D", "currentA": { "max": 0.000001 } },
-        { "die": "D8.D", "currentA": { "max": 0.000001 } }
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D2.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D3.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D4.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D5.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D6.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D7.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D8.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        }
       ]
     },
     {
       "name": "Shifting a new byte in without a latch pulse leaves the outputs unchanged",
       "gpio": {
-        "17": { "mode": "out", "level": false },
-        "18": { "mode": "out", "level": false },
-        "27": { "mode": "out", "level": false }
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
       },
       "sequence": [
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
-        { "gpio": { "27": { "mode": "out", "level": false } } },
-        { "gpio": { "18": { "mode": "out", "level": true } } },
-        { "gpio": { "18": { "mode": "out", "level": false } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": true },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
         {
           "gpio": {
-            "17": { "mode": "out", "level": false },
-            "27": { "mode": "out", "level": false }
+            "27": {
+              "mode": "out",
+              "level": true
+            }
           }
         },
-        { "gpio": { "27": { "mode": "out", "level": true } } },
-        { "gpio": { "27": { "mode": "out", "level": false } } }
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "18": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "18": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": true
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            },
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": true
+            }
+          }
+        },
+        {
+          "gpio": {
+            "27": {
+              "mode": "out",
+              "level": false
+            }
+          }
+        }
       ],
       "expect": [
         {
@@ -595,25 +1682,58 @@
         },
         {
           "die": "D1.D",
-          "currentA": { "min": 0.001, "max": 0.025 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
         },
         {
           "die": "D2.D",
-          "currentA": { "min": 0.001, "max": 0.025 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
         },
         {
           "die": "D3.D",
-          "currentA": { "min": 0.001, "max": 0.025 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
         },
         {
           "die": "D4.D",
-          "currentA": { "min": 0.001, "max": 0.025 }
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
         },
-        { "die": "D5.D", "currentA": { "max": 0.000001 } },
-        { "die": "D6.D", "currentA": { "max": 0.000001 } },
-        { "die": "D7.D", "currentA": { "max": 0.000001 } },
-        { "die": "D8.D", "currentA": { "max": 0.000001 } }
-      ]
+        {
+          "die": "D5.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D6.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D7.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D8.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        }
+      ],
+      "code": false
     }
   ],
   "checkpoints": []

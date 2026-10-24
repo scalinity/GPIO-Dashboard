@@ -65,6 +65,12 @@ export const AssertionSchema = z
     advanceS: z.number().min(0).default(0),
     /** Further steps after the first, for protocols (a shift register's clock, an ADC command). */
     sequence: z.array(step).default([]),
+    /**
+     * false: a fact about the circuit under this stimulus that the tutorial's program does not
+     * itself produce (a duty cycle it never sets, a byte it never sends). The code check (M5)
+     * runs the program for every other assertion.
+     */
+    code: z.boolean().default(true),
     expect: z.array(expectation).min(1)
   })
   .strict()

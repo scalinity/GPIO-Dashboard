@@ -166,7 +166,8 @@
             "spinning": false
           }
         }
-      ]
+      ],
+      "code": false
     },
     {
       "name": "VCC1 and VCC2 sit at the power module's 5 V, and the chip's GND meets the Pi's GND",

@@ -51,7 +51,8 @@
             "sounding": false
           }
         }
-      ]
+      ],
+      "code": false
     },
     {
       "name": "GPIO22 HIGH saturates Q1 so BZ1 sounds, and leaves D1 dark",
@@ -91,7 +92,8 @@
             "max": 1e-6
           }
         }
-      ]
+      ],
+      "code": false
     },
     {
       "name": "Both pins HIGH, as the code does for a dot or a dash, lights D1 and sounds BZ1",

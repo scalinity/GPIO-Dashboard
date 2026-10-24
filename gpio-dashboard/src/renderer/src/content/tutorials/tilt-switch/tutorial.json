@@ -158,7 +158,12 @@
             "max": 0.016
           }
         }
-      ]
+      ],
+      "inputs": {
+        "S1": {
+          "tilted": true
+        }
+      }
     },
     {
       "name": "Both LED pins LOW leave both LEDs dark",

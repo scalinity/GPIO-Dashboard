@@ -26,6 +26,9 @@ export class Bridge {
   private readonly watches = new Map<number, Watch>()
   private inCallback = false
 
+  /** Called on every shim call, after its time step (the code check samples from it). */
+  onCall: (() => void) | null = null
+
   constructor(
     readonly session: SimSession,
     /** Applies input changes made in the UI since the last call (the worker's mailbox). */
@@ -155,6 +158,7 @@ export class Bridge {
     this.drainInputs()
     this.session.advanceTo(this.now() + CALL_COST_S)
     this.checkEdges()
+    this.onCall?.()
   }
 
   private checkEdges() {

@@ -19,100 +19,271 @@
     {
       "name": "GPIO17 HIGH lights the red die alone, within its rating",
       "gpio": {
-        "17": { "mode": "out", "level": true },
-        "18": { "mode": "out", "level": false },
-        "27": { "mode": "out", "level": false }
+        "17": {
+          "mode": "out",
+          "level": true
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
       },
       "expect": [
-        { "die": "D1.R", "currentA": { "min": 0.001, "max": 0.02 } },
-        { "die": "D1.G", "currentA": { "max": 0.000001 } },
-        { "die": "D1.B", "currentA": { "max": 0.000001 } },
-        { "gpio": 17, "currentA": { "min": 0.001, "max": 0.016 } }
+        {
+          "die": "D1.R",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.02
+          }
+        },
+        {
+          "die": "D1.G",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D1.B",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "gpio": 17,
+          "currentA": {
+            "min": 0.001,
+            "max": 0.016
+          }
+        }
       ]
     },
     {
       "name": "GPIO18 HIGH lights the green die alone, within its rating",
       "gpio": {
-        "17": { "mode": "out", "level": false },
-        "18": { "mode": "out", "level": true },
-        "27": { "mode": "out", "level": false }
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": true
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
       },
       "expect": [
         {
           "die": "D1.G",
-          "currentA": { "min": 0.0005, "max": 0.02 }
+          "currentA": {
+            "min": 0.0005,
+            "max": 0.02
+          }
         },
-        { "die": "D1.R", "currentA": { "max": 0.000001 } },
-        { "die": "D1.B", "currentA": { "max": 0.000001 } },
-        { "gpio": 18, "currentA": { "min": 0.0005, "max": 0.016 } }
+        {
+          "die": "D1.R",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D1.B",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "gpio": 18,
+          "currentA": {
+            "min": 0.0005,
+            "max": 0.016
+          }
+        }
       ]
     },
     {
       "name": "GPIO27 HIGH lights the blue die alone, within its rating",
       "gpio": {
-        "17": { "mode": "out", "level": false },
-        "18": { "mode": "out", "level": false },
-        "27": { "mode": "out", "level": true }
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": true
+        }
       },
       "expect": [
         {
           "die": "D1.B",
-          "currentA": { "min": 0.0005, "max": 0.02 }
+          "currentA": {
+            "min": 0.0005,
+            "max": 0.02
+          }
         },
-        { "die": "D1.R", "currentA": { "max": 0.000001 } },
-        { "die": "D1.G", "currentA": { "max": 0.000001 } },
-        { "gpio": 27, "currentA": { "min": 0.0005, "max": 0.016 } }
+        {
+          "die": "D1.R",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D1.G",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "gpio": 27,
+          "currentA": {
+            "min": 0.0005,
+            "max": 0.016
+          }
+        }
       ]
     },
     {
       "name": "GPIO17 and GPIO18 HIGH mix yellow: red and green lit, blue dark",
       "gpio": {
-        "17": { "mode": "out", "level": true },
-        "18": { "mode": "out", "level": true },
-        "27": { "mode": "out", "level": false }
+        "17": {
+          "mode": "out",
+          "level": true
+        },
+        "18": {
+          "mode": "out",
+          "level": true
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
       },
       "expect": [
-        { "die": "D1.R", "currentA": { "min": 0.001, "max": 0.02 } },
+        {
+          "die": "D1.R",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.02
+          }
+        },
         {
           "die": "D1.G",
-          "currentA": { "min": 0.0005, "max": 0.02 }
+          "currentA": {
+            "min": 0.0005,
+            "max": 0.02
+          }
         },
-        { "die": "D1.B", "currentA": { "max": 0.000001 } }
+        {
+          "die": "D1.B",
+          "currentA": {
+            "max": 1e-6
+          }
+        }
       ]
     },
     {
       "name": "All three HIGH mix white, and the three pins together stay under 50 mA",
       "gpio": {
-        "17": { "mode": "out", "level": true },
-        "18": { "mode": "out", "level": true },
-        "27": { "mode": "out", "level": true }
+        "17": {
+          "mode": "out",
+          "level": true
+        },
+        "18": {
+          "mode": "out",
+          "level": true
+        },
+        "27": {
+          "mode": "out",
+          "level": true
+        }
       },
       "expect": [
-        { "die": "D1.R", "currentA": { "min": 0.001, "max": 0.02 } },
+        {
+          "die": "D1.R",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.02
+          }
+        },
         {
           "die": "D1.G",
-          "currentA": { "min": 0.0005, "max": 0.02 }
+          "currentA": {
+            "min": 0.0005,
+            "max": 0.02
+          }
         },
         {
           "die": "D1.B",
-          "currentA": { "min": 0.0005, "max": 0.02 }
+          "currentA": {
+            "min": 0.0005,
+            "max": 0.02
+          }
         },
-        { "gpio": 17, "currentA": { "max": 0.016 } },
-        { "gpio": 18, "currentA": { "max": 0.016 } },
-        { "gpio": 27, "currentA": { "max": 0.016 } }
-      ]
+        {
+          "gpio": 17,
+          "currentA": {
+            "max": 0.016
+          }
+        },
+        {
+          "gpio": 18,
+          "currentA": {
+            "max": 0.016
+          }
+        },
+        {
+          "gpio": 27,
+          "currentA": {
+            "max": 0.016
+          }
+        }
+      ],
+      "code": false
     },
     {
       "name": "All three LOW leaves the LED dark",
       "gpio": {
-        "17": { "mode": "out", "level": false },
-        "18": { "mode": "out", "level": false },
-        "27": { "mode": "out", "level": false }
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
       },
       "expect": [
-        { "die": "D1.R", "currentA": { "max": 0.000001 } },
-        { "die": "D1.G", "currentA": { "max": 0.000001 } },
-        { "die": "D1.B", "currentA": { "max": 0.000001 } }
+        {
+          "die": "D1.R",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D1.G",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D1.B",
+          "currentA": {
+            "max": 1e-6
+          }
+        }
       ]
     },
     {
@@ -121,24 +292,62 @@
         "17": {
           "mode": "out",
           "level": false,
-          "pwm": { "frequencyHz": 2000, "duty": 0.5 }
+          "pwm": {
+            "frequencyHz": 2000,
+            "duty": 0.5
+          }
         },
-        "18": { "mode": "out", "level": false },
-        "27": { "mode": "out", "level": false }
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
       },
       "expect": [
         {
           "die": "D1.R",
-          "currentA": { "min": 0.0025, "max": 0.0028 }
+          "currentA": {
+            "min": 0.0025,
+            "max": 0.0028
+          }
         },
-        { "die": "D1.G", "currentA": { "max": 0.000001 } },
-        { "die": "D1.B", "currentA": { "max": 0.000001 } }
-      ]
+        {
+          "die": "D1.G",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D1.B",
+          "currentA": {
+            "max": 1e-6
+          }
+        }
+      ],
+      "code": false
     }
   ],
   "checkpoints": [
-    { "kind": "toggle-led", "afterStep": "W4", "part": "D1", "gpio": 17 },
-    { "kind": "toggle-led", "afterStep": "W4", "part": "D1", "gpio": 18 },
-    { "kind": "toggle-led", "afterStep": "W4", "part": "D1", "gpio": 27 }
+    {
+      "kind": "toggle-led",
+      "afterStep": "W4",
+      "part": "D1",
+      "gpio": 17
+    },
+    {
+      "kind": "toggle-led",
+      "afterStep": "W4",
+      "part": "D1",
+      "gpio": 18
+    },
+    {
+      "kind": "toggle-led",
+      "afterStep": "W4",
+      "part": "D1",
+      "gpio": 27
+    }
   ]
 }

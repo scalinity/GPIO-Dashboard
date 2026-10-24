@@ -22,6 +22,12 @@ function gpioState(s: Assertion['gpio'][string], now: number): GpioState {
     : { mode: 'out', level: s.level }
 }
 
+/** View values match exactly, except numbers, which match to a part in a billion. */
+const sameValue = (got: unknown, want: unknown) =>
+  typeof got === 'number' && typeof want === 'number'
+    ? Math.abs(got - want) <= 1e-9 * Math.max(1, Math.abs(want))
+    : JSON.stringify(got) === JSON.stringify(want)
+
 const hex = (address: number) => `0x${address.toString(16)}`
 
 /** The failures of one assertion; an empty list means it holds. */
@@ -85,7 +91,7 @@ export function expectationFailures(session: SimSession, expect: Assertion['expe
     } else {
       const view = snap.parts[e.part]
       for (const [key, want] of Object.entries(e.view)) {
-        if (JSON.stringify(view?.[key]) !== JSON.stringify(want)) {
+        if (!sameValue(view?.[key], want)) {
           failures.push(
             `${e.part}.${key} is ${JSON.stringify(view?.[key])}, want ${JSON.stringify(want)}`
           )

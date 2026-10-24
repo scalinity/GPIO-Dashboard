@@ -16,7 +16,19 @@ describe.each(TUTORIALS.map((t) => [t.meta.id, t] as const))('%s code', (_id, t)
     expect(compileCheck(py, t.doc.code.source)).toEqual([])
   })
 
-  it.each(t.meta.assertions.map((a) => [a.name, a] as const))('drives: %s', (_name, a) => {
-    expect(checkCode(py, t.doc, partDef, a, 10).failures).toEqual([])
+  const driven = t.meta.assertions.filter((a) => a.code)
+
+  it('has assertions its code must drive', () => {
+    expect(driven.length).toBeGreaterThan(0)
   })
+
+  // A check runs up to 75 s of virtual time (the PIR's one-minute warm-up comes first) and stops
+  // at the first moment its expectations hold.
+  it.each(driven.map((a) => [a.name, a] as const))(
+    'drives: %s',
+    (_name, a) => {
+      expect(checkCode(py, t.doc, partDef, a, 75).failures).toEqual([])
+    },
+    300_000
+  )
 })

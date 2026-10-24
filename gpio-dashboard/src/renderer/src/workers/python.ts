@@ -35,6 +35,8 @@ export async function createPython(options: {
     py.FS.writeFile(path, text)
   }
   py.runPython(`import sys\nsys.path.insert(0, ${JSON.stringify(ROOT)})`)
+  // No keyboard: input() reaches end of file and raises EOFError instead of waiting forever.
+  py.setStdin({ stdin: () => undefined })
   return py
 }
 
@@ -66,9 +68,13 @@ export function runProgram(
   bridge: Bridge,
   source: string,
   sleep: (s: number) => void,
-  interrupt: Int32Array
+  interrupt: Int32Array,
+  /** What input() reads, line by line, before end of file. */
+  stdin = ''
 ) {
   py.setInterruptBuffer(interrupt)
+  const lines = stdin ? stdin.split(/(?<=\n)/) : []
+  py.setStdin({ stdin: () => lines.shift() })
   py.registerJsModule('_sim', {
     // JS null reaches Python as JsNull; undefined becomes None.
     board_to_bcm: (pin: number) => PI_HEADER[pin - 1]?.bcm ?? undefined,
@@ -104,5 +110,8 @@ import _prelude`)
     py.runPython(source, { globals, filename: 'main.py' })
   } finally {
     globals.destroy()
+    // A stop requested as the program was ending would otherwise interrupt the next call.
+    interrupt[0] = 0
+    py.setStdin({ stdin: () => undefined })
   }
 }

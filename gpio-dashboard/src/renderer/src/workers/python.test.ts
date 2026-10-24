@@ -83,4 +83,23 @@ describe('Python shims', () => {
     )
     expect(bridge.session.snapshot().gpio[17]).toBeDefined()
   })
+
+  it('end input() with EOFError instead of waiting for a keyboard', () => {
+    run(emptyDoc(), 'try:\n    input("Text: ")\nexcept EOFError:\n    print("eof")\n', 1)
+    expect(out.join('')).toMatch(/eof$/)
+  })
+
+  it('clear a stop raised during a run, so the next call is not interrupted', () => {
+    const interrupt = new Int32Array(new SharedArrayBuffer(4))
+    const bridge = new Bridge(new SimSession(new Circuit(emptyDoc(), partDef, BEHAVIORS)))
+    // The stop arrives inside the program's last sleep, as a passing code check sends it.
+    const stopNow = () => (interrupt[0] = 2)
+    try {
+      runProgram(py, bridge, 'import time\ntime.sleep(1)\n', stopNow, interrupt)
+    } catch {
+      // KeyboardInterrupt, if Python checked the flag before the program ended.
+    }
+    expect(interrupt[0]).toBe(0)
+    expect(compileCheck(py, 'z = 3\n')).toEqual([])
+  })
 })
