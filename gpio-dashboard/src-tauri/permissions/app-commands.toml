@@ -40,6 +40,7 @@ permissions = [
   "allow-projects-list",
   "allow-projects-read",
   "allow-projects-write",
+  "allow-projects-write-transcript",
   "allow-projects-delete",
   "allow-projects-export",
   "allow-projects-import",

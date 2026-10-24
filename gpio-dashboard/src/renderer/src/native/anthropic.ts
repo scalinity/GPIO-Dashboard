@@ -1,7 +1,23 @@
 // The Anthropic SDK's `fetch`: every request goes through the Rust proxy, which adds the API
 // key (SPEC 4.2, 12.1). The key never exists in the webview; the SDK is built with a
-// placeholder and this function.
+// placeholder and this function. Settings hands a typed key to the Keychain through setKey;
+// no command ever returns it, only whether one is saved.
 import { bridge, type ProxyMessage } from './bridge'
+
+/** Saves the key in the Keychain. True when it was saved. */
+export async function setKey(value: string): Promise<boolean> {
+  return (await bridge().anthropic.setKey(value)).success === true
+}
+
+/** Whether a key is saved in the Keychain. */
+export async function hasKey(): Promise<boolean> {
+  return (await bridge().anthropic.hasKey()) === true
+}
+
+/** Removes the key from the Keychain. True when none is left. */
+export async function clearKey(): Promise<boolean> {
+  return (await bridge().anthropic.clearKey()).success === true
+}
 
 // Statuses whose Response may not carry a body (the Response constructor throws otherwise).
 const NULL_BODY_STATUSES = new Set([101, 103, 204, 205, 304])

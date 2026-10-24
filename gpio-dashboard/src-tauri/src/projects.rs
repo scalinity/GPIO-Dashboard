@@ -11,6 +11,8 @@ use serde::Serialize;
 use serde_json::Value;
 
 const EXTENSION: &str = "gpiob";
+/// The assistant's transcript sits beside its project as `<id>.transcript.json`.
+const TRANSCRIPT_EXTENSION: &str = "transcript.json";
 const MAX_ID_LEN: usize = 64;
 /// Larger files are refused instead of being read into memory.
 const MAX_FILE_BYTES: u64 = 16 * 1024 * 1024;
@@ -89,14 +91,73 @@ impl Projects {
     }
 
     /// A project that is already gone is the state the caller wants, so it is not an error.
+    /// Its transcript goes with it.
     pub fn delete(&self, id: &str) -> Result<(), String> {
         let path = self.path(id)?;
-        match fs::remove_file(&path) {
-            Ok(()) => Ok(()),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(format!("Cannot delete project: {e}")),
+        for file in [path, self.transcript_path(id)?] {
+            match fs::remove_file(&file) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(format!("Cannot delete project: {e}")),
+            }
         }
+        Ok(())
     }
+
+    fn transcript_path(&self, id: &str) -> Result<PathBuf, String> {
+        check_id(id)?;
+        Ok(self.dir.join(format!("{id}.{TRANSCRIPT_EXTENSION}")))
+    }
+
+    /// Writes the assistant's transcript beside the project's file (SPEC 11.9). Anything shaped
+    /// like an Anthropic API key is redacted first, so a key pasted into the chat never reaches
+    /// the disk.
+    pub fn write_transcript(&self, id: &str, transcript: &Value) -> Result<(), String> {
+        let path = self.transcript_path(id)?;
+        if !transcript.is_object() {
+            return Err("A transcript must be a JSON object".to_string());
+        }
+        let mut text =
+            serde_json::to_string_pretty(&redact_keys(transcript)).map_err(|e| e.to_string())?;
+        text.push('\n');
+        if text.len() as u64 > MAX_FILE_BYTES {
+            return Err("The transcript is too large: the limit is 16 MiB".to_string());
+        }
+        fs::create_dir_all(&self.dir)
+            .map_err(|e| format!("Cannot create the projects folder: {e}"))?;
+        write_atomic(&path, &text)
+    }
+}
+
+/// A copy of `value` with every Anthropic API key (`sk-ant-…`) in its strings replaced.
+fn redact_keys(value: &Value) -> Value {
+    match value {
+        Value::String(text) => Value::String(redact_text(text)),
+        Value::Array(items) => Value::Array(items.iter().map(redact_keys).collect()),
+        Value::Object(map) => Value::Object(
+            map.iter()
+                .map(|(key, item)| (redact_text(key), redact_keys(item)))
+                .collect(),
+        ),
+        other => other.clone(),
+    }
+}
+
+fn redact_text(text: &str) -> String {
+    const PREFIX: &str = "sk-ant-";
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(start) = rest.find(PREFIX) {
+        out.push_str(&rest[..start]);
+        out.push_str("[redacted key]");
+        let after = &rest[start + PREFIX.len()..];
+        let end = after
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '-' || c == '_'))
+            .unwrap_or(after.len());
+        rest = &after[end..];
+    }
+    out.push_str(rest);
+    out
 }
 
 fn summarize(path: &Path) -> Option<ProjectSummary> {
@@ -618,5 +679,56 @@ mod tests {
         let ids: Vec<String> = projects.list().unwrap().into_iter().map(|p| p.id).collect();
         assert_eq!(ids, ["limit"], "the oversized file is skipped by list");
         let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_transcript_sits_beside_its_project_and_goes_with_it() {
+        let dir = temp_dir("transcript");
+        let projects = Projects::new(dir.clone());
+        projects
+            .write("blinky", &doc("Blinky", "2026-10-01T00:00:00Z"))
+            .unwrap();
+        let transcript = json!({ "turns": [{ "user": "blink an LED on GPIO17" }] });
+        projects.write_transcript("blinky", &transcript).unwrap();
+        assert_eq!(
+            file_names(&dir),
+            ["blinky.gpiob", "blinky.transcript.json"]
+        );
+        let saved: Value =
+            serde_json::from_str(&fs::read_to_string(dir.join("blinky.transcript.json")).unwrap())
+                .unwrap();
+        assert_eq!(saved, transcript);
+        // The gallery lists projects only.
+        let ids: Vec<String> = projects.list().unwrap().into_iter().map(|p| p.id).collect();
+        assert_eq!(ids, ["blinky"]);
+        projects.delete("blinky").unwrap();
+        assert!(file_names(&dir).is_empty());
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_transcript_never_holds_an_api_key() {
+        let dir = temp_dir("transcript-redact");
+        let projects = Projects::new(dir.clone());
+        let transcript = json!({
+            "turns": [
+                { "user": "my key is sk-ant-api03-AbC_12-xyz, use it" },
+                { "sk-ant-oat01-KEY": ["sk-ant-x", 3] }
+            ]
+        });
+        projects.write_transcript("p1", &transcript).unwrap();
+        let text = fs::read_to_string(dir.join("p1.transcript.json")).unwrap();
+        assert!(!text.contains("sk-ant-"), "{text}");
+        assert!(text.contains("my key is [redacted key], use it"), "{text}");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_transcript_needs_a_valid_id_and_an_object() {
+        let dir = temp_dir("transcript-refused");
+        let projects = Projects::new(dir.clone());
+        assert!(projects.write_transcript("../escape", &json!({})).is_err());
+        assert!(projects.write_transcript("p1", &json!([1, 2])).is_err());
+        assert!(!dir.exists());
     }
 }

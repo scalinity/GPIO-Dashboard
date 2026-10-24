@@ -599,6 +599,20 @@ pub fn projects_write(projects: State<'_, Projects>, id: String, doc: Value) -> 
     ))
 }
 
+/// Saves the Claude panel's transcript beside project `id` (SPEC 11.9).
+#[tauri::command]
+pub fn projects_write_transcript(
+    projects: State<'_, Projects>,
+    id: String,
+    transcript: Value,
+) -> CommandResult {
+    Ok(result_json(
+        projects
+            .write_transcript(&id, &transcript)
+            .map(|()| json!({ "success": true })),
+    ))
+}
+
 #[tauri::command]
 pub fn projects_delete(projects: State<'_, Projects>, id: String) -> CommandResult {
     Ok(result_json(

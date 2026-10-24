@@ -40,6 +40,7 @@ const COMMANDS: &[&str] = &[
     "projects_list",
     "projects_read",
     "projects_write",
+    "projects_write_transcript",
     "projects_delete",
     "projects_export",
     "projects_import",

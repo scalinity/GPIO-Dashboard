@@ -29,6 +29,11 @@ export async function exportProject(doc: unknown): Promise<string | null> {
   return 'canceled' in result ? null : result.path
 }
 
+/** Writes the assistant's transcript beside project `id`'s file (SPEC 11.9). */
+export async function writeTranscript(id: string, transcript: unknown): Promise<void> {
+  unwrap(await bridge().projects.writeTranscript(id, transcript))
+}
+
 /** Opens a project file through the native open dialog; `null` when the user cancels. */
 export async function importProject(): Promise<unknown | null> {
   const result = unwrap(await bridge().projects.import())

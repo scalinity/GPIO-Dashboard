@@ -113,7 +113,10 @@ export function createApi({ invoke, listen, Channel }) {
       write: (id, doc) => structured('projects_write', { id, doc }),
       delete: (id) => structured('projects_delete', { id }),
       export: (doc) => structured('projects_export', { doc }),
-      import: () => structured('projects_import')
+      import: () => structured('projects_import'),
+      // The assistant's transcript beside the project's file; the Claude panel writes it.
+      writeTranscript: (id, transcript) =>
+        structured('projects_write_transcript', { id, transcript })
     }
   }
 }

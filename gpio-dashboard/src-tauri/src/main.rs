@@ -136,6 +136,7 @@ fn main() {
             commands::projects_list,
             commands::projects_read,
             commands::projects_write,
+            commands::projects_write_transcript,
             commands::projects_delete,
             commands::projects_export,
             commands::projects_import,

@@ -51,6 +51,13 @@ export interface Bridge {
     delete(id: string): Promise<{ success: true } | Failure>
     export(doc: unknown): Promise<{ success: true; path: string } | Canceled | Failure>
     import(): Promise<{ success: true; doc: unknown } | Canceled | Failure>
+    /** The assistant's transcript, saved beside the project's file. */
+    writeTranscript(id: string, transcript: unknown): Promise<{ success: true } | Failure>
+  }
+  settings: {
+    /** An allowed key's value, or null. */
+    get(key: string): Promise<unknown>
+    set(key: string, value: unknown): Promise<{ success: true } | Failure>
   }
 }
 
