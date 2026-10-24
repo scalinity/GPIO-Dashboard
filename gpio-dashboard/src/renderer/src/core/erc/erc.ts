@@ -7,7 +7,7 @@ import type { CircuitDoc, PartDef, PartInstance, Vec2 } from '../model/types'
 import { boardDef } from '../defs/boards'
 import { holeKey, holePosition, stripKey } from '../geometry/breadboard'
 import type { Net, Netlist, PartDefs } from '../netlist/netlist'
-import { netlist as buildNetlist, occupancy } from '../netlist/netlist'
+import { docPartDefs, netlist as buildNetlist, occupancy } from '../netlist/netlist'
 import { leadReach, ribbonReach } from '../reach/reach'
 
 export type Severity = 'error' | 'warning' | 'info'
@@ -508,7 +508,7 @@ export function erc(
   const ctx: Ctx = {
     doc,
     nl,
-    defs,
+    defs: docPartDefs(doc, defs),
     uses: codePins(doc.code.source).uses,
     netOf: (part, pin) => {
       const name = nl.netOfPin.get(`${part}.${pin}`)

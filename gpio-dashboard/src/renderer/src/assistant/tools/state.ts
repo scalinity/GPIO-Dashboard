@@ -7,7 +7,13 @@ import { holeKey } from '../../core/geometry/breadboard'
 import { tboardPinHole } from '../../core/geometry/tboard'
 import type { CircuitDoc, Endpoint, HoleRef } from '../../core/model/types'
 import { computeState, diffStates } from '../../core/netlist/engine'
-import { netlist, occupantKey, type Netlist, type PartDefs } from '../../core/netlist/netlist'
+import {
+  docPartDefs,
+  netlist,
+  occupantKey,
+  type Netlist,
+  type PartDefs
+} from '../../core/netlist/netlist'
 import { free, stripHoles } from '../../core/placer/placer'
 import { headerNetName } from '../../core/defs/controllers'
 import { RAIL_IDS } from '../../core/model/types'
@@ -53,8 +59,9 @@ function netRows(doc: CircuitDoc, nl: Netlist) {
 }
 
 function partRows(doc: CircuitDoc, defs: PartDefs, nl: Netlist, full: boolean) {
+  const resolve = docPartDefs(doc, defs)
   return doc.parts.map((part) => {
-    const def = defs(part.defId)
+    const def = resolve(part.defId)
     return {
       ref: part.id,
       def: part.defId,

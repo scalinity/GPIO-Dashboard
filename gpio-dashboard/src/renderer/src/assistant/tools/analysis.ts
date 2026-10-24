@@ -6,7 +6,7 @@ import { codePins } from '../../core/code/pins'
 import { erc, type Issue } from '../../core/erc/erc'
 import { holeKey } from '../../core/geometry/breadboard'
 import type { CircuitDoc } from '../../core/model/types'
-import { netlist, type PartDefs } from '../../core/netlist/netlist'
+import { docPartDefs, netlist, type PartDefs } from '../../core/netlist/netlist'
 import type { GpioState } from '../../core/sim/circuit'
 import type { Snapshot } from '../../core/sim/session'
 import type { SimRequest } from '../context'
@@ -82,6 +82,7 @@ const mA = (a: number) => r3(a * 1000)
 
 /** The simulated numbers worth quoting, from a snapshot. */
 function simReport(doc: CircuitDoc, defs: PartDefs, snapshot: Snapshot, issues: Issue[]) {
+  defs = docPartDefs(doc, defs)
   const nl = netlist(doc, defs)
   const volts = (part: string, pin: string) => {
     const net = nl.netOfPin.get(`${part}.${pin}`)
@@ -126,7 +127,7 @@ export const simulate = defineTool({
   schema: simulateInput,
   async run({ mode, durationMs, stimulus }, env) {
     const doc = env.ctx.getSnapshot()
-    const defs = env.ctx.partDef
+    const defs = docPartDefs(doc, env.ctx.partDef)
     if (durationMs < 0 || durationMs > 60000)
       return failure('BAD_DURATION', 'durationMs must be between 0 and 60000')
     const requests: SimRequest[] = [{ type: 'load', doc }]

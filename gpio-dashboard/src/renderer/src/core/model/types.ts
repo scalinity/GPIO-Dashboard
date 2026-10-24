@@ -102,11 +102,17 @@ export interface CircuitDoc {
   parts: PartInstance[]
   wires: Wire[]
   code: { language: 'python'; library: CodeLibrary; source: string }
+  /** Parts this project defines itself (SPEC 7), so they open with it; their ids start "custom-". */
+  customParts?: PartDef[]
+  /** "Why" and mistake notes by step key (core/steps `stepKey`): "part:R1", "wire:W2", "tboard". */
   buildStepAnnotations?: Record<string, { why?: string; mistake?: string }>
   assistant?: { transcriptFile: string }
 }
 
 // --- Part definitions (content/parts/*.part.json) ---
+
+/** The library never uses it, and a project's own parts always do, so the two never collide. */
+export const CUSTOM_PART_PREFIX = 'custom-'
 
 export type PartCategory =
   | 'passive'
@@ -245,7 +251,7 @@ export interface PartDef {
     | { gltf: string }
     | { procedural: string; params: Record<string, number | string> }
   colliders?: string
-  /** Datasheet and official document URLs; required (SPEC 7). */
+  /** Datasheet and official document URLs: a library part cites one, a custom part may not. */
   provenance: { sources: string[]; notes?: string }
 }
 
@@ -270,6 +276,10 @@ export type Op =
   | { type: 'RemoveWire'; id: string }
   | { type: 'SetCode'; code: CircuitDoc['code'] }
   | { type: 'SetMeta'; meta: Partial<Pick<CircuitDoc['meta'], 'name' | 'sourceTutorialId'>> }
+  | { type: 'AddCustomPart'; def: PartDef; index?: number }
+  | { type: 'RemoveCustomPart'; id: string }
+  /** Replaces all the build-step notes as a whole; none removes them. */
+  | { type: 'SetBuildStepAnnotations'; annotations?: CircuitDoc['buildStepAnnotations'] }
 
 export type Author = 'user' | 'assistant' | 'system'
 

@@ -1,8 +1,15 @@
 // The part library tools: finding a part, and defining one the library lacks (SPEC 7, 12.5).
 import { z } from 'zod'
 import { checkPartDef } from '../../core/defs/parts'
-import type { ElectricalType, PartDef, PinDef, PinRole, SimModelId } from '../../core/model/types'
-import { defineTool, failure, reply } from './types'
+import {
+  CUSTOM_PART_PREFIX,
+  type ElectricalType,
+  type PartDef,
+  type PinDef,
+  type PinRole,
+  type SimModelId
+} from '../../core/model/types'
+import { commit, defineTool, failure, isOutput, reply } from './types'
 
 const PIN_ROLES = [
   'passive',
@@ -88,7 +95,7 @@ export const searchParts = defineTool({
   schema: z.object({ query: z.string() }).strict(),
   run({ query }, env) {
     const inventory = env.ctx.inventoryPartIds()
-    const parts = env.ctx.partDefs()
+    const parts = [...env.ctx.partDefs(), ...(env.ctx.getSnapshot().customParts ?? [])]
     const tokens = query.toLowerCase().split(/\s+/).filter(Boolean)
     if (!tokens.length)
       return reply(parts.map((d) => ({ id: d.id, name: d.name, inInventory: inventory.has(d.id) })))
@@ -262,8 +269,8 @@ export function buildCustomPart(
       problems.push(`Pin ${pin.id} plugs into the board, so its connector is "none"`)
   }
   const base = slug(input.name) || 'part'
-  let id = `custom-${base}`
-  for (let n = 2; takenIds.has(id); n++) id = `custom-${base}-${n}`
+  let id = `${CUSTOM_PART_PREFIX}${base}`
+  for (let n = 2; takenIds.has(id); n++) id = `${CUSTOM_PART_PREFIX}${base}-${n}`
   const { offsets, ...shape } = layout(input.template, input.pins.length)
   const def: PartDef = {
     id,
@@ -298,16 +305,22 @@ export const defineCustomPart = defineTool({
   schema: customPartInput,
   mutates: true,
   run(input, env) {
-    const taken = new Set(env.ctx.partDefs().map((d) => d.id))
+    const taken = new Set(
+      [...env.ctx.partDefs(), ...(env.ctx.getSnapshot().customParts ?? [])].map((d) => d.id)
+    )
     const built = buildCustomPart(input, taken)
     if ('problems' in built) return failure('BAD_PART', built.problems)
-    env.ctx.registerPartDef(built.def)
-    return reply({
-      id: built.def.id,
-      footprint: built.def.footprint,
-      pins: built.def.pins.map((p) => ({ id: p.id, role: p.role, connector: p.connector })),
-      datasheet: built.def.provenance.sources[0] ?? null
-    })
+    const tx = commit(env, `Define ${built.def.name}`, [{ type: 'AddCustomPart', def: built.def }])
+    if (isOutput(tx)) return tx
+    return {
+      ...reply({
+        id: built.def.id,
+        footprint: built.def.footprint,
+        pins: built.def.pins.map((p) => ({ id: p.id, role: p.role, connector: p.connector })),
+        datasheet: built.def.provenance.sources[0] ?? null
+      }),
+      committed: [tx]
+    }
   }
 })
 

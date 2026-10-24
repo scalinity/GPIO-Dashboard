@@ -1,8 +1,8 @@
 // What validateDoc checks beyond placement: each part's properties against its definition
-// (SPEC 11.4).
+// (SPEC 11.4), and a project's own part definitions (SPEC 7).
 import { describe, expect, it } from 'vitest'
 import type { CircuitDoc, PartDef } from '../model/types'
-import { emptyDoc, fixtureDefs, hole, part, RES } from '../testing/fixtures'
+import { CUSTOM_RES, emptyDoc, fixtureDefs, hole, part, RES } from '../testing/fixtures'
 import { validateDoc } from './validate'
 
 const problems = (doc: CircuitDoc) => validateDoc(doc, fixtureDefs).map((p) => p.code)
@@ -51,5 +51,44 @@ describe('part properties', () => {
       part('R1', 'test-resistor', { 1: hole(30, 'a'), 2: hole(33, 'a') }, { resistance: 'big' })
     )
     expect(problems(doc)).toEqual(['BAD_PROP'])
+  })
+})
+
+describe('custom parts', () => {
+  const withCustom = (...defs: PartDef[]) => {
+    const doc = emptyDoc()
+    doc.customParts = defs
+    return doc
+  }
+
+  it('lets a part use a definition the document carries, with no datasheet', () => {
+    const doc = withCustom(CUSTOM_RES)
+    doc.parts.push(part('R1', CUSTOM_RES.id, { 1: hole(30, 'a'), 2: hole(33, 'a') }))
+    expect(problems(doc)).toEqual([])
+  })
+
+  it('still reports a part whose definition is nowhere', () => {
+    const doc = emptyDoc()
+    doc.parts.push(part('R1', CUSTOM_RES.id, { 1: hole(30, 'a'), 2: hole(33, 'a') }))
+    expect(problems(doc)).toEqual(['UNKNOWN_DEF'])
+  })
+
+  it('checks a custom part’s properties against its own definition', () => {
+    const doc = withCustom(CUSTOM_RES)
+    doc.parts.push(
+      part('R1', CUSTOM_RES.id, { 1: hole(30, 'a'), 2: hole(33, 'a') }, { resistance: 'big' })
+    )
+    expect(problems(doc)).toEqual(['BAD_PROP'])
+  })
+
+  it('refuses a definition that breaks the rules, before anything uses it', () => {
+    expect(problems(withCustom({ ...CUSTOM_RES, id: 'test-led' }))).toEqual(['CUSTOM_PART'])
+    expect(problems(withCustom(CUSTOM_RES, CUSTOM_RES))).toEqual(['DUPLICATE_ID'])
+    expect(problems(withCustom({ ...CUSTOM_RES, pins: [] }))).toEqual(['CUSTOM_PART'])
+    expect(problems(withCustom({ ...CUSTOM_RES, provenance: { sources: ['datasheet'] } }))).toEqual(
+      ['CUSTOM_PART']
+    )
+    const badGroup = withCustom({ ...CUSTOM_RES, internalConnections: [['1', '9']] })
+    expect(validateDoc(badGroup, fixtureDefs)[0]!.message).toMatch(/unknown pin 9/)
   })
 })

@@ -3,7 +3,19 @@
 // GPIO17 row 6 a-e, GPIO18 row 6 f-j, GPIO2 (SDA) row 2 a-e.
 import { describe, expect, it } from 'vitest'
 import type { CircuitDoc, Endpoint, PartDef } from '../model/types'
-import { at, emptyDoc, fixtureDefs, hole, LED, MODULE, part, RES, wire } from '../testing/fixtures'
+import { validateDoc } from '../ops/validate'
+import {
+  at,
+  CUSTOM_RES,
+  emptyDoc,
+  fixtureDefs,
+  hole,
+  LED,
+  MODULE,
+  part,
+  RES,
+  wire
+} from '../testing/fixtures'
 import { erc } from './erc'
 
 const NPN: PartDef = {
@@ -301,6 +313,22 @@ describe('ERC rules', () => {
       x.parts.push(part('R1', 'test-nosheet', { 1: hole(30, 'a'), 2: hole(33, 'a') }))
     )
     expect(codes(d, 'PART_WITHOUT_DATASHEET')).toEqual(['PART_WITHOUT_DATASHEET:info'])
+  })
+
+  it('PART_WITHOUT_DATASHEET: a custom part with no sources gets it, from the document alone', () => {
+    const d = doc((x) => {
+      x.customParts = [{ ...CUSTOM_RES, kitTags: ['custom'] }]
+      x.parts.push(part('R1', CUSTOM_RES.id, { 1: hole(30, 'a'), 2: hole(33, 'a') }))
+    })
+    expect(codes(d, 'PART_WITHOUT_DATASHEET')).toEqual(['PART_WITHOUT_DATASHEET:info'])
+    expect(validateDoc(d, defs)).toEqual([])
+    const cited = doc((x) => {
+      x.customParts = [
+        { ...CUSTOM_RES, kitTags: ['custom'], provenance: { sources: ['https://example.com/a'] } }
+      ]
+      x.parts.push(part('R1', CUSTOM_RES.id, { 1: hole(30, 'a'), 2: hole(33, 'a') }))
+    })
+    expect(codes(cited, 'PART_WITHOUT_DATASHEET')).toEqual([])
   })
 
   it('lists errors before warnings before info', () => {

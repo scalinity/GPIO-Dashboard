@@ -8,7 +8,7 @@ import { TBOARD } from '../defs/controllers'
 import { holePosition } from '../geometry/breadboard'
 import { tboardToBoard } from '../geometry/tboard'
 import type { CircuitDoc, Endpoint, Transform2D, Vec2, Vec3, Wire } from '../model/types'
-import type { PartDefs } from '../netlist/netlist'
+import { docPartDefs, type PartDefs } from '../netlist/netlist'
 
 /** Heights above the table that the photos and drawings don't give; used only for reach. */
 export const ASSUMED_HEIGHTS_MM = {
@@ -43,7 +43,7 @@ export function exitPoint(doc: CircuitDoc, defs: PartDefs, end: Endpoint): Vec3 
     return [x, y, def.body.heightMm + lift]
   }
   const part = doc.parts.find((p) => p.id === end.pin.part)
-  const pin = part && defs(part.defId).pins.find((p) => p.id === end.pin.pin)
+  const pin = part && docPartDefs(doc, defs)(part.defId).pins.find((p) => p.id === end.pin.pin)
   if (!part?.placement.offboardPose || !pin) return null
   const [x, y] = toTable(part.placement.offboardPose, [
     pin.offsetPitch[0] * 2.54,

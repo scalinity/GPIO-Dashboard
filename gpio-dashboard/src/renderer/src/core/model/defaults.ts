@@ -2,7 +2,7 @@
 // on columns d/h with its header toward row 0 and pin 1 at row 1, and the 200 mm ribbon.
 import type { CircuitDoc } from './types'
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 export const BENCH_TBOARD = {
   board: 'bb1',

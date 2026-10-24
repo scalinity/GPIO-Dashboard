@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { parse, serialize } from '../../core/serialize/gpiob'
 import { buildSteps } from '../../core/steps/steps'
 import { RevisionMemory } from './types'
 import { call } from '../testing/call'
@@ -119,7 +120,8 @@ describe('define_custom_part', () => {
       id: 'custom-eight-pin-chip',
       footprint: { kind: 'rigid', straddleTrench: true }
     })
-    expect(ctx.partDefs().some((d) => d.id === 'custom-eight-pin-chip')).toBe(true)
+    expect(made.output.committed).toHaveLength(1)
+    expect(ctx.getSnapshot().customParts?.map((d) => d.id)).toEqual(['custom-eight-pin-chip'])
     const placed = await place(ctx, 'custom-eight-pin-chip')
     expect(placed.isError).toBe(false)
     expect(placed.json).toMatchObject({ ref: 'U1' })
@@ -134,7 +136,9 @@ describe('define_custom_part', () => {
       internalConnections: [],
       simModel: 'none'
     })
-    expect(ctx.custom.get('custom-mystery')!.kitTags).toContain('no datasheet')
+    const [mystery] = ctx.getSnapshot().customParts!
+    expect(mystery!.kitTags).toContain('no datasheet')
+    expect(mystery!.provenance.sources).toEqual([])
     await place(ctx, 'custom-mystery')
     const erc = (await call(ctx, 'run_erc', {})).json as {
       info: number
@@ -191,7 +195,46 @@ describe('define_custom_part', () => {
     expect(JSON.stringify((await call(ctx, 'define_custom_part', group)).json)).toContain(
       'unknown pin 9'
     )
-    expect(ctx.custom.size).toBe(0)
+    expect(ctx.getSnapshot().customParts).toBeUndefined()
+  })
+
+  it('is one undoable step, and search_parts finds the part while it exists', async () => {
+    const ctx = new FakeContext()
+    const before = ctx.getSnapshot()
+    await call(
+      ctx,
+      'define_custom_part',
+      {
+        template: '2-lead',
+        name: 'Mystery',
+        pins: pins(2),
+        internalConnections: [],
+        simModel: 'none'
+      },
+      { turnId: 't1' }
+    )
+    const found = (await call(ctx, 'search_parts', { query: 'mystery' })).json as { id: string }[]
+    expect(found.map((p) => p.id)).toEqual(['custom-mystery'])
+    expect(ctx.undoTurn('t1')).toBe(1)
+    expect(ctx.getSnapshot()).toStrictEqual(before)
+    expect((await call(ctx, 'search_parts', { query: 'mystery' })).isError).toBe(true)
+  })
+
+  it('goes with the project: it saves, reopens deep-equal and can be placed again', async () => {
+    const ctx = new FakeContext()
+    await call(ctx, 'define_custom_part', {
+      template: 'TO-92',
+      name: 'Odd transistor',
+      pins: pins(3),
+      internalConnections: [],
+      simModel: 'none',
+      datasheetUrl: 'https://example.com/odd.pdf'
+    })
+    await place(ctx, 'custom-odd-transistor')
+    const reopened = parse(serialize(ctx.getSnapshot()))
+    expect(reopened).toStrictEqual(ctx.getSnapshot())
+    const again = new FakeContext({ doc: reopened })
+    expect((await place(again, 'custom-odd-transistor')).json).toMatchObject({ ref: 'Q2' })
   })
 })
 
@@ -681,11 +724,50 @@ describe('read_board_sense and the studio tools', () => {
       annotations: [{ step: 'R1', why: 'limits current', mistake: '' }]
     })
     expect(ok.json).toEqual({ annotated: 1 })
-    expect(ctx.annotations).toHaveLength(1)
+    expect(ok.output.committed).toHaveLength(1)
+    expect(ctx.getSnapshot().buildStepAnnotations).toEqual({ 'part:R1': { why: 'limits current' } })
+    const before = ctx.getSnapshot()
     const bad = await call(ctx, 'annotate_build_steps', {
       annotations: [{ step: 'Z9', why: 'x', mistake: 'y' }]
     })
     expect(bad.text).toContain('NO_SUCH_STEP')
+    expect(bad.text).toContain('part:R1')
+    expect(ctx.getSnapshot()).toBe(before)
+  })
+
+  it('annotate_build_steps takes a step key, replaces a step’s notes and clears them when empty', async () => {
+    const ctx = new FakeContext()
+    await place(ctx, 'resistor', 'bb1:30b', { span: 4 })
+    const note = (step: string, why: string, mistake: string) =>
+      call(ctx, 'annotate_build_steps', { annotations: [{ step, why, mistake }] })
+    await note('part:R1', 'first', 'oops')
+    await note('R1', 'second', '')
+    expect(ctx.getSnapshot().buildStepAnnotations).toStrictEqual({ 'part:R1': { why: 'second' } })
+    const step = buildSteps(ctx.getSnapshot(), ctx.partDef).steps.find((s) => s.key === 'part:R1')
+    expect(step!.why).toBe('second')
+    await note('part:R1', '', '')
+    expect(ctx.getSnapshot().buildStepAnnotations).toBeUndefined()
+  })
+
+  it('annotate_build_steps needs a key when a part and a lead share an id', async () => {
+    const ctx = new FakeContext()
+    await place(ctx, 'resistor', 'bb1:30b', { ref: 'W1', span: 4 })
+    await call(ctx, 'connect', { from: { net: 'GND' }, to: { partPin: { ref: 'W1', pin: '2' } } })
+    const clash = await call(ctx, 'annotate_build_steps', {
+      annotations: [{ step: 'W1', why: 'x', mistake: '' }]
+    })
+    expect(clash.text).toContain('NO_SUCH_STEP')
+    const keyed = await call(ctx, 'annotate_build_steps', {
+      annotations: [
+        { step: 'part:W1', why: 'the part', mistake: '' },
+        { step: 'wire:W1', why: 'the lead', mistake: '' }
+      ]
+    })
+    expect(keyed.isError).toBe(false)
+    expect(ctx.getSnapshot().buildStepAnnotations).toEqual({
+      'part:W1': { why: 'the part' },
+      'wire:W1': { why: 'the lead' }
+    })
   })
 
   it('ask_user waits for the answer', async () => {

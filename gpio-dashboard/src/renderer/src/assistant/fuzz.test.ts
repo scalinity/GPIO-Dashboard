@@ -4,6 +4,7 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import type Anthropic from '@anthropic-ai/sdk'
+import { docPartDefs } from '../core/netlist/netlist'
 import { validateDoc } from '../core/ops/validate'
 import { AssistantSession } from './loop'
 import { call } from './testing/call'
@@ -328,7 +329,7 @@ function assertSound(ctx: FakeContext) {
   const doc = ctx.getSnapshot()
   expect(validateDoc(doc, ctx.partDef)).toEqual([])
   for (const part of doc.parts) {
-    const def = ctx.partDef(part.defId)
+    const def = docPartDefs(doc, ctx.partDef)(part.defId)
     for (const [name, value] of Object.entries(part.props))
       expect(
         'error' in mergeProps(def, {}, [{ name, value: value as string }]),

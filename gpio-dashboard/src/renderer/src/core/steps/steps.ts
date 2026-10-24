@@ -4,7 +4,7 @@
 import { boardDef } from '../defs/boards'
 import { railHoleRow, stripKey } from '../geometry/breadboard'
 import type { CircuitDoc, Endpoint, HoleRef, PartDef, PartInstance, Wire } from '../model/types'
-import { netlist, type PartDefs } from '../netlist/netlist'
+import { docPartDefs, netlist, type PartDefs } from '../netlist/netlist'
 import { leadReach } from '../reach/reach'
 
 const COLOURS = [
@@ -81,7 +81,15 @@ export interface TableRow {
   net: string
 }
 
+/**
+ * The stable name of a step, for notes stored in the document: "tboard", "part:R1" or "wire:W2".
+ * It depends only on what the step is about, so edits elsewhere do not move it, and a part and a
+ * lead that share an id still have different keys.
+ */
+export const stepKey = (kind: 'part' | 'wire', id: string) => `${kind}:${id}`
+
 export interface BuildStep {
+  key: string
   kind: 'tboard' | 'rails' | 'passive' | 'component' | 'signal' | 'ground'
   refs: string[]
   holes: HoleRef[]
@@ -158,6 +166,7 @@ function partStep(doc: CircuitDoc, part: PartInstance, def: PartDef): BuildStep 
     text = `Insert ${part.id}, the ${what},${across} with pin ${first.pin.id} (${first.pin.label}) in ${at(first.hole)} and pin ${last.pin.id} (${last.pin.label}) in ${at(last.hole)}.`
   }
   return {
+    key: stepKey('part', part.id),
     kind: def.category === 'passive' ? 'passive' : 'component',
     refs: [part.id],
     holes: pins.map((p) => p.hole),
@@ -180,6 +189,7 @@ function wireStep(
       ? `with its female end on ${endpointText(doc, defs, first)} and its male end in ${endpointText(doc, defs, second)}`
       : `from ${endpointText(doc, defs, first)} to ${endpointText(doc, defs, second)}`
   return {
+    key: stepKey('wire', wire.id),
     kind,
     refs: [wire.id],
     holes: [a, b].flatMap((e) => ('hole' in e ? [e.hole] : [])),
@@ -188,6 +198,7 @@ function wireStep(
 }
 
 export function buildSteps(doc: CircuitDoc, defs: PartDefs): Steps {
+  defs = docPartDefs(doc, defs)
   const nl = netlist(doc, defs)
   const pinNet = (part: string, pin: string) => nl.netOfPin.get(`${part}.${pin}`) ?? ''
   const holeNet = (hole: HoleRef) => {
@@ -236,6 +247,7 @@ export function buildSteps(doc: CircuitDoc, defs: PartDefs): Steps {
   const tb = doc.controller.tboard
   const steps: BuildStep[] = [
     {
+      key: 'tboard',
       kind: 'tboard',
       refs: ['tboard'],
       holes: [],
@@ -266,7 +278,7 @@ export function buildSteps(doc: CircuitDoc, defs: PartDefs): Steps {
     ...wireSteps(ground, 'ground')
   )
   for (const step of steps) {
-    const note = doc.buildStepAnnotations?.[step.refs[0]!]
+    const note = doc.buildStepAnnotations?.[step.key]
     if (note?.why) step.why = note.why
     if (note?.mistake) step.mistake = note.mistake
   }

@@ -4,7 +4,7 @@ import { z } from 'zod'
 import type { CircuitDoc } from '../../core/model/types'
 import { buildSteps } from '../../core/steps/steps'
 import { NET_NAMES, holeKeyText } from './shared'
-import { defineTool, failure, reply } from './types'
+import { commit, defineTool, failure, isOutput, reply } from './types'
 
 export const captureView = defineTool({
   name: 'capture_view',
@@ -70,7 +70,7 @@ export const highlight = defineTool({
 export const annotateBuildSteps = defineTool({
   name: 'annotate_build_steps',
   description:
-    'Add a "why" and a "common mistake" note to build steps. Each annotation names the part or wire its step is about (a ref such as R1, or a wire id such as W2); the step text itself is generated from the circuit. Give both notes, in one or two plain sentences, and an empty string where there is nothing to say.',
+    'Add a "why" and a "common mistake" note to build steps. Each annotation names the part or wire its step is about (a ref such as R1, or a wire id such as W2; if a part and a lead share an id, the step key "part:R1" or "wire:R1"); the step text itself is generated from the circuit. Give both notes, in one or two plain sentences, and an empty string where there is nothing to say. Two empty notes clear the step’s notes.',
   schema: z
     .object({
       annotations: z.array(
@@ -81,11 +81,29 @@ export const annotateBuildSteps = defineTool({
   mutates: true,
   run({ annotations }, env) {
     const doc = env.ctx.getSnapshot()
-    const covered = new Set(buildSteps(doc, env.ctx.partDef).steps.flatMap((s) => s.refs))
-    const unknown = annotations.map((a) => a.step).filter((s) => !covered.has(s))
-    if (unknown.length) return failure('NO_SUCH_STEP', { steps: unknown, available: [...covered] })
-    env.ctx.annotateBuildSteps(annotations)
-    return reply({ annotated: annotations.length })
+    const steps = buildSteps(doc, env.ctx.partDef).steps
+    // A name is a step key, or a ref that only one step is about.
+    const keyOf = (name: string) => {
+      const found = steps.filter((s) => s.key === name || s.refs.includes(name))
+      return found.length === 1 ? found[0]!.key : undefined
+    }
+    const unknown = annotations.map((a) => a.step).filter((name) => keyOf(name) === undefined)
+    if (unknown.length)
+      return failure('NO_SUCH_STEP', { steps: unknown, available: steps.map((s) => s.key) })
+    const notes = { ...doc.buildStepAnnotations }
+    for (const { step, why, mistake } of annotations) {
+      const note = { ...(why ? { why } : {}), ...(mistake ? { mistake } : {}) }
+      if (why || mistake) notes[keyOf(step)!] = note
+      else delete notes[keyOf(step)!]
+    }
+    const tx = commit(env, 'Annotate build steps', [
+      {
+        type: 'SetBuildStepAnnotations',
+        annotations: Object.keys(notes).length ? notes : undefined
+      }
+    ])
+    if (isOutput(tx)) return tx
+    return { ...reply({ annotated: annotations.length }), committed: [tx] }
   }
 })
 

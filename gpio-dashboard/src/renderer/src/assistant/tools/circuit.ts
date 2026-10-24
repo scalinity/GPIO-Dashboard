@@ -13,7 +13,13 @@ import {
 import { holeKey } from '../../core/geometry/breadboard'
 import { tboardPinHole } from '../../core/geometry/tboard'
 import { headerNetName } from '../../core/defs/controllers'
-import { netlist, occupancy, occupantKey, type PartDefs } from '../../core/netlist/netlist'
+import {
+  docPartDefs,
+  netlist,
+  occupancy,
+  occupantKey,
+  type PartDefs
+} from '../../core/netlist/netlist'
 import { leadReach } from '../../core/reach/reach'
 import {
   free,
@@ -101,7 +107,7 @@ export function planPlacePart(
 ): PartPlan | { error: string; code: string } {
   let def
   try {
-    def = defs(input.defId)
+    def = docPartDefs(doc, defs)(input.defId)
   } catch {
     return { code: 'UNKNOWN_PART', error: `No part ${input.defId}; find one with search_parts` }
   }
@@ -228,7 +234,7 @@ export const movePart = defineTool({
     const doc = env.ctx.getSnapshot()
     const part = doc.parts.find((p) => p.id === input.ref)
     if (!part) return failure('NO_SUCH_PART', `No part ${input.ref}`)
-    const def = env.ctx.partDef(part.defId)
+    const def = docPartDefs(doc, env.ctx.partDef)(part.defId)
     const span = input.span ?? currentSpan(doc, part)
     let placement: Placement | null
     if (input.at === 'auto') {
@@ -309,9 +315,10 @@ export const setPartProps = defineTool({
     .strict(),
   mutates: true,
   run({ ref, props }, env) {
-    const part = env.ctx.getSnapshot().parts.find((p) => p.id === ref)
+    const doc = env.ctx.getSnapshot()
+    const part = doc.parts.find((p) => p.id === ref)
     if (!part) return failure('NO_SUCH_PART', `No part ${ref}`)
-    const merged = mergeProps(env.ctx.partDef(part.defId), part.props, props)
+    const merged = mergeProps(docPartDefs(doc, env.ctx.partDef)(part.defId), part.props, props)
     if ('error' in merged) return failure('BAD_PROPS', merged.error)
     const tx = commit(env, `Set ${ref} properties`, [
       { type: 'SetPartProps', id: ref, props: merged.props }

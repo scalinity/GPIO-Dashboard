@@ -4,7 +4,26 @@ import { CircuitDocSchema } from '../model/schema'
 import type { CircuitDoc } from '../model/types'
 
 /** Upgrades a document from version n to n + 1. Add one entry per format change, with a fixture test. */
-const MIGRATIONS: Record<number, (doc: Record<string, unknown>) => Record<string, unknown>> = {}
+const MIGRATIONS: Record<number, (doc: Record<string, unknown>) => Record<string, unknown>> = {
+  // 1 → 2: build-step notes are keyed "part:R1" / "wire:W2" instead of by the bare id, which a
+  // part and a lead could share. A key naming neither (such as "tboard") is kept as it is.
+  1: (doc) => {
+    const notes = doc.buildStepAnnotations as Record<string, unknown> | undefined
+    if (!notes) return doc
+    const ids = (list: unknown) =>
+      new Set((Array.isArray(list) ? list : []).map((item: { id?: unknown }) => item?.id))
+    const [parts, wires] = [ids(doc.parts), ids(doc.wires)]
+    const keyed: Record<string, unknown> = {}
+    for (const [id, note] of Object.entries(notes)) {
+      const keys = [
+        ...(parts.has(id) ? [`part:${id}`] : []),
+        ...(wires.has(id) ? [`wire:${id}`] : [])
+      ]
+      for (const key of keys.length ? keys : [id]) keyed[key] = note
+    }
+    return { ...doc, buildStepAnnotations: keyed }
+  }
+}
 
 export class FormatError extends Error {}
 

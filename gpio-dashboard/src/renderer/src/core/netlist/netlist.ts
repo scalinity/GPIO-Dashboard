@@ -7,6 +7,16 @@ import type { CircuitDoc, Endpoint, HoleRef, PartDef } from '../model/types'
 
 export type PartDefs = (id: string) => PartDef
 
+/**
+ * `defs` plus the custom parts `doc` carries (SPEC 7). Every consumer that reads a document's
+ * parts resolves them through this, so a caller passes the library and need not know the project.
+ */
+export function docPartDefs(doc: CircuitDoc, defs: PartDefs): PartDefs {
+  const custom = doc.customParts
+  if (!custom?.length) return defs
+  return (id) => custom.find((d) => d.id === id) ?? defs(id)
+}
+
 /** What sits in a hole. */
 export type Occupant =
   | { kind: 'tboard'; pin: number }
@@ -122,6 +132,7 @@ function preferredName(names: string[]): string {
 
 /** Union-find over strips, the header, part pins and wires (SPEC 8). */
 export function netlist(doc: CircuitDoc, defs: PartDefs): Netlist {
+  defs = docPartDefs(doc, defs)
   const uf = new UnionFind()
   const boards = new Map(doc.boards.map((b) => [b.id, b]))
   const strip = (hole: HoleRef) => {

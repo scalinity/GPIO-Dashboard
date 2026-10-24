@@ -5,7 +5,7 @@
 import { PART_DEFS, partDef as builtInPartDef } from '../../core/defs/parts'
 import { erc } from '../../core/erc/erc'
 import { newDoc } from '../../core/model/defaults'
-import type { CircuitDoc, PartDef } from '../../core/model/types'
+import type { CircuitDoc } from '../../core/model/types'
 import { applyOps, OpError } from '../../core/ops/apply'
 import { validateDoc } from '../../core/ops/validate'
 import { BEHAVIORS } from '../../core/sim/behaviors'
@@ -15,7 +15,6 @@ import { SimSession } from '../../core/sim/session'
 import type {
   AssistantContext,
   BoardSenseSnapshot,
-  BuildStepAnnotation,
   CheckResult,
   DispatchResult,
   Ghost,
@@ -111,13 +110,11 @@ export const FAKE_INVENTORY = [
 
 export class FakeContext implements AssistantContext {
   readonly store: StoreLike
-  readonly custom = new Map<string, PartDef>()
   readonly inventory = new Set(FAKE_INVENTORY)
   /** Every setGhost call, in order. */
   readonly ghostLog: { id: string; ghost: Ghost | null }[] = []
   readonly focusLog: { refs: string[]; note?: string }[] = []
   readonly highlightLog: { refs: string[]; note: string }[] = []
-  readonly annotations: BuildStepAnnotation[] = []
   readonly questions: { question: string; options: string[] }[] = []
   /** Answers askUser gives, first in first out. */
   answers: string[] = []
@@ -139,12 +136,8 @@ export class FakeContext implements AssistantContext {
   check = (input: TransactionInput) => this.store.check(input)
   undoTurn = (id: string) => this.store.undoTurn(id)
 
-  partDef: PartDefs = (id) => this.custom.get(id) ?? builtInPartDef(id)
-  partDefs = () => [
-    ...[...PART_DEFS.values()].filter((d) => !this.custom.has(d.id)),
-    ...this.custom.values()
-  ]
-  registerPartDef = (def: PartDef) => void this.custom.set(def.id, def)
+  partDef: PartDefs = builtInPartDef
+  partDefs = () => [...PART_DEFS.values()]
   inventoryPartIds = () => this.inventory
 
   async sim(request: SimRequest): Promise<SimResponse> {
@@ -178,8 +171,6 @@ export class FakeContext implements AssistantContext {
   focus = (refs: string[], note?: string) => void this.focusLog.push({ refs, note })
   highlight = (refs: string[], note: string) => void this.highlightLog.push({ refs, note })
   setGhost: AssistantContext['setGhost'] = (id, ghost) => void this.ghostLog.push({ id, ghost })
-  annotateBuildSteps = (annotations: BuildStepAnnotation[]) =>
-    void this.annotations.push(...annotations)
   boardSense = () => this.sense
   askUser: AssistantContext['askUser'] = async (question, options) => {
     this.questions.push({ question, options })

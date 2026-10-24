@@ -4,7 +4,7 @@
 // junction-limiting state; only their parameters change.
 import { RP1, outputResistanceOhm, type DriveMa } from '../constants/rp1'
 import type { CircuitDoc, PartDef, PartInstance } from '../model/types'
-import { netlist, type Netlist, type PartDefs } from '../netlist/netlist'
+import { docPartDefs, netlist, type Netlist, type PartDefs } from '../netlist/netlist'
 import type { Behavior, BehaviorFactory, EnvValue } from './behavior'
 import { Bjt, Capacitor, Diode, Resistor, Switch, TheveninSource, VoltageSource } from './devices'
 import { bjtParams, ledParams, rectifierParams, type DiodeParams } from './fit'
@@ -52,12 +52,14 @@ export class Circuit {
   /** Re-reads part inputs (switch state, wiper, lux, temperature) before each solve. */
   private readonly inputs: ((env: (part: string) => Record<string, EnvValue>) => void)[] = []
   readonly gpioNodes = new Map<number, number>()
+  readonly defs: PartDefs
 
   constructor(
     readonly doc: CircuitDoc,
-    readonly defs: PartDefs,
+    defs: PartDefs,
     factories: Partial<Record<PartDef['sim']['model'], BehaviorFactory>>
   ) {
+    this.defs = docPartDefs(doc, defs)
     this.nl = netlist(doc, defs)
     for (const net of this.nl.nets) {
       this.nodeOfNet.set(net.name, net.name === 'GND' ? 0 : this.nodes++)
@@ -84,7 +86,7 @@ export class Circuit {
         this.fixed.push(new Resistor(node, v33, RP1.i2cBoardPullupOhm))
       }
     }
-    for (const part of doc.parts) this.addPart(part, defs(part.defId), factories)
+    for (const part of doc.parts) this.addPart(part, this.defs(part.defId), factories)
   }
 
   /** Each part's inputs (switch state, wiper, lux, temperature...), seeded from its props. */

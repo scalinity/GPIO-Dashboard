@@ -150,6 +150,29 @@ export function applyOp(doc: CircuitDoc, op: Op): { doc: CircuitDoc; inverse: Op
         doc: { ...doc, meta: patch<CircuitDoc['meta']>(doc.meta, op.meta) },
         inverse: { type: 'SetMeta', meta: snapshot(doc.meta, Object.keys(op.meta)) }
       }
+    case 'AddCustomPart':
+      return {
+        doc: {
+          ...doc,
+          customParts: insert(doc.customParts ?? [], op.def, op.index, 'custom part')
+        },
+        inverse: { type: 'RemoveCustomPart', id: op.def.id }
+      }
+    case 'RemoveCustomPart': {
+      const list = doc.customParts ?? []
+      const i = indexOf(list, op.id, 'custom part')
+      const rest = list.filter((_, j) => j !== i)
+      return {
+        // A project with none has no field, as a new one has.
+        doc: patch<CircuitDoc>(doc, { customParts: rest.length ? rest : undefined }),
+        inverse: { type: 'AddCustomPart', def: list[i]!, index: i }
+      }
+    }
+    case 'SetBuildStepAnnotations':
+      return {
+        doc: patch<CircuitDoc>(doc, { buildStepAnnotations: op.annotations }),
+        inverse: { type: 'SetBuildStepAnnotations', annotations: doc.buildStepAnnotations }
+      }
   }
 }
 

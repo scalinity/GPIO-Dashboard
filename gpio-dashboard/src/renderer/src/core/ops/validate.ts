@@ -3,7 +3,7 @@
 // electrical problems in documents that are physically valid.
 import { boardDef, type BoardDef } from '../defs/boards'
 import { TBOARD, type TboardDef } from '../defs/controllers'
-import { propProblem } from '../defs/parts'
+import { checkPartDef, propProblem } from '../defs/parts'
 import { columnPitches, holeKey, holePosition, isValidHole } from '../geometry/breadboard'
 import { tboardBlockedHoles, tboardPlacementProblems } from '../geometry/tboard'
 import type {
@@ -15,8 +15,9 @@ import type {
   PartInstance,
   Wire
 } from '../model/types'
-import { MAIN_COLUMNS } from '../model/types'
-import { occupancy, occupantKey, type PartDefs } from '../netlist/netlist'
+import { PartDefSchema } from '../model/schema'
+import { CUSTOM_PART_PREFIX, MAIN_COLUMNS } from '../model/types'
+import { docPartDefs, occupancy, occupantKey, type PartDefs } from '../netlist/netlist'
 
 export interface Problem {
   code: string
@@ -56,11 +57,22 @@ function columnAt(def: BoardDef, pitches: number): MainColumn | undefined {
   return MAIN_COLUMNS.find((c) => columnPitches(def, c) === pitches)
 }
 
+/** What is wrong with one of a project's own part definitions; empty when it is sound. */
+function customPartProblems(def: PartDef): string[] {
+  const parsed = PartDefSchema.safeParse(def)
+  if (!parsed.success) return parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`)
+  return [
+    ...(def.id.startsWith(CUSTOM_PART_PREFIX) ? [] : [`its id must start "${CUSTOM_PART_PREFIX}"`]),
+    ...checkPartDef(def)
+  ]
+}
+
 export function validateDoc(
   doc: CircuitDoc,
   defs: PartDefs,
   tboard: TboardDef = TBOARD
 ): Problem[] {
+  defs = docPartDefs(doc, defs)
   const problems: Problem[] = []
   const add = (code: string, message: string, refs: string[] = []) =>
     problems.push({ code, message, refs })
@@ -77,6 +89,14 @@ export function validateDoc(
       if (seen.has(id)) add('DUPLICATE_ID', `Id ${id} is used twice`, [id])
       seen.add(id)
     }
+  }
+  const customIds = new Set<string>()
+  for (const def of doc.customParts ?? []) {
+    if (customIds.has(def.id))
+      add('DUPLICATE_ID', `Custom part ${def.id} is defined twice`, [def.id])
+    customIds.add(def.id)
+    for (const message of customPartProblems(def))
+      add('CUSTOM_PART', `Custom part ${def.id}: ${message}`, [def.id])
   }
   const holeOk = (hole: HoleRef, owner: string): boolean => {
     const def = boards.get(hole.board)

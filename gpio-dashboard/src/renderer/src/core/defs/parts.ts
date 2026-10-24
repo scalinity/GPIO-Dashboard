@@ -1,6 +1,6 @@
 // Part definitions from content/parts/*.part.json, validated when loaded.
 import { PartDefSchema } from '../model/schema'
-import type { PartDef } from '../model/types'
+import { CUSTOM_PART_PREFIX, type PartDef } from '../model/types'
 
 /** Problems the schema cannot express; an empty list means the definition is sound. */
 export function checkPartDef(def: PartDef): string[] {
@@ -83,11 +83,15 @@ export function propProblem(def: PartDef, name: string, value: unknown): string 
   return null
 }
 
-/** Parses and checks one definition, naming the file in any error. */
+/** Parses and checks one library definition, naming the file in any error. */
 export function loadPartDef(file: string, raw: unknown): PartDef {
   const parsed = PartDefSchema.safeParse(raw)
   if (!parsed.success) throw new Error(`${file}: ${parsed.error.message}`)
   const problems = checkPartDef(parsed.data)
+  if (!parsed.data.provenance.sources.length)
+    problems.push('a library part cites a source (SPEC 7)')
+  if (parsed.data.id.startsWith(CUSTOM_PART_PREFIX))
+    problems.push(`ids starting "${CUSTOM_PART_PREFIX}" are for a project's own parts`)
   if (problems.length) throw new Error(`${file}: ${problems.join('; ')}`)
   if (!file.endsWith(`/${parsed.data.id}.part.json`)) {
     throw new Error(`${file}: the file name must be ${parsed.data.id}.part.json`)

@@ -83,13 +83,6 @@ export type Ghost =
   | { kind: 'part'; ref: string; defId: string; placement: PartInstance['placement'] }
   | { kind: 'wire'; a: Endpoint; b: Endpoint; wireKind: Wire['kind']; color: string }
 
-export interface BuildStepAnnotation {
-  /** A part ref or wire id the step is about. */
-  step: string
-  why: string
-  mistake: string
-}
-
 // --- Board Sense: read only. The assistant can not start, stop or configure sensing. ---
 
 export interface BoardSenseSnapshot {
@@ -109,11 +102,12 @@ export interface AssistantContext {
   /** Undoes every transaction of one assistant turn. */
   undoTurn(assistantTurnId: string): number
 
-  /** Built-in and custom part definitions. Throws for an unknown id. */
+  /**
+   * The built-in part library. A project's own parts are in its document (`customParts`), and the
+   * tools add them. Throws for an unknown id.
+   */
   partDef: PartDefs
   partDefs(): PartDef[]
-  /** Adds a custom part to the project's library. */
-  registerPartDef(def: PartDef): void
   /** The part ids in "My inventory" (content/inventory.json). */
   inventoryPartIds(): ReadonlySet<string>
 
@@ -129,7 +123,6 @@ export interface AssistantContext {
   highlight(refs: string[], note: string): void
   /** Shows, replaces or (null) clears the ghost of one streaming tool call. */
   setGhost(id: string, ghost: Ghost | null): void
-  annotateBuildSteps(annotations: BuildStepAnnotation[]): void
 
   boardSense(): BoardSenseSnapshot
 

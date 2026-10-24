@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import { partDef } from '../defs/parts'
 import { SAMPLES } from '../defs/samples'
+import { TUTORIALS } from '../defs/tutorials'
 import { emptyDoc, part, wire, at } from '../testing/fixtures'
 import { buildSteps, faradsText, holeText, ohmsText, resistorBands } from './steps'
 
@@ -48,9 +49,33 @@ describe('build steps', () => {
     expect(steps.find((s) => s.refs[0] === 'U1')!.text).toMatch(/^Place U1, the .*beside the board/)
   })
 
+  it('names each step by what it is about, so a part and a lead with one id do not collide', () => {
+    expect(buildSteps(sample('sample-blink'), partDef).steps.map((s) => s.key)).toEqual([
+      'tboard',
+      'part:R1',
+      'part:D1',
+      'wire:W1',
+      'wire:W2'
+    ])
+    const d = structuredClone(sample('sample-blink'))
+    d.parts[0] = { ...d.parts[0]!, id: 'W1' }
+    d.buildStepAnnotations = { 'part:W1': { why: 'the part' }, 'wire:W1': { why: 'the lead' } }
+    const steps = buildSteps(d, partDef).steps
+    expect(steps.find((s) => s.key === 'part:W1')!.why).toBe('the part')
+    expect(steps.find((s) => s.key === 'wire:W1')!.why).toBe('the lead')
+  })
+
+  it('puts every note a tutorial carries on a step of that tutorial', () => {
+    for (const { meta, doc } of TUTORIALS) {
+      const keys = new Set(buildSteps(doc, partDef).steps.map((s) => s.key))
+      for (const key of Object.keys(doc.buildStepAnnotations ?? {}))
+        expect(keys.has(key), `${meta.id}: ${key}`).toBe(true)
+    }
+  })
+
   it('carries why and common-mistake notes from the document', () => {
     const d = sample('sample-blink')
-    const annotated = { ...d, buildStepAnnotations: { D1: { why: 'w', mistake: 'm' } } }
+    const annotated = { ...d, buildStepAnnotations: { 'part:D1': { why: 'w', mistake: 'm' } } }
     const step = buildSteps(annotated, partDef).steps.find((s) => s.refs[0] === 'D1')!
     expect([step.why, step.mistake]).toEqual(['w', 'm'])
   })

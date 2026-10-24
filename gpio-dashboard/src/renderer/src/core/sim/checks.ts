@@ -5,7 +5,7 @@
 import { RP1 } from '../constants/rp1'
 import type { Issue } from '../erc/erc'
 import type { CircuitDoc } from '../model/types'
-import type { PartDefs } from '../netlist/netlist'
+import { docPartDefs, type PartDefs } from '../netlist/netlist'
 import type { Snapshot } from './session'
 
 const mA = (a: number) => `${(a * 1000).toFixed(1)} mA`
@@ -14,7 +14,7 @@ const mA = (a: number) => `${(a * 1000).toFixed(1)} mA`
 function dieLimitA(doc: CircuitDoc, defs: PartDefs, part: string, die: string): number | null {
   const instance = doc.parts.find((p) => p.id === part)
   if (!instance) return null
-  const def = defs(instance.defId)
+  const def = docPartDefs(doc, defs)(instance.defId)
   const p = def.sim.params
   const prop = (key: string) => instance.props[key] ?? def.properties[key]?.default
   const key =

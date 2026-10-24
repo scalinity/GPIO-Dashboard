@@ -7,7 +7,7 @@ import { probeSignature, type ProbeSignature } from '../sim/probe'
 import { holeText } from '../steps/steps'
 import { validateDoc } from '../ops/validate'
 import type { CircuitDoc, Endpoint, HoleRef, MainColumn } from '../model/types'
-import type { PartDefs } from '../netlist/netlist'
+import { docPartDefs, type PartDefs } from '../netlist/netlist'
 import type { Measured } from './sense'
 
 export interface Candidate {
@@ -46,6 +46,7 @@ function moved(hole: HoleRef, rows: number): HoleRef | null {
 
 /** Every single-fault edit of the document that is still a valid placement. */
 export function candidates(doc: CircuitDoc, defs: PartDefs): Candidate[] {
+  defs = docPartDefs(doc, defs)
   const out: Candidate[] = []
   const add = (text: string, holes: HoleRef[], edit: (d: CircuitDoc) => void) => {
     const d = structuredClone(doc)

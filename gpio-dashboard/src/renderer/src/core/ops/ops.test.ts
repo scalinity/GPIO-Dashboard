@@ -3,7 +3,7 @@ import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import type { CircuitDoc, Op } from '../model/types'
 import { MAIN_COLUMNS } from '../model/types'
-import { at, emptyDoc, fixtureDefs, hole, part, wire } from '../testing/fixtures'
+import { at, CUSTOM_RES, emptyDoc, fixtureDefs, hole, part, wire } from '../testing/fixtures'
 import { applyOp, applyOps, OpError } from './apply'
 import { validateDoc } from './validate'
 
@@ -15,7 +15,8 @@ function opFor(doc: CircuitDoc, pick: number[]): Op {
   const kinds = ['AddPart', 'AddWire', 'SetCode', 'SetMeta', 'SetControllerPlacement'] as const
   const hasParts = doc.parts.length > 0
   const hasWires = doc.wires.length > 0
-  const choices: string[] = [...kinds]
+  const choices: string[] = [...kinds, 'AddCustomPart', 'SetBuildStepAnnotations']
+  if (doc.customParts) choices.push('RemoveCustomPart')
   if (hasParts) choices.push('MovePart', 'RemovePart', 'SetPartProps')
   if (hasWires) choices.push('MoveWireEnd', 'SetWireProps', 'RemoveWire')
   const kind = choices[n(0, choices.length)]
@@ -51,6 +52,19 @@ function opFor(doc: CircuitDoc, pick: number[]): Op {
         type: 'MovePart',
         id: p!.id,
         placement: { pins: { 1: hole(row, col), 2: hole(row, 'a') } }
+      }
+    case 'AddCustomPart':
+      return {
+        type: 'AddCustomPart',
+        def: { ...CUSTOM_RES, id: `custom-${id}` },
+        index: n(4, 5)
+      }
+    case 'RemoveCustomPart':
+      return { type: 'RemoveCustomPart', id: doc.customParts![n(3, doc.customParts!.length)]!.id }
+    case 'SetBuildStepAnnotations':
+      return {
+        type: 'SetBuildStepAnnotations',
+        annotations: n(4, 3) ? { [`part:R${row}`]: { why: `w${col}` } } : undefined
       }
     case 'RemovePart':
       return { type: 'RemovePart', id: p!.id }
@@ -110,6 +124,24 @@ describe('ops and their inverses', () => {
     expect(applyOp(removed, inverse).doc.wires.map((x) => x.id)).toEqual(['W1', 'W2'])
   })
 
+  it('adds and removes custom parts and notes, leaving the fields out when empty', () => {
+    const start = emptyDoc()
+    const added = applyOp(start, { type: 'AddCustomPart', def: CUSTOM_RES })
+    expect(added.doc.customParts).toEqual([CUSTOM_RES])
+    const removed = applyOp(added.doc, added.inverse)
+    expect(removed.doc).toStrictEqual(start)
+    expect(applyOp(removed.doc, removed.inverse).doc).toStrictEqual(added.doc)
+    const noted = applyOp(start, {
+      type: 'SetBuildStepAnnotations',
+      annotations: { tboard: { why: 'w' } }
+    })
+    expect(noted.doc.buildStepAnnotations).toEqual({ tboard: { why: 'w' } })
+    expect(applyOp(noted.doc, noted.inverse).doc).toStrictEqual(start)
+    expect(
+      applyOp(noted.doc, { type: 'SetBuildStepAnnotations' }).doc.buildStepAnnotations
+    ).toBeUndefined()
+  })
+
   it('rejects unknown and duplicate ids', () => {
     const doc = emptyDoc()
     expect(() => applyOp(doc, { type: 'RemovePart', id: 'R9' })).toThrow(OpError)
@@ -117,6 +149,11 @@ describe('ops and their inverses', () => {
     expect(() =>
       applyOp(doc, { type: 'AddWire', wire: wire('W1', at(40, 'a'), at(41, 'a')) })
     ).toThrow(/already exists/)
+    expect(() => applyOp(doc, { type: 'RemoveCustomPart', id: 'custom-none' })).toThrow(OpError)
+    const withCustom = applyOp(doc, { type: 'AddCustomPart', def: CUSTOM_RES }).doc
+    expect(() => applyOp(withCustom, { type: 'AddCustomPart', def: CUSTOM_RES })).toThrow(
+      /already exists/
+    )
   })
 })
 

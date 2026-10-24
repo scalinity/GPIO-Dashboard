@@ -19,7 +19,7 @@ import type {
   Wire
 } from '../model/types'
 import { MAIN_COLUMNS } from '../model/types'
-import { occupancy, type PartDefs } from '../netlist/netlist'
+import { docPartDefs, occupancy, type PartDefs } from '../netlist/netlist'
 import { autoLength, exitPoint, leadReach, toTable } from '../reach/reach'
 
 export type Rotation = 0 | 90 | 180 | 270
@@ -167,6 +167,7 @@ function offboardPose(doc: CircuitDoc, defs: PartDefs, near?: HoleRef): Transfor
     (near && boardOf(doc, near.board)) ?? boardOf(doc, doc.controller.tboard.board) ?? doc.boards[0]
   if (!board) return { position: [0, 0], rotationDeg: 0 }
   const def = boardDef(board.defId)
+  defs = docPartDefs(doc, defs)
   const slot = doc.parts.filter((p) => defs(p.defId).footprint.kind === 'offboard').length
   const x = near?.area === 'main' ? holePosition(def, near)[0] : 20 + (slot % 3) * 55
   const y = def.body.widthMm + 25 + 30 * Math.floor(slot / 3)
@@ -310,7 +311,7 @@ export type Gender = 'male' | 'female'
 export function endNeeds(doc: CircuitDoc, defs: PartDefs, end: Endpoint): Gender | null {
   if ('hole' in end) return 'male'
   const part = doc.parts.find((p) => p.id === end.pin.part)
-  const pin = part && defs(part.defId).pins.find((p) => p.id === end.pin.pin)
+  const pin = part && docPartDefs(doc, defs)(part.defId).pins.find((p) => p.id === end.pin.pin)
   if (!pin?.connector) return null
   return pin.connector === 'male-pin' ? 'female' : 'male'
 }
@@ -407,7 +408,7 @@ export function planLead(
     }
     const part = doc.parts.find((p) => p.id === spec.partPin.ref)
     if (!part) return `No part ${spec.partPin.ref}`
-    const def = defs(part.defId)
+    const def = docPartDefs(doc, defs)(part.defId)
     const pin = def.pins.find((p) => p.id === spec.partPin.pin)
     if (!pin)
       return `${part.id} has no pin ${spec.partPin.pin}; its pins are ${def.pins.map((p) => p.id).join(', ')}`

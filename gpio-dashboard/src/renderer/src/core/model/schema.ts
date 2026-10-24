@@ -169,7 +169,7 @@ export const PartDefSchema: z.ZodType<PartDef> = z
     colliders: z.string().optional(),
     provenance: z
       .object({
-        sources: z.array(z.string().url()).min(1),
+        sources: z.array(z.string().url()),
         notes: z.string().optional()
       })
       .strict()
@@ -272,6 +272,7 @@ export const CircuitDocSchema: z.ZodType<CircuitDoc> = z
         source: z.string()
       })
       .strict(),
+    customParts: z.array(PartDefSchema).optional(),
     buildStepAnnotations: z
       .record(
         z.string(),

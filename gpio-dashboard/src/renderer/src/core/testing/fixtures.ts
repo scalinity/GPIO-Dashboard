@@ -119,6 +119,15 @@ export const SOCKETED: PartDef = {
   pins: MODULE.pins.map((p) => ({ ...p, connector: 'female-socket' as const }))
 }
 
+/** A project's own part: the test resistor under a custom id, with no datasheet. */
+export const CUSTOM_RES: PartDef = {
+  ...RES,
+  id: 'custom-test-resistor',
+  name: 'Custom resistor',
+  kitTags: ['custom', 'no datasheet'],
+  provenance: { sources: [] }
+}
+
 const FIXTURE_DEFS = new Map([RES, LED, BUTTON, MODULE, SOCKETED].map((d) => [d.id, d]))
 
 export const fixtureDefs = (id: string): PartDef => {

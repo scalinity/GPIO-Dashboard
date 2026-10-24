@@ -165,7 +165,10 @@ export class AssistantSession {
       { type: 'text', text: systemPrompt },
       {
         type: 'text',
-        text: partCatalog(this.ctx.partDefs(), this.ctx.inventoryPartIds()),
+        text: partCatalog(
+          [...this.ctx.partDefs(), ...(this.ctx.getSnapshot().customParts ?? [])],
+          this.ctx.inventoryPartIds()
+        ),
         cache_control: { type: 'ephemeral' }
       }
     ]
