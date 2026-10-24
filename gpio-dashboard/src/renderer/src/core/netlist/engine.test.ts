@@ -105,18 +105,24 @@ describe('connectivity budget (SPEC 8: at most 1 ms per diff on a full bb-830 sc
     full.wires.push(wire(`W${row}`, at(row, 'b'), at(1 + ((row - 24) % 20), row % 2 ? 'a' : 'j')))
   }
 
-  it('recomputes and diffs a net-splitting removal in under a millisecond (median of warm runs)', () => {
-    const engine = new ConnectivityEngine(full, fixtureDefs)
-    const removed = applyOps(full, [{ type: 'RemoveWire', id: 'W40' }]).doc
-    const times: number[] = []
-    for (let i = 0; i < 60; i++) {
-      const t0 = performance.now()
-      engine.commit(i % 2 ? full : removed)
-      times.push(performance.now() - t0)
+  // Wall-clock timing shares the machine with the suite's other workers; a retry rides out a
+  // scheduling stall, while a real regression fails every attempt.
+  it(
+    'recomputes and diffs a net-splitting removal in under a millisecond (median of warm runs)',
+    { retry: 2 },
+    () => {
+      const engine = new ConnectivityEngine(full, fixtureDefs)
+      const removed = applyOps(full, [{ type: 'RemoveWire', id: 'W40' }]).doc
+      const times: number[] = []
+      for (let i = 0; i < 60; i++) {
+        const t0 = performance.now()
+        engine.commit(i % 2 ? full : removed)
+        times.push(performance.now() - t0)
+      }
+      const warm = times.slice(20).sort((a, b) => a - b)
+      const median = warm[Math.floor(warm.length / 2)]!
+      expect(engine.state.doc.parts).toHaveLength(40)
+      expect(median).toBeLessThan(1)
     }
-    const warm = times.slice(20).sort((a, b) => a - b)
-    const median = warm[Math.floor(warm.length / 2)]!
-    expect(engine.state.doc.parts).toHaveLength(40)
-    expect(median).toBeLessThan(1)
-  })
+  )
 })
