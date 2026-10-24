@@ -166,7 +166,7 @@ export class PhysicsHost {
     let id: BodyId
     try {
       if (spec.kind === 'lead') {
-        id = w.addLead({ a: spec.a, b: spec.b, lengthMm: spec.lengthMm, guess: spec.guess })
+        id = w.addLead({ a: spec.a, b: spec.b, wireMm: spec.wireMm, guess: spec.guess })
         if (spec.hints.length) w.setRouteHints(id, spec.hints)
       } else if (spec.kind === 'ribbon')
         id = w.addRibbon({ a: spec.a, b: spec.b, lengthMm: spec.lengthMm, columns: spec.columns })

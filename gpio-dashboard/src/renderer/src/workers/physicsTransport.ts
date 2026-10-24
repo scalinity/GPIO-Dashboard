@@ -45,7 +45,8 @@ export type BodySpec =
       kind: 'lead'
       a: Pose
       b: Pose
-      lengthMm: number
+      /** The wire between the housings' exits (`wireLengthMm`), not the length as sold. */
+      wireMm: number
       hints: Vec3[]
       /** Where a new lead starts, settled offscreen from there; else the solver's design curve. */
       guess?: Vec3[]

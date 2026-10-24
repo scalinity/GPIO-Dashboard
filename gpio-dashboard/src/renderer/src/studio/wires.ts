@@ -321,7 +321,7 @@ export class WireLayer {
             kind: 'lead',
             a,
             b,
-            lengthMm: d.wireMm,
+            wireMm: d.wireMm,
             hints,
             ...(routed.length && {
               guess: routeGuess(d.exits[0], d.exits[1], through, d.wireMm).map(toCore)

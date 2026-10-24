@@ -19,7 +19,7 @@ const BOARD: ColliderSpec = {
   pose: at(0, 0, 4.25)
 }
 const lead = (handle: number, b = at(30, 0, 8.5), hints: [number, number, number][] = []) =>
-  ({ handle, kind: 'lead', a: at(-30, 0, 8.5), b, lengthMm: 120, hints }) as BodySpec
+  ({ handle, kind: 'lead', a: at(-30, 0, 8.5), b, wireMm: 120, hints }) as BodySpec
 
 function setup() {
   const out = CableBuffer.create(4096)
