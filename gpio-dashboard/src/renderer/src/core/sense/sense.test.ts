@@ -9,8 +9,9 @@ import type { EnvValue } from '../sim/behavior'
 import { BEHAVIORS } from '../sim/behaviors'
 import { Circuit } from '../sim/circuit'
 import { probeSignature } from '../sim/probe'
-import { at, emptyDoc, hole, part, wire } from '../testing/fixtures'
+import { at, emptyDoc, wire } from '../testing/fixtures'
 import { rankCandidates } from './candidates'
+import { pullUpButton } from './fixtures'
 import { mockSweep } from './mockAgent'
 import { interpret, Reconciler } from './sense'
 
@@ -29,32 +30,7 @@ const pressed = (doc: CircuitDoc) => {
   return env
 }
 
-/**
- * Fixture 3 on rails: 3V3 and GND reach the bottom rails from their T-board strips; GPIO18 runs to
- * row 30, which has a 10 kΩ pull-up to the + rail and a button whose far side goes to the − rail.
- */
-function fixture3() {
-  const d = emptyDoc()
-  const sw = Object.fromEntries(
-    partDef('tact-switch-6mm').pins.map((p) => [
-      p.id,
-      hole(40 + p.offsetPitch[0], p.offsetPitch[1] === 0 ? 'e' : 'f')
-    ])
-  )
-  d.parts.push(
-    part('R1', 'resistor', { 1: hole(30, 'b'), 2: hole(34, 'b') }, { resistance: 10_000 }),
-    part('SW1', 'tact-switch-6mm', sw)
-  )
-  d.wires.push(
-    wire('P1', at(1, 'a'), { hole: rail('bottom+', 0) }),
-    wire('P2', at(5, 'a'), { hole: rail('bottom-', 1) }),
-    wire('W1', at(6, 'j'), at(30, 'a')),
-    wire('W2', at(34, 'a'), { hole: rail('bottom+', 25) }),
-    wire('W3', at(30, 'c'), at(40, 'a')),
-    wire('W4', at(42, 'a'), { hole: rail('bottom-', 30) })
-  )
-  return d
-}
+const fixture3 = () => pullUpButton(partDef)
 
 /** Two sweeps of the board, so every change has settled. */
 function sense(twin: CircuitDoc, board: CircuitDoc, env?: Map<string, Record<string, EnvValue>>) {

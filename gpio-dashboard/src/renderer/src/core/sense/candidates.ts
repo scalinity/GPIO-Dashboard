@@ -7,7 +7,6 @@ import { probeSignature, type ProbeSignature } from '../sim/probe'
 import { holeText } from '../steps/steps'
 import { validateDoc } from '../ops/validate'
 import type { CircuitDoc, Endpoint, HoleRef, MainColumn } from '../model/types'
-import { MAIN_COLUMNS } from '../model/types'
 import type { PartDefs } from '../netlist/netlist'
 import type { Measured } from './sense'
 
