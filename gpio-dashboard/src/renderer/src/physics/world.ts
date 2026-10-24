@@ -1,0 +1,1082 @@
+// The cable world (SPEC 10.5): an XPBD solver with small steps (Macklin et al., SCA 2019). A
+// frame is split into substeps; each substep predicts positions, projects every constraint and
+// contact once, and recovers velocities from the position change. Everything runs in a fixed
+// order from seeded inputs, so the same calls in the same runtime give the same positions.
+import type { Body, Spec } from './body'
+import { buildJumper, buildLead, buildRibbon } from './builders'
+import { solveChain, solveCurvature, solveGoals, solveLongRange, straighten } from './constraints'
+import {
+  contactParticleCollider,
+  contactPointTriangle,
+  contactSegmentCollider,
+  contactSegmentSegment
+} from './contacts'
+import type { Collider, Pool } from './contacts'
+import { SpatialHash } from './hash'
+import { closestSegSeg } from './shapes'
+import { gatherRows, layRows } from './ribbon'
+import { normalizeQuat, posedAt, quatToMat, rng, samePose, toWorld } from './math'
+import type {
+  BodyId,
+  BodyInfo,
+  ColliderId,
+  ColliderShape,
+  JumperDef,
+  LeadDef,
+  Pose,
+  RibbonDef,
+  Vec3,
+  WorldOptions
+} from './types'
+
+/** Frame length, s, and gravity along -z, mm/s^2 (SPEC 10.5). */
+export const FRAME_DT = 1 / 60
+export const GRAVITY = 9810
+export const DEFAULT_SUBSTEPS = 12
+
+/** Broad-phase padding beyond the contact reach, mm. */
+const SKIN = 0.75
+const HASH_CELL = 8
+/** Linear velocity damping, 1/s: cable internal friction and air drag. */
+const DAMPING = 2
+/** A body that has slowed below SLOW_SPEED (mm/s), or is being settled, is damped harder. */
+const SLOW_DAMPING = 14
+const SLOW_SPEED = 40
+const MAX_SPEED = 3000
+/** Longest a particle's broad-phase box is stretched along its motion in one frame, mm. */
+const MAX_SWEEP = 30
+/** An island sleeps when every particle stays below this speed (mm/s) for this many frames. */
+const SLEEP_SPEED = 0.5
+const SLEEP_FRAMES = 30
+/** Route hints pull softly: about 0.4 mm of give under a whole lead's weight. */
+const HINT_ALPHA = 1e-4
+const MAX_HINTS = 3
+/** Where along a rod segment it is tested against ribbon triangles (spacing 1.5 mm at 3 mm). */
+const SAMPLES = [0.25, 0.75]
+const DEFAULT_MAX_PARTICLES = 8192
+
+/** A growable table of fixed-width integer records. */
+class Records {
+  d = new Int32Array(1024)
+  n = 0
+  constructor(readonly stride: number) {}
+  next(): number {
+    const o = this.n * this.stride
+    if (o + this.stride > this.d.length) {
+      const bigger = new Int32Array(this.d.length * 2)
+      bigger.set(this.d)
+      this.d = bigger
+    }
+    this.n++
+    return o
+  }
+}
+
+const overlap = (a: Float64Array, ao: number, b: Float64Array, bo: number) =>
+  a[ao]! <= b[bo + 3]! &&
+  a[ao + 3]! >= b[bo]! &&
+  a[ao + 1]! <= b[bo + 4]! &&
+  a[ao + 4]! >= b[bo + 1]! &&
+  a[ao + 2]! <= b[bo + 5]! &&
+  a[ao + 5]! >= b[bo + 2]!
+
+/** Math.hypot is several times slower than this in the hot loops. */
+const len3 = (x: number, y: number, z: number) => Math.sqrt(x * x + y * y + z * z)
+const scratch = new Float64Array(2)
+const tmpA = new Float64Array(3)
+const tmpB = new Float64Array(3)
+const tmpPos = new Float64Array(3)
+const tmpMat = new Float64Array(9)
+const tmpBounds = new Float64Array(6)
+
+function colliderBounds(c: Collider, pos: Float64Array, mat: Float64Array, out: Float64Array) {
+  for (let a = 0; a < 3; a++) {
+    const ext = c.isBox
+      ? Math.abs(mat[3 * a]!) * c.hx +
+        Math.abs(mat[3 * a + 1]!) * c.hy +
+        Math.abs(mat[3 * a + 2]!) * c.hz
+      : Math.abs(mat[3 * a + 2]!) * c.halfLength + c.radius
+    out[a] = pos[a]! - ext
+    out[3 + a] = pos[a]! + ext
+  }
+}
+
+const normalized = (p: Pose): Pose => ({
+  position: p.position,
+  rotation: normalizeQuat(p.rotation)
+})
+
+export class CableWorld {
+  private readonly substeps: number
+  private readonly cap: number
+  private readonly rand: () => number
+  private count = 0
+  private readonly x: Float64Array
+  private readonly xp: Float64Array
+  private readonly v: Float64Array
+  /** Positions the frame is expected to end at, and where it started; for the broad phase. */
+  private readonly xe: Float64Array
+  private readonly xf: Float64Array
+  private readonly w: Float64Array
+  private readonly render: Float32Array
+  private readonly pool: Pool
+  private bodies: Body[] = []
+  private colliders: Collider[] = []
+  private nextId = 1
+  private nextGroup = 1
+  private settling = false
+
+  // Collision primitives: rod segments, then ribbon triangles, in one id space.
+  private primDirty = true
+  private segCount = 0
+  private primBody = new Int32Array(0)
+  private box = new Float64Array(0)
+  private readonly hash = new SpatialHash(HASH_CELL)
+  // This frame's candidate contacts.
+  private readonly cand = new Records(4) // seg i, j (or particle i, -1), collider, body
+  private readonly segSeg = new Records(6) // i, j, k, l, body, body
+  private readonly segTri = new Records(7) // i, j, a, b, c, body, body
+  private readonly links = new Records(2) // body slot pairs that touch
+
+  constructor(options: WorldOptions = {}) {
+    this.substeps = Math.max(1, Math.round(options.substeps ?? DEFAULT_SUBSTEPS))
+    this.cap = options.maxParticles ?? DEFAULT_MAX_PARTICLES
+    this.rand = rng(options.seed ?? 1)
+    this.x = new Float64Array(3 * this.cap)
+    this.xp = new Float64Array(3 * this.cap)
+    this.v = new Float64Array(3 * this.cap)
+    this.xe = new Float64Array(3 * this.cap)
+    this.xf = new Float64Array(3 * this.cap)
+    this.w = new Float64Array(this.cap)
+    this.render = new Float32Array(3 * this.cap)
+    this.pool = { x: this.x, xp: this.xp, w: this.w }
+  }
+
+  // ---- Colliders -----------------------------------------------------------------------------
+
+  addCollider(shape: ColliderShape, pose: Pose): ColliderId {
+    const f = normalized(pose)
+    const c: Collider = {
+      id: this.nextId++,
+      isBox: shape.kind === 'box',
+      hx: shape.kind === 'box' ? shape.halfExtents[0] : 0,
+      hy: shape.kind === 'box' ? shape.halfExtents[1] : 0,
+      hz: shape.kind === 'box' ? shape.halfExtents[2] : 0,
+      radius: shape.kind === 'capsule' ? shape.radius : 0,
+      halfLength: shape.kind === 'capsule' ? shape.halfLength : 0,
+      f0: f,
+      f1: f,
+      moving: false,
+      p: Float64Array.from(f.position),
+      R: new Float64Array(9),
+      p0: Float64Array.from(f.position),
+      R0: new Float64Array(9),
+      lo: new Float64Array(3),
+      hi: new Float64Array(3)
+    }
+    quatToMat(f.rotation, c.R)
+    c.R0.set(c.R)
+    const b = new Float64Array(6)
+    colliderBounds(c, c.p, c.R, b)
+    c.lo.set(b.subarray(0, 3))
+    c.hi.set(b.subarray(3))
+    this.colliders.push(c)
+    this.wakeInside(b)
+    return c.id
+  }
+
+  /** Moves a kinematic collider; it travels there over the next step. */
+  setColliderPose(id: ColliderId, pose: Pose): void {
+    const c = this.collider(id)
+    const f = normalized(pose)
+    if (samePose(c.f1, f)) return
+    c.f1 = f
+    c.moving = !samePose(c.f0, f)
+    const from = new Float64Array(6)
+    const to = new Float64Array(6)
+    colliderBounds(c, Float64Array.from(c.f0.position), matrixOf(c.f0), from)
+    colliderBounds(c, Float64Array.from(f.position), matrixOf(f), to)
+    const sweep = new Float64Array(6)
+    for (let a = 0; a < 3; a++) {
+      sweep[a] = Math.min(from[a]!, to[a]!)
+      sweep[3 + a] = Math.max(from[3 + a]!, to[3 + a]!)
+    }
+    c.lo.set(sweep.subarray(0, 3))
+    c.hi.set(sweep.subarray(3))
+    this.wakeInside(sweep)
+  }
+
+  removeCollider(id: ColliderId): void {
+    const i = this.colliders.findIndex((c) => c.id === id)
+    if (i < 0) throw new RangeError(`unknown collider ${id}`)
+    const c = this.colliders[i]!
+    const b = new Float64Array(6)
+    b.set(c.lo)
+    b.set(c.hi, 3)
+    this.colliders.splice(i, 1)
+    this.wakeInside(b)
+  }
+
+  private collider(id: ColliderId): Collider {
+    const c = this.colliders.find((c) => c.id === id)
+    if (!c) throw new RangeError(`unknown collider ${id}`)
+    return c
+  }
+
+  /** Wakes every body whose bounds come within a few mm of the box lo..hi (6 numbers). */
+  private wakeInside(bounds: Float64Array) {
+    const m = 5
+    for (const b of this.bodies) {
+      if (
+        b.lo[0]! <= bounds[3]! + m &&
+        b.hi[0]! >= bounds[0]! - m &&
+        b.lo[1]! <= bounds[4]! + m &&
+        b.hi[1]! >= bounds[1]! - m &&
+        b.lo[2]! <= bounds[5]! + m &&
+        b.hi[2]! >= bounds[2]! - m
+      ) {
+        this.wake(b)
+      }
+    }
+  }
+
+  // ---- Bodies --------------------------------------------------------------------------------
+
+  addRibbon(def: RibbonDef): BodyId {
+    return this.addBody(buildRibbon(def, this.rand), def.a, def.b).id
+  }
+
+  addLead(def: LeadDef): BodyId {
+    return this.addBody(buildLead(def, this.rand), def.a, def.b).id
+  }
+
+  addJumper(def: JumperDef): BodyId {
+    return this.addBody(buildJumper(def), def.a, def.b).id
+  }
+
+  private addBody(spec: Spec, a: Pose, b: Pose): Body {
+    if (this.count + spec.n > this.cap) {
+      throw new RangeError(`particle pool full: ${this.count} + ${spec.n} > ${this.cap}`)
+    }
+    const first = this.count
+    const c = spec.constraints
+    for (const arr of [c.dI, c.dJ, c.cA, c.cB, c.cC, c.lI, c.lA, c.kI, c.gI]) shift(arr, first)
+    for (const arr of [spec.segI, spec.segJ, spec.triA, spec.triB, spec.triC]) shift(arr, first)
+    this.x.set(spec.x0, 3 * first)
+    this.xp.set(spec.x0, 3 * first)
+    this.w.set(spec.w, first)
+    const pa = normalized(a)
+    const pb = normalized(b)
+    const dRest = new Float64Array(c.dI.length)
+    for (let k = 0; k < dRest.length; k++) {
+      dRest[k] = Math.sqrt(c.dLat2[k]! + c.dAlong[k]! * c.dAlong[k]!)
+    }
+    const body: Body = {
+      ...c,
+      dRest,
+      gTarget: new Float64Array(3 * c.gI.length),
+      id: this.nextId++,
+      kind: spec.kind,
+      first,
+      n: spec.n,
+      gridCount: spec.gridCount,
+      rig: spec.rig && { ...spec.rig, qStart: first + spec.gridCount },
+      rows: spec.rows,
+      columns: spec.columns,
+      wireStart: spec.wireStart,
+      wireEnd: spec.wireEnd,
+      radius: spec.radius,
+      segI: spec.segI,
+      segJ: spec.segJ,
+      triA: spec.triA,
+      triB: spec.triB,
+      triC: spec.triC,
+      segStart: 0,
+      triStart: 0,
+      hintI: new Int32Array(MAX_HINTS),
+      hintTarget: new Float64Array(3 * MAX_HINTS),
+      hintCount: 0,
+      exitA: spec.exitA + first,
+      exitB: spec.exitB + first,
+      freeLength: spec.freeLength,
+      flagLocalA: spec.flagLocalA,
+      flagLocalB: spec.flagLocalB,
+      lengthMm: spec.lengthMm,
+      allowanceMm: spec.allowanceMm,
+      pose0: [pa, pb],
+      pose1: [pa, pb],
+      asleep: false,
+      quiet: 0,
+      group: 0,
+      island: 0,
+      taut: false,
+      scale: 1,
+      index: this.bodies.length,
+      slot: 0,
+      pad: spec.radius + SKIN,
+      speed: Infinity,
+      move: 0,
+      damp: 1,
+      apos: [new Float64Array(3), new Float64Array(3)],
+      amat: [new Float64Array(9), new Float64Array(9)],
+      endMoving: [false, false],
+      lo: new Float64Array(3),
+      hi: new Float64Array(3)
+    }
+    body.island = body.id
+    this.count += spec.n
+    this.bodies.push(body)
+    this.primDirty = true
+    this.syncRender(body)
+    this.refreshEndFrames(body)
+    this.updateTaut(body)
+    return body
+  }
+
+  removeBody(id: BodyId): void {
+    const i = this.bodies.findIndex((b) => b.id === id)
+    if (i < 0) throw new RangeError(`unknown body ${id}`)
+    const gone = this.bodies[i]!
+    const bounds = new Float64Array(6)
+    bounds.set(gone.lo)
+    bounds.set(gone.hi, 3)
+    this.bodies.splice(i, 1)
+    const { first, n } = gone
+    for (const arr of [this.x, this.xp, this.v, this.xe, this.xf, this.render]) {
+      arr.copyWithin(3 * first, 3 * (first + n), 3 * this.count)
+    }
+    this.w.copyWithin(first, first + n, this.count)
+    this.count -= n
+    for (let k = i; k < this.bodies.length; k++) {
+      const b = this.bodies[k]!
+      shiftBody(b, -n)
+      b.index = k
+    }
+    this.primDirty = true
+    this.wakeInside(bounds)
+  }
+
+  private body(id: BodyId): Body {
+    const b = this.bodies.find((b) => b.id === id)
+    if (!b) throw new RangeError(`unknown body ${id}`)
+    return b
+  }
+
+  /** Sets where end 0 or 1 of a body is clamped; the body wakes if that is a change. */
+  setAnchor(id: BodyId, end: 0 | 1, pose: Pose): void {
+    const b = this.body(id)
+    const p = normalized(pose)
+    if (samePose(b.pose1[end], p)) return
+    b.pose1[end] = p
+    this.wake(b)
+  }
+
+  /**
+   * Soft target points for a lead's span (at most 3, in the table frame). Each pulls the particle
+   * nearest its projection onto the chord between the lead's ends.
+   */
+  setRouteHints(id: BodyId, points: readonly Vec3[]): void {
+    const b = this.body(id)
+    if (b.kind !== 'lead') return
+    const pts = points.slice(0, MAX_HINTS)
+    this.endPoint(b, 0, tmpA)
+    this.endPoint(b, 1, tmpB)
+    const cx = tmpB[0]! - tmpA[0]!,
+      cy = tmpB[1]! - tmpA[1]!,
+      cz = tmpB[2]! - tmpA[2]!
+    const len2 = cx * cx + cy * cy + cz * cz || 1
+    const free0 = b.first + b.wireStart + 1
+    const free1 = b.first + b.wireEnd - 2
+    let changed = pts.length !== b.hintCount
+    pts.forEach((p, k) => {
+      const f = ((p[0] - tmpA[0]!) * cx + (p[1] - tmpA[1]!) * cy + (p[2] - tmpA[2]!) * cz) / len2
+      const i = free0 + Math.round(Math.min(1, Math.max(0, f)) * (free1 - free0))
+      for (let a = 0; a < 3; a++) {
+        if (b.hintTarget[3 * k + a] !== p[a]) changed = true
+        b.hintTarget[3 * k + a] = p[a]!
+      }
+      if (b.hintI[k] !== i) changed = true
+      b.hintI[k] = i
+    })
+    b.hintCount = pts.length
+    if (changed) this.wake(b)
+  }
+
+  /** Where end `e` of the body measures its span from, in the table frame (target pose). */
+  private endPoint(b: Body, e: 0 | 1, out: Float64Array) {
+    posedAt(b.pose1[e], b.pose1[e], 1, tmpPos, tmpMat)
+    const l = e === 0 ? b.flagLocalA : b.flagLocalB
+    toWorld(tmpPos, tmpMat, l[0], l[1], l[2], out, 0)
+  }
+
+  /** Wakes the body and every body that sleeps with it. */
+  private wake(b: Body) {
+    b.quiet = 0
+    b.speed = Infinity
+    if (!b.asleep) return
+    const group = b.group
+    for (const o of this.bodies) {
+      if (o.asleep && o.group === group) {
+        o.asleep = false
+        o.quiet = 0
+        o.speed = Infinity
+      }
+    }
+  }
+
+  // ---- Reading state -------------------------------------------------------------------------
+
+  /** Particle positions, three floats each, valid until a body is removed. */
+  positions(id: BodyId): Float32Array {
+    const b = this.body(id)
+    return this.render.subarray(3 * b.first, 3 * (b.first + b.gridCount))
+  }
+
+  info(id: BodyId): BodyInfo {
+    const b = this.body(id)
+    return {
+      kind: b.kind,
+      particles: b.gridCount,
+      rows: b.rows,
+      columns: b.columns,
+      wireStart: b.wireStart,
+      wireEnd: b.wireEnd
+    }
+  }
+
+  /** The sleep flag of the body's island. */
+  isAsleep(id: BodyId): boolean {
+    return this.body(id).asleep
+  }
+
+  allAsleep(): boolean {
+    return this.bodies.every((b) => b.asleep)
+  }
+
+  /** True while the lead or ribbon is over-span: too short to reach (the LEAD_TOO_SHORT rule). */
+  isTaut(id: BodyId): boolean {
+    return this.body(id).taut
+  }
+
+  /** The island label: bodies touching each other share it. */
+  islandOf(id: BodyId): number {
+    return this.body(id).island
+  }
+
+  // ---- Stepping ------------------------------------------------------------------------------
+
+  /** Advances one 1/60 s frame. */
+  step(): void {
+    const n = this.substeps
+    const h = FRAME_DT / n
+    if (this.primDirty) this.rebuildPrimitives()
+    const awake = this.bodies.filter((b) => !b.asleep)
+    const moving = this.colliders.filter((c) => c.moving)
+    if (awake.length > 0) {
+      this.prepare(awake)
+      this.collectColliderContacts(awake)
+      this.collectPairs(awake)
+      for (const b of awake) {
+        const c = this.settling || b.speed < SLOW_SPEED ? SLOW_DAMPING : DAMPING
+        b.damp = 1 / (1 + c * h)
+      }
+      for (let k = 1; k <= n; k++) this.substep(awake, moving, k / n, h)
+    }
+    this.finish(awake, moving)
+  }
+
+  /**
+   * Steps until every island sleeps or `maxFrames` have run, with extra damping so a project
+   * opened from a design-curve guess comes to rest quickly. Returns the frames run.
+   */
+  settle(maxFrames = 240): number {
+    this.settling = true
+    let frames = 0
+    while (frames < maxFrames && !this.allAsleep()) {
+      this.step()
+      frames++
+    }
+    this.settling = false
+    return frames
+  }
+
+  private rebuildPrimitives() {
+    let s = 0
+    let t = 0
+    for (const b of this.bodies) {
+      b.segStart = s
+      s += b.segI.length
+      b.triStart = t
+      t += b.triA.length
+    }
+    this.segCount = s
+    this.primBody = new Int32Array(s + t)
+    this.box = new Float64Array(6 * (s + t))
+    this.bodies.forEach((b, bi) => {
+      for (let k = 0; k < b.segI.length; k++) this.primBody[b.segStart + k] = bi
+      for (let k = 0; k < b.triA.length; k++) this.primBody[s + b.triStart + k] = bi
+      this.fillBoxes(b, b.radius + SKIN, false)
+    })
+    this.primDirty = false
+  }
+
+  /** Padded bounds of a body's primitives, from current positions and (swept) the frame's end. */
+  private fillBoxes(b: Body, pad: number, swept: boolean) {
+    const { x, xe, box } = this
+    const blo = b.lo
+    const bhi = b.hi
+    blo.fill(Infinity)
+    bhi.fill(-Infinity)
+    const put = (o: number, i: number, j: number, k: number) => {
+      for (let a = 0; a < 3; a++) {
+        const p = x[3 * i + a]!,
+          q = x[3 * j + a]!,
+          r = x[3 * k + a]!
+        let lo = Math.min(p, q, r)
+        let hi = Math.max(p, q, r)
+        if (swept) {
+          const pe = xe[3 * i + a]!,
+            qe = xe[3 * j + a]!,
+            re = xe[3 * k + a]!
+          lo = Math.min(lo, pe, qe, re)
+          hi = Math.max(hi, pe, qe, re)
+        }
+        box[o + a] = lo - pad
+        box[o + 3 + a] = hi + pad
+        if (lo - pad < blo[a]!) blo[a] = lo - pad
+        if (hi + pad > bhi[a]!) bhi[a] = hi + pad
+      }
+    }
+    for (let k = 0; k < b.segI.length; k++) {
+      put(6 * (b.segStart + k), b.segI[k]!, b.segJ[k]!, b.segJ[k]!)
+    }
+    for (let k = 0; k < b.triA.length; k++) {
+      put(6 * (this.segCount + b.triStart + k), b.triA[k]!, b.triB[k]!, b.triC[k]!)
+    }
+  }
+
+  /** Sets each end frame's pose for the frame, and the clamped particles' end positions. */
+  private refreshEndFrames(b: Body) {
+    for (const e of [0, 1] as const) {
+      b.endMoving[e] = !samePose(b.pose0[e], b.pose1[e])
+      posedAt(b.pose1[e], b.pose1[e], 1, b.apos[e], b.amat[e])
+    }
+  }
+
+  private prepare(awake: Body[]) {
+    const { x, xe, v, w } = this
+    const g2 = 0.5 * GRAVITY * FRAME_DT * FRAME_DT
+    for (const b of awake) {
+      this.refreshEndFrames(b)
+      let travel = 0
+      const end = b.first + b.n
+      // A body that has all but stopped is held up by what it rests on, so it is not expected to
+      // fall; a body that has just been woken or is moving is.
+      const fall = b.speed < SLOW_SPEED ? 0 : g2
+      for (let i = b.first; i < end; i++) {
+        const i3 = 3 * i
+        if (w[i]! > 0) {
+          xe[i3] = x[i3]! + v[i3]! * FRAME_DT
+          xe[i3 + 1] = x[i3 + 1]! + v[i3 + 1]! * FRAME_DT
+          xe[i3 + 2] = x[i3 + 2]! + v[i3 + 2]! * FRAME_DT - fall
+        }
+      }
+      for (let k = 0; k < b.kI.length; k++) {
+        const i = b.kI[k]!
+        const e = b.kEnd[k]!
+        const l = b.kLocal
+        toWorld(b.apos[e]!, b.amat[e]!, l[3 * k]!, l[3 * k + 1]!, l[3 * k + 2]!, xe, 3 * i)
+        travel = Math.max(
+          travel,
+          Math.abs(xe[3 * i]! - x[3 * i]!) +
+            Math.abs(xe[3 * i + 1]! - x[3 * i + 1]!) +
+            Math.abs(xe[3 * i + 2]! - x[3 * i + 2]!)
+        )
+      }
+      let move = 0
+      for (let i = b.first; i < end; i++) {
+        const i3 = 3 * i
+        const dx = xe[i3]! - x[i3]!,
+          dy = xe[i3 + 1]! - x[i3 + 1]!,
+          dz = xe[i3 + 2]! - x[i3 + 2]!
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz)
+        if (d > MAX_SWEEP) {
+          // An anchor thrown across the scene: bound the box, the contacts catch up over frames.
+          const f = MAX_SWEEP / d
+          xe[i3] = x[i3]! + dx * f
+          xe[i3 + 1] = x[i3 + 1]! + dy * f
+          xe[i3 + 2] = x[i3 + 2]! + dz * f
+        }
+        move = Math.max(move, Math.min(d, MAX_SWEEP))
+      }
+      b.move = move
+      b.pad = b.radius + SKIN + Math.min(travel, MAX_SWEEP)
+      this.fillBoxes(b, b.pad, true)
+    }
+    this.hash.build(this.box, this.box.length / 6)
+    this.wakeTouching(awake)
+    awake.forEach((b, s) => {
+      b.slot = s
+      this.xf.set(x.subarray(3 * b.first, 3 * (b.first + b.n)), 3 * b.first)
+    })
+  }
+
+  /** A sleeping body that an awake one touches wakes with its island (so awake grows). */
+  private wakeTouching(awake: Body[]) {
+    if (this.bodies.every((b) => !b.asleep)) return
+    const { hash, box, primBody, segCount } = this
+    for (let qi = 0; qi < awake.length; qi++) {
+      const b = awake[qi]!
+      const near = this.bodies.some(
+        (o) =>
+          o.asleep &&
+          o.lo[0]! <= b.hi[0]! &&
+          o.hi[0]! >= b.lo[0]! &&
+          o.lo[1]! <= b.hi[1]! &&
+          o.hi[1]! >= b.lo[1]! &&
+          o.lo[2]! <= b.hi[2]! &&
+          o.hi[2]! >= b.lo[2]!
+      )
+      if (!near) continue
+      const nPrims = b.segI.length + b.triA.length
+      for (let k = 0; k < nPrims; k++) {
+        const g = k < b.segI.length ? b.segStart + k : segCount + b.triStart + (k - b.segI.length)
+        const o = 6 * g
+        const cnt = hash.query(
+          box[o]!,
+          box[o + 1]!,
+          box[o + 2]!,
+          box[o + 3]!,
+          box[o + 4]!,
+          box[o + 5]!
+        )
+        for (let q = 0; q < cnt; q++) {
+          const id = hash.result[q]!
+          const other = this.bodies[primBody[id]!]!
+          if (!other.asleep || !overlap(box, o, box, 6 * id)) continue
+          for (const m of this.bodies) {
+            if (m.asleep && m.group === other.group) {
+              m.asleep = false
+              m.quiet = 0
+              m.speed = Infinity
+              this.xe.set(this.x.subarray(3 * m.first, 3 * (m.first + m.n)), 3 * m.first)
+              awake.push(m)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private collectColliderContacts(awake: Body[]) {
+    const { cand, x, xe, w, box } = this
+    cand.n = 0
+    if (this.colliders.length === 0) return
+    for (const b of awake) {
+      this.colliders.forEach((c, ci) => {
+        if (
+          b.lo[0]! > c.hi[0]! ||
+          b.hi[0]! < c.lo[0]! ||
+          b.lo[1]! > c.hi[1]! ||
+          b.hi[1]! < c.lo[1]! ||
+          b.lo[2]! > c.hi[2]! ||
+          b.hi[2]! < c.lo[2]!
+        ) {
+          return
+        }
+        const cb = tmpBounds
+        cb.set(c.lo)
+        cb.set(c.hi, 3)
+        if (b.segI.length > 0) {
+          for (let k = 0; k < b.segI.length; k++) {
+            if (!overlap(box, 6 * (b.segStart + k), cb, 0)) continue
+            const o = cand.next()
+            cand.d[o] = b.segI[k]!
+            cand.d[o + 1] = b.segJ[k]!
+            cand.d[o + 2] = ci
+            cand.d[o + 3] = b.index
+          }
+        } else {
+          for (let i = b.first; i < b.first + b.gridCount; i++) {
+            if (w[i]! === 0) continue
+            let hit = true
+            for (let a = 0; a < 3 && hit; a++) {
+              const p = x[3 * i + a]!,
+                q = xe[3 * i + a]!
+              hit = Math.min(p, q) - b.pad <= c.hi[a]! && Math.max(p, q) + b.pad >= c.lo[a]!
+            }
+            if (!hit) continue
+            const o = cand.next()
+            cand.d[o] = i
+            cand.d[o + 1] = -1
+            cand.d[o + 2] = ci
+            cand.d[o + 3] = b.index
+          }
+        }
+      })
+    }
+  }
+
+  private collectPairs(awake: Body[]) {
+    const { hash, box, primBody, segCount, segSeg, segTri, links, x } = this
+    segSeg.n = 0
+    segTri.n = 0
+    links.n = 0
+    for (const b of awake) {
+      for (let k = 0; k < b.segI.length; k++) {
+        const g = b.segStart + k
+        const o = 6 * g
+        const cnt = hash.query(
+          box[o]!,
+          box[o + 1]!,
+          box[o + 2]!,
+          box[o + 3]!,
+          box[o + 4]!,
+          box[o + 5]!
+        )
+        const si = 3 * b.segI[k]!,
+          sj = 3 * b.segJ[k]!
+        const mx = 0.5 * (x[si]! + x[sj]!),
+          my = 0.5 * (x[si + 1]! + x[sj + 1]!),
+          mz = 0.5 * (x[si + 2]! + x[sj + 2]!)
+        const half = 0.5 * len3(x[si]! - x[sj]!, x[si + 1]! - x[sj + 1]!, x[si + 2]! - x[sj + 2]!)
+        for (let q = 0; q < cnt; q++) {
+          const id = hash.result[q]!
+          if (id === g || !overlap(box, o, box, 6 * id)) continue
+          const other = this.bodies[primBody[id]!]!
+          if (id < segCount) {
+            if (id < g) continue
+            if (other === b && id - g < 3) continue
+            const l = id - other.segStart
+            // Keep only pairs that can come within reach during the frame (a sphere test).
+            const oi = 3 * other.segI[l]!,
+              oj = 3 * other.segJ[l]!
+            const dx = mx - 0.5 * (x[oi]! + x[oj]!),
+              dy = my - 0.5 * (x[oi + 1]! + x[oj + 1]!),
+              dz = mz - 0.5 * (x[oi + 2]! + x[oj + 2]!)
+            const oh = 0.5 * len3(x[oi]! - x[oj]!, x[oi + 1]! - x[oj + 1]!, x[oi + 2]! - x[oj + 2]!)
+            const lim = b.radius + other.radius + half + oh + b.move + other.move + SKIN
+            if (dx * dx + dy * dy + dz * dz > lim * lim) continue
+            const keep = b.radius + other.radius + b.move + other.move + SKIN
+            const ox = other.segI[l]!,
+              oy = other.segJ[l]!
+            const near = closestSegSeg(
+              x[si]!,
+              x[si + 1]!,
+              x[si + 2]!,
+              x[sj]!,
+              x[sj + 1]!,
+              x[sj + 2]!,
+              x[3 * ox]!,
+              x[3 * ox + 1]!,
+              x[3 * ox + 2]!,
+              x[3 * oy]!,
+              x[3 * oy + 1]!,
+              x[3 * oy + 2]!,
+              scratch
+            )
+            if (near > keep * keep) continue
+            const r = segSeg.next()
+            segSeg.d[r] = b.segI[k]!
+            segSeg.d[r + 1] = b.segJ[k]!
+            segSeg.d[r + 2] = other.segI[l]!
+            segSeg.d[r + 3] = other.segJ[l]!
+            segSeg.d[r + 4] = b.index
+            segSeg.d[r + 5] = other.index
+          } else {
+            const l = id - segCount - other.triStart
+            const ta = 3 * other.triA[l]!,
+              tb = 3 * other.triB[l]!,
+              tc = 3 * other.triC[l]!
+            const cx = (x[ta]! + x[tb]! + x[tc]!) / 3,
+              cy = (x[ta + 1]! + x[tb + 1]! + x[tc + 1]!) / 3,
+              cz = (x[ta + 2]! + x[tb + 2]! + x[tc + 2]!) / 3
+            const rad = Math.max(
+              len3(x[ta]! - cx, x[ta + 1]! - cy, x[ta + 2]! - cz),
+              len3(x[tb]! - cx, x[tb + 1]! - cy, x[tb + 2]! - cz),
+              len3(x[tc]! - cx, x[tc + 1]! - cy, x[tc + 2]! - cz)
+            )
+            const lim = b.radius + other.radius + half + rad + b.move + other.move + SKIN
+            if ((mx - cx) ** 2 + (my - cy) ** 2 + (mz - cz) ** 2 > lim * lim) continue
+            const r = segTri.next()
+            segTri.d[r] = b.segI[k]!
+            segTri.d[r + 1] = b.segJ[k]!
+            segTri.d[r + 2] = other.triA[l]!
+            segTri.d[r + 3] = other.triB[l]!
+            segTri.d[r + 4] = other.triC[l]!
+            segTri.d[r + 5] = b.index
+            segTri.d[r + 6] = other.index
+          }
+          if (other !== b) {
+            const u = links.next()
+            links.d[u] = b.slot
+            links.d[u + 1] = other.slot
+          }
+        }
+      }
+    }
+  }
+
+  private substep(awake: Body[], moving: Collider[], t: number, h: number) {
+    const { x, xp, v, w, pool, bodies } = this
+    const invH2 = 1 / (h * h)
+    for (const c of moving) {
+      c.p0.set(c.p)
+      c.R0.set(c.R)
+      posedAt(c.f0, c.f1, t, c.p, c.R)
+    }
+    for (const b of awake) {
+      for (const e of [0, 1] as const) {
+        if (b.endMoving[e]) posedAt(b.pose0[e], b.pose1[e], t, b.apos[e], b.amat[e])
+      }
+      const end = b.first + b.n
+      for (let i = b.first; i < end; i++) {
+        const i3 = 3 * i
+        xp[i3] = x[i3]!
+        xp[i3 + 1] = x[i3 + 1]!
+        xp[i3 + 2] = x[i3 + 2]!
+        if (w[i]! > 0) {
+          v[i3 + 2] = v[i3 + 2]! - GRAVITY * h
+          x[i3] = x[i3]! + v[i3]! * h
+          x[i3 + 1] = x[i3 + 1]! + v[i3 + 1]! * h
+          x[i3 + 2] = x[i3 + 2]! + v[i3 + 2]! * h
+        }
+      }
+      const l = b.kLocal
+      for (let k = 0; k < b.kI.length; k++) {
+        const e = b.kEnd[k]!
+        toWorld(b.apos[e]!, b.amat[e]!, l[3 * k]!, l[3 * k + 1]!, l[3 * k + 2]!, x, 3 * b.kI[k]!)
+      }
+      for (let g = 0; g < b.gI.length; g++) {
+        const u = b.gU[g]!
+        toWorld(
+          b.apos[0],
+          b.amat[0],
+          b.gLoc[6 * g]!,
+          b.gLoc[6 * g + 1]!,
+          b.gLoc[6 * g + 2]!,
+          tmpA,
+          0
+        )
+        toWorld(
+          b.apos[1],
+          b.amat[1],
+          b.gLoc[6 * g + 3]!,
+          b.gLoc[6 * g + 4]!,
+          b.gLoc[6 * g + 5]!,
+          tmpB,
+          0
+        )
+        for (let a = 0; a < 3; a++) b.gTarget[3 * g + a] = (1 - u) * tmpA[a]! + u * tmpB[a]!
+      }
+      this.relax(b)
+    }
+    const constrain = () => {
+      for (const b of awake) {
+        if (b.rig) gatherRows(x, b)
+        // Softest first, so the stiffest constraints have the last word in the substep.
+        if (b.hintCount > 0) solveGoals(x, w, b.hintI, b.hintTarget, b.hintCount, HINT_ALPHA, invH2)
+        solveCurvature(x, w, b, invH2)
+        if (b.gI.length > 0) solveGoals(x, w, b.gI, b.gTarget, b.gI.length, b.gAlpha, invH2)
+        solveChain(x, w, b)
+        solveLongRange(x, w, b)
+        if (b.scale > 1 + 1e-9) straighten(x, b)
+        if (b.rig) layRows(x, b)
+      }
+    }
+    const { cand, segSeg, segTri, colliders } = this
+    const surfaces = () => {
+      for (let s = 0; s < cand.n; s++) {
+        const o = s * cand.stride
+        const c = colliders[cand.d[o + 2]!]!
+        const r = bodies[cand.d[o + 3]!]!.radius
+        if (cand.d[o + 1]! >= 0) contactSegmentCollider(pool, c, cand.d[o]!, cand.d[o + 1]!, r)
+        else contactParticleCollider(pool, c, cand.d[o]!, r)
+      }
+    }
+    const cables = () => {
+      for (let s = 0; s < segSeg.n; s++) {
+        const o = s * segSeg.stride
+        const d = segSeg.d
+        const reach = bodies[d[o + 4]!]!.radius + bodies[d[o + 5]!]!.radius
+        contactSegmentSegment(pool, d[o]!, d[o + 1]!, d[o + 2]!, d[o + 3]!, reach)
+      }
+      for (let s = 0; s < segTri.n; s++) {
+        const o = s * segTri.stride
+        const d = segTri.d
+        const reach = bodies[d[o + 5]!]!.radius + bodies[d[o + 6]!]!.radius
+        for (const ts of SAMPLES) {
+          contactPointTriangle(pool, d[o]!, d[o + 1]!, ts, d[o + 2]!, d[o + 3]!, d[o + 4]!, reach)
+        }
+      }
+    }
+    constrain()
+    // Cables first, then surfaces: what a pile rests on has the last word, so a stack settles
+    // instead of creeping. The order is the same every substep; alternating it kept piles awake.
+    cables()
+    surfaces()
+    const inv = 1 / h
+    const maxStep = MAX_SPEED * h
+    for (const b of awake) {
+      const end = b.first + b.n
+      const damp = b.damp
+      for (let i = b.first; i < end; i++) {
+        if (w[i]! === 0) continue
+        const i3 = 3 * i
+        let dx = x[i3]! - xp[i3]!,
+          dy = x[i3 + 1]! - xp[i3 + 1]!,
+          dz = x[i3 + 2]! - xp[i3 + 2]!
+        const d2 = dx * dx + dy * dy + dz * dz
+        if (d2 > maxStep * maxStep) {
+          // No particle may travel farther than MAX_SPEED allows in a substep: a safeguard against
+          // an overlap or conflicting constraints throwing one across the scene.
+          const f = maxStep / Math.sqrt(d2)
+          dx *= f
+          dy *= f
+          dz *= f
+          x[i3] = xp[i3]! + dx
+          x[i3 + 1] = xp[i3 + 1]! + dy
+          x[i3 + 2] = xp[i3 + 2]! + dz
+        }
+        v[i3] = dx * inv * damp
+        v[i3 + 1] = dy * inv * damp
+        v[i3 + 2] = dz * inv * damp
+      }
+    }
+  }
+
+  /**
+   * Over-span relaxation (SPEC 10.5): when the clamped ends are farther apart than the free span
+   * is long, every rest length along the cable is scaled up so the stretch constraints and
+   * long-range attachments settle on the straight, taut line between the ends.
+   */
+  private relax(b: Body) {
+    const a3 = 3 * b.exitA,
+      c3 = 3 * b.exitB
+    const { x } = this
+    const d = len3(x[a3]! - x[c3]!, x[a3 + 1]! - x[c3 + 1]!, x[a3 + 2]! - x[c3 + 2]!)
+    const s = Math.max(1, d / b.freeLength)
+    if (Math.abs(s - b.scale) < 1e-9) return
+    b.scale = s
+    for (let k = 0; k < b.dRest.length; k++) {
+      const a = s * b.dAlong[k]!
+      b.dRest[k] = Math.sqrt(b.dLat2[k]! + a * a)
+    }
+  }
+
+  private syncRender(b: Body) {
+    const end = 3 * (b.first + b.n)
+    for (let i = 3 * b.first; i < end; i++) this.render[i] = this.x[i]!
+  }
+
+  private updateTaut(b: Body) {
+    if (b.kind === 'jumper') return
+    toWorld(b.apos[0], b.amat[0], b.flagLocalA[0], b.flagLocalA[1], b.flagLocalA[2], tmpA, 0)
+    toWorld(b.apos[1], b.amat[1], b.flagLocalB[0], b.flagLocalB[1], b.flagLocalB[2], tmpB, 0)
+    const d = Math.hypot(tmpA[0]! - tmpB[0]!, tmpA[1]! - tmpB[1]!, tmpA[2]! - tmpB[2]!)
+    b.taut = d + b.allowanceMm > b.lengthMm
+  }
+
+  private finish(awake: Body[], moving: Collider[]) {
+    for (const c of moving) {
+      c.f0 = c.f1
+      c.moving = false
+      c.p.set(c.f1.position)
+      quatToMat(c.f1.rotation, c.R)
+      c.p0.set(c.p)
+      c.R0.set(c.R)
+      colliderBounds(c, c.p, c.R, tmpBounds)
+      c.lo.set(tmpBounds.subarray(0, 3))
+      c.hi.set(tmpBounds.subarray(3))
+    }
+    const { x, xf, w } = this
+    const still = (SLEEP_SPEED * FRAME_DT) ** 2
+    for (const b of awake) {
+      b.pose0 = [b.pose1[0], b.pose1[1]]
+      b.endMoving[0] = b.endMoving[1] = false
+      this.syncRender(b)
+      this.updateTaut(b)
+      let worst = 0
+      const end = b.first + b.n
+      for (let i = b.first; i < end; i++) {
+        if (w[i]! === 0) continue
+        const i3 = 3 * i
+        const dx = x[i3]! - xf[i3]!,
+          dy = x[i3 + 1]! - xf[i3 + 1]!,
+          dz = x[i3 + 2]! - xf[i3 + 2]!
+        worst = Math.max(worst, dx * dx + dy * dy + dz * dz)
+      }
+      if (!Number.isFinite(worst)) {
+        // Numerical failure: put the body back where the frame found it and let it settle again.
+        x.set(xf.subarray(3 * b.first, 3 * end), 3 * b.first)
+        this.xp.set(xf.subarray(3 * b.first, 3 * end), 3 * b.first)
+        this.v.fill(0, 3 * b.first, 3 * end)
+        worst = 0
+      }
+      b.quiet = worst < still ? b.quiet + 1 : 0
+      b.speed = Math.sqrt(worst) / FRAME_DT
+    }
+    if (awake.length > 0) this.updateIslands(awake)
+  }
+
+  /** Union-find over the bodies touching this frame; an island sleeps once all of it is quiet. */
+  private updateIslands(awake: Body[]) {
+    const parent = awake.map((_, i) => i)
+    const find = (i: number) => {
+      while (parent[i] !== i) {
+        parent[i] = parent[parent[i]!]!
+        i = parent[i]!
+      }
+      return i
+    }
+    const { links } = this
+    for (let u = 0; u < links.n; u++) {
+      const a = find(links.d[2 * u]!)
+      const b = find(links.d[2 * u + 1]!)
+      // The smaller slot stays the root, so the result does not depend on link order.
+      if (a < b) parent[b] = a
+      else if (b < a) parent[a] = b
+    }
+    const quiet = new Map<number, boolean>()
+    const label = new Map<number, number>()
+    awake.forEach((b, i) => {
+      const r = find(i)
+      quiet.set(r, (quiet.get(r) ?? true) && b.quiet >= SLEEP_FRAMES)
+      label.set(r, Math.min(label.get(r) ?? Infinity, b.id))
+    })
+    awake.forEach((b, i) => {
+      const r = find(i)
+      b.island = label.get(r)!
+    })
+    const groupOf = new Map<number, number>()
+    awake.forEach((b, i) => {
+      const r = find(i)
+      if (!quiet.get(r)) return
+      if (!groupOf.has(r)) groupOf.set(r, this.nextGroup++)
+      b.asleep = true
+      b.group = groupOf.get(r)!
+      this.v.fill(0, 3 * b.first, 3 * (b.first + b.n))
+      this.fillBoxes(b, b.radius + SKIN, false)
+    })
+  }
+}
+
+function matrixOf(p: Pose): Float64Array {
+  quatToMat(p.rotation, tmpMat)
+  return Float64Array.from(tmpMat)
+}
+
+function shift(arr: Int32Array, by: number) {
+  for (let i = 0; i < arr.length; i++) arr[i] = arr[i]! + by
+}
+
+function shiftBody(b: Body, by: number) {
+  for (const arr of [b.dI, b.dJ, b.cA, b.cB, b.cC, b.lI, b.lA, b.kI, b.gI, b.segI, b.segJ]) {
+    shift(arr, by)
+  }
+  for (const arr of [b.triA, b.triB, b.triC, b.hintI]) shift(arr, by)
+  if (b.rig) b.rig.qStart += by
+  b.first += by
+  b.exitA += by
+  b.exitB += by
+}
