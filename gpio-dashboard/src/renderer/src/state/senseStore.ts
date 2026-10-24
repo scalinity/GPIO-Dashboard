@@ -27,6 +27,8 @@ export type SenseMode = 'off' | 'pi' | 'mock'
 interface SenseState {
   mode: SenseMode
   states: [number, NetState][]
+  /** The newest sweep (a new object for every sweep), for Build Mode's step checks; read only. */
+  sweep: Sweep | null
   events: SenseEvent[]
   errors: string[]
   candidates: Record<number, Ranked[] | 'working'>
@@ -47,6 +49,7 @@ let timer: ReturnType<typeof setInterval> | null = null
 
 const publish = () =>
   useSense.setState({
+    sweep: lastSweep,
     states: reconciler ? [...reconciler.netStates] : [],
     events: reconciler ? [...reconciler.events] : []
   })
@@ -66,6 +69,7 @@ async function expected() {
 export const useSense = create<SenseState>((set, get) => ({
   mode: 'off',
   states: [],
+  sweep: null,
   events: [],
   errors: [],
   candidates: {},
@@ -85,16 +89,25 @@ export const useSense = create<SenseState>((set, get) => ({
       await startSensing(signature.probed)
     } else {
       let t = 0
+      // A sweep of a sparse board takes seconds to simulate (an empty one with every pin floating
+      // took 1.5 to 5 s): the next waits for it rather than queueing up behind it, so the sweeps
+      // that arrive are of the board as it stands, not of how it stood a minute ago.
+      let sweeping = false
       timer = setInterval(async () => {
         const board = get().mockBoard ?? useWorkbench.getState().doc
-        if (!board) return
-        const res = await simRequest({
-          type: 'mockSweep',
-          board,
-          pins: signature.probed,
-          t: (t += 0.25)
-        })
-        if (res.type === 'sweep' && get().mode === 'mock') take(res.sweep)
+        if (!board || sweeping) return
+        sweeping = true
+        try {
+          const res = await simRequest({
+            type: 'mockSweep',
+            board,
+            pins: signature.probed,
+            t: (t += 0.25)
+          })
+          if (res.type === 'sweep' && get().mode === 'mock') take(res.sweep)
+        } finally {
+          sweeping = false
+        }
       }, SENSE_TIMING.periodMs)
     }
   },
@@ -107,7 +120,7 @@ export const useSense = create<SenseState>((set, get) => ({
     if (mode === 'pi') await stopSensing()
     reconciler = null
     lastSweep = null
-    set({ mode: 'off', states: [], events: [], candidates: {} })
+    set({ mode: 'off', states: [], sweep: null, events: [], candidates: {} })
   },
   async findCauses(pin) {
     if (!lastSweep || !reconciler) return
