@@ -256,3 +256,9 @@ M8 exit suite (2026-10-24, at 7483bd8):
 ## M9 Assistant — in progress (2026-10-24)
 
 m9-base replayed onto v2 after M8's push (16 commits: assistant core, fallback fix + SDK pin, core gaps, Claude drawer UI); ADRs numbered 0083–0089 (assistant core), 0090–0093 (core gaps), 0094–0099 (UI). d860bcf: part ghosts carry props (LED ghosts in their colour); the top bar's Undo/Redo are disabled during a turn (e2e now asserts it). Vitest 1950, e2e 35/35. Waiting on the evals lane (live checks, ≥10 scored prompts, replay fixtures) for M9's exit: blink ERC-clean in one turn with matching code and convention wiring, Undo all deep-equal, D14 assistant+undo parts. Open: ghosts of custom parts defined in the same batch are not drawn.
+
+## M10 Build Mode in the Studio — in progress (2026-10-24)
+
+| Lane | Model | Scope | Status |
+|------|-------|-------|--------|
+| M10 build | Sonnet, worktree (base dcda0cf) | Tutorials open in the Studio as templates + Fork to my projects; Build Mode over `buildSteps` (frame ≤600 ms, optional DoF via `Post.setFocus`, pulsing ghosts, text/why/mistake by step key, Next/Back/Done, `docUpTo(step)` bench, progress per project); Board Sense confirmations via `checkStep` (mock board built step by step); empty checkpoint slot for M11; e2e: every tutorial plays through; ADR-B10-n. Commits replay after M9's exit push | running |
