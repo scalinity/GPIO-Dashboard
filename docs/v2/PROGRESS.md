@@ -282,3 +282,17 @@ M10 exit suite (2026-10-24, at 3cfb0dc + Vitest 30 s timeout):
 |------|-------|-------|--------|
 | S core sense | Sonnet, worktree | step checks | **merged** (ADR-0116…0119): `changedPins` in core (a pin counts only on its own bias or a pair reading against another observable pin), `stepSignatures`/`stepSignaturesOf` once + `judgeStep` (~0.1 ms); probe retries at reltol 1e-4/vntol 1e-7 then returns an `unsolved` (all-ambiguous) signature instead of throwing; `docUpTo` by step key; full-probe tutorial tests (heavy two opt-in via FULL_PROBE=1). Full probe over 411 steps: 34 confirmed (24 spurious) → 10 confirmed (W3 on the buzzers/button/morse, W6 on tilt/ultrasonic, W30–33 on four-digit), 401 unobservable. 1a092b6: the simulated-board Build Mode test gets a 30 s timeout. **Open (hardware safety, before running Board Sense on four-digit):** GPIO5/6/12/13 reach S8550 PNP bases through 1 kΩ (R9–R12); the probe's role-skip only checks parts directly on a GPIO's net, so bias changes reach the bases and could faintly light a digit — extend the skip rule or list it on HIL_CHECKLIST |
 | M11 twin | Sonnet, worktree (base 2fcbcba) | Live Pi state in 3D (Inspect toggle, read-only), divergence badges (telemetry 14.4 + Board Sense), Build Mode checkpoints (I2C scan, press the button, toggle LED via the ERC-gated run path, user click only), mocked HIL e2e flows that skip without PI_HOST, HIL_CHECKLIST additions; ADR-T11-n | running |
+
+## M11 Hardware twin — merged, exit suite running (2026-10-24)
+
+M11 lane merged (7890f4d…f6ac615; ADR-0120…0126): `useLive` (telemetry through the connection, read-only, publishes only on change); header pins and T-board strips painted by level/direction/function and the bench lit by a sim of its own while "Live Pi state" is on; four telemetry divergence kinds held 600 ms; badges outside the orbit element with explanation cards (telemetry + Board Sense); checkpoints derived from the circuit (`i2c-scan`, `press`, `toggle-led`, ≤3 toggles, never GPIO0–3), a passed checkpoint ticks its step; toggles go through the ERC-gated Run on Pi path on a click only; `store/gpioStore.js` now reports pull/function changes. e2e 101 passed / 3 skipped (real-Pi flows) in the lane.
+1b35442 (integrator): the I2C scan flow runs against the mock Pi only — `i2cdetect` clocks probes on SDA/SCL, which the kickoff forbids in automated real-Pi flows; the real-Pi block keeps the telemetry read and the print-only run; HIL_CHECKLIST and ADR-0126 say so. fbae85e: HIL item to watch the 4-digit digits while sensing (PNP bases behind 1 kΩ).
+
+## M12 Polish and acceptance — in progress (2026-10-24)
+
+| Lane | Model | Scope | Status |
+|------|-------|-------|--------|
+| M12 perf | Sonnet, worktree (base fbae85e) | main-thread levers from ADR-0082: per-frame buffer churn, shadow casters (leads/small parts), render bundle for statics, bloom off when nothing glows; interleaved measurements on the three heaviest tutorials (headless WebGPU if the Mac session stays locked); HIL note for the Tauri fps check; ADR-F2-n | running |
+| M12 docs | Sonnet, worktree (base fbae85e) | README rewrite via the `readme` skill (no push; closes D16; every number sourced) + `docs/ARCHITECTURE.md` with a Mermaid diagram and ADR pointers | running |
+
+Then (integrator): final acceptance run on the quietest machine available, `docs/v2/FINAL_REPORT.md` with evidence per SPEC 20 item, push, PR to main (not merged).
