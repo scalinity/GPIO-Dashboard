@@ -470,6 +470,8 @@ describe('dragging', () => {
     }
     console.info(`far socket dragged across the board: worst penetration ${worst.toFixed(3)} mm`)
     expect(worst).toBeLessThanOrEqual(0.5)
+    // The ribbon does touch the board during the drag.
+    expect(worst).toBeGreaterThan(-0.5)
     expect(Array.from(world.positions(id)).every(Number.isFinite)).toBe(true)
   })
 })
