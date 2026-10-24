@@ -22,7 +22,7 @@ import { encodeKtx2, ktx2Texture } from './controllers'
 import { geometryHash, glbIO, textures, triangleCount } from './glb'
 import { ktxOnPath, optimize } from './optimize'
 import { addToIndex } from './parts'
-import { ASSETS_DIR, extractSource, sha256, source } from './sources'
+import { ASSETS_DIR, extractSource, fetchSource, sha256, source } from './sources'
 import { stepToGlb } from './step-to-glb'
 
 const BLENDER_DIR = join(ASSETS_DIR, 'blender')
@@ -60,7 +60,13 @@ function provenance(asset: Asset, versions: Manifest['tools'], args: Manifest['s
       )
     },
     inputs: asset.inputs.map((path) => ({ path, sha256: fileHash(join(ROOT, path)) })),
-    sources: (asset.step ? [source(asset.step.source)] : []).map((s) => ({
+    sources: (asset.step
+      ? [
+          source(asset.step.source),
+          ...(asset.step.licenseSource ? [source(asset.step.licenseSource)] : [])
+        ]
+      : []
+    ).map((s) => ({
       id: s.id,
       url: s.url,
       sha256: s.sha256,
@@ -89,11 +95,24 @@ export async function build(
     let step: Manifest['step']
     let license: string | undefined
     if (asset.step) {
-      const text = await extractSource(asset.step.source, asset.step.file)
+      // A STEP inside a pinned archive, or the pinned source itself.
+      const { file } = asset.step
+      const text = file
+        ? await extractSource(asset.step.source, file)
+        : readFileSync(await fetchSource(asset.step.source))
       const stepGlb = join(work, 'step.glb')
       const read = await stepToGlb(text.toString('latin1'), stepGlb, asset.step.params)
-      step = { file: asset.step.file, sha256: sha256(text), params: asset.step.params, ...read }
-      license = (await extractSource(asset.step.source, asset.step.license)).toString('utf8')
+      step = {
+        file: file ?? source(asset.step.source).url.split('/').at(-1)!,
+        sha256: sha256(text),
+        params: asset.step.params,
+        ...read
+      }
+      license = (
+        asset.step.licenseSource
+          ? readFileSync(await fetchSource(asset.step.licenseSource))
+          : await extractSource(asset.step.source, asset.step.license!)
+      ).toString('utf8')
       cli.push('--step-glb', stepGlb)
     }
 

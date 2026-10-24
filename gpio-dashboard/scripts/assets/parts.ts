@@ -22,11 +22,31 @@ export interface PartExpectation {
   body: [Range, Range, Range]
   /** Flex-2lead parts: the distance between the two pins, which the params call the lead spacing. */
   spacing?: number
-  /** Which way a lead leaves its pin: out the bottom, or along the body's axis (x). */
-  exit: 'down' | 'axial'
+  /**
+   * Which way a lead leaves its pin: out the bottom, along the body's axis (x), or up (the header
+   * of an off-board module, where a female housing mates).
+   */
+  exit: 'down' | 'axial' | 'up'
   /** Nodes and materials the studio looks up by name, beyond the root and the pin-* empties. */
   nodes: string[]
   materials: string[]
+  /** Pins whose axis differs from `exit`: a core-frame direction each (a socket facing sideways). */
+  axes?: Record<string, Vec3>
+  /** The top-level nodes that make up the body (default: every primitive but the leads'). */
+  bodyNodes?: string[]
+  /** Off-board modules: the pitch of a female screw terminal block, whose pins count in 2-steps. */
+  terminalPitch?: number
+  /** The size of the `lcd-screen` quad, which carries 0 to 1 UVs over it (mm). */
+  screen?: [number, number]
+}
+
+/** The part of a definition's content file the expectations read. */
+export interface PartDefinition {
+  id: string
+  footprint: { kind: 'flex-2lead' | 'rigid' | 'offboard' }
+  pins: { id: string; offsetPitch: [number, number]; connector?: 'male-pin' | 'female-socket' }[]
+  bodyMm: Vec3
+  geometry: { family?: string; params: Params }
 }
 
 /**
@@ -38,9 +58,11 @@ const PART_BYTES = 40_000
 interface Family {
   /** The Blender script in blender/. */
   script: string
+  /** Other files in blender/ the script imports, besides partkit.py. */
+  support?: string[]
   /** The most triangles one of this family's GLBs may have: about a third over its largest file. */
   triangles: number
-  expect: (p: Params) => Pick<PartExpectation, 'body' | 'spacing' | 'exit' | 'nodes' | 'materials'>
+  expect: (p: Params, def: PartDefinition) => PartExpectation
 }
 
 function num(p: Params, key: string): number {
@@ -52,6 +74,178 @@ const near = (v: number, tol = DEFAULT_TOL_MM): Range => [v - tol, v + tol]
 const rod = (diameter: Range, length: Range): [Range, Range, Range] => [length, diameter, diameter]
 /** A round body's footprint along x and y, with a flat cut a little off its diameter at one side. */
 const flatted = (diameter: number): Range => [diameter - 0.4, diameter + 0.05]
+
+/** Where a display's or DIP's body sits above the board: the seating plane's standoff (mm). The
+ * display scripts raise their bodies by this much; a DIP's comes from its params. */
+export const DISPLAY_STANDOFF_MM = 0.5
+const ANY: Range = [0, Infinity]
+/**
+ * The LCD-1602A's character area: 16 columns at a 3.55 mm pitch and 2 rows at 5.95 mm, characters
+ * 2.95 x 5.55 mm (its datasheet's "Character Size" and "Character Pitch"), so 15 pitches and a
+ * character wide, and a pitch and a character high.
+ */
+const HD44780_AREA_MM: [number, number] = [15 * 3.55 + 2.95, 5.95 + 5.55]
+/** Datasheet figures read off a module's photo or listing, which round to half a millimetre. */
+const MODULE_TOL_MM = 0.5
+
+function deviceFamilies(): Record<string, Family> {
+  const display = (script: string, triangles: number, nodes: (p: Params) => string[]): Family => ({
+    script,
+    support: ['devicekit.py'],
+    triangles,
+    expect: (p) => ({
+      // The segments stand flush with the face's top, so the body is as tall as its params say,
+      // less the standoff it floats on.
+      body: [
+        near(num(p, 'bodyLengthMm')),
+        near(num(p, 'bodyWidthMm')),
+        near(num(p, 'bodyHeightMm') - DISPLAY_STANDOFF_MM)
+      ],
+      exit: 'down',
+      nodes: nodes(p),
+      materials: []
+    })
+  })
+  const segments = (prefix: string) =>
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'dp'].map((s) => `${prefix}${s}`)
+  const count = (n: number) => Array.from({ length: n }, (_, i) => i + 1)
+  return {
+    dip: {
+      script: 'dip.py',
+      support: ['devicekit.py'],
+      triangles: 640,
+      expect: (p) => ({
+        // TI's height is from the seating plane to the top; the body floats on its standoff.
+        body: [
+          near(num(p, 'bodyLengthMm')),
+          near(num(p, 'bodyWidthMm')),
+          near(num(p, 'bodyHeightMm') - num(p, 'standoffMinMm'))
+        ],
+        exit: 'down',
+        nodes: [],
+        materials: []
+      })
+    },
+    'seven-segment': display('seven_segment.py', 240, () => segments('seg-')),
+    'seven-segment-4digit': display('seven_segment.py', 900, () =>
+      count(4).flatMap((d) => segments(`seg-${d}-`))
+    ),
+    'bar-graph': display('bar_graph.py', 170, (p) =>
+      count(num(p, 'segmentCount')).map((n) => `bar-${n}`)
+    ),
+    'dot-matrix': display('dot_matrix.py', 2200, (p) =>
+      count(num(p, 'rows')).flatMap((r) => count(num(p, 'cols')).map((c) => `dot-${r}-${c}`))
+    ),
+    motor: {
+      script: 'motor.py',
+      support: ['devicekit.py', 'modparts.py'],
+      triangles: 3600,
+      // Adafruit's can is 2.5 mm longer than the 27.5 mm the datasheet gives, with the bearing boss.
+      expect: (p, def) => ({
+        body: [
+          near(num(p, 'bodyLengthMm'), 2.6),
+          near(num(p, 'bodyWidthMm')),
+          near(num(p, 'bodyHeightMm'))
+        ],
+        exit: 'up',
+        nodes: ['rotor'],
+        materials: [],
+        // The two leads end in housings lying flat, their male pins pointing along -y.
+        axes: Object.fromEntries(def.pins.map((q) => [q.id, [0, -1, 0] as Vec3])),
+        bodyNodes: ['body']
+      })
+    },
+    module: {
+      script: 'module.py',
+      support: ['devicekit.py', 'modparts.py', 'mod_sensors.py', 'mod_ads.py', 'mod_boards.py'],
+      triangles: 1200,
+      expect: (p, def) => {
+        const variant = typeof p.variant === 'string' ? p.variant : def.id
+        const make = MODULES[variant]
+        if (!make) throw new Error(`parts.ts has no module variant ${variant}`)
+        return make(p, def)
+      }
+    }
+  }
+}
+
+/** An off-board module's body: its board and what stands on it, to the datasheet's size. */
+const board = (
+  x: number,
+  y: number,
+  z: Range | number,
+  rest: Partial<PartExpectation> = {}
+): PartExpectation => ({
+  body: [
+    near(x, MODULE_TOL_MM),
+    near(y, MODULE_TOL_MM),
+    typeof z === 'number' ? near(z, MODULE_TOL_MM) : z
+  ],
+  exit: 'up',
+  nodes: [],
+  materials: [],
+  bodyNodes: ['body'],
+  ...rest
+})
+
+/** The modules by geometry.params.variant (a definition without one is named by its id). */
+const MODULES: Record<string, (p: Params, def: PartDefinition) => PartExpectation> = {
+  'adafruit-1085-stemma-qt': (p) =>
+    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'boardHeightMm')),
+  'lafvin-ads7830': (p) => board(num(p, 'boardLengthApproxMm'), num(p, 'boardWidthApproxMm'), ANY),
+  'dht11-3pin-breakout': (p) =>
+    board(num(p, 'boardLengthApproxMm'), num(p, 'boardWidthApproxMm'), ANY),
+  // The bare sensor stands on a board; its 5.5 mm is its thickness, as its drawing says.
+  'dht11-bare-4pin-sip': (p) => ({
+    body: [
+      near(num(p, 'bodyWidthMm')),
+      near(num(p, 'bodyThicknessMm')),
+      near(num(p, 'bodyHeightMm'))
+    ],
+    exit: 'down',
+    nodes: ['grille'],
+    materials: []
+  }),
+  'hc-sr04': (p) => board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'heightMm')),
+  'hc-sr501': (p) =>
+    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'heightMm'), { nodes: ['lens'] }),
+  'breadboard-power-module': (p, def) =>
+    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), def.bodyMm[2]),
+  'relay-module-5v': (p, def) =>
+    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), def.bodyMm[2], {
+      nodes: ['lens', 'armature'],
+      // The screw terminals take a wire from the board's edge, and sit at their own pitch.
+      axes: Object.fromEntries(
+        def.pins
+          .filter((q) => q.connector === 'female-socket')
+          .map((q) => [q.id, [0, 1, 0] as Vec3])
+      ),
+      terminalPitch: num(p, 'screwTerminalPitchMm')
+    }),
+  'ky-023-joystick': (p, def) =>
+    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), def.bodyMm[2], { nodes: ['stick'] }),
+  'lcd1602a-i2c-backpack': (p) =>
+    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'moduleThicknessMaxMm'), {
+      nodes: ['lcd-screen'],
+      screen: HD44780_AREA_MM
+    }),
+  // The pad is the body; its tail ends in a female housing lying flat, its sockets facing along
+  // the tail, away from the pad.
+  'membrane-keypad-4x4': (p, def) =>
+    board(num(p, 'keypadLengthMm'), num(p, 'keypadWidthMm'), num(p, 'keypadThicknessMm'), {
+      exit: 'up',
+      axes: Object.fromEntries(def.pins.map((q) => [q.id, [0, -1, 0] as Vec3])),
+      bodyNodes: ['body']
+    }),
+  'sg90-micro-servo': (p, def) => ({
+    // The case and its horn: ears 32.2 across, 11.8 wide, 31 tall with the horn on.
+    ...board(num(p, 'earSpanMm'), num(p, 'bodyWidthMm'), num(p, 'overallHeightMm'), {
+      nodes: ['horn'],
+      axes: Object.fromEntries(def.pins.map((q) => [q.id, [0, -1, 0] as Vec3])),
+      bodyNodes: ['body', 'horn']
+    })
+  })
+}
 
 const FAMILIES: Record<string, Family> = {
   'axial-resistor': {
@@ -240,11 +434,25 @@ const FAMILIES: Record<string, Family> = {
       nodes: [],
       materials: ['epoxy']
     })
-  }
+  },
+  ...deviceFamilies()
 }
 
 /** The parts to model: each definition with a family, and one file per variant the shape changes with. */
-const PARTS: { family: string; defId: string; variant?: { prop: string; value: string } }[] = [
+interface PartEntry {
+  family: string
+  defId: string
+  variant?: { prop: string; value: string }
+  /** A texture budget, for the families that bake a legend or a marking (the others carry none). */
+  texturePx?: [number, number]
+  /** This file's triangle cap, where it needs more than its family's. */
+  triangles?: number
+  bytes?: number
+  /** A manufacturer's STEP this model starts from (ADR-A3b). */
+  step?: Asset['step']
+}
+
+const PARTS: PartEntry[] = [
   { family: 'axial-resistor', defId: 'resistor' },
   { family: 'diode', defId: 'diode-1n4007' },
   { family: 'led', defId: 'led', variant: { prop: 'size', value: '3mm' } },
@@ -262,7 +470,74 @@ const PARTS: { family: string; defId: string; variant?: { prop: string; value: s
   { family: 'tilt-switch', defId: 'tilt-switch' },
   { family: 'potentiometer', defId: 'potentiometer-10k' },
   { family: 'buzzer', defId: 'active-buzzer' },
-  { family: 'buzzer', defId: 'passive-buzzer' }
+  { family: 'buzzer', defId: 'passive-buzzer' },
+  // Displays, ICs and off-board modules (ADR-A3b).
+  ...['ic-74hc595', 'ic-adc0834', 'ic-l293d'].map((defId) => ({
+    family: 'dip',
+    defId,
+    texturePx: [512, 128] as [number, number]
+  })),
+  { family: 'seven-segment', defId: 'seven-segment-ca' },
+  { family: 'seven-segment', defId: 'seven-segment-cc' },
+  { family: 'seven-segment-4digit', defId: 'seven-segment-4digit' },
+  { family: 'bar-graph', defId: 'bar-graph-10' },
+  { family: 'dot-matrix', defId: 'led-matrix-8x8' },
+  {
+    family: 'motor',
+    defId: 'dc-motor',
+    step: {
+      source: 'adafruit-711-dc-toy-motor-step',
+      licenseSource: 'adafruit-cad-parts-license',
+      params: { partBytes: 12e6, linearDeflectionMm: 0.03, angularDeflectionRad: 0.4 }
+    }
+  },
+  {
+    family: 'module',
+    defId: 'ads1115-module',
+    texturePx: [512, 512],
+    triangles: 9000,
+    bytes: 300_000,
+    step: {
+      source: 'adafruit-1085-ads1115-step',
+      licenseSource: 'adafruit-cad-parts-license',
+      params: { partBytes: 12e6, linearDeflectionMm: 0.03, angularDeflectionRad: 0.4 }
+    }
+  },
+  {
+    family: 'module',
+    defId: 'ads7830-module',
+    texturePx: [512, 512],
+    triangles: 680,
+    bytes: 40_000
+  },
+  {
+    family: 'module',
+    defId: 'breadboard-power-module',
+    texturePx: [1024, 512],
+    triangles: 1300,
+    bytes: 50_000
+  },
+  { family: 'module', defId: 'dht11-module', texturePx: [512, 512], triangles: 350, bytes: 34_000 },
+  { family: 'module', defId: 'dht11', texturePx: [256, 256], triangles: 20, bytes: 12_000 },
+  { family: 'module', defId: 'hc-sr04', texturePx: [1024, 512], triangles: 700, bytes: 30_000 },
+  { family: 'module', defId: 'hc-sr501', texturePx: [512, 512], triangles: 1130, bytes: 30_000 },
+  {
+    family: 'module',
+    defId: 'joystick-module',
+    texturePx: [512, 512],
+    triangles: 800,
+    bytes: 32_000
+  },
+  { family: 'module', defId: 'keypad-4x4', texturePx: [1024, 1024], triangles: 125, bytes: 56_000 },
+  { family: 'module', defId: 'lcd1602-i2c', texturePx: [1024, 512], triangles: 550, bytes: 30_000 },
+  {
+    family: 'module',
+    defId: 'relay-module-5v',
+    texturePx: [512, 512],
+    triangles: 760,
+    bytes: 50_000
+  },
+  { family: 'module', defId: 'sg90', texturePx: [256, 256], triangles: 530, bytes: 24_000 }
 ]
 
 const partPath = (defId: string) => `${PARTS_DIR}/${defId}.part.json`
@@ -280,39 +555,39 @@ export const PART_ASSETS: Asset[] = PARTS.map((p) => {
       ...(p.variant && { when: { [p.variant.prop]: p.variant.value } })
     },
     script: family.script,
-    support: ['partkit.py'],
+    support: ['partkit.py', ...(family.support ?? [])],
     args: {
       part: partPath(p.defId),
       name: assetName(p),
       ...(p.variant && { variant: p.variant.value })
     },
     inputs: [partPath(p.defId)],
-    // The parts carry no textures: their detail is geometry and material colour (ADR-0029).
-    budget: { texturePx: [0, 0], triangles: family.triangles, bytes: PART_BYTES }
+    ...(p.step && { step: p.step }),
+    // Most parts carry no textures: their detail is geometry and material colour (ADR-0029).
+    budget: {
+      texturePx: p.texturePx ?? [0, 0],
+      triangles: p.triangles ?? family.triangles,
+      bytes: p.bytes ?? PART_BYTES
+    }
   }
 })
 
 /** The part definition a part asset models, read from its content file. */
 export function partDefinition(root: string, asset: Asset) {
-  return JSON.parse(readFileSync(join(root, asset.inputs[0]!), 'utf8')) as {
-    id: string
-    footprint: { kind: 'flex-2lead' | 'rigid' | 'offboard' }
-    pins: { id: string; offsetPitch: [number, number] }[]
-    geometry: { family?: string; params: Params }
-  }
+  return JSON.parse(readFileSync(join(root, asset.inputs[0]!), 'utf8')) as PartDefinition
 }
 
 /** The expectation for a part's GLB, from the params of its variant. */
-export function expectation(asset: Asset, params: Params): PartExpectation {
+export function expectation(asset: Asset, def: PartDefinition): PartExpectation {
   const family = FAMILIES[asset.part!.family]!
   const variant = asset.args.variant as string | undefined
   const prefix = variant ? `${variant}.` : ''
   const own = Object.fromEntries(
-    Object.entries(params)
+    Object.entries(def.geometry.params)
       .filter(([k]) => k.startsWith(prefix))
       .map(([k, v]) => [k.slice(prefix.length), v])
   )
-  return family.expect(own)
+  return family.expect(own, def)
 }
 
 // --- parts/index.json: defId -> its files, and the property value that selects each ------------

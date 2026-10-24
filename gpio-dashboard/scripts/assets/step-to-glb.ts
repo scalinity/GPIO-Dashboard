@@ -191,8 +191,10 @@ export async function stepToGlb(stepText: string, glbPath: string, params: StepP
     }
     meshes.push(...result.meshes)
   }
-  if (meshes.length !== expectedBodies) {
-    throw new Error(`Read ${meshes.length} STEP bodies, expected ${expectedBodies}`)
+  // An assembly may place one body several times and each placement is read as a mesh, so more
+  // meshes than bodies is fine (the Adafruit boards repeat their passives); fewer is a lost body.
+  if (meshes.length < expectedBodies) {
+    throw new Error(`Read ${meshes.length} STEP bodies, expected at least ${expectedBodies}`)
   }
 
   const doc = new Document()

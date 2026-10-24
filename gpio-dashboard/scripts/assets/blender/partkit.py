@@ -35,20 +35,22 @@ AXIS_X = Matrix.Rotation(math.pi / 2, 3, 'Y')
 AXIS_Y = Matrix.Rotation(-math.pi / 2, 3, 'X')
 
 
-def start():
+def start(add_args=None):
     """Parse the arguments, then return (args, part definition, geometry params).
 
     The params of a family with sizes are the ones under args.variant's prefix ("5mm.flange..."),
-    with the prefix removed.
+    with the prefix removed. add_args(parser) adds a family's own arguments.
     """
-    args = scene.start(
-        lambda p: (
-            p.add_argument('--part', required=True),
-            p.add_argument('--name', required=True),  # the asset's name, for the root node
-            p.add_argument('--variant'),
-            p.add_argument('--texture'),  # build.ts passes the texture budget; parts carry none
-        )
-    )
+
+    def arguments(p):
+        p.add_argument('--part', required=True)
+        p.add_argument('--name', required=True)  # the asset's name, for the root node
+        p.add_argument('--variant')
+        p.add_argument('--texture')  # build.ts passes the texture budget; most parts carry none
+        if add_args:
+            add_args(p)
+
+    args = scene.start(arguments)
     with open(args.part) as f:
         definition = json.load(f)
     params = definition['geometry']['params']

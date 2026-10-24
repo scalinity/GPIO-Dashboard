@@ -36,8 +36,18 @@ export interface Asset {
   args: Record<string, string | number>
   /** content/ files the script reads; the manifest records their hashes. */
   inputs: string[]
-  /** A STEP file inside a pinned source, read by step-to-glb.ts and passed as --step-glb. */
-  step?: { source: string; file: string; license: string; params: StepParams }
+  /**
+   * A STEP read by step-to-glb.ts and passed as --step-glb: `file` inside a pinned archive, or the
+   * pinned source itself when `file` is left out. Its licence text is `license` inside the
+   * archive, or the pinned source `licenseSource`.
+   */
+  step?: {
+    source: string
+    file?: string
+    license?: string
+    licenseSource?: string
+    params: StepParams
+  }
   /** Textures-only assets write these KTX2 files, not <name>.glb and <name>.colliders.json. */
   ktx2?: Ktx2[]
   budget: { texturePx: [number, number]; triangles?: number; bytes?: number }

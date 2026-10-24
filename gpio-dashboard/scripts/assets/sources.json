@@ -30,6 +30,36 @@
           "sha256": "4ca2d350552b24137e55587e13fb09a249b757c6af49652ff02ea524d154c7fc"
         }
       ]
+    },
+    {
+      "id": "adafruit-cad-parts-license",
+      "url": "https://raw.githubusercontent.com/adafruit/Adafruit_CAD_Parts/c128bceb1f96b6ea8b68f250bda986ba85da24ea/LICENSE",
+      "sha256": "f60436644e066301d4c2e8f1f0674a157b1f60e4fd5586717b99dde255cc18cd",
+      "retrieved": "2026-10-24",
+      "license": "MIT, Copyright (c) 2016 Adafruit Industries (permits use, modification and redistribution with the notice)",
+      "page": "https://github.com/adafruit/Adafruit_CAD_Parts",
+      "author": "Adafruit Industries",
+      "use": "The licence of the Adafruit_CAD_Parts repository at commit c128bce (2026-10-01), carried in the manifests of the models made from its STEP files"
+    },
+    {
+      "id": "adafruit-1085-ads1115-step",
+      "url": "https://raw.githubusercontent.com/adafruit/Adafruit_CAD_Parts/c128bceb1f96b6ea8b68f250bda986ba85da24ea/1085%20ADS1115%20ADC/1085%20ADS1115%20ADC.step",
+      "sha256": "36657e86b2899297a298b77d7b46f16ef9b8c659055429494d7a1f367f983e9b",
+      "retrieved": "2026-10-24",
+      "license": "MIT, Copyright (c) 2016 Adafruit Industries (see adafruit-cad-parts-license)",
+      "page": "https://github.com/adafruit/Adafruit_CAD_Parts/tree/main/1085%20ADS1115%20ADC",
+      "author": "Adafruit Industries",
+      "use": "ADS1115 breakout, Adafruit product 1085 (SPEC 7, 10.4 off-board modules): step-to-glb.ts and blender/module.py make public/models/parts/ads1115-module.glb"
+    },
+    {
+      "id": "adafruit-711-dc-toy-motor-step",
+      "url": "https://raw.githubusercontent.com/adafruit/Adafruit_CAD_Parts/c128bceb1f96b6ea8b68f250bda986ba85da24ea/711%20DC%20Toy%20Motor/711%20DC%20Toy%20Motor.step",
+      "sha256": "7718d43d37ff4191a8b136846fedd33de85f6c64216fa76f9eff6b0064c4ef64",
+      "retrieved": "2026-10-24",
+      "license": "MIT, Copyright (c) 2016 Adafruit Industries (see adafruit-cad-parts-license)",
+      "page": "https://github.com/adafruit/Adafruit_CAD_Parts/tree/main/711%20DC%20Toy%20Motor",
+      "author": "Adafruit Industries",
+      "use": "130-size DC toy motor, Adafruit product 711, the part behind dc-motor.part.json (SPEC 7, 10.4 off-board modules): step-to-glb.ts and blender/motor.py make public/models/parts/dc-motor.glb"
     }
   ]
 }
