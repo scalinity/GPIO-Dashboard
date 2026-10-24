@@ -33,6 +33,13 @@ const TboardSchema = z.object({
     cornerRadiusMm: z.number(),
     pcbThicknessMm: z.number()
   }),
+  header: z.object({
+    centerXMm: z.number(),
+    centerYMm: z.number(),
+    lengthAlongYMm: z.number(),
+    widthAlongXMm: z.number(),
+    heightMm: z.number()
+  }),
   dupontHousingMm: z.number().positive()
 })
 

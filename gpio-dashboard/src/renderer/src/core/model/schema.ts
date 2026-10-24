@@ -1,7 +1,8 @@
 // Runtime schemas for content files and documents. Each is typed against the model
 // interface it validates, so the two cannot drift apart.
 import { z } from 'zod'
-import type { PartDef, PinDef, PropertySchema } from './types'
+import type { CircuitDoc, Endpoint, HoleRef, PartDef, PinDef, PropertySchema, Wire } from './types'
+import { COL_PAIRS, MAIN_COLUMNS, RAIL_IDS } from './types'
 
 const vec2 = z.tuple([z.number(), z.number()])
 const vec3 = z.tuple([z.number(), z.number(), z.number()])
@@ -171,5 +172,111 @@ export const PartDefSchema: z.ZodType<PartDef> = z
         notes: z.string().optional()
       })
       .strict()
+  })
+  .strict()
+
+// --- Circuit documents (.gpiob) ---
+
+const transform = z.object({ position: vec2, rotationDeg: z.number() }).strict()
+
+export const HoleRefSchema: z.ZodType<HoleRef> = z.discriminatedUnion('area', [
+  z
+    .object({
+      board: z.string(),
+      area: z.literal('main'),
+      row: z.number().int(),
+      col: z.enum(MAIN_COLUMNS)
+    })
+    .strict(),
+  z
+    .object({
+      board: z.string(),
+      area: z.literal('rail'),
+      rail: z.enum(RAIL_IDS),
+      index: z.number().int()
+    })
+    .strict()
+])
+
+const endpoint: z.ZodType<Endpoint> = z.union([
+  z.object({ hole: HoleRefSchema }).strict(),
+  z.object({ pin: z.object({ part: z.string(), pin: z.string() }).strict() }).strict()
+])
+
+const wireSchema: z.ZodType<Wire> = z
+  .object({
+    id: z.string().min(1),
+    a: endpoint,
+    b: endpoint,
+    color: z.string(),
+    kind: z.enum(['dupont-mm', 'dupont-mf', 'dupont-ff', 'solid-arc', 'solid-flat']),
+    lengthMm: z.union([z.number().positive(), z.literal('auto')]),
+    heightMm: z.number().optional(),
+    routeHints: z.array(vec3).max(3).optional()
+  })
+  .strict()
+
+export const CircuitDocSchema: z.ZodType<CircuitDoc> = z
+  .object({
+    schemaVersion: z.number().int(),
+    meta: z
+      .object({
+        name: z.string(),
+        created: z.string(),
+        updated: z.string(),
+        sourceTutorialId: z.string().optional(),
+        revision: z.number().int().nonnegative()
+      })
+      .strict(),
+    boards: z.array(
+      z.object({ id: z.string().min(1), defId: z.enum(['bb-830', 'bb-400']), transform }).strict()
+    ),
+    controller: z
+      .object({
+        pi: z.object({ transform }).strict(),
+        tboard: z
+          .object({
+            board: z.string(),
+            pin1Row: z.number().int(),
+            colPair: z.enum(COL_PAIRS),
+            orientation: z.enum(['header-toward-row-0', 'header-toward-last-row'])
+          })
+          .strict(),
+        ribbon: z.object({ lengthMm: z.number().positive() }).strict()
+      })
+      .strict(),
+    parts: z.array(
+      z
+        .object({
+          id: z.string().min(1),
+          defId: z.string(),
+          props: z.record(z.string(), z.unknown()),
+          placement: z
+            .object({
+              pins: z.record(z.string(), HoleRefSchema.nullable()),
+              offboardPose: transform.optional(),
+              rotationDeg: z
+                .union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)])
+                .optional()
+            })
+            .strict()
+        })
+        .strict()
+    ),
+    wires: z.array(wireSchema),
+    code: z
+      .object({
+        language: z.literal('python'),
+        library: z.enum(['RPi.GPIO', 'gpiozero']),
+        source: z.string()
+      })
+      .strict(),
+    buildStepAnnotations: z
+      .record(
+        z.string(),
+        z.object({ why: z.string().optional(), mistake: z.string().optional() }).strict()
+      )
+      .optional(),
+    assistant: z.object({ transcriptFile: z.string() }).strict().optional()
   })
   .strict()

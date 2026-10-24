@@ -1,0 +1,29 @@
+{
+  "id": "pi5-board",
+  "name": "Raspberry Pi 5 board outline and header position",
+  "frame": "Local mm frame as drawn: origin at the bottom-left corner of the 85 x 56 mm board, +x toward the USB and Ethernet ports, +y toward the edge with the 40-pin header",
+  "outline": { "widthMm": 85, "depthMm": 56 },
+  "mountingHoles": {
+    "diameterMm": 2.7,
+    "centers": [[3.5, 3.5], [61.5, 3.5], [3.5, 52.5], [61.5, 52.5]]
+  },
+  "header": {
+    "centerMm": [32.5, 52.5],
+    "pitchMm": 2.54,
+    "pin1Mm": [8.37, 51.23],
+    "layout": "pins 1, 3, ... 39 along the row nearer the board centre (y = 51.23), pins 2, 4, ... 40 along the edge row (y = 53.77), numbered from the end away from the USB and Ethernet ports"
+  },
+  "provenance": {
+    "sources": [
+      "https://pip-assets.raspberrypi.com/categories/892-raspberry-pi-5/documents/RP-008347-DS-1-raspberry-pi-5-mechanical-drawing.pdf",
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ],
+    "values": {
+      "drawing": "Raspberry Pi 5 mechanical drawing RP-008347-DS-1 (SHA-256 5dd680d6c1f5e7aa9c7b020695e315d04aac862df82ff01d4e9041cd0668d7f2), read visually on 2026-10-24",
+      "outline": "Drawing: 85 (width) and 56 (depth) callouts",
+      "mountingHoles": "Drawing: 3.5 from the left edge, 58 between left and right holes, 49 between bottom and top holes (3.5 from each edge), diameter 2.7",
+      "header.centerMm": "Drawing: the 29 callout runs from the left mounting-hole centre to the header centre (3.5 + 29 = 32.5); the header lies on the line of the top mounting holes (56 - 3.5 = 52.5)",
+      "header.pin1Mm": "Derived: 20 columns at 2.54 mm put the first column 9.5 x 2.54 = 24.13 mm left of the centre (32.5 - 24.13 = 8.37); rows 1.27 mm either side of the centre line. The documentation's 'Pin layout' places pin 1 at the lower-left corner of the header on classic boards, the end away from the USB and Ethernet ports, which matches the bench (the ribbon's brown conductor is on that edge)"
+    }
+  }
+}
