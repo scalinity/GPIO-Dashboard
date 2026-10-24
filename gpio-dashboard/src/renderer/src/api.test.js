@@ -110,10 +110,30 @@ test('calls map to the command names and argument keys the backend expects', asy
   await api.gpio.connect('pi.local', 'tok')
   await api.terminal.resize('global', 80, 24)
   await api.settings.set('connection.host', 'pi.local')
+  await api.ssh.i2cScan(1)
+  await api.anthropic.setKey('sk')
+  await api.anthropic.hasKey()
+  await api.anthropic.clearKey()
+  await api.projects.list()
+  await api.projects.read('p1')
+  await api.projects.write('p1', { schemaVersion: 1 })
+  await api.projects.delete('p1')
+  await api.projects.export({ schemaVersion: 1 })
+  await api.projects.import()
   assert.deepEqual(calls, [
     ['ssh_scp_buffer', { content: 'code', remotePath: '/tmp/gpio_dashboard/a.py' }],
     ['gpio_connect', { host: 'pi.local', authToken: 'tok' }],
     ['terminal_resize', { sessionId: 'global', cols: 80, rows: 24 }],
-    ['settings_set', { key: 'connection.host', value: 'pi.local' }]
+    ['settings_set', { key: 'connection.host', value: 'pi.local' }],
+    ['ssh_i2c_scan', { bus: 1 }],
+    ['settings_set_anthropic_key', { value: 'sk' }],
+    ['settings_has_anthropic_key', undefined],
+    ['settings_clear_anthropic_key', undefined],
+    ['projects_list', undefined],
+    ['projects_read', { id: 'p1' }],
+    ['projects_write', { id: 'p1', doc: { schemaVersion: 1 } }],
+    ['projects_delete', { id: 'p1' }],
+    ['projects_export', { doc: { schemaVersion: 1 } }],
+    ['projects_import', undefined]
   ])
 })

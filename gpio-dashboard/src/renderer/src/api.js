@@ -47,6 +47,7 @@ export function createApi({ invoke, listen }) {
       gpioCleanup: () => structured('ssh_gpio_cleanup'),
       scpBuffer: (content, remotePath) => structured('ssh_scp_buffer', { content, remotePath }),
       getStatus: () => invoke('ssh_get_status'),
+      i2cScan: (bus) => structured('ssh_i2c_scan', { bus }),
       onStatusChange: (callback) => on('ssh:status-change', callback),
       onTutorialOutput: (callback) => on('tutorial:output', callback)
     },
@@ -82,6 +83,22 @@ export function createApi({ invoke, listen }) {
       set: (key, value) => structured('settings_set', { key, value }),
       setPassword: (value) => structured('settings_set_password', { value }),
       getAll: () => invoke('settings_get_all')
+    },
+
+    // The key goes to the Keychain through Rust; no command ever returns it.
+    anthropic: {
+      setKey: (value) => structured('settings_set_anthropic_key', { value }),
+      hasKey: () => invoke('settings_has_anthropic_key'),
+      clearKey: () => structured('settings_clear_anthropic_key')
+    },
+
+    projects: {
+      list: () => structured('projects_list'),
+      read: (id) => structured('projects_read', { id }),
+      write: (id, doc) => structured('projects_write', { id, doc }),
+      delete: (id) => structured('projects_delete', { id }),
+      export: (doc) => structured('projects_export', { doc }),
+      import: () => structured('projects_import')
     }
   }
 }
