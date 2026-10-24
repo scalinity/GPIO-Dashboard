@@ -484,7 +484,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - Tutorials still run with the system `python3` (`runScript`), so they're unaffected.
   - Not run on a Pi from this build (PI_HOST is unset). `HIL_CHECKLIST.md` lists the check.
 
-## ADR-A1-1 The Pi 5 model comes from the no-graphics STEP, read in parts
+## ADR-0020 The Pi 5 model comes from the no-graphics STEP, read in parts
 
 - **Context.**
   - SPEC 6.2 links two official STEP archives, both MIT-licensed by Raspberry Pi Ltd, retrieved
@@ -515,7 +515,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - The STEP is drawn in `pi5-board.json`'s frame: the PCB spans 0–85 by 0–56 mm, and its
     mounting holes sit on the drawing's centres. The only transform is the lift onto the table.
 
-## ADR-A1-2 Pi 5 budget: the PCB and header base stay as modelled, the rest is decimated
+## ADR-0021 Pi 5 budget: the PCB and header base stay as modelled, the rest is decimated
 
 - **Context.**
   - At 0.05 mm linear and 0.5 rad angular deflection the STEP tessellates to 853,982
@@ -540,7 +540,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - The materials are one per STEP colour. Metal versus plastic is a table in `pi5.py`, read
     from where each colour's bodies sit on the board, and the solder mask has a clear coat.
 
-## ADR-A1-3 KTX2 encoding goes through `ktx create`
+## ADR-0022 KTX2 encoding goes through `ktx create`
 
 - **Context.** ADR-0005 installed KTX-Software 4.4.2 for `toktx`. gltf-transform 4.5.1's KTX2
   transform (`toktx()` in `@gltf-transform/cli`) now runs `ktx create`, and needs
@@ -555,7 +555,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** ADR-0005 already links `ktx` into `~/.local/bin`, so nothing new is
   installed, and the WebP fallback isn't needed.
 
-## ADR-A1-4 The asset scripts run on Node's type stripping, with a resolve hook
+## ADR-0023 The asset scripts run on Node's type stripping, with a resolve hook
 
 - **Context.** Node 26 runs `.ts` files directly. assets:check measures the models against
   `core/geometry/breadboard.ts`, which imports `../model/types` without an extension, as Vite
@@ -572,7 +572,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** No new dependency. If core starts importing JSON or browser-only modules
   on the path assets:check takes, the hook won't cover them.
 
-## ADR-A1-5 Breadboard model: drafted recesses under one top-down texture set, sheen for ABS
+## ADR-0024 Breadboard model: drafted recesses under one top-down texture set, sheen for ABS
 
 - **Context.**
   - SPEC 10.4 asks for a chamfered body, molded square hole recesses as geometry, the trench
