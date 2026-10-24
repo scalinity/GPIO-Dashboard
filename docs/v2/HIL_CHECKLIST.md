@@ -18,6 +18,13 @@ says what to do, what to expect, and which part of the app it confirms. Record r
 
 ## Pi agent and monitor
 
+- [ ] **The agent installs and has the libgpiod 2 binding.** Press **Deploy agent** in the
+  dashboard. The install log should end with "Installation complete!". On Bookworm it should
+  also say "apt's gpiod binding is 1.x; installing gpiod 2 into …/venv" with no warning after
+  it; on Trixie it should say neither. Then on the Pi, `cd ~/gpio-dashboard-agent` and run
+  `$([ -x venv/bin/python3 ] && echo venv/bin/python3 || echo python3) -c 'import gpiod;
+  print(gpiod.__version__)'`; it should print 2.x. Record the OS release and that version
+  (SPEC 14.5 asks for the binding version).
 - [ ] **Output pins appear in the Live Monitor.** Run any tutorial that drives an LED (Blinking
   LED). The Monitor should list GPIO17 as an output, with its level changing. Confirms the
   `pinctrl` parser fix for output lines (`op dh pd | hi`).

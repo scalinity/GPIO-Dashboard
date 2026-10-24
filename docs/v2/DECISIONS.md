@@ -457,3 +457,29 @@ decision and consequences. Numbering is stable; superseded records say so.
   - Building presence later means the spike first: a piolib program on RP1 that times the
     charge edge, its noise measured on the bench with and without a dangling lead, and a
     keep-or-drop decision recorded here.
+
+## ADR-0019 The agent gets libgpiod 2 from apt on Trixie and from a venv on Bookworm
+
+- **Context.**
+  - SPEC 14.5 asks which libgpiod binding the Pi's OS ships. Board Sense and the monitor's line
+    info use the v2 Python API (`request_lines`, `LineSettings`, `Chip.get_line_info`).
+  - The baseline `install.sh` asked apt for `python3-gpiod`. No such package exists in Debian
+    or in archive.raspberrypi.com, so the install stopped at its package step.
+  - Debian's `python3-libgpiod` is 2.2.1 (v2) on Trixie and 1.6.3 (v1) on Bookworm. Raspberry
+    Pi OS takes it from Debian. PyPI's `gpiod` 2.x is the official v2 binding, with aarch64
+    wheels for CPython 3.10 to 3.14.
+  - Bookworm's pip refuses system-wide installs (PEP 668).
+- **Decision.**
+  - `install.sh` asks apt for `python3-libgpiod`, `python3-websockets` and `python3-venv`.
+  - When the system `python3` has no `gpiod.request_lines`, it makes `venv/` in the agent's
+    directory with `--system-site-packages` and installs `gpiod>=2,<3` there. The venv still
+    sees apt's websockets and RPi.GPIO. If that fails it removes the venv and warns; the rest
+    of the agent still works.
+  - The app starts the agent with `venv/bin/python3` when it exists, and `python3` otherwise.
+  - The system's Python packages are never changed, and removing the agent's directory removes
+    the venv.
+- **Consequences.**
+  - On Bookworm, Deploy agent downloads gpiod from PyPI once. A 32-bit OS has no wheel and
+    needs `python3-dev` and a compiler; the warning then says Board Sense is unavailable.
+  - Tutorials still run with the system `python3` (`runScript`), so they're unaffected.
+  - Not run on a Pi from this build (PI_HOST is unset). `HIL_CHECKLIST.md` lists the check.

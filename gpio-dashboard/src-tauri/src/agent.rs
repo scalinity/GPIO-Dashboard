@@ -121,12 +121,15 @@ pub async fn get_status(ssh: &Ssh) -> Result<Value, String> {
     Ok(json!({ "running": !out.stdout.trim().is_empty() }))
 }
 
-/// The remote command that launches the agent from `dir`. The script is given by its
-/// full path so `stop_command` can find the process by that path.
+/// The remote command that launches the agent from `dir`, with the venv install.sh makes
+/// when apt's gpiod binding is 1.x. The script is given by its full path so
+/// `stop_command` can find the process by that path.
 pub(crate) fn start_command(dir: &str) -> String {
     let quoted_dir = shell_quote(dir);
     let script = shell_quote(&format!("{dir}/agent.py"));
-    format!("cd {quoted_dir} && nohup python3 {script} > agent.log 2>&1 &")
+    format!(
+        "cd {quoted_dir} && nohup $([ -x venv/bin/python3 ] && echo venv/bin/python3 || echo python3) {script} > agent.log 2>&1 &"
+    )
 }
 
 /// The remote command that stops the agent in `dir`; `then` runs after the kill. The
@@ -151,7 +154,7 @@ mod tests {
     fn the_stop_pattern_matches_the_launched_script_but_not_its_own_command() {
         let start = start_command("/home/pi/gpio-dashboard-agent");
         let stop = stop_command("/home/pi/gpio-dashboard-agent", "");
-        assert!(start.contains("python3 '/home/pi/gpio-dashboard-agent/agent.py'"));
+        assert!(start.contains("echo python3) '/home/pi/gpio-dashboard-agent/agent.py'"));
         assert!(stop.contains("'/home/pi/gpio-dashboard-agent/[a]gent\\.py'"));
         assert!(
             !stop.contains("/agent.py"),
