@@ -40,13 +40,24 @@ export interface RibbonDef {
 
 /**
  * A Dupont lead. Each frame sits at the housing base with +z along the housing axis (up out of
- * a hole), so a housing in a hole stands vertical and the wire leaves its tip. `lengthMm` is the
- * wire between the two housing tips.
+ * a hole), so a housing in a hole stands vertical and the wire leaves its tip.
+ *
+ * The solver wants the length of the WIRE: from where it leaves one housing to where it enters
+ * the other. That is not the length a lead is sold at. A listing's `lengthMm` runs tip to tip
+ * (ADR-0042), so a 200 mm male-male lead has 200 - 2 x 12 mm housings - 2 x 5.5 mm exposed pins
+ * = 165 mm of wire. The integrator converts with `wireLengthMm(wire.lengthMm, wire.kind)` from
+ * core/reach and passes the result as `wireMm`; the same figure drives the rest length, the
+ * over-span relaxation and the taut flag, so the flag agrees with LEAD_TOO_SHORT.
+ *
+ * `lengthMm` is the first version's name for the same wire length and still works. It is NOT the
+ * sold length, whatever the name suggests.
  */
-export interface LeadDef {
+export type LeadDef = LeadEnds &
+  ({ wireMm: number; lengthMm?: undefined } | { lengthMm: number; wireMm?: undefined })
+
+interface LeadEnds {
   a: Pose
   b: Pose
-  lengthMm: number
   guess?: readonly Vec3[]
 }
 

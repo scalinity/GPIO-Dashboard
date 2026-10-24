@@ -142,7 +142,7 @@ const toInt = (a: number[]) => Int32Array.from(a)
 const JITTER_MM = 0.01
 
 export function buildLead(def: LeadDef, rand: () => number): Spec {
-  const L = def.lengthMm
+  const L = def.wireMm ?? def.lengthMm
   const nseg = Math.max(2, Math.round(L / ROD_SPACING))
   const sw = L / nseg
   const n = nseg + 3
