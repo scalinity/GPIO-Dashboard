@@ -14,7 +14,6 @@ import {
 import useTutorialStore from '../store/tutorialStore'
 import useUiStore from '../store/uiStore'
 import CodeEditor from './CodeEditor'
-import AiChatPanel from './AiChatPanel'
 
 const STEPS = [
   { label: 'Introduction', icon: BookOpen },
@@ -154,7 +153,6 @@ export default function TutorialDetail({ tutorial }) {
               <p className="text-gray-400 text-sm">Review and edit the Python code before running it on your Pi.</p>
             </div>
             <CodeEditor code={editorCode} originalCode={tutorial.pythonCode} />
-            <AiChatPanel tutorial={tutorial} />
           </div>
         )
       case 5:

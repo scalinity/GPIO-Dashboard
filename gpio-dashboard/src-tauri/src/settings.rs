@@ -10,7 +10,6 @@ use serde_json::{json, Value};
 
 const KEYCHAIN_SERVICE: &str = "com.gpio-dashboard";
 pub const PASSWORD_KEY: &str = "connection.password";
-pub const API_KEY: &str = "ai.apiKey";
 
 pub struct Settings {
     path: PathBuf,
@@ -31,9 +30,10 @@ fn defaults() -> Value {
             "terminalHeight": 300,
             "completedTutorials": []
         },
-        "ai": {
-            "model": "anthropic/claude-opus-4.6",
-            "thinkingLevel": "medium"
+        "assistant": {
+            "model": "claude-opus-5-5",
+            "effort": "high",
+            "webTools": true
         },
         "run": {
             // Seconds after which a run on the Pi is stopped; null means no limit (D17).
@@ -140,7 +140,7 @@ impl Settings {
     }
 }
 
-/// Secrets live in the keychain under the setting's own key, e.g. `ai.apiKey`.
+/// Secrets live in the keychain under the setting's own key, e.g. `connection.password`.
 /// A missing entry is `Ok("")`; any other keychain failure is an error, so callers
 /// can tell "nothing saved" from "could not read".
 pub fn get_secret(name: &str) -> Result<String, String> {
@@ -179,7 +179,9 @@ mod tests {
         let dir = temp_dir("defaults");
         let settings = Settings::load(dir.clone());
         assert_eq!(settings.get("connection.port"), json!(22));
-        assert_eq!(settings.get("ai.model"), json!("anthropic/claude-opus-4.6"));
+        assert_eq!(settings.get("assistant.model"), json!("claude-opus-5-5"));
+        assert_eq!(settings.get("assistant.effort"), json!("high"));
+        assert_eq!(settings.get("run.timeLimitSec"), Value::Null);
         assert_eq!(settings.get("nope.nothing"), Value::Null);
         let _ = fs::remove_dir_all(dir);
     }

@@ -27,10 +27,6 @@ const COMMANDS: &[&str] = &[
     "settings_set",
     "settings_set_password",
     "settings_get_all",
-    "settings_set_api_key",
-    "settings_has_api_key",
-    "ai_generate",
-    "ai_abort",
     "open_external",
 ];
 

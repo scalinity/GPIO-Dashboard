@@ -82,19 +82,6 @@ export function createApi({ invoke, listen }) {
       set: (key, value) => structured('settings_set', { key, value }),
       setPassword: (value) => structured('settings_set_password', { value }),
       getAll: () => invoke('settings_get_all')
-    },
-
-    ai: {
-      // Fire-and-forget: results and failures come back as events.
-      generate: (params) => {
-        invoke('ai_generate', { params }).catch(() => {})
-      },
-      abort: () => invoke('ai_abort'),
-      onChunk: (callback) => on('ai:chunk', callback),
-      onDone: (callback) => on('ai:done', callback),
-      onError: (callback) => on('ai:error', callback),
-      setApiKey: (value) => structured('settings_set_api_key', { value }),
-      hasApiKey: () => invoke('settings_has_api_key')
     }
   }
 }

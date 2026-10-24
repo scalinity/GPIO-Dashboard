@@ -110,23 +110,10 @@ test('calls map to the command names and argument keys the backend expects', asy
   await api.gpio.connect('pi.local', 'tok')
   await api.terminal.resize('global', 80, 24)
   await api.settings.set('connection.host', 'pi.local')
-  await api.ai.setApiKey('sk')
   assert.deepEqual(calls, [
     ['ssh_scp_buffer', { content: 'code', remotePath: '/tmp/gpio_dashboard/a.py' }],
     ['gpio_connect', { host: 'pi.local', authToken: 'tok' }],
     ['terminal_resize', { sessionId: 'global', cols: 80, rows: 24 }],
-    ['settings_set', { key: 'connection.host', value: 'pi.local' }],
-    ['settings_set_api_key', { value: 'sk' }]
+    ['settings_set', { key: 'connection.host', value: 'pi.local' }]
   ])
-})
-
-test('ai.generate is fire-and-forget and swallows a rejection', async () => {
-  const api = createApi({
-    invoke: async () => {
-      throw new Error('gone')
-    },
-    listen: async () => () => {}
-  })
-  assert.equal(api.ai.generate({ prompt: 'x' }), undefined)
-  await tick()
 })

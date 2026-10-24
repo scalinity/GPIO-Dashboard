@@ -12,7 +12,6 @@ use tauri_plugin_dialog::DialogExt;
 
 use crate::{
     agent,
-    ai::Ai,
     settings::{self, Settings},
     ssh::{Auth, Ssh, Target},
     ws::{Route, Ws},
@@ -24,7 +23,7 @@ const GPIO_AGENT_PORT: u16 = 8765;
 const TUTORIAL_DIR: &str = "/tmp/gpio_dashboard";
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
 
-const SETTINGS_ALLOWLIST: [&str; 10] = [
+const SETTINGS_ALLOWLIST: [&str; 11] = [
     "ui.completedTutorials",
     "ui.selectedTab",
     "connection.host",
@@ -32,8 +31,9 @@ const SETTINGS_ALLOWLIST: [&str; 10] = [
     "connection.username",
     "connection.authMethod",
     "connection.keyPath",
-    "ai.model",
-    "ai.thinkingLevel",
+    "assistant.model",
+    "assistant.effort",
+    "assistant.webTools",
     "run.timeLimitSec",
 ];
 
@@ -382,40 +382,6 @@ pub async fn settings_set_password(value: Option<String>) -> CommandResult {
 #[tauri::command]
 pub async fn settings_get_all(settings: State<'_, Settings>) -> CommandResult {
     Ok(settings.all())
-}
-
-#[tauri::command]
-pub async fn settings_set_api_key(value: String) -> CommandResult {
-    let key = value.trim();
-    if key.is_empty() {
-        return Ok(error_json("Invalid API key".into()));
-    }
-    Ok(match settings::set_secret(settings::API_KEY, key) {
-        Ok(()) => json!({ "success": true }),
-        Err(e) => error_json(e),
-    })
-}
-
-#[tauri::command]
-pub async fn settings_has_api_key() -> CommandResult {
-    Ok(match settings::get_secret(settings::API_KEY) {
-        Ok(key) => json!({ "hasKey": !key.is_empty() }),
-        Err(e) => json!({ "hasKey": false, "error": e }),
-    })
-}
-
-// --- AI ---
-
-#[tauri::command]
-pub async fn ai_generate(ai: State<'_, Ai>, params: Value) -> CommandResult {
-    ai.generate(params, || settings::get_secret(settings::API_KEY));
-    Ok(Value::Null)
-}
-
-#[tauri::command]
-pub fn ai_abort(ai: State<'_, Ai>) -> CommandResult {
-    ai.abort();
-    Ok(json!({ "success": true }))
 }
 
 // --- System ---

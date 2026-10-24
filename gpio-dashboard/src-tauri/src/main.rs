@@ -2,7 +2,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod agent;
-mod ai;
 mod commands;
 #[cfg(test)]
 mod live_tests;
@@ -24,7 +23,7 @@ use std::{
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder};
 
-use crate::{ai::Ai, settings::Settings, ssh::Ssh, ws::Ws};
+use crate::{settings::Settings, ssh::Ssh, ws::Ws};
 
 /// Creates the main window. Production loads the frontend from the loopback server, which
 /// WKWebView needs for SharedArrayBuffer (ADR-0008); dev loads `devUrl`. Either way the window
@@ -87,8 +86,7 @@ fn main() {
             });
             let config_dir = app.path().app_config_dir()?;
             app.manage(Ssh::new(emit.clone(), config_dir.join("known_hosts")));
-            app.manage(Ws::new(emit.clone()));
-            app.manage(Ai::new(emit));
+            app.manage(Ws::new(emit));
             app.manage(Settings::load(config_dir));
             create_main_window(app)?;
             Ok(())
@@ -117,10 +115,6 @@ fn main() {
             commands::settings_set,
             commands::settings_set_password,
             commands::settings_get_all,
-            commands::settings_set_api_key,
-            commands::settings_has_api_key,
-            commands::ai_generate,
-            commands::ai_abort,
             commands::open_external,
         ])
         .build(tauri::generate_context!())
