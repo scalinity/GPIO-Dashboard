@@ -35,6 +35,8 @@ export class SimSession {
   private readonly gpio = new Map<number, GpioState>()
   private readonly env: Map<string, Record<string, EnvValue>>
   private error: string | null = null
+  /** Input readings since the last settle; the circuit cannot change between settles. */
+  private readonly reads = new Map<number, ReturnType<SimSession['read']>>()
   /** GPIOs whose nets reach a behavioural part's pin: their PWM is stepped edge by edge. */
   private readonly listened: Set<number>
 
@@ -67,11 +69,21 @@ export class SimSession {
    * datasheet's input leakage alone could move it past VIL.
    */
   read(bcm: number): 'low' | 'high' | 'ambiguous' | 'floating' {
+    const cached = this.reads.get(bcm)
+    if (cached) return cached
     const node = this.circuit.gpioNodes.get(bcm)
     if (node === undefined || !this.x) return 'floating'
     const v = this.v(node)
-    if (this.theveninOhms(node) * RP1.inputLeakageMaxA > RP1.vilMaxV) return 'floating'
-    return v <= RP1.vilMaxV ? 'low' : v >= RP1.vihMinV ? 'high' : 'ambiguous'
+    const level =
+      this.theveninOhms(node) * RP1.inputLeakageMaxA > RP1.vilMaxV
+        ? 'floating'
+        : v <= RP1.vilMaxV
+          ? 'low'
+          : v >= RP1.vihMinV
+            ? 'high'
+            : 'ambiguous'
+    this.reads.set(bcm, level)
+    return level
   }
 
   /**
@@ -125,14 +137,19 @@ export class SimSession {
   /** Runs behaviour timers and listened PWM edges up to t, settling at each, then at t. */
   advanceTo(t: number) {
     if (t < this.t) throw new Error(`Time runs forward: ${t} < ${this.t}`)
+    let events = 0
     for (;;) {
       const next = Math.min(this.nextBehaviorEvent(), this.nextPwmEdge())
       if (!(next <= t)) break
       this.t = next
       this.settle()
+      events++
     }
     this.t = t
-    this.settle()
+    // With no event in between, nothing changed: behaviours change by themselves only at the
+    // times nextEvent names, and every stimulus change settles at once. Only the clock moves,
+    // which keeps a polling loop (a shim call every 5 µs) from solving the circuit each call.
+    if (events > 0) this.settle()
   }
 
   private nextBehaviorEvent(): number {
@@ -195,6 +212,7 @@ export class SimSession {
 
   /** Solve, update behaviours, and repeat until their drives and loads stop changing. */
   private settle() {
+    this.reads.clear()
     const envOf = (part: string) => this.env.get(part)!
     const behaviors = this.circuit.behaviors
     const averaged = this.averagedPwm()
