@@ -232,6 +232,16 @@ and **Find likely causes** should list the true fault among the top three:
 
 Presence sensing needs a timing spike on the Pi (ADR-0018). It is not part of this build.
 
+### 8. Sensing a circuit with transistor bases behind resistors
+
+- [ ] **Watch the digits while sensing the 4-Digit 7-Segment build.** GPIO5, 6, 12 and 13 reach the
+  S8550 PNP bases through 1 kΩ resistors (R9–R12). The probe skips a pin whose own net holds a part
+  that must not be disturbed, but these bases sit one resistor away, so Board Sense's pull changes
+  reach them (ADR-0116). It never drives a pin, but a pull of about 50 kΩ could turn a PNP on a
+  little. Build the circuit, start sensing from the Board tab, and note whether any digit glows or
+  flickers between sweeps. If one does, record it; the skip rule should then look through series
+  resistors to transistor bases.
+
 
 ## Hardware twin (M11)
 
