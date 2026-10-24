@@ -2,7 +2,8 @@
 // their own port, so a running `tauri dev` (5173) is never mistaken for the server under test.
 import { defineConfig, devices } from '@playwright/test'
 
-const PORT = 5193
+// E2E_PORT lets a second worktree on this machine run its own suite at the same time.
+const PORT = Number(process.env.E2E_PORT ?? 5193)
 
 export default defineConfig({
   testDir: 'e2e',
