@@ -65,6 +65,23 @@
     @apply bg-surface-800/60 backdrop-blur-xl;
   }
 
+  /* Build Mode's rings over the holes of the step in hand (studio/stepMarks.ts). */
+  .step-mark {
+    @apply block rounded-full border-2;
+    width: 30px;
+    height: 30px;
+    margin: -15px 0 0 -15px;
+    animation: step-pulse 1.4s ease-out infinite;
+  }
+  .step-mark-step {
+    border-color: #c4b5fd;
+    box-shadow: 0 0 12px #a78bfa;
+  }
+  .step-mark-cause {
+    border-color: #fca5a5;
+    box-shadow: 0 0 12px #ef4444;
+  }
+
   .glass-panel {
     @apply glass-bg border border-white/[0.04];
   }
@@ -119,5 +136,23 @@
     transform-box: fill-box;
     transform-origin: center;
     transform: rotate(90deg);
+  }
+}
+
+@keyframes step-pulse {
+  0% {
+    transform: scale(0.55);
+    opacity: 1;
+  }
+  70%,
+  100% {
+    transform: scale(1.25);
+    opacity: 0.15;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-mark {
+    animation: none;
   }
 }

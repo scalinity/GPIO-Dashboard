@@ -6,7 +6,10 @@
 // studio store's edit(), one transaction each. While an assistant turn owns the document the canvas
 // is read-only: the camera and hover work, nothing edits (SPEC 11.8). The assistant's ghosts are
 // drawn into the shown document, its changes tinted, and its cues marked; it can capture a view.
+// In Build Mode (SPEC 11.7) the bench shows the document as built so far with the step in hand as
+// a ghost, the camera frames the step, and depth of field can follow its target.
 import {
+  Box3,
   BoxGeometry,
   Color,
   EdgesGeometry,
@@ -22,20 +25,24 @@ import {
   type WebGPURenderer
 } from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import type { CapturedView, ViewPreset } from '../assistant/context'
+import type { CapturedView, Ghost, ViewPreset } from '../assistant/context'
 import { boardDef } from '../core/defs/boards'
 import { PI_HEADER } from '../core/defs/controllers'
+import { partDef } from '../core/defs/parts'
 import { holeKey, isValidHole, parseHoleKey } from '../core/geometry/breadboard'
 import { tboardPinHoles } from '../core/geometry/tboard'
 import type { CircuitDoc, Endpoint, Op, Vec3, Wire } from '../core/model/types'
+import { computeState, type ConnectivityState } from '../core/netlist/engine'
 import type { Problem } from '../core/ops/validate'
+import { useBuild } from '../state/buildStore'
 import { circuit } from '../state/circuit'
 import { LOCKED_MESSAGE } from '../state/circuitStore'
 import { useSense } from '../state/senseStore'
-import { edit, type Selection, type Tool, useStudio } from '../state/studioStore'
+import { BUILDING_MESSAGE, edit, type Selection, type Tool, useStudio } from '../state/studioStore'
 import { useWorkbench } from '../state/workbenchStore'
 import { BenchLayer } from './bench'
 import { bodyBox, pickBody, pointsBox } from './bodies'
+import { BUILD_GHOST } from './build'
 import { Cables, type CablesReport, placeColliders, type Placement, TABLE, toCore } from './cables'
 import { CameraTween, type Preset, presetView, sphereView } from './camera'
 import { defOf, endpointInScene, holeInScene, poseMatrix } from './coords'
@@ -63,6 +70,7 @@ import { holeFree, holeLegality, removePartOps, turned, turnedPart } from './pla
 import { Post } from './renderer'
 import { SimVisuals, type VisualsReport } from './simvisuals'
 import { setStatus } from './status'
+import { type Mark, StepMarks } from './stepMarks'
 import { WireLayer } from './wires'
 
 const KEYS: Record<string, Preset> = { f: 'fit', 1: 'fit', 2: 'iso', 3: 'top', 4: 'front' }
@@ -91,6 +99,8 @@ const CLICK_PX = 4
 /** A lead grabbed this close to one of its route hints moves that hint rather than adding one. */
 const HINT_GRAB_MM = 15
 const MAX_HINTS = 3
+/** A box of side 1 about the origin: a selection box's matrix maps it onto the body. */
+const UNIT = new Box3(new Vector3(-0.5, -0.5, -0.5), new Vector3(0.5, 0.5, 0.5))
 
 /** What the last hover showed, and on which frame (tests read it). */
 export interface HoverRecord {
@@ -122,6 +132,21 @@ export interface SceneReport {
   ghosts: string[]
   /** How many places the assistant's cue marks. */
   cueMarks: number
+  /** Build Mode's step on the bench; null outside Build Mode. */
+  build: BuildReport | null
+}
+
+/** What Build Mode shows for the step in hand, read back for tests. */
+export interface BuildReport {
+  index: number
+  /** The step's ghost on the bench, by id; none for the T-board step and the finished build. */
+  ghosts: string[]
+  /** The pulsing marks, in canvas pixels, and whether each is on screen. */
+  marks: { x: number; y: number; tone: 'step' | 'cause'; inView: boolean }[]
+  /** How long the camera took to frame the step, in ms; null while it is still on its way. */
+  framingMs: number | null
+  /** Whether depth of field follows the step's target. */
+  blur: boolean
 }
 
 /** A capture_view in progress: waiting for the cables to sleep, then for TRAA to settle. */
@@ -190,6 +215,21 @@ export class StudioView {
     new LineBasicNodeMaterial({ color: STRIP_COLOR })
   )
   private readonly tween = new CameraTween()
+  /** Build Mode's rings over the step's holes; set while the Studio is attached. */
+  private stepMarks: StepMarks | null = null
+  private marksKey = ''
+  /** When the camera set off to frame the step, and how long it took. */
+  private framing: { start: number; ms: number | null } | null = null
+  /** Depth of field follows the camera's target (Build Mode, SPEC 10.7). */
+  private focusing = false
+  /** The connectivity of Build Mode's document, for what hover and pressing ask of it. */
+  private shownState: ConnectivityState | null = null
+  /** The assistant's ghosts with the step's: the same object while neither changed. */
+  private merged: {
+    ghosts: Record<string, Ghost>
+    step: Ghost
+    out: Record<string, Ghost>
+  } | null = null
   private readonly raycaster = new Raycaster()
   private invalidate: () => void = () => {}
   private canvas: HTMLCanvasElement | null = null
@@ -232,6 +272,9 @@ export class StudioView {
     this.camera.position.copy(view.position)
     this.controls.target.copy(view.target)
     this.controls.update()
+    // Reopening the Studio in the middle of a build: the step is framed, not flown to.
+    if (useBuild.getState().on) this.frameBuild(true)
+    this.syncFocus()
     this.draw()
   }
 
@@ -241,7 +284,8 @@ export class StudioView {
     // Damping drains during a preset move too, so nothing is left over when it ends.
     let moving = this.controls.update()
     if (this.tween.active) {
-      this.tween.step(now, this.camera, this.controls.target)
+      const running = this.tween.step(now, this.camera, this.controls.target)
+      if (!running && this.framing?.ms === null) this.framing.ms = now - this.framing.start
       moving = true
     }
     if (this.insertion.settle(now)) {
@@ -258,12 +302,14 @@ export class StudioView {
     if (this.visuals.step(now)) moving = true
     const capture = this.capturing && this.captureStep(now)
     if (this.capturing) moving = true
+    if (this.focusing) this.post.setFocus(this.camera.position.distanceTo(this.controls.target))
     this.post.render()
     if (capture) this.finishCapture(capture)
     if (this.canvas) {
       const [w, h] = [this.canvas.clientWidth, this.canvas.clientHeight]
       this.labels?.project(this.camera, w, h)
       this.visuals.tags?.project(this.camera, w, h)
+      this.stepMarks?.project(this.camera, w, h)
     }
     const more = this.loop.tick(moving, now)
     this.hover.shownFrame ??= this.loop.frames
@@ -305,7 +351,7 @@ export class StudioView {
   /** Frames `refs` (parts, leads, boards, holes or nets), keeping the view's direction. */
   focusOn(refs: string[]): void {
     const doc = this.drawnDoc()
-    const { box } = cuePlaces(doc, circuit.engine.state.netlist, refs, {
+    const { box } = cuePlaces(doc, this.conn().netlist, refs, {
       size: CUE_SIZE_MM,
       color: CUE_COLOR
     })
@@ -407,15 +453,16 @@ export class StudioView {
       ),
       leadEnds: [...this.parts.leadEnds(), ...this.wires.maleTips()],
       sim: this.visuals.report(),
-      ghosts: ghostIds(circuit.getSnapshot(), this.ghosted()),
-      cueMarks: this.cueMarkers.count
+      ghosts: ghostIds(this.base(), this.ghosted()),
+      cueMarks: this.cueMarkers.count,
+      build: this.buildReport()
     }
   }
 
   /** Shows a net's strips and lead ends as hover does (the Nets list); null clears it. */
   highlightNet(name: string | null): void {
-    const doc = circuit.getSnapshot()
-    const net = name ? circuit.engine.state.netlist.byName.get(name) : undefined
+    const doc = this.base()
+    const net = name ? this.conn().netlist.byName.get(name) : undefined
     this.highlights.set(
       net
         ? netMarkers(
@@ -435,11 +482,14 @@ export class StudioView {
     element: HTMLElement,
     tooltip: HTMLElement,
     labels: HTMLElement,
-    tags: HTMLElement
+    tags: HTMLElement,
+    marks: HTMLElement
   ): () => void {
     this.tooltip = tooltip
     this.labels = new LabelLayer(labels)
     this.visuals.tags = new LabelLayer(tags)
+    this.stepMarks = new StepMarks(marks)
+    this.marksKey = ''
     this.controls.connect(element)
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
@@ -507,6 +557,15 @@ export class StudioView {
         )
           this.syncVisuals()
       }),
+      // Build Mode: the step in hand changes what is drawn, where the camera looks, and the marks.
+      useBuild.subscribe((now, before) => {
+        if (now.scene !== before.scene) {
+          this.refreshHover()
+          this.draw()
+        } else if (now.status !== before.status) this.syncMarks()
+        if (now.frameSeq !== before.frameSeq) this.frameBuild()
+        if (now.on !== before.on || now.blur !== before.blur) this.syncFocus()
+      }),
       // A model, texture or the parts index arriving draws what was waiting on it.
       onArrival(() => this.draw())
     ]
@@ -518,6 +577,7 @@ export class StudioView {
     element.addEventListener('pointermove', onMove)
     element.addEventListener('pointerleave', onLeave)
     this.showCue()
+    this.syncMarks()
     return () => {
       this.cancel()
       this.capturing?.reject(new Error('The 3D stage closed before the capture.'))
@@ -533,6 +593,7 @@ export class StudioView {
       this.tooltip = null
       this.labels = null
       this.visuals.tags = null
+      this.stepMarks = null
       // GPU resources go with the Studio (SPEC 10.8); a later attach draws them again.
       this.bench.dispose()
       this.visuals.dispose()
@@ -584,16 +645,16 @@ export class StudioView {
       new Vector2((x / rect.width) * 2 - 1, -(y / rect.height) * 2 + 1),
       this.camera
     )
-    const doc = circuit.getSnapshot()
+    const doc = this.base()
     const ray = this.raycaster.ray.clone()
     return { ray, hole: pickHole(doc, ray), pin: pickModulePin(doc, ray) }
   }
 
   /** What a press here selects, and what it drags (SPEC 11.3). */
   private pick(p: Pointer): { select: Selection | null; drag: Gesture | null } {
-    const doc = circuit.getSnapshot()
+    const doc = this.base()
     const selected = useStudio.getState().selection
-    const occupant = p.hole && circuit.engine.state.occupancy.get(holeKey(p.hole))?.occupant
+    const occupant = p.hole && this.conn().occupancy.get(holeKey(p.hole))?.occupant
     // Lead ends, in a hole or on a module pin, drag on their own.
     const end =
       occupant?.kind === 'wire'
@@ -682,9 +743,11 @@ export class StudioView {
     if (!p) return
     const wireTool = useStudio.getState().tool === 'wire'
     const picked = wireTool ? { select: null, drag: null } : this.pick(p)
-    // Read-only while the assistant works: a press still selects, but drags nothing (it orbits).
-    const { select, drag } = circuit.locked ? { ...picked, drag: null } : picked
-    if (select?.kind === 'part') this.pressSwitch(select.id)
+    // Read-only while the assistant works or a build is played: a press still selects, but drags
+    // nothing (it orbits), and no switch is pressed on a bench that is only partly drawn.
+    const building = useBuild.getState().on
+    const { select, drag } = circuit.locked || building ? { ...picked, drag: null } : picked
+    if (select?.kind === 'part' && !building) this.pressSwitch(select.id)
     // The orbit controls ignore a press that drags something.
     if (drag) this.controls.enabled = false
     this.press = { x: e.clientX, y: e.clientY, select, drag, dragging: false }
@@ -709,7 +772,12 @@ export class StudioView {
     this.releaseSwitch()
     const right = this.rightPress
     this.rightPress = null
-    if (e.button === 2 && right && Math.hypot(e.clientX - right.x, e.clientY - right.y) <= CLICK_PX)
+    if (
+      e.button === 2 &&
+      right &&
+      !useBuild.getState().on &&
+      Math.hypot(e.clientX - right.x, e.clientY - right.y) <= CLICK_PX
+    )
       this.pinMenu(e)
     if (this.gesture?.kind === 'place' || press?.dragging) {
       this.commit()
@@ -751,17 +819,18 @@ export class StudioView {
   /** A right click on one of the T-board's GPIO pins opens its menu (Studio.tsx). */
   private pinMenu(e: PointerEvent): void {
     const hole = this.pointerAt(e)?.hole
-    const occupant = hole && circuit.engine.state.occupancy.get(holeKey(hole))?.occupant
+    const occupant = hole && this.conn().occupancy.get(holeKey(hole))?.occupant
     const pin = occupant?.kind === 'tboard' ? PI_HEADER[occupant.pin - 1] : undefined
     useStudio.setState({
       pinMenu: pin?.bcm == null ? null : { bcm: pin.bcm, x: e.clientX, y: e.clientY }
     })
   }
 
-  /** While an assistant turn owns the document, says so and returns true. */
+  /** While an assistant turn owns the document or a build is played, says so and returns true. */
   private refuseWhileLocked(): boolean {
-    if (!circuit.locked) return false
-    useStudio.setState({ notice: LOCKED_MESSAGE })
+    const building = useBuild.getState().on
+    if (!circuit.locked && !building) return false
+    useStudio.setState({ notice: circuit.locked ? LOCKED_MESSAGE : BUILDING_MESSAGE })
     return true
   }
 
@@ -852,9 +921,30 @@ export class StudioView {
     this.invalidate()
   }
 
-  /** The committed document with the assistant's ghosts in it. */
+  /**
+   * The document the bench holds as committed: in Build Mode the steps done so far, else the app's
+   * document. The pointer, hover, selection and insertion all go by it.
+   */
+  private base(): CircuitDoc {
+    return useBuild.getState().scene?.shown ?? circuit.getSnapshot()
+  }
+
+  /** The base document's connectivity: the app's engine, or Build Mode's own. */
+  private conn(): ConnectivityState {
+    const shown = useBuild.getState().scene?.shown
+    if (!shown) return circuit.engine.state
+    if (this.shownState?.doc !== shown) this.shownState = computeState(shown, partDef)
+    return this.shownState
+  }
+
+  /** The base document with the assistant's ghosts, and the step in hand as one more. */
   private ghosted(): CircuitDoc {
-    return withGhosts(circuit.getSnapshot(), useStudio.getState().ghosts)
+    const { ghosts } = useStudio.getState()
+    const step = useBuild.getState().scene?.ghost
+    if (!step) return withGhosts(this.base(), ghosts)
+    if (this.merged?.ghosts !== ghosts || this.merged.step !== step)
+      this.merged = { ghosts, step, out: { ...ghosts, [BUILD_GHOST]: step } }
+    return withGhosts(this.base(), this.merged.out)
   }
 
   /** The document being drawn: the drag's preview, else the committed one with any ghosts. */
@@ -869,7 +959,7 @@ export class StudioView {
    */
   private draw(): void {
     const { preview, selection, labels } = useStudio.getState()
-    const committed = circuit.getSnapshot()
+    const committed = this.base()
     const doc = preview ?? this.ghosted()
     const now = performance.now()
     this.insertion.hover(doc === committed ? [] : reseated(committed, doc))
@@ -913,6 +1003,7 @@ export class StudioView {
     this.placeSelection(doc, selection)
     this.labels?.set(labels ? labelsOf(doc) : [])
     this.syncVisuals()
+    this.syncMarks()
     // A highlight follows what it names as the document changes.
     if (useStudio.getState().cue?.marks) this.showCue()
     this.invalidate()
@@ -979,7 +1070,13 @@ export class StudioView {
     const { voltages, current, sense, tinted } = useStudio.getState()
     const board = useSense.getState()
     const doc = this.drawnDoc()
-    const ghosts = new Set(ghostIds(circuit.getSnapshot(), doc))
+    const ghosts = new Set(ghostIds(this.base(), doc))
+    // A build in progress shows a bench that is not the one the simulation ran: nothing glows. And
+    // Board Sense's tint compares the board with the finished document, so while a build is played
+    // everything not yet built reads as diverged, and its causes would be searched for one net at a
+    // time; the step card reports what the sweeps say of the step instead.
+    const build = useBuild.getState()
+    const partial = build.on && build.index < build.steps.length
     this.visuals.sync({
       doc,
       review: {
@@ -992,13 +1089,13 @@ export class StudioView {
           ...doc.wires.filter((w) => ghosts.has(w.id)).map((w) => w.id)
         ]
       },
-      snapshot: sim?.snapshot ?? null,
+      snapshot: partial ? null : (sim?.snapshot ?? null),
       env,
       issues: sim?.issues ?? [],
       voltages,
       current,
       sense: {
-        on: sense && board.mode !== 'off',
+        on: sense && board.mode !== 'off' && !build.on,
         states: board.states,
         candidates: board.candidates,
         findCauses: (pin) => void useSense.getState().findCauses(pin)
@@ -1006,12 +1103,107 @@ export class StudioView {
     })
   }
 
+  /**
+   * Frames the step in hand (SPEC 10.7, 11.7), eased in PRESET_MS: its holes and part, the T-board
+   * and the Pi for the first step, the whole bench once the build is done. The view's direction
+   * stays as the user has it. `jump` sets the camera there at once.
+   */
+  private frameBuild(jump = false): void {
+    const { scene } = useBuild.getState()
+    if (!scene) return
+    const doc = this.drawnDoc()
+    const box = new Box3()
+    const add = (sel: Parameters<typeof bodyBox>[1]) => {
+      const m = bodyBox(doc, sel)
+      if (m) box.union(UNIT.clone().applyMatrix4(m))
+    }
+    if (scene.tboard) {
+      add({ kind: 'tboard' })
+      add({ kind: 'pi' })
+    } else {
+      for (const mark of scene.marks) {
+        const at = endpointInScene(doc, mark)
+        if (at) box.expandByPoint(at.at)
+      }
+      if (scene.part) add({ kind: 'part', id: scene.part })
+    }
+    const direction = this.camera.position.clone().sub(this.controls.target).normalize()
+    let to: ReturnType<typeof sphereView>
+    if (box.isEmpty()) to = presetView('fit', doc, this.camera, this.controls.target)
+    else {
+      const sphere = box.getBoundingSphere(new Sphere())
+      sphere.radius = Math.max(sphere.radius, FOCUS_MIN_RADIUS_MM)
+      to = sphereView(sphere, this.camera, direction)
+    }
+    if (jump) {
+      this.camera.position.copy(to.position)
+      this.controls.target.copy(to.target)
+      this.camera.lookAt(to.target)
+      this.framing = { start: performance.now(), ms: 0 }
+    } else {
+      const from = { position: this.camera.position, target: this.controls.target }
+      this.tween.begin(performance.now(), from, to)
+      this.framing = { start: performance.now(), ms: null }
+    }
+    this.invalidate()
+  }
+
+  /** The step's rings over its holes, and a red ring where Board Sense's likeliest cause is. */
+  private syncMarks(): void {
+    if (!this.stepMarks) return
+    const { scene, status } = useBuild.getState()
+    const doc = this.drawnDoc()
+    const marks: Mark[] = []
+    for (const mark of scene?.marks ?? []) {
+      const at = endpointInScene(doc, mark)
+      if (at) marks.push({ at: at.at, tone: 'step' })
+    }
+    const likeliest =
+      status.state === 'diverged' && Array.isArray(status.causes) && status.causes[0]
+    for (const hole of likeliest ? likeliest.candidates[0]!.holes : []) {
+      const at = endpointInScene(doc, { hole })
+      if (at) marks.push({ at: at.at, tone: 'cause' })
+    }
+    // Rings that stand where they stood are left alone, so their pulse keeps its beat.
+    const key = JSON.stringify(marks.map((m) => [m.at.toArray(), m.tone]))
+    if (key === this.marksKey && this.stepMarks.count === marks.length) return
+    this.marksKey = key
+    this.stepMarks.set(marks)
+    this.invalidate()
+  }
+
+  /** Depth of field follows the camera's target while Build Mode asks for it; otherwise it is off. */
+  private syncFocus(): void {
+    const { on, blur } = useBuild.getState()
+    this.focusing = on && blur
+    if (!this.focusing) this.post?.setFocus(null)
+    this.invalidate()
+  }
+
+  private buildReport(): BuildReport | null {
+    const build = useBuild.getState()
+    if (!build.on || !this.canvas) return null
+    const [w, h] = [this.canvas.clientWidth, this.canvas.clientHeight]
+    return {
+      index: build.index,
+      ghosts: ghostIds(this.base(), this.ghosted()),
+      marks: (this.stepMarks?.screen(this.camera, w, h) ?? []).map(({ x, y, tone }) => ({
+        x,
+        y,
+        tone,
+        inView: x >= 0 && y >= 0 && x <= w && y <= h
+      })),
+      framingMs: this.framing?.ms ?? null,
+      blur: this.focusing
+    }
+  }
+
   /** Marks what the assistant's highlight names; a focus or no cue marks nothing. */
   private showCue(): void {
     const cue = useStudio.getState().cue
     this.cueMarkers.set(
       cue?.marks
-        ? cuePlaces(this.drawnDoc(), circuit.engine.state.netlist, cue.refs, {
+        ? cuePlaces(this.drawnDoc(), this.conn().netlist, cue.refs, {
             size: CUE_SIZE_MM,
             color: CUE_COLOR
           }).markers
@@ -1073,9 +1265,9 @@ export class StudioView {
         -((e.clientY - rect.top) / rect.height) * 2 + 1
       )
       this.raycaster.setFromCamera(ndc, this.camera)
-      const doc = circuit.getSnapshot()
+      const doc = this.base()
       const hole = pickHole(doc, this.raycaster.ray)
-      info = hole && hoverInfo(doc, circuit.engine.state.netlist, hole)
+      info = hole && hoverInfo(doc, this.conn().netlist, hole)
       if (this.tooltip) {
         const [x, y] = [e.clientX - rect.left + 14, e.clientY - rect.top + 14]
         this.tooltip.style.transform = `translate(${x}px, ${y}px)`
@@ -1090,10 +1282,10 @@ export class StudioView {
   private refreshHover(): void {
     const hole = this.hover.info?.hole
     if (!hole) return
-    const doc = circuit.getSnapshot()
+    const doc = this.base()
     const board = doc.boards.find((b) => b.id === hole.board)
     const valid = board && isValidHole(boardDef(board.defId), hole)
-    this.show(valid ? hoverInfo(doc, circuit.engine.state.netlist, hole) : null)
+    this.show(valid ? hoverInfo(doc, this.conn().netlist, hole) : null)
   }
 
   private show(info: HoverInfo | null): void {
@@ -1102,7 +1294,7 @@ export class StudioView {
       this.tooltip.textContent = info?.text ?? ''
       this.tooltip.hidden = !info
     }
-    const doc = circuit.getSnapshot()
+    const doc = this.base()
     const markers: Marker[] = []
     for (const hole of info?.strip ?? []) {
       markers.push({ ...endpointInScene(doc, { hole })!, size: STRIP_SIZE_MM, color: STRIP_COLOR })

@@ -168,10 +168,17 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
   const tooltip = useRef<HTMLDivElement>(null)
   const labels = useRef<HTMLDivElement>(null)
   const tags = useRef<HTMLDivElement>(null)
+  const marks = useRef<HTMLDivElement>(null)
   const notice = useStudio((s) => s.notice)
   const attach = useCallback(
     (element: HTMLDivElement) => {
-      const detach = view.attach(element, tooltip.current!, labels.current!, tags.current!)
+      const detach = view.attach(
+        element,
+        tooltip.current!,
+        labels.current!,
+        tags.current!,
+        marks.current!
+      )
       bindStage(view)
       if (import.meta.env.DEV) window.__studio = view
       return () => {
@@ -207,6 +214,7 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
         </Canvas>
         <div ref={labels} className="absolute inset-0 overflow-hidden pointer-events-none" />
         <div ref={tags} className="absolute inset-0 overflow-hidden pointer-events-none" />
+        <div ref={marks} className="absolute inset-0 overflow-hidden pointer-events-none" />
         <div
           ref={tooltip}
           hidden
