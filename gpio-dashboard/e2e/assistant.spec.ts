@@ -172,8 +172,8 @@ test.describe('the Claude drawer', () => {
     await expect(working(page)).toBeVisible()
     const during = await appDoc(page)
 
-    // Undo, by button and by key, does nothing.
-    await page.getByRole('button', { name: 'Undo', exact: true }).click()
+    // Undo is disabled on the top bar, and the key does nothing.
+    await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled()
     await page.mouse.click(5, 300)
     await page.keyboard.press('ControlOrMeta+z')
     // A part dragged from the library is not placed, and says why.
