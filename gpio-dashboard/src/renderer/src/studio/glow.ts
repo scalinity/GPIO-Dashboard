@@ -13,6 +13,12 @@ import { BLOOM_THRESHOLD } from './renderer'
 export const glowOf = (brightness: number): number =>
   Math.min(Math.max(brightness, 0), 2) ** 0.6 * 4 * BLOOM_THRESHOLD
 
+/**
+ * Emission with a channel this strong may pass the bloom's threshold once the light on the surface
+ * is added (a surface is lit to under 1, ADR-0067); nothing weaker needs the bloom drawn.
+ */
+export const BLOOM_GATE = BLOOM_THRESHOLD / 2
+
 /** Below this strength a die counts as dark. */
 const DARK = 0.02
 

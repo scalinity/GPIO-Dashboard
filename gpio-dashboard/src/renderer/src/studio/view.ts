@@ -322,6 +322,7 @@ export class StudioView {
     const capture = this.capturing && this.captureStep(now)
     if (this.capturing) moving = true
     if (this.focusing) this.post.setFocus(this.camera.position.distanceTo(this.controls.target))
+    this.post.setBloom(this.visuals.glowing)
     this.post.render()
     if (capture) this.finishCapture(capture)
     if (this.canvas) {

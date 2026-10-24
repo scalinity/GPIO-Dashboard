@@ -32,6 +32,8 @@ interface Run {
   renderMs: number
   inputMs: number
   buffersPerFrame: number
+  /** The GPU's summed pass time for a frame (timestamp queries), ms, median of ten frames. */
+  gpuMs: number | null
 }
 
 const bases = (process.env.FRAME_RATE_BASES ?? '').split(',').filter(Boolean)
@@ -179,6 +181,7 @@ async function measure(page: Page, base: string, scene: string): Promise<Run> {
   const r = await drag(seconds)
   if (cdp && process.env.FRAME_RATE_PROFILE) await profile(cdp, `${scene} @ ${base}`)
   await page.mouse.up()
+  const gpuMs = await passTime(page)
   return {
     scene,
     base,
@@ -188,8 +191,30 @@ async function measure(page: Page, base: string, scene: string): Promise<Run> {
     frameMs: r.frameMs,
     renderMs: r.renderMean,
     inputMs: r.inputMs,
-    buffersPerFrame: r.buffers / r.frames
+    buffersPerFrame: r.buffers / r.frames,
+    gpuMs
   }
+}
+
+/**
+ * The GPU's time over every pass of a frame, from the timestamp queries a dev build's renderer
+ * keeps: ten frames, each resolved on its own. A pass is timed from its first stage to its last, and
+ * waits on the one before it, so the sum is generous (ADR-0082); it compares builds, not frames.
+ */
+async function passTime(page: Page): Promise<number | null> {
+  return page.evaluate(async () => {
+    const view = (window as unknown as Counted).__studio
+    const renderer = view.post!.renderer
+    const sums: number[] = []
+    for (let k = 0; k < 10; k++) {
+      view.loop.changed()
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+      await renderer.resolveTimestampsAsync('render')
+      if (renderer.info.render.timestamp > 0) sums.push(renderer.info.render.timestamp)
+    }
+    sums.sort((a, b) => a - b)
+    return sums.length ? sums[Math.floor(sums.length / 2)]! : null
+  })
 }
 
 /** The CPU profile's time by function, self and with its callees, largest first. */
@@ -241,6 +266,9 @@ async function profile(cdp: CDPSession, label: string) {
   console.log("  the app's own functions, with callees")
   for (const [k, ms] of top(new Map([...total].filter(([k]) => / src\//.test(k))), 60))
     console.log(`    ${ms.toFixed(0).padStart(6)}  ${k}`)
+  console.log("  three's functions, with callees")
+  for (const [k, ms] of top(new Map([...total].filter(([k]) => /chunk-|three_/.test(k))), 70))
+    console.log(`    ${ms.toFixed(0).padStart(6)}  ${k}`)
 }
 
 test.skip(!process.env.FRAME_RATE, 'a measurement: set FRAME_RATE=1 to run it')
@@ -260,7 +288,7 @@ test('frame rate while dragging a board with the cables awake', async ({ page, b
             `round ${round} ${scene.padEnd(26)} ${base.slice(-5)}  ${run.fps.toFixed(1)} fps  ` +
               `view.frame ${mean(run.frameMs).toFixed(1)} ms  render ${run.renderMs.toFixed(1)} ms  ` +
               `input ${run.inputMs.toFixed(1)} ms  buffers/frame ${run.buffersPerFrame.toFixed(1)}  ` +
-              `load ${run.load.toFixed(1)}`
+              `gpu ${run.gpuMs?.toFixed(1) ?? 'n/a'} ms  load ${run.load.toFixed(1)}`
           )
         } finally {
           await fresh.close()
@@ -268,7 +296,7 @@ test('frame rate while dragging a board with the cables awake', async ({ page, b
       }
   console.log(
     `\nover ${rounds} rounds, main thread slowed ${throttle}x: fps median [each]; view.frame mean, p95; ` +
-      'render mean; input mean (ms per frame); buffers a frame; load'
+      'render mean; input mean (ms per frame); buffers a frame; gpu pass sum (ms); load'
   )
   for (const scene of scenes)
     for (const base of origins) {
@@ -281,6 +309,7 @@ test('frame rate while dragging a board with the cables awake', async ({ page, b
           `render ${mean(mine.map((r) => r.renderMs)).toFixed(1)}  ` +
           `input ${mean(mine.map((r) => r.inputMs)).toFixed(1)}  ` +
           `buffers ${mean(mine.map((r) => r.buffersPerFrame)).toFixed(1)}  ` +
+          `gpu ${median(mine.map((r) => r.gpuMs ?? 0)).toFixed(1)}  ` +
           `load ${Math.min(...mine.map((r) => r.load)).toFixed(1)}-${Math.max(...mine.map((r) => r.load)).toFixed(1)}`
       )
     }

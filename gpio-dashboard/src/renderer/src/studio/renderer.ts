@@ -6,6 +6,7 @@ import {
   type Camera,
   type DirectionalLight,
   type Node,
+  NodeUpdateType,
   RenderPipeline,
   type Scene,
   SRGBColorSpace,
@@ -31,6 +32,7 @@ import {
   vec4,
   velocity
 } from 'three/tsl'
+import type BloomNode from 'three/addons/tsl/display/BloomNode.js'
 import { bloom } from 'three/addons/tsl/display/BloomNode.js'
 import { dof } from 'three/addons/tsl/display/DepthOfFieldNode.js'
 import { ao } from 'three/addons/tsl/display/GTAONode.js'
@@ -80,10 +82,15 @@ export const GRADE = { exposure: 1.7, saturation: 1.2 }
  */
 export const BLOOM_THRESHOLD = 2
 
+/** Bloom's strength and radius. */
+const BLOOM = { strength: 0.35, radius: 0.4 }
+
 // The pipeline's own output transform is off, so the same AgX mapping and sRGB encoding are
-// applied here, followed by the grade.
-const finish = (input: Output): Output => {
-  const lit = input.add(bloom(input, 0.35, 0.4, BLOOM_THRESHOLD))
+// applied here, followed by the grade. `blooms` collects the bloom nodes it builds.
+const finish = (input: Output, blooms: BloomNode[]): Output => {
+  const glow = bloom(input, BLOOM.strength, BLOOM.radius, BLOOM_THRESHOLD)
+  blooms.push(glow)
+  const lit = input.add(glow)
   const mapped = renderOutput(lit, AgXToneMapping, SRGBColorSpace)
   const peak = max(max(mapped.r, mapped.g), mapped.b)
   const below = peak.sub(mapped.rgb)
@@ -100,13 +107,17 @@ export class Post {
   private readonly sharp: Output
   private readonly resolved: Output
   private readonly viewZ: Node
+  /** Every bloom node built, for `setBloom`. */
+  private readonly blooms: BloomNode[] = []
+  private bloom = true
   private focus: { output: Output; distance: ReturnType<typeof uniform> } | null = null
   private key: DirectionalLight | null = null
   private rendered = 0
   private renderMs = 0
 
   constructor(
-    private readonly renderer: WebGPURenderer,
+    /** Public for the e2e frame-rate measurement, which reads the GPU's timestamp queries. */
+    readonly renderer: WebGPURenderer,
     private readonly scene: Scene,
     camera: Camera
   ) {
@@ -131,7 +142,7 @@ export class Post {
     resolved.useSubpixelCorrection = false
     this.resolved = resolved
 
-    this.sharp = finish(resolved)
+    this.sharp = finish(resolved, this.blooms)
     this.pipeline = new RenderPipeline(renderer, this.sharp)
     this.pipeline.outputColorTransform = false
   }
@@ -148,7 +159,23 @@ export class Post {
     }
     if (import.meta.env.DEV) this.renderTimed()
     else this.pipeline.render()
+    // The frame that drew a bloom of strength 0 left its texture black; it is not drawn again.
+    if (!this.bloom) for (const b of this.blooms) b.updateBeforeType = NodeUpdateType.NONE
     this.rendered += 1
+  }
+
+  /**
+   * Whether anything in the scene passes the bloom's threshold. While nothing does, its twelve
+   * passes (4 to 5 ms of GPU time) would add black, so the node is left out of the frame; the
+   * image is the same. It is drawn again from the frame that asks for it (ADR-F2-4).
+   */
+  setBloom(on: boolean): void {
+    if (on === this.bloom) return
+    this.bloom = on
+    for (const b of this.blooms) {
+      b.strength.value = on ? BLOOM.strength : 0
+      b.updateBeforeType = NodeUpdateType.FRAME
+    }
   }
 
   /** Dev builds: the render call's main-thread time and the GPU's pass time, every 30 frames. */
@@ -173,7 +200,9 @@ export class Post {
         const distance = uniform(distanceMm)
         // @types/three 0.186 leaves DepthOfFieldNode's output type out; it is a vec4 like TRAA's.
         const blurred = dof(this.resolved, this.viewZ, distance, 120, 4) as unknown as Output
-        return { output: finish(blurred), distance }
+        const output = finish(blurred, this.blooms)
+        if (!this.bloom) this.blooms.at(-1)!.strength.value = 0
+        return { output, distance }
       })()
       this.focus.distance.value = distanceMm
     }

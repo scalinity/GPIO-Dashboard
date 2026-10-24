@@ -378,6 +378,11 @@ export class WireLayer {
     this.syncOverlays()
   }
 
+  /** Whether any lead has current flowing: its dashes are brighter than the bloom's threshold. */
+  get flowing(): boolean {
+    return [...this.overlays.values()].some((o) => o.rate !== 0)
+  }
+
   /** Moves the dashes on by `dt` seconds; whether any lead still has current flowing. */
   step(dt: number): boolean {
     let flowing = false

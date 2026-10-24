@@ -15,7 +15,7 @@ import type { EnvValue } from '../core/sim/behavior'
 import type { Snapshot } from '../core/sim/session'
 import { bodyBox } from './bodies'
 import { defOf } from './coords'
-import { emissionOf } from './glow'
+import { BLOOM_GATE, emissionOf } from './glow'
 import { Halos } from './halos'
 import { type Label, type LabelLayer } from './labels'
 import { type LcdView, LcdScreen } from './lcd'
@@ -91,6 +91,8 @@ export class SimVisuals {
   tags: LabelLayer | null = null
   private readonly motion = new Motion()
   private readonly lit = new Map<string, Map<string, string>>()
+  /** Per part, the strongest channel of what it emits now (linear). */
+  private readonly peaks = new Map<string, number>()
   private readonly screens = new Map<string, LcdScreen>()
   private readonly lcdLines = new Map<string, [string, string]>()
   private haloIds: string[] = []
@@ -147,6 +149,18 @@ export class SimVisuals {
     return parts || dashes
   }
 
+  /**
+   * Whether anything drawn may pass the bloom's threshold: a part that glows strongly, a halo, a
+   * lead with current in it. Nothing else in the scene is brighter than 1 (ADR-0067).
+   */
+  get glowing(): boolean {
+    return (
+      this.halos.count > 0 ||
+      this.wires.flowing ||
+      [...this.peaks.values()].some((peak) => peak >= BLOOM_GATE)
+    )
+  }
+
   report(): VisualsReport {
     const motion: Record<string, number> = {}
     for (const part of this.motion.parts())
@@ -171,6 +185,7 @@ export class SimVisuals {
     this.screens.clear()
     this.lit.clear()
     this.halos.dispose()
+    this.peaks.clear()
     // A later attach draws everything again.
     this.haloKey = this.fxKey = this.tagKeys = this.tintKey = ''
     this.cache = null
@@ -200,7 +215,11 @@ export class SimVisuals {
         if (this.motion.aim(part.id, target)) this.invalidate()
     }
     for (const id of this.motion.parts()) if (!seen.has(id)) this.motion.drop(id)
-    for (const id of [...this.lit.keys()]) if (!seen.has(id)) this.lit.delete(id)
+    for (const id of [...this.lit.keys()])
+      if (!seen.has(id)) {
+        this.lit.delete(id)
+        this.peaks.delete(id)
+      }
     for (const [id, screen] of [...this.screens]) {
       if (seen.has(id)) continue
       screen.dispose()
@@ -225,6 +244,7 @@ export class SimVisuals {
     }
     for (const node of was.keys()) if (!now.has(node)) handle.setEmission(node, null)
     this.lit.set(id, now)
+    this.peaks.set(id, Math.max(0, ...[...next.values()].map((c) => Math.max(c.r, c.g, c.b))))
   }
 
   private syncHalos(i: SimInputs): void {
