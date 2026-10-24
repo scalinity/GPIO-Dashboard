@@ -76,11 +76,14 @@ export class LivePins {
       const key = liveKey(pin)
       if (key) keys.set(pin.bcm, key)
     }
-    const key = JSON.stringify([
-      [...keys],
-      doc.controller.tboard,
-      doc.boards.map((b) => [b.id, b.transform])
-    ])
+    // With no pin painted nothing depends on where the boards stand, so a drag leaves it be.
+    const key = keys.size
+      ? JSON.stringify([
+          [...keys],
+          doc.controller.tboard,
+          doc.boards.map((b) => [b.id, b.transform])
+        ])
+      : ''
     if (key === this.key) return
     this.key = key
     this.header = {}

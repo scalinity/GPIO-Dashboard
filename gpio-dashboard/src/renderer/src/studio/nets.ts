@@ -8,16 +8,27 @@ import type { Net } from '../core/netlist/netlist'
 import { endpointInScene, holeInScene, modulePinInScene } from './coords'
 import type { Marker } from './markers'
 
-/** Every board's holes by the strip (or whole rail) they belong to. */
+let last: { boards: string; index: Map<string, HoleRef[]> } | null = null
+
+/**
+ * Every board's holes by the strip (or whole rail) they belong to. The strips follow from which
+ * boards there are, not where they stand, so one drag's every frame shares the index of the last;
+ * callers only read it.
+ */
 export function stripIndex(doc: CircuitDoc): Map<string, HoleRef[]> {
+  const boards = doc.boards.map((b) => `${b.id}:${b.defId}`).join()
+  if (last?.boards === boards) return last.index
   const index = new Map<string, HoleRef[]>()
   for (const board of doc.boards) {
     const def = boardDef(board.defId)
     for (const hole of boardHoles(def, board.id)) {
       const key = stripKey(def, hole)
-      index.set(key, [...(index.get(key) ?? []), hole])
+      const strip = index.get(key)
+      if (strip) strip.push(hole)
+      else index.set(key, [hole])
     }
   }
+  last = { boards, index }
   return index
 }
 

@@ -205,11 +205,13 @@ async function passTime(page: Page): Promise<number | null> {
   return page.evaluate(async () => {
     const view = (window as unknown as Counted).__studio
     const renderer = view.post!.renderer
+    const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
     const sums: number[] = []
     for (let k = 0; k < 10; k++) {
-      view.loop.changed()
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
-      await renderer.resolveTimestampsAsync('render')
+      // A change of the camera asks for a frame; give it two, then resolve their queries.
+      view.controls.dispatchEvent({ type: 'change' })
+      await wait(60)
+      await Promise.race([renderer.resolveTimestampsAsync('render'), wait(2000)])
       if (renderer.info.render.timestamp > 0) sums.push(renderer.info.render.timestamp)
     }
     sums.sort((a, b) => a - b)
