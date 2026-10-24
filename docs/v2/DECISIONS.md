@@ -2592,3 +2592,145 @@ decision and consequences. Numbering is stable; superseded records say so.
     declare (the simulator reads a part's inputs from its props). That test now gives the
     definition it passes to the ranker a `pressed` property. Anything that seeds a simulator input
     through props must declare it as a property.
+
+## ADR-U9-1 A running turn owns the document, and a turn undoes as one group
+
+- **Context.**
+  - SPEC 11.8 makes the canvas read-only while Claude runs, keeps committed ops after Stop, and
+    makes each turn one undo group; SPEC 12.8 and acceptance 7 want Undo all to restore a
+    deep-equal prior document. Edits reach the document from many places: the Studio's gestures
+    and keys, Properties, the Code panel, the top bar's Undo and Redo, the Workbench's samples and
+    the project menu.
+- **Decision.**
+  - `CircuitStore.lock(turnId)` and `unlock()`: while locked, `dispatch` refuses every transaction
+    not of that turn with a `LOCKED` problem, and `undo`, `redo` and `open` do nothing. The Claude
+    drawer locks on the turn's `turn-start` event and unlocks when `runTurn` returns, whatever the
+    ending. The project menu and `workbenchStore.open` refuse to open another document while
+    locked, so no project id is attached to the wrong document.
+  - `undo` and `redo` take one group: a user transaction, or every adjacent transaction of the
+    same assistant turn, applied in one commit (one notification, one redraw). `undoTurn(id)` undoes
+    the turn only while it is the latest change, and `lastTurnId` says which turn that is.
+  - The Studio stays usable for looking: the camera, hover and selection work; a press drags
+    nothing; the wire tool, library drags, Delete, R and Cmd+Z show the lock's notice instead. A
+    banner over the stage says Claude is working and carries Stop.
+- **Consequences.**
+  - The top bar's Undo and Redo look enabled during a turn but do nothing (`pages/StudioPage.tsx`
+    is outside this lane). Disabling them on `useAssistant.running` is a one-line change there.
+  - Cmd+Z after a build takes the whole build back at once, as Undo all does.
+
+## ADR-U9-2 The assistant simulates and runs Python in workers of its own
+
+- **Context.**
+  - The app has one sim worker and one Pyodide worker, and the Workbench reloads its sim on every
+    commit and replays its GPIO states into it. A `simulate` call loading its stimulus there would
+    change what the Sim panel shows; a `write_code` check queued behind a user's running program
+    would wait for it to stop; and the Pyodide worker posts throttled snapshots, not pin events, so
+    `run_code_in_sim` could only sample.
+- **Decision.**
+  - `simChannel()` in `state/simClient.ts` makes a sim worker; the app keeps `simRequest`, and the
+    AssistantContext has its own channel. Its answers are narrowed to `state` or `error`.
+  - `workers/assistantPython.worker.ts` is the assistant's own Pyodide, started on first use, for
+    the syntax check and the run. `workers/assistantRun.ts` runs the document's program as fast as
+    the solver allows for the asked virtual seconds through a `RecordingBridge`, which notes each
+    change a program makes to a pin (setup, output, PWM, release) with its virtual time, and stops
+    it by Pyodide's interrupt, as Ctrl+C would. Nothing after the end time is recorded, because
+    the interpreter notices the interrupt a few statements late.
+  - `state/assistantPython.ts` runs requests one at a time, interrupts a run on Stop or after 30 s
+    of real time, and replaces a worker that does not answer 5 s after an interrupt.
+- **Consequences.**
+  - A second Pyodide costs its memory and a few seconds to start, the first time the assistant
+    checks or runs code in a session.
+  - The two new files sit in `workers/`, beside the code they reuse; neither changes the existing
+    workers.
+
+## ADR-U9-3 Ghosts are drawn into the shown document; the review strip reads the document's change
+
+- **Context.**
+  - SPEC 12.6 and acceptance 5: a ghost per streaming tool call, a part at its anchor, a lead as a
+    design curve once both ends parse, never simulated, cleared on error or abort; on commit the
+    ghost becomes the real object and a lead becomes physical. ADR-0070 already keeps a lead that
+    only a preview holds out of the solver, and ADR-0051 hovers what a preview holds and seats what
+    a commit moves. SPEC 11.8: "Claude added N parts, M wires · Keep · Undo all", tinted until kept.
+- **Decision.**
+  - `setGhost` keeps the ghosts in `useStudio.ghosts`, by tool call; an unchanged ghost is not set
+    again, so most deltas redraw nothing. The Studio draws `withGhosts(committed, ghosts)`: each
+    ghost part under its designator (or `ref?call` when that is taken), each ghost lead as
+    `ghost:<call>` with length `auto`. Ghosts hover 4 mm over their holes, are tinted violet, and
+    their leads follow design curves; the commit drops the real part and lead into place and the
+    solver takes the lead. A ghost of a part the document does not define yet is not drawn.
+  - Every Studio and panel site that looked a part up in the library now resolves it in the shown
+    document (`defOf`, over `docPartDefs`), so a project's own part draws as its footprint and
+    leads, with no body.
+  - The review compares the document when the turn began with the one it left: parts and leads
+    added, custom parts defined, items changed or removed, and the code, build-step notes, boards,
+    T-board and Pi, or name when they changed. Added and changed parts get a violet halo and leads
+    a violet overlay; a rating halo and Board Sense's tint win where they overlap. The strip lasts
+    while the turn is the latest change: Keep, Undo all, an undo or the next edit by hand ends it.
+- **Consequences.**
+  - A ghost carries no props, so an LED's ghost lens shows the default colour until it commits.
+  - A turn that only wrote code reads "Claude updated the code".
+
+## ADR-U9-4 capture_view reads the frame it has just drawn
+
+- **Context.**
+  - SPEC 12.5: capture_view waits for physics to sleep (at most 2 s) and returns a PNG of the top
+    or iso view. The Studio renders on demand through TRAA, and a WebGPU canvas's image is reliable
+    to read only in the task that drew it.
+- **Decision.**
+  - `StudioView.capture(preset)` keeps frames coming until the cables report asleep or 2 s pass,
+    jumps the camera to the preset, draws `SETTLE_FRAMES` frames there so TRAA converges, and on
+    the last one, right after rendering, copies the canvas into a 2D canvas no larger than 1568 px
+    on its long side and encodes it as PNG. The camera then goes back where it was.
+  - Focus frames the refs' bounding sphere (at least 25 mm) from the current direction. Highlight
+    marks the refs (part pins, lead ends, holes, a net's strips and ends) and shows its caption
+    until dismissed; a focus with a note shows the caption only.
+- **Consequences.**
+  - The captured view is the drawn bench in headless Chromium on WebGPU (the e2e test checks its
+    size and that it is not blank) and in the Tauri window on WebGPU, where the dev replay's
+    capture of the iso view showed the built blink circuit, with the camera back where it was.
+  - With the Studio closed, capture_view fails with a plain message and the turn goes on.
+
+## ADR-U9-5 The key, the settings and the transcript
+
+- **Context.**
+  - SPEC 4.2, 12.1 and 12.2: the key goes to the Keychain through Rust, and its commands return
+    booleans only; `assistant.model`, `assistant.effort` and `assistant.webTools` are settings.
+    SPEC 11.9 saves the transcript next to the project, and acceptance 11 keeps secrets out of
+    transcripts.
+- **Decision.**
+  - `native/anthropic.ts` gains `setKey`, `hasKey` and `clearKey`, each returning a boolean. The
+    Settings field is uncontrolled: Save reads it once, clears it and hands the value on; no state
+    holds it. A chat message that looks like a key (`sk-ant-…`) is not sent, and the composer is
+    cleared.
+  - `native/settings.ts` reads and writes the three settings; the defaults in `settings.rs` were
+    already `claude-opus-5-5`, `high` and `true`, and the allowlist already held the keys. Model
+    and effort apply from the next turn; web tools from the next conversation (ADR-M9-5), and
+    Settings says so.
+  - The transcript is `<id>.transcript.json` beside `<id>.gpiob`, written by a new command,
+    `projects_write_transcript`, after every turn and on a project's first save. It holds what was
+    said, each tool call's label, status and result (images replaced, results cut at 4000
+    characters), the model, effort and cost. Rust redacts anything shaped like an Anthropic key
+    before writing, and deleting a project deletes its transcript. Opening another project starts
+    a new conversation.
+- **Consequences.**
+  - The new command is in `build.rs`, `permissions/app-commands.toml` and `main.rs`, which the
+    loopback test checks agree; no plugin or capability changed.
+  - A transcript is a record, not a resumable conversation: the API history (thinking signatures,
+    captured images) is not saved.
+
+## ADR-U9-6 The drawer is tested through a stand-in for the native bridge
+
+- **Context.**
+  - The e2e tests run in Chromium without Tauri, and no API key is used to record real streams.
+- **Decision.**
+  - `e2e/assistant.ts` installs `window.api` with an Anthropic proxy that plays recorded Messages
+    API streams (built from `assistant/testing/sse.ts`) in 48-byte chunks, a reply that stops and
+    waits for an abort, a Keychain that logs its calls and keeps only a flag, and settings and
+    projects in memory. Everything above the bridge is the app's: `nativeAnthropicFetch`, the SDK,
+    the loop, the tools, the store and the Studio.
+  - `VITE_ASSISTANT_REPLAY=blink npm run dev` replays the blink turn in the app through a delayed
+    fetch, ending with a capture of the iso view, for a look in the Tauri window without a key. It
+    neither reads nor writes the Keychain. It is dev only; production builds drop it.
+- **Consequences.**
+  - The streams are hand-written to the documented event shapes; the first live run (HIL
+    checklist) confirms them against the API.
