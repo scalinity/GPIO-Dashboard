@@ -19,6 +19,8 @@ export function mockSweep(board: CircuitDoc, defs: PartDefs, pins: number[], t =
     pullDownOhm: one(MOCK_PAD.pullOhm),
     nodeCapF: one(MOCK_PAD.nodeCapF)
   })
+  // A pad always reads something; a board the simulator cannot solve has no reading to stand in.
+  if (sig.unsolved) throw new Error(`The mock board does not simulate: ${sig.unsolved}`)
   const level = (r: string) => (r === 'high' ? 1 : 0) as 0 | 1
   const bias: Sweep['bias'] = {}
   const pairs: Sweep['pairs'] = {}
