@@ -10,19 +10,20 @@ import type { CircuitDoc } from '../core/model/types'
 import type { Ranked } from '../core/sense/candidates'
 import { compare, interpret, type Sweep } from '../core/sense/sense'
 import { buildSteps, type BuildStep } from '../core/steps/steps'
-import type { TutorialMeta } from '../core/tutorials/tutorial'
 import { type StepScene, stepScene } from '../studio/build'
 import { judge } from './buildCheck'
 import { StepChecker } from './buildSense'
 import { circuit } from './circuit'
+import { type Checkpoint, checkpointsAfter, deriveCheckpoints } from './checkpoints'
 import { useProject } from './projectStore'
 import { useSense } from './senseStore'
 
 /**
  * A hardware checkpoint after a step (SPEC 14.4): an I2C scan, "press the button", "toggle the
- * LED". M11 fills the slot from the tutorial's `checkpoints`; Build Mode leaves it empty.
+ * LED". They are derived from the circuit (state/checkpoints.ts) and run from the step card
+ * (state/checkpointStore.ts); Build Mode itself never runs one.
  */
-export type Checkpoint = TutorialMeta['checkpoints'][number]
+export type { Checkpoint }
 
 /** What Board Sense says of the step in hand. */
 export type StepStatus =
@@ -55,8 +56,10 @@ interface BuildState {
   sensed: string[]
   scene: StepScene | null
   status: StepStatus
-  /** The hardware checkpoint after the step in hand; always empty until M11. */
-  checkpoint: Checkpoint | null
+  /** The build's hardware checkpoints, each on the step that completes what it checks. */
+  plan: Checkpoint[]
+  /** The checkpoints that hang on the step in hand. */
+  checkpoints: Checkpoint[]
   /** Depth of field on the step's target (SPEC 10.7). */
   blur: boolean
   /** Bumped whenever the camera should frame the step again. */
@@ -106,6 +109,15 @@ const identityOf = (doc: CircuitDoc) => `${doc.meta.created}|${doc.meta.sourceTu
 
 const stepsOf = (doc: CircuitDoc) => buildSteps(doc, partDef).steps
 
+/** The build's checkpoints; a circuit the rule cannot read offers none rather than breaking the build. */
+function planOf(doc: CircuitDoc, steps: BuildStep[]): Checkpoint[] {
+  try {
+    return deriveCheckpoints(doc, steps)
+  } catch {
+    return []
+  }
+}
+
 /** Simulates the board at each step, off the page's thread; replaced when the steps change. */
 let checker: StepChecker | null = null
 let watching: (() => void)[] = []
@@ -129,7 +141,7 @@ export const useBuild = create<BuildState>((set, get) => {
       index: at,
       scene: stepScene(doc, steps, at),
       status: { state: 'off' },
-      checkpoint: null,
+      checkpoints: checkpointsAfter(get().plan, steps[at]),
       frameSeq: get().frameSeq + 1
     })
     const key = progressKey(doc)
@@ -146,7 +158,8 @@ export const useBuild = create<BuildState>((set, get) => {
     sensed: [],
     scene: null,
     status: { state: 'off' },
-    checkpoint: null,
+    plan: [],
+    checkpoints: [],
     blur: stored<boolean>(BLUR_KEY) ?? false,
     frameSeq: 0,
     start() {
@@ -169,7 +182,7 @@ export const useBuild = create<BuildState>((set, get) => {
           if (now.sweep !== before.sweep || now.mode !== before.mode) void evaluate()
         })
       ]
-      set({ on: true, doc, steps, done, sensed: [] })
+      set({ on: true, doc, steps, done, sensed: [], plan: planOf(doc, steps) })
       go(left >= 0 ? left : first < 0 ? steps.length : first)
     },
     stop() {
@@ -184,7 +197,8 @@ export const useBuild = create<BuildState>((set, get) => {
         sensed: [],
         scene: null,
         status: { state: 'off' },
-        checkpoint: null
+        plan: [],
+        checkpoints: []
       })
     },
     next: () => go(get().index + 1),
@@ -300,6 +314,7 @@ circuit.subscribe(() => {
   useBuild.setState({
     doc,
     steps,
+    plan: planOf(doc, steps),
     done: state.done.filter((k) => steps.some((s) => s.key === k))
   })
   state.goTo(at < 0 ? Math.min(state.index, steps.length) : at)

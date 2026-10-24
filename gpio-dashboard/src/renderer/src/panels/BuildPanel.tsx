@@ -5,6 +5,7 @@ import { Check, ChevronLeft, ChevronRight, Crosshair, RotateCcw, X } from 'lucid
 import { holeText } from '../core/steps/steps'
 import { type StepStatus, useBuild } from '../state/buildStore'
 import { useSense } from '../state/senseStore'
+import Checkpoints from './Checkpoints'
 
 const pinsText = (pins: number[]) => pins.map((p) => `GPIO${p}`).join(', ')
 
@@ -82,7 +83,7 @@ function Status({ status }: { status: StepStatus }) {
 }
 
 export default function BuildPanel() {
-  const { doc, steps, index, done, sensed, status, checkpoint, blur } = useBuild()
+  const { doc, steps, index, done, sensed, status, checkpoints, blur } = useBuild()
   const { stop, back, next, markDone, goTo, showAgain, restart, setBlur } = useBuild.getState()
   const step = steps[index]
   const finished = index >= steps.length
@@ -143,7 +144,7 @@ export default function BuildPanel() {
                 <p className="text-xs text-amber-300/90">Watch out: {step.mistake}</p>
               )}
               <Status status={status} />
-              {checkpoint && <p data-testid="checkpoint-slot">{checkpoint.kind}</p>}
+              {doc && <Checkpoints doc={doc} checkpoints={checkpoints} />}
             </section>
           )
         )}

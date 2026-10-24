@@ -110,10 +110,28 @@ describe('playing the steps', () => {
     expect(useBuild.getState().index).toBe(useBuild.getState().steps.length)
   })
 
-  it('leaves the slot for a hardware checkpoint empty', () => {
+  it('fills the checkpoint slot only on the step that completes what a checkpoint checks', () => {
     begin('button')
-    useBuild.getState().next()
-    expect(useBuild.getState().checkpoint).toBeNull()
+    const { steps, plan } = useBuild.getState()
+    expect(plan.map((c) => [c.kind, c.afterStep])).toEqual([
+      ['toggle-led', 'W2'],
+      ['press', 'W5']
+    ])
+    for (const [i, step] of steps.entries()) {
+      useBuild.getState().goTo(i)
+      expect(
+        useBuild.getState().checkpoints.map((c) => c.kind),
+        step.key
+      ).toEqual(plan.filter((c) => step.refs.includes(c.afterStep)).map((c) => c.kind))
+    }
+    useBuild.getState().stop()
+    expect(useBuild.getState()).toMatchObject({ plan: [], checkpoints: [] })
+  })
+
+  it('offers no checkpoint for a circuit that has nothing to check', () => {
+    begin('servo')
+    expect(useBuild.getState().plan).toEqual([])
+    expect(useBuild.getState().checkpoints).toEqual([])
   })
 })
 
