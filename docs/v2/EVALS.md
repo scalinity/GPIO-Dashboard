@@ -6,14 +6,14 @@ by the app's own `CircuitStore`. Each finished run is scored from its final docu
 transcript. Every run is recorded, scrubbed, and replayed by Vitest with no key and no network.
 
 Everything is in `gpio-dashboard/scripts/assistant-evals/`. The decisions behind it are ADR-0100 to
-ADR-0104 in DECISIONS.md; the fixes the first live run led to are ADR-X9-1 to ADR-X9-4.
+ADR-0104 in DECISIONS.md; the fixes the first live run led to are ADR-0105 to ADR-0108.
 
 ## Running it
 
 | Command | What it does |
 | --- | --- |
 | `npm run evals` | Replays every recorded run (no key, no network) and prints its scores. Exit status 1 if a score differs from the live run, or a prompt has no fixture. `-- --only a,b` picks prompts; `-- --rescore` records today's scores as the expected ones. |
-| `npm run evals:live` | Runs the live checks, then every prompt against the API with the key from the main checkout's `.env`, and writes `fixtures/`, `transcripts/` and `results/live*.json`. `-- --only a,b`, `-- --skip-checks`, `-- --checks-only`, `-- --budget 40`, `-- --model claude-sonnet-5-5`, `-- --key-file path`. For the datasheet prompt on an organization whose web search comes and goes, the loop meets a refusal itself (ADR-X9-2) and the notice is in the transcript. To record the search path instead: `-- --search` (keep the tool and resend refused requests), `-- --no-search` (offer web fetch alone from the start), `-- --wait-for-search 30` (poll up to 30 minutes for it). |
+| `npm run evals:live` | Runs the live checks, then every prompt against the API with the key from the main checkout's `.env`, and writes `fixtures/`, `transcripts/` and `results/live*.json`. `-- --only a,b`, `-- --skip-checks`, `-- --checks-only`, `-- --budget 40`, `-- --model claude-sonnet-5-5`, `-- --key-file path`. For the datasheet prompt on an organization whose web search comes and goes, the loop meets a refusal itself (ADR-0106) and the notice is in the transcript. To record the search path instead: `-- --search` (keep the tool and resend refused requests), `-- --no-search` (offer web fetch alone from the start), `-- --wait-for-search 30` (poll up to 30 minutes for it). |
 | `npm run evals:proxy` | Runs the ignored Rust test `live_count_tokens_through_the_real_proxy_path`, with the key in that test process's environment only. |
 | `npx vitest run scripts/assistant-evals` | The replay test and the harness's own tests. |
 
@@ -95,7 +95,7 @@ at effort `high`; the two explanation prompts at `medium` (SPEC 12.2). The model
 
 `claude-opus-5-5`, effort `high` for builds and `medium` for the two explanation prompts, the app's
 default `max_tokens` of 64,000. "Tool calls" counts the assistant's client tools, errors included.
-This is the second recording, made after the fixes of ADR-X9-1 to ADR-X9-4: **no run took a
+This is the second recording, made after the fixes of ADR-0105 to ADR-0108: **no run took a
 fallback for its tools.** The first request of eleven runs was accepted with the 11 strict tools and
 eager streaming on the 12 mutation tools. The datasheet run's was refused for web search, dropped
 it, and went on (the second problem below).
@@ -205,12 +205,12 @@ The refusal of the 20 strict tools, exactly:
 
 ## Findings of the first live run, and what fixed them
 
-The first recording found seven problems. Six are fixed; the decisions are ADR-X9-1 to ADR-X9-4 in
+The first recording found seven problems. Six are fixed; the decisions are ADR-0105 to ADR-0108 in
 DECISIONS.md. The second recording above is the evidence that each holds.
 
 ### 1. The 20 strict tools were over the API's grammar budget, so every session ran on plain tools
 
-Fixed (ADR-X9-1). Before: the first request carried the 20 strict tools with eager streaming on the
+Fixed (ADR-0105). Before: the first request carried the 20 strict tools with eager streaming on the
 12 mutation tools, and the second the same without eager. Both were refused with the message
 above, the third (plain tools) was accepted, and the loop's notice named eager streaming, which was
 not the cause. Eager streaming and the early ghosts of acceptance 5 were lost for the session.
@@ -228,7 +228,7 @@ not the cause. Eager streaming and the early ghosts of acceptance 5 were lost fo
 
 ### 2. "Web search is not enabled for this organization" ended the turn
 
-Fixed (ADR-X9-2). The message, exactly:
+Fixed (ADR-0106). The message, exactly:
 
 ```
 400 invalid_request_error: Web search is not enabled for this organization
@@ -248,7 +248,7 @@ are bound to the thinking blocks by then.
 
 ### 3. `simulate` could not press a button
 
-Fixed (ADR-X9-3). The simulator reads `pressed` from a tact switch, but `tact-switch-6mm` declared
+Fixed (ADR-0107). The simulator reads `pressed` from a tact switch, but `tact-switch-6mm` declared
 only `mode`, and the tool accepts only declared properties (`NO_SUCH_INPUT: SW1 has no input
 pressed`). The layer is the part definition, as ADR-0093 says: `tact-switch-6mm` now declares
 `pressed`. `tilt-switch` already declared `tilted`. A new test records every environment key the
@@ -262,7 +262,7 @@ not yet be pressed in `simulate`. `simulate` now checks an input with `propProbl
 
 ### 4. `run_code_in_sim`: `signal.pause()` returned at once
 
-Fixed (ADR-X9-4). `_prelude.py` now replaces `signal.pause` with a loop of 10 ms virtual sleeps,
+Fixed (ADR-0108). `_prelude.py` now replaces `signal.pause` with a loop of 10 ms virtual sleeps,
 which ends with the run (Stop, Ctrl+C and the end of the time are all `KeyboardInterrupt`). The
 harness no longer swaps it in for the scores, so the model sees what the scores judge.
 
@@ -272,13 +272,13 @@ harness no longer swaps it in for the scores, so the model sees what the scores 
 
 ### 5. A project with a part that has no simulation model could not be simulated at all
 
-Fixed (ADR-X9-3). `Circuit.addPart` threw `no simulation model for none`. `none` now adds no
+Fixed (ADR-0107). `Circuit.addPart` threw `no simulation model for none`. `none` now adds no
 devices: the part's pins are nets and nothing is stamped. Evidence: `session.test.ts`, which fails
 without the change, and the datasheet run's `simulate`, which answered.
 
 ### 6. The gpiozero shim covered five classes
 
-Fixed (ADR-X9-4). The shim now has every class `core/code/pins.ts` reads: `OutputDevice`,
+Fixed (ADR-0108). The shim now has every class `core/code/pins.ts` reads: `OutputDevice`,
 `DigitalOutputDevice`, `PWMOutputDevice`, `RGBLED`, `Servo`, `AngularServo`, `InputDevice`,
 `DigitalInputDevice`, `MotionSensor`, `LineSensor` and `DistanceSensor`, with the original five.
 `DistanceSensor` times ECHO call by call against the HC-SR04 model, the servos send their pulse

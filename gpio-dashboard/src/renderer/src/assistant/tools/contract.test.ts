@@ -80,7 +80,7 @@ describe('what is sent to the API', () => {
   const sent = apiTools({ eager: true, strict: true })
 
   // The API refuses a request whose strict schemas compile to too large a grammar, and 20
-  // strict tools are too many (ADR-X9-1). The grammar's size is only known live; this pins the set
+  // strict tools are too many (ADR-0105). The grammar's size is only known live; this pins the set
   // that was accepted there with eager streaming on the 12 mutation tools (docs/v2/EVALS.md).
   it('makes strict exactly the 11 tools measured to fit the API’s grammar budget', () => {
     expect(sent.filter((t) => t.strict).map((t) => t.name)).toEqual([

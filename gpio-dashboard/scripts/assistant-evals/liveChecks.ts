@@ -365,7 +365,7 @@ export async function toolAcceptance(
   model: string
 ): Promise<{ checks: LiveCheck[]; web: { search: boolean; fetch: boolean } }> {
   const client = createClient(live).withOptions({ maxRetries: 0 })
-  // Every tool that takes parameters, strict: what the app sent before ADR-X9-1.
+  // Every tool that takes parameters, strict: what the app sent before ADR-0105.
   const eligible = new Set(TOOLS.filter((t) => t.strict).map((t) => t.name))
   const asStrict = (names: ReadonlySet<string> | string[], eager: boolean) =>
     apiTools({ eager, strict: false }).map((t): Anthropic.ToolUnion => {

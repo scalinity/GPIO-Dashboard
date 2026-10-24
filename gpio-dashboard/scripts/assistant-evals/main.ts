@@ -389,7 +389,7 @@ const SEARCH_REFUSED = /Web search is not enabled for this organization/
  * The SDK's placeholder bearer, replaced by the real key as the Rust proxy does in the app.
  * With `--no-search`, or after `--wait-for-search` found search refused throughout, the search
  * tool is taken out in transit, after the tape has recorded the request as the loop built it.
- * Otherwise the loop meets the organization's refusal itself and drops the tool (ADR-X9-2).
+ * Otherwise the loop meets the organization's refusal itself and drops the tool (ADR-0106).
  *
  * With `--search`, a request carrying web search that is refused is sent again, unchanged, as an
  * HTTP proxy would, so a run can record the search path; the loop and the tape see only the

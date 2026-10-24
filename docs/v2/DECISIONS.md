@@ -2855,7 +2855,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     plain tools, not the ghosts: whether a preview appears before a tool's input completes is a
     property of the app's window, which a headless run cannot see.
 
-## ADR-X9-1 Eleven tools are strict, twelve stream eagerly, and a refused first request drops one flag at a time
+## ADR-0105 Eleven tools are strict, twelve stream eagerly, and a refused first request drops one flag at a time
 
 Supersedes the strictness decision of ADR-0084 ("every tool that takes parameters is strict") and
 the fallback of ADR-0085 (one retry that drops both flags). The rest of both stands: the Zod
@@ -2903,7 +2903,7 @@ streaming and no strict tools) no longer holds.
     `npm run evals:live -- --checks-only`, and keep it only if `strict-set` still answers yes.
   - If the API's budget changes, the first request falls back by itself and says why.
 
-## ADR-X9-2 A web tool the API refuses is dropped from the first request
+## ADR-0106 A web tool the API refuses is dropped from the first request
 
 Amends ADR-0086, whose web tools had no answer to an organization that does not have them.
 
@@ -2928,7 +2928,7 @@ Amends ADR-0086, whose web tools had no answer to an organization that does not 
     out in transit only for `--no-search` or after `--wait-for-search` finds it refused throughout,
     and resends a refused request unchanged only under `--search` or `--wait-for-search`.
 
-## ADR-X9-3 A simulator input is a declared property, and a part with no model adds no devices
+## ADR-0107 A simulator input is a declared property, and a part with no model adds no devices
 
 Follows ADR-0093, which says that anything that seeds a simulator input through a property must
 declare it.
@@ -2955,7 +2955,7 @@ declare it.
     input properties.
   - The assistant can not press a keypad key in `simulate`; that needs a text property type.
 
-## ADR-X9-4 `signal.pause` waits in virtual time, and the gpiozero shim covers what the code reader knows
+## ADR-0108 `signal.pause` waits in virtual time, and the gpiozero shim covers what the code reader knows
 
 - **Context.**
   - `signal.pause()` returns at once under Pyodide, so a program that sets gpiozero callbacks and

@@ -156,12 +156,12 @@ export class AssistantSession {
   private readonly web: boolean
   private tools: Anthropic.ToolUnion[]
   /**
-   * What the first request may fall back from (ADR-X9-1): strict tools and eager input streaming
+   * What the first request may fall back from (ADR-0105): strict tools and eager input streaming
    * both start on, and are dropped one at a time, strict first, if the API refuses the request.
    */
   private strict = true
   private eager: boolean
-  /** Web tools the API refused for this account; dropped from the first request (ADR-X9-2). */
+  /** Web tools the API refused for this account; dropped from the first request (ADR-0106). */
   private readonly webOff = new Set<string>()
   private readonly revisions = new RevisionMemory()
   private readonly previews = new Set(TOOLS.filter((t) => t.preview).map((t) => t.name))
@@ -206,7 +206,7 @@ export class AssistantSession {
    * The tools the API refused, which would leave the assistant unusable, answered on the first
    * request only: before any thinking block exists to bind the tools, the request is sent again
    * without what the API named, and the user is told why. Strict schemas and eager streaming are
-   * not checkable offline (ADR-X9-1), and the account may not have web search (ADR-X9-2). Runtime
+   * not checkable offline (ADR-0105), and the account may not have web search (ADR-0106). Runtime
    * validation does not depend on any of them. Returns false when there is nothing left to drop.
    */
   private dropRefused(e: unknown, emit: (event: AssistantEvent) => void): boolean {

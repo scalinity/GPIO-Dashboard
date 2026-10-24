@@ -121,7 +121,7 @@ describe('the requests the loop sent', () => {
   })
 })
 
-describe('what the fixes changed, as the recordings show it (ADR-X9-1 to ADR-X9-4)', () => {
+describe('what the fixes changed, as the recordings show it (ADR-0105 to ADR-0108)', () => {
   type Sent = { name?: string; type?: string; strict?: boolean; eager_input_streaming?: boolean }[]
   const toolsOf = (e: Exchange) => e.request.tools as unknown as Sent
 

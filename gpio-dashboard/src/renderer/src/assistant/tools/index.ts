@@ -49,7 +49,7 @@ export const TOOLS: readonly Tool[] = ORDER.map((name) => {
 export const toolByName = (name: string): Tool | undefined => TOOLS.find((t) => t.name === name)
 
 /**
- * The tools sent with `strict: true` (ADR-X9-1). The API compiles the schemas of all of a
+ * The tools sent with `strict: true` (ADR-0105). The API compiles the schemas of all of a
  * request's strict tools into one grammar and refuses the request when it is too large ("The
  * compiled grammar is too large, which would cause performance issues. Simplify your tool schemas
  * or reduce the number of strict tools."). The 20 tools that take parameters do not fit together
