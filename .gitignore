@@ -2,3 +2,6 @@
 .playwright-mcp/
 OpenRouter Docs/
 .claude/
+.env
+.env.*
+!.env.example
