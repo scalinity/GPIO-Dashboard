@@ -90,6 +90,8 @@ export const save = () =>
     const id = useProject.getState().id ?? fileId(doc.meta.name)
     await writeProject(id, doc)
     useProject.setState({ id })
+    // Run on Pi names the uploaded program after the project's file.
+    useWorkbench.setState({ source: id })
   })
 
 export const saveAs = () =>

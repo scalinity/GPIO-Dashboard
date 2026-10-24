@@ -46,6 +46,7 @@ export default function PartLibrary({ view }: { view: StudioView }) {
           <Search className="absolute left-2 top-2 w-4 h-4 text-gray-500" />
           <input
             type="search"
+            autoComplete="off"
             aria-label="Search parts"
             placeholder="Search parts"
             className="input-field pl-8 py-1.5 text-sm"
