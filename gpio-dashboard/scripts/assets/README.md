@@ -171,3 +171,95 @@ shared arguments, builds the body with `blender/partkit.py` (whose export keeps 
 properties, which `lib/export.py` drops), and ends with `pk.write`. An entry for its family in
 `parts.ts`'s `FAMILIES` (triangle budget, and the expectation read from the params) and one in
 `PARTS` for each definition and variant.
+
+## Controller assets (SPEC 6.3 to 6.5, 10.4)
+
+```sh
+BLENDER_BIN=... npm run assets:build -- tboard idc-socket ribbon dupont-male dupont-female
+npm run assets:check -- tboard idc-socket ribbon dupont-male dupont-female
+BLENDER_BIN=... npm run assets:check -- --rebuild tboard idc-socket ribbon dupont-male dupont-female
+```
+
+All are in `src/renderer/public/models/`, in the boards' conventions (1 unit = 1 mm, modelled z up,
+exported y up), and every GLB has a `.manifest.json` and a `.colliders.json`. `controllers.ts`
+holds their checks, measured from the GLB (or the KTX2 texels) against the content files.
+
+**tboard.glb** (`tboard.json`). Origin and axes of `tboard.json`: pin 1 at the origin, +x along the
+stem toward pin 39, +y toward the even row. z = 0 is the breadboard's top surface, the underside of
+the two yellow spacers; the PCB spans z 2.5 to 4.1, and the box header's rim is at z 15.3. The 40
+stem pins reach down to z = -6.
+
+| Node      | What it is                                                                                      |
+| --------- | ----------------------------------------------------------------------------------------------- |
+| `tboard`  | root                                                                                            |
+| `pcb`     | mesh: `mask-top` and `mask-bottom` (clear coat; colour, normal and AO maps) and `fr4`, the edge |
+| `header`  | mesh: the grey shrouded box header, `shroud` (normal and AO maps)                               |
+| `pins`    | mesh: the stem's 40 pins and the box header's 40, material `pin`                                |
+| `pads`    | mesh: pads, plated holes, vias and solder, material `tin`                                       |
+| `spacers` | mesh: the two 1 x 20 yellow spacers, material `spacer`                                          |
+| `socket`  | empty on the header's rim, at its centre `(centerXMm, centerYMm, 15.3)`                         |
+
+The IDC socket's origin goes on `socket`, with no rotation. The PCB's two faces are mapped planar,
+as each reads from outside with the header up: u across +y and v down +x on the top, u mirrored on
+the underside. The silkscreen labels come from the pin table and are baked into `mask-top`'s
+colour. The header's key slot is in its -x wall. Its pin 1 is the +y end of the key-side row
+(x = centerXMm - pitch / 2), which holds the odd pins (ADR-A2-1).
+
+**idc-socket.glb** (`ribbon.json`; 3M 891 series, 2 x 20, for 1.27 mm cable). Origin at the centre
+of the mating face, which faces -z: the socket plugs down onto upward pins, its body above. x runs
+across the two rows (contacts at x = -1.27 and +1.27), y along them. It is modelled seated on the
+rim, not inserted into the shroud (ADR-A2-2).
+
+| Node         | What it is                                                                      |
+| ------------ | ------------------------------------------------------------------------------- |
+| `idc-socket` | root                                                                            |
+| `body`       | mesh: `idc-grey` (normal and AO maps), and `idc-contact`, the 40 openings' metal |
+| `pin1`       | empty at contact 1, `(-1.27, +24.13, 0)`                                        |
+| `cable-a`    | empty at the conductor-1 end of the cable's exit line, `(-4.5, +25.4, 6.0)`     |
+| `cable-b`    | the line's other end, `(-4.5, -25.4, 6.0)`                                      |
+
+The bump and the cable are on the -x wall. Seated on the T-board's `socket` with no rotation, the
+bump meets the key slot and the cable runs away from the stem. The line from `cable-a` to `cable-b`
+is the cable's mid-plane where it leaves the wall; conductor 1 is at `cable-a`.
+
+**ribbon-ridges.ktx2, ribbon-colors.ktx2** (`ribbon.json`; `ribbon.manifest.json`). No GLB. Both
+have u across the cable's 50.8 mm: conductor 1's edge at u = 0 and conductor 40's at u = 1.
+
+- `ribbon-ridges.ktx2`: a tangent-space normal map of the 40 conductor ridges, linear UASTC with
+  mipmaps, 1280 x 64. v runs along the cable, and one tile is 2.54 mm of it (the same texel density
+  as across): repeat it along the cable. Each ridge is 0.15 mm high, crowned at the middle of its
+  conductor's pitch, and the map tiles across as well. It needs a KTX2 transcoder.
+- `ribbon-colors.ktx2`: 40 x 1 RGBA8 in sRGB, one texel per conductor in `ribbon.json`'s sequence,
+  conductor 1 (brown) first. Lossless and without mipmaps: sample it with nearest filtering at
+  (i + 0.5) / 40.
+
+**dupont-male.glb, dupont-female.glb** (`dupont.json`). One housing each, 2.54 mm square and 12 mm
+long, on the z axis: `housing` (black plastic, AO map) and `metal`.
+
+| File            | Origin                                                       | Nodes                                           |
+| --------------- | ------------------------------------------------------------ | ----------------------------------------------- |
+| `dupont-male`   | the 0.64 mm pin's tip, pointing -z; housing z 5.5 to 17.5    | `dupont-male`, `body`, `wire` at `(0, 0, 17.5)` |
+| `dupont-female` | the open mating face, facing -z; housing z 0 to 12           | `dupont-female`, `body`, `wire` at `(0, 0, 12)` |
+
+`wire` marks where the runtime wire leaves the housing and points along the model's +z (glTF +y;
+the node has no rotation of its own).
+
+**Colliders.** `tboard`: `pcb`, `header`, and a `spacer-` and a `pins-` box for each strip (`a` is
+the odd pins'). `idc-socket`: `body` (with the bump) and `strain-relief`. The Dupont ends:
+`housing`, and the male's `pin` capsule. Each file encloses its model to within 0.05 mm.
+
+**Checks** (`controllers.ts`):
+
+- every GLB: geometry hash, budgets, KTX2 textures and the colliders;
+- `tboard`: the PCB's outline, stem and thickness against `tboard.json`, on spacers whose underside
+  is z = 0; the 40 stem pins at `pitchMm` x index along x and `rowSpacingPitches` across, the box
+  header's 40 pins on its 2 x 20 grid, and the mounting holes, each within 0.05 mm and one to one;
+  the shroud's size, position and height, with the key slot in the -x wall and the +x wall plain;
+  the `socket` empty;
+- `idc-socket`: the body 21 pitches long with its mating face on z = 0; the 40 contact openings on
+  the 2 x 20 grid; `pin1`, `cable-a` and `cable-b`;
+- `dupont-*`: the housing's size and position, the pin's side, tip and exposed length, and `wire`;
+- `ribbon`: the lookup's 40 texels against the sequence, and the ridge map's 40 crowns and seam.
+
+`ribbon` has textures only: `build.ts` encodes the PNGs its script saves with `ktx create`, and
+`assets:check --rebuild` compares the lookup exactly and the ridge map by SSIM.

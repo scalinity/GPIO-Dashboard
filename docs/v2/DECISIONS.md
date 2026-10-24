@@ -909,3 +909,140 @@ decision and consequences. Numbering is stable; superseded records say so.
   Studio refuses its edits and Save, with a notice.
 - **Consequences.** Opening a tutorial and building on it waits for "Fork to my projects". The
   e2e tests stand in for the native commands with an in-memory `window.api.projects`.
+
+## ADR-A2-1 T-board model: shape values beyond tboard.json, and the box header's pin 1
+
+- **Context.**
+  - `tboard.json` fixes the outline, the header's size and place, the mounting holes and the
+    pin grid (ADR-0004). It does not give the spacer, the pins' lengths, the shroud's walls, the
+    key slot, the pad sizes or the silkscreen, and it leaves open which end of the box header
+    carries its pin 1.
+  - Photos 3, 5 and 6 (`docs/v2/reference/IMAGES.md`) show those details. SunFounder publishes
+    no drawing.
+- **Method.** A dimension read from a photo uses a feature of known size in the same photo as its
+  scale: the 2.54 mm pin pitch in photos 3 and 5 (12.4 and 20.74 px/mm), or the 1.6 mm PCB edge
+  in photo 6, which is angled, so its vertical readings are ratios. Read-outs are good to about
+  0.3 mm. Where a photo cannot settle a value, the standard part's value is used.
+- **Decision.** Values in mm, in `scripts/assets/blender/tboard.py`.
+  - Spacers 2.5 tall: a 0.1 in header's body. The stem's pins stand 6.0 below them and 1.4 above
+    the PCB. These are a standard 11.54 mm header's 6.0 mm mating length and 3.0 mm tail, less the
+    1.6 mm PCB; photo 6 gives 5.5 to 5.8 below, against the PCB edge.
+  - Plated holes 1.0 drill and pads 1.68 round: the Adafruit T-Cobbler Plus values (SPEC 22).
+    The mounting holes take tboard.json's 2.5 and a ring 4.1 across (photo 5: 85 px at 20.74
+    px/mm). The box header's tails stand 1.2 below the PCB, in solder cones.
+  - Shroud: long walls 1.2, end walls 1.9, floor 2.0, pins ending 2.0 below the rim. The key slot
+    is 6.5 wide and 4.5 deep from the rim (photo 6: about a ninth of the header's length, and
+    under half the wall's height), cut through the -x wall, which tboard.json names. The photo's
+    window in the end wall is not modelled.
+  - Silkscreen: labels 1.5 mm font size (photo 3: cap height 14 px = 1.1 mm), squeezed to at most
+    5.6 mm wide so the two columns' labels clear each other, 1.6 mm from the pad centre on the
+    inboard side. The title box is 32 x 3.5 mm with text about 30 mm wide (photo 3: 394 x 45 px).
+  - **Box header pin 1** is the +y end of the key-side row (x = centerXMm - pitch / 2), odd pins
+    in that row. Photo 5, seen from below with the header up, puts the square pad at the top
+    left, in the row nearest the key wall; mirrored to the top view, that is the +y end. The
+    other pins follow the usual 2 x 20 numbering. tboard.json left this open; the IDC socket's
+    pin 1, and so conductor 1, follows it.
+  - The traces are stylised, not copied: one rule routes all 40. Each header pad fans, in
+    parallel at 70 degrees, into a lane between the pin rows (0.2 wide, 0.34 apart, ordered by the
+    header's y so none cross), a via takes it to the top face, and a short top trace reaches the
+    stem pad. Traces stand 0.05 proud as a baked normal map, and show as a darker red.
+  - Colours are sRGB: mask (0.75, 0.07, 0.08) with a clear coat, tinned metal (0.84, 0.84, 0.86),
+    spacer yellow (0.98, 0.80, 0.05), the shroud's grey (0.62, 0.64, 0.67), FR-4 edge cream.
+- **Consequences.**
+  - The PCB's two faces are 1652 x 2048 maps (28.6 px/mm, ETC1S colour, UASTC normal) and AO is at
+    half that; the model is about 13,000 triangles and 1.6 MB.
+  - If the bench shows the box header's pin 1 at the other end, `header_pin` in `tboard.py`, the
+    `pin1` empty and contact order in `idc.py`, and the matching two checks in `controllers.ts`
+    change together.
+  - The silkscreen's font is Blender's built-in one, not the photos' typeface.
+
+## ADR-A2-2 IDC socket: a 3M 891 body seated on the header's rim, cable and bump on the key wall
+
+- **Context.**
+  - SPEC 6.4 names the 3M 891 series (TS-0449-L) as the body reference, and the Farnell listing
+    as a cross-check. The contract fixes the origin (the mating face's centre, facing -z) and
+    the empties `pin1`, `cable-a` and `cable-b`.
+  - The sheet's text gives the 2.54 mm grid, a 10.7 mm assembled height with the standard strain
+    relief, and a 1.5 mm centrebump; its 40-position length and width table did not come through
+    the text. The listing gives 55.6 x 10.5 mm (its 6 mm width is not credible for two rows).
+- **Decision.** Values in mm, in `scripts/assets/blender/idc.py`.
+  - The body is 21 pitches long (53.34: a pitch of margin beyond the end contacts) and 9.0 wide,
+    7.1 tall, with a 3.6 mm cover on top, 10.7 in all. The listing's longer figure is not used;
+    photo 3's socket is about 5.5 times as long as it is wide, which a 9.7 mm width would match.
+    9.0 sits flush with the 8.8 mm shroud.
+  - 40 openings 1.2 square, narrowing to 0.9, 2.2 deep. The cable's mid-plane is at z = 6.0 and
+    leaves through a 51.8 x 1.05 slot, 0.6 deep, under the cover's 1.0 mm lip, which is the strain
+    relief. The pin-1 triangle is 2.4 x 2.4 x 0.25, on the cover above contact 1.
+  - The polarization bump is on the cable wall: 6.0 wide (photo 3), 1.2 out of the wall, 5.3 tall,
+    ending under the slot. The sheet's 1.5 mm centrebump is read as the bump's size, not
+    matched; the rib is rounded. The cable leaves on the bump's side, as photo 3's lower socket.
+  - That wall is -x, so seated on the T-board's `socket` the bump meets the key slot and the
+    cable runs away from the stem. Pin 1 is the row beside the bump (ADR-A2-1), at +y;
+    `cable-a` is at +y, conductor 1's edge.
+  - The socket's origin goes on the rim: its body rests on the shroud and is not inserted into
+    it. The shroud's cavity (6.4 wide) is narrower than the socket (9.0), so the two do not
+    interlock in the model.
+  - The cover's moulded ribs are a high-poly copy baked to the normal map; AO is baked.
+- **Consequences.** A socket seated on the rim hides the header's pins, which is what shows at
+  bench distance. If the studio wants the socket inserted, it needs a deeper contract (the
+  seating depth, and a shroud cavity that fits) and a new header.
+
+## ADR-A2-3 Ribbon: two baked textures, a raised-cosine ridge, a lossless lookup
+
+- **Context.** SPEC 10.4 has Blender bake the ribbon's cross-section: a tileable normal map of
+  the 40 conductor ridges and a 40-texel colour lookup. `ribbon.json` gives the width, pitch,
+  thickness (0.95, CP-40) and colour sequence. No datasheet gives the ridge's profile.
+- **Decision.**
+  - The ridge is a raised cosine, 0.15 mm high, one a conductor's pitch, crowned at the pitch's
+    middle with its valleys at the pitch's edges, so the map tiles across and, because the
+    conductors run along the cable, along it. This is an assumption read against photos 1 and 3,
+    whose ridges are visible but faint. It is baked from a mesh that carries them.
+  - The map is 1280 x 64: 32 texels per ridge, and a tile 2.54 mm of cable long, with the same
+    texel density along it. It is linear UASTC with mipmaps.
+  - The lookup is 40 x 1 RGBA8 in sRGB, without mipmaps and uncompressed. A block-compressed
+    texture would blend neighbouring conductors' colours within each 4 x 4 block, and WebGPU
+    needs block-aligned sizes for compressed formats.
+  - The ten colours are sRGB values read off the rainbow cable in photos 1 and 3: brown 6b3a1d,
+    red d81e1e, orange f07a12, yellow f2d21a, green 1fa84a, blue 1f59d6, violet 7a2fc4, grey
+    9a9a9e, white eeeeea, black 1c1c1f. They are in `assets.ts` (`colors`), and the check reads
+    them from there.
+- **Consequences.** The studio samples the lookup with nearest filtering. The 0.15 mm ridge is a
+  tunable constant in `ribbon.py`; changing it changes the ridge map's bytes, not its size.
+
+## ADR-A2-4 Dupont ends: housing detail as geometry, AO only
+
+- **Context.** `dupont.json` gives the housing's 2.54 x 2.54 x 12.0 mm, the 0.64 mm pin with 5.5 mm
+  exposed, and the 1.0 mm wire. The housings are instanced at the ends of every lead, so they
+  stay small.
+- **Decision.** Values in mm, in `scripts/assets/blender/dupont.py`.
+  - Edges rounded 0.1. A latch window 1.2 x 1.4 and 0.5 deep on each side, its centre 3.6 above
+    the mating face: the window a 2.54 mm crimp housing has over its terminal's tab, which photo
+    3 is too small to show. The wire entry is a 1.8 square recess, 0.3 deep, round a 1.1 square
+    hole, 2.0 deep.
+  - The male's pin has a 0.26 tip tapering over 0.4 mm, and runs 3.0 mm up into the housing; a
+    1.5 square recess, 0.25 deep, surrounds it.
+  - The female's mouth is 1.7 square funnelling over 0.35 mm into a 1.0 square cavity, 6.5 deep,
+    in `metal`.
+  - AO is baked into a 256 x 256 atlas; there is no normal map.
+- **Consequences.** About 170 triangles and 55 KB each. The male's pin is one piece with the
+  housing in the mesh, so the studio cannot hide them separately.
+
+## ADR-A2-5 Textures-only assets, and the controller checks beside verify.ts
+
+- **Context.** The ribbon is two textures and no mesh, so `build.ts`'s GLB path does not fit it.
+  `verifyAsset` branches two ways, on breadboard or Pi, and is outside this change.
+- **Decision.**
+  - An `Asset` may list `ktx2` files. The Blender script saves a PNG for each beside its output,
+    and `build.ts` encodes them with `ktx create` (UASTC level 2, zstd 18, mipmaps for the
+    ridge map; lossless sRGB RGBA8 for the lookup) and writes the manifest, with no geometry
+    hash. `Manifest.geometryHash` is optional for that reason, and `provenance()` holds the part
+    of the manifest the two paths share.
+  - `controllers.ts` holds the controller assets' checks and re-implements the hash, budget and
+    texture findings of `verifyAsset`. `check.ts` and `models.test.ts` choose between it,
+    `verify-parts.ts` and `verifyAsset` by kind.
+  - `check --rebuild` compares the lookup byte for byte and the ridge map by SSIM, like the GLB
+    textures.
+  - Colour and normal bakes use 16 samples (they need only anti-aliasing: flat colour and
+    ridged geometry), and AO uses the pipeline's 128, at fixed seed.
+- **Consequences.** If `verify.ts` later dispatches by kind, the three shared findings can move
+  back. A texture asset costs about 2 s to build; the T-board about 20 s.
