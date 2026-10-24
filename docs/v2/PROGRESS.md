@@ -182,16 +182,21 @@ Open threads:
 - HIL items in `docs/v2/HIL_CHECKLIST.md`.
 - Theory templates have no arithmetic, so derived values (a divider's ratio) are written out in a few theory files.
 
-## M6 Board Sense — in progress (2026-10-24)
+## M6 Board Sense — done (2026-10-24)
 
 Protocol (fixed; agent and app build to it): app → agent `sense_start {config:{pins,settleUs,periodMs}}`, `sense_stop`, `sense_pause` (agent replies `sense_paused` once every line is released), `sense_resume`; agent → app `sense_sweep {data:{t,pins,skipped,bias:{pin:{up,down}},pairs:{a:{up:{b:0|1},down:{b:0|1}}}}}` with raw levels only, `sense_event {data:{kind:'error',message}}`. The agent only measures; all interpretation is in `core/sense`.
 
 | Task | Status | Verified / notes |
 |------|--------|------------------|
-| 6.1 sense.py | in progress | Sonnet subagent ("sense-agent", worktree): sweeps, safety rules each with a fake-gpiod test, libgpiod v2 findings, agent.py routing, `AGENT_FILES` |
+| 6.1 sense.py | done | 875e6ca (Sonnet subagent, reviewed): bias and pair sweeps, raw levels only; every LineSettings is built in one place as an INPUT with pull-up, pull-down or disabled bias; GPIO0/1, pins outside 2–27, alternate functions, gpiod consumers and (a618e2c) pins left as outputs are skipped; lines released at the end of every sweep and on pause/stop/error/disconnect before `sense_paused`. 52 fake-gpiod tests. `agent.rs` deploys sense.py; a test checks every non-test .py is deployed. 31c6801: install.sh asked apt for `python3-gpiod`, which exists nowhere (audit facts-11); it now installs `python3-libgpiod`, and gpiod 2 into a venv when apt's binding is 1.x (ADR-0019) |
 | 6.2 transport | done | db7cdbe: `sense_start/stop/pause/resume` (pause waits ≤ 1 s for the ack, waiter registered before sending), `gpio:sense` (timestamp-only repeats dropped), `gpio:sense-event`; 4 new cargo tests (90 total) |
 | 6.3 run waits for sense_paused | done | `state/runStore.ts` + `state/senseStore.ts`: with sensing on, Run on Pi pauses it and refuses to start without the ack within 1 s, then resumes; `runStore.test.ts` covers both |
 | 6.4 reconciliation | done | c041f43 `core/sense/{sense,candidates,mockAgent}.ts`: states, settling over two sweeps, events, candidates ranked with ties. Tests on SPEC 18 fixtures 1, 3, 4, 5 (three faults, true cause in top 3), 6 (Blinking LED unobserved). Observability fixed: tied bias, or another GPIO following both up and down (ADR-0013) |
 | 6.5 Board tab + walkthrough | done | `panels/BoardPanel.tsx` (Workbench Board tab): toggle (Pi or simulated board), net states, skipped pins, events, likely causes (sim worker), fixture walkthrough with generated steps, "Use as the twin" and recorded results; checked in Chromium against the mock (fixture 3 → GPIO18 matched; empty board → unobserved). Headless build-step confirmation `core/sense/buildSteps.ts` (confirmed / waiting / diverged / not electrically verifiable) |
 | 6.6 presence spike | done (dropped) | ADR-0018: needs the Pi; not built; fixture 7 listed as not built |
 | 6.7 HIL fixtures | done | `HIL_CHECKLIST.md` fixtures 1–7; 1–4 holes generated and checked by `core/sense/hil.test.ts` |
+
+M6 exit suite (2026-10-24, at 31c6801):
+- `cargo test`: 91 passed / 20 ignored. `live-tests.sh`: 19/19.
+- `npm test`: node + Vitest 1450/1450 (54 files, including every tutorial's code checks). Lint 0 errors (35 warnings). Typecheck clean. `pi-agent` unittest 58/58. `npm run build`: .app and .dmg.
+- Board Sense was never started against a real Pi (PI_HOST unset). The bench fixtures and the agent install are on `HIL_CHECKLIST.md`.
