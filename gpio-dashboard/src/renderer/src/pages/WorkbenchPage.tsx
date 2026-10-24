@@ -1,25 +1,17 @@
 // The interim Workbench (SPEC 11.1, M3–M6): open a sample or a project file, then check it with
-// the ERC and Sim/Probes panels. Its panels move into the Studio's drawer in M7.
+// the ERC and Sim/Probes panels. The same panels make up the Studio's drawer (M7), and both pages
+// show the app's one document.
 import { FlaskConical, FolderOpen } from 'lucide-react'
 import { useState } from 'react'
-import { partDef } from '../core/defs/parts'
 import { SAMPLES } from '../core/defs/samples'
-import { netlist } from '../core/netlist/netlist'
 import { migrate } from '../core/serialize/gpiob'
 import { importProject } from '../native/projects'
 import BoardPanel from '../panels/BoardPanel'
 import CodePanel from '../panels/CodePanel'
 import ErcPanel from '../panels/ErcPanel'
+import RunBlockedDialog from '../panels/RunBlockedDialog'
 import SimPanel from '../panels/SimPanel'
-import { USER_GPIOS, useWorkbench } from '../state/workbenchStore'
-
-/** GPIOs whose nets reach anything besides the header. */
-function usedGpios(doc: Parameters<typeof netlist>[0]): number[] {
-  const nets = netlist(doc, partDef).nets
-  return USER_GPIOS.filter((bcm) =>
-    nets.some((n) => n.names.includes(`GPIO${bcm}`) && n.members.some((m) => m.kind !== 'header'))
-  )
-}
+import { useWorkbench } from '../state/workbenchStore'
 
 export default function WorkbenchPage() {
   const { source, doc, problems, sim, error, open } = useWorkbench()
@@ -101,8 +93,13 @@ export default function WorkbenchPage() {
           </div>
           <div className="flex-1 overflow-y-auto p-4">
             {tab === 'erc' && <ErcPanel issues={sim?.issues ?? []} />}
-            {tab === 'sim' && <SimPanel doc={doc} gpios={usedGpios(doc)} />}
-            {tab === 'code' && <CodePanel doc={doc} />}
+            {tab === 'sim' && <SimPanel doc={doc} />}
+            {tab === 'code' && (
+              <div className="space-y-3">
+                <RunBlockedDialog />
+                <CodePanel doc={doc} />
+              </div>
+            )}
             {tab === 'board' && <BoardPanel doc={doc} />}
           </div>
         </>

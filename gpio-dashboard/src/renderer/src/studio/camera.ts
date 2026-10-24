@@ -21,7 +21,7 @@ const DIRECTIONS: Record<Exclude<Preset, 'fit'>, { phi: number; theta: number }>
 }
 
 /** Height of the Pi with its header, for framing only. */
-const PI_HEIGHT_MM = 20
+export const PI_HEIGHT_MM = 20
 
 /** The boards and the Pi as a box in the scene. */
 export function contentBox(doc: CircuitDoc): Box3 {

@@ -3,22 +3,18 @@
 import { Radar } from 'lucide-react'
 import { partDef } from '../core/defs/parts'
 import type { CircuitDoc, PartInstance } from '../core/model/types'
+import { netlist } from '../core/netlist/netlist'
 import type { GpioState } from '../core/sim/circuit'
-import { useWorkbench } from '../state/workbenchStore'
+import { USER_GPIOS, useWorkbench } from '../state/workbenchStore'
+import { INPUT_PROPS } from './inputs'
 
-/** Part properties that are inputs while simulating, not build choices (SPEC 11.4). */
-const INPUT_PROPS = new Set([
-  'wiper',
-  'lux',
-  'temperatureC',
-  'humidityPct',
-  'distanceCm',
-  'motion',
-  'tilted',
-  'x',
-  'y',
-  'pressed'
-])
+/** GPIOs whose nets reach anything besides the header. */
+function usedGpios(doc: CircuitDoc): number[] {
+  const nets = netlist(doc, partDef).nets
+  return USER_GPIOS.filter((bcm) =>
+    nets.some((n) => n.names.includes(`GPIO${bcm}`) && n.members.some((m) => m.kind !== 'header'))
+  )
+}
 
 type Mode = 'in-off' | 'in-up' | 'in-down' | 'out-low' | 'out-high' | 'pwm'
 
@@ -147,7 +143,8 @@ function PartInputs({ part }: { part: PartInstance }) {
   )
 }
 
-export default function SimPanel({ doc, gpios }: { doc: CircuitDoc; gpios: number[] }) {
+export default function SimPanel({ doc }: { doc: CircuitDoc }) {
+  const gpios = usedGpios(doc)
   const sim = useWorkbench((s) => s.sim)
   const probe = useWorkbench((s) => s.probe)
   const advance = useWorkbench((s) => s.advance)

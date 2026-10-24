@@ -1,14 +1,14 @@
-// The Workbench's Code panel (SPEC 11.6, 13.2, 14.3): edit the program, check it, run it against
-// the simulated circuit at a chosen speed, or run it on the Pi behind the ERC gate.
+// The Code panel (SPEC 11.6, 13.2, 14.3): edit the program, check it, run it against the simulated
+// circuit at a chosen speed, or run it on the Pi behind the ERC gate. Leaving the editor commits
+// the program to the document as one transaction.
 import { CheckCircle2, Cpu, Play, Square } from 'lucide-react'
 import { useState } from 'react'
-import { partDef } from '../core/defs/parts'
-import { erc } from '../core/erc/erc'
 import type { CircuitDoc } from '../core/model/types'
-import { useRun } from '../state/runStore'
+import { circuit } from '../state/circuit'
+import { runOnPi, useRun } from '../state/runStore'
+import { edit } from '../state/studioStore'
 import { useWorkbench } from '../state/workbenchStore'
 import CodeEditor from './CodeEditor'
-import RunBlockedDialog from './RunBlockedDialog'
 
 const SPEEDS = [
   { label: 'Real time', scale: 1 },
@@ -16,23 +16,28 @@ const SPEEDS = [
   { label: 'As fast as possible', scale: Infinity }
 ]
 
-/** A project id for Run on Pi: [a-zA-Z0-9_-] only (SPEC 14.3). */
-const projectId = (source: string | null, doc: CircuitDoc) =>
-  (source && /^[\w-]+$/.test(source) ? source : doc.meta.name)
-    .replace(/[^A-Za-z0-9_-]+/g, '-')
-    .slice(0, 48) || 'project'
+function commitCode() {
+  const { code } = useWorkbench.getState()
+  const doc = circuit.getSnapshot()
+  if (code !== doc.code.source)
+    edit('Edit code', [{ type: 'SetCode', code: { ...doc.code, source: code } }])
+}
 
 export default function CodePanel({ doc }: { doc: CircuitDoc }) {
-  const { source, code, diagnostics, codeStatus, codeOutput, codeError } = useWorkbench()
+  const { source, code, codeRevision, diagnostics, codeStatus, codeOutput, codeError } =
+    useWorkbench()
   const { setCode, check, runInSim, stopCode } = useWorkbench.getState()
-  const run = useRun((s) => s.run)
+  const piOutput = useRun((s) => s.output)
   const [speed, setSpeed] = useState(0)
   const running = codeStatus === 'running'
   return (
     <div className="flex flex-col gap-3">
-      <div className="h-72 rounded-lg overflow-hidden border border-white/[0.06]">
+      <div
+        className="h-72 rounded-lg overflow-hidden border border-white/[0.06]"
+        onBlur={commitCode}
+      >
         <CodeEditor
-          key={`${source}-${running}`}
+          key={`${codeRevision}-${running}`}
           initial={code}
           onChange={setCode}
           readOnly={running}
@@ -69,19 +74,12 @@ export default function CodePanel({ doc }: { doc: CircuitDoc }) {
         </select>
         <button
           className="btn-secondary text-sm flex items-center gap-1.5 ml-auto"
-          onClick={() =>
-            run(
-              projectId(source, doc),
-              code,
-              erc({ ...doc, code: { ...doc.code, source: code } }, partDef)
-            )
-          }
+          onClick={() => runOnPi(source, doc, code)}
         >
           <Cpu className="w-4 h-4" /> Run on Pi
         </button>
         <span className="text-xs text-gray-500">{codeStatus}</span>
       </div>
-      <RunBlockedDialog />
       {diagnostics.length > 0 && (
         <ul className="text-xs font-mono text-red-300">
           {diagnostics.map((d, i) => (
@@ -95,6 +93,14 @@ export default function CodePanel({ doc }: { doc: CircuitDoc }) {
         <pre className="text-xs font-mono text-gray-300 bg-surface-900 rounded p-3 max-h-48 overflow-y-auto">
           {codeOutput.join('\n')}
           {codeError && <span className="text-red-400">{`\n${codeError}`}</span>}
+        </pre>
+      )}
+      {piOutput.length > 0 && (
+        <pre
+          aria-label="Output from the Pi"
+          className="text-xs font-mono text-gray-300 bg-surface-900 rounded p-3 max-h-48 overflow-y-auto"
+        >
+          {piOutput.map((l) => l.data).join('')}
         </pre>
       )}
     </div>

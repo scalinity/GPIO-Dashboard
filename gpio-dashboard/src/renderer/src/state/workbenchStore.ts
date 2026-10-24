@@ -1,5 +1,6 @@
-// The interim Workbench (SPEC 11.1): one open document, its simulation and probe signature. The
-// document is read-only here; editing arrives with the Studio (M7).
+// The Workbench's state (SPEC 11.1), shared by the Studio's drawer: the app's document, its
+// simulation and probe signature, and the program being edited. The document follows every
+// committed change to the app's CircuitStore, so the sim and ERC stay live while the Studio edits.
 import { create } from 'zustand'
 import { partDef } from '../core/defs/parts'
 import type { CircuitDoc } from '../core/model/types'
@@ -25,6 +26,8 @@ interface WorkbenchState {
   /** The program being edited; Run in Sim and Run on Pi use it. */
   code: string
   diagnostics: Diagnostic[]
+  /** Bumped whenever `code` is replaced from a document, so the editor reloads it. */
+  codeRevision: number
   codeStatus: CodeStatus
   codeOutput: string[]
   codeError: string | null
@@ -46,85 +49,124 @@ interface WorkbenchState {
   stopCode(): void
 }
 
-export const useWorkbench = create<WorkbenchState>((set, get) => {
-  const send = async (req: SimRequest) => {
-    const res = await simRequest(req)
-    if (res.type === 'state') set({ sim: res, error: null })
-    else if (res.type === 'probe') set({ probe: res.signature, error: null })
-    else if (res.type === 'error') set({ error: res.message })
-  }
-  return {
-    source: null,
-    code: '',
-    diagnostics: [],
-    codeStatus: 'idle',
-    codeOutput: [],
-    codeError: null,
-    doc: null,
-    problems: [],
-    gpio: {},
-    env: {},
-    sim: null,
-    probe: null,
-    error: null,
-    async open(source, doc) {
-      const problems = validateDoc(doc, partDef)
-      set({
-        source,
-        doc,
-        problems,
-        gpio: {},
-        env: {},
-        sim: null,
-        probe: null,
-        error: null,
-        code: doc.code.source,
-        diagnostics: [],
-        codeOutput: [],
-        codeError: null
-      })
-      if (problems.length === 0) {
-        circuit.open(doc)
-        await send({ type: 'load', doc })
-      }
-    },
-    async setGpio(bcm, state) {
-      set({ gpio: { ...get().gpio, [bcm]: state } })
-      await send({ type: 'gpio', bcm, state })
-    },
-    async setInput(part, key, value) {
-      const env = get().env
-      const next = { ...env, [part]: { ...env[part], [key]: value } }
-      set({ env: next })
-      // A running program owns the circuit: its inputs reach it through shared memory.
-      if (get().codeStatus === 'running') sendInputs(next)
-      else await send({ type: 'input', part, key, value })
-    },
-    async advance(seconds) {
-      const t = (get().sim?.snapshot.t ?? 0) + seconds
-      await send({ type: 'advance', t })
-    },
-    async runProbe() {
-      await send({ type: 'probe', pins: USER_GPIOS })
-    },
-    setCode(code) {
-      set({ code, diagnostics: [] })
-    },
-    check() {
-      checkCode(get().code)
-    },
-    runInSim(timeScale) {
-      const { doc, code, env } = get()
-      if (!doc) return
-      set({ codeStatus: 'running', codeOutput: [], codeError: null, diagnostics: [] })
-      runCode({ ...doc, code: { ...doc.code, source: code } }, timeScale)
-      sendInputs(env)
-    },
-    stopCode() {
-      stopCode()
+async function send(req: SimRequest) {
+  const res = await simRequest(req)
+  if (res.type === 'state') useWorkbench.setState({ sim: res, error: null })
+  else if (res.type === 'probe') useWorkbench.setState({ probe: res.signature, error: null })
+  else if (res.type === 'error') useWorkbench.setState({ error: res.message })
+}
+
+export const useWorkbench = create<WorkbenchState>((set, get) => ({
+  source: null,
+  code: '',
+  codeRevision: 0,
+  diagnostics: [],
+  codeStatus: 'idle',
+  codeOutput: [],
+  codeError: null,
+  doc: null,
+  problems: [],
+  gpio: {},
+  env: {},
+  sim: null,
+  probe: null,
+  error: null,
+  async open(source, doc) {
+    const problems = validateDoc(doc, partDef)
+    set({
+      source,
+      problems,
+      gpio: {},
+      env: {},
+      error: null,
+      code: doc.code.source,
+      codeRevision: get().codeRevision + 1,
+      diagnostics: [],
+      codeOutput: [],
+      codeError: null
+    })
+    // A document that breaks placement rules is listed here, but never opened (ADR-0027).
+    if (problems.length) set({ doc, sim: null, probe: null })
+    else {
+      circuit.open(doc)
+      await follow()
     }
+  },
+  async setGpio(bcm, state) {
+    set({ gpio: { ...get().gpio, [bcm]: state } })
+    await send({ type: 'gpio', bcm, state })
+  },
+  async setInput(part, key, value) {
+    const env = get().env
+    const next = { ...env, [part]: { ...env[part], [key]: value } }
+    set({ env: next })
+    // A running program owns the circuit: its inputs reach it through shared memory.
+    if (get().codeStatus === 'running') sendInputs(next)
+    else await send({ type: 'input', part, key, value })
+  },
+  async advance(seconds) {
+    const t = (get().sim?.snapshot.t ?? 0) + seconds
+    await send({ type: 'advance', t })
+  },
+  async runProbe() {
+    await send({ type: 'probe', pins: USER_GPIOS })
+  },
+  setCode(code) {
+    set({ code, diagnostics: [] })
+  },
+  check() {
+    checkCode(get().code)
+  },
+  runInSim(timeScale) {
+    const { doc, code, env } = get()
+    if (!doc) return
+    set({ codeStatus: 'running', codeOutput: [], codeError: null, diagnostics: [] })
+    runCode({ ...doc, code: { ...doc.code, source: code } }, timeScale)
+    sendInputs(env)
+  },
+  stopCode() {
+    stopCode()
   }
-})
+}))
+
+let loading: Promise<void> = Promise.resolve()
+
+/**
+ * Brings the Workbench onto the app's current document, if it isn't there yet, and reloads the
+ * sim with the GPIO states and part inputs already set. Loads run one at a time, and one whose
+ * document has been replaced meanwhile is skipped. The editor's code is replaced only when the
+ * document's code changed and differs from what is being edited.
+ */
+export function follow(): Promise<void> {
+  const doc = circuit.getSnapshot()
+  const state = useWorkbench.getState()
+  if (doc === state.doc) return loading
+  const replace =
+    doc.code.source !== state.code && (!state.doc || doc.code.source !== state.doc.code.source)
+  useWorkbench.setState({
+    doc,
+    problems: [],
+    probe: null,
+    ...(replace
+      ? { code: doc.code.source, codeRevision: state.codeRevision + 1, diagnostics: [] }
+      : {})
+  })
+  loading = loading.then(async () => {
+    if (circuit.getSnapshot() !== doc) return
+    await send({ type: 'load', doc })
+    const { gpio, env } = useWorkbench.getState()
+    for (const [bcm, state] of Object.entries(gpio))
+      await send({ type: 'gpio', bcm: Number(bcm), state })
+    for (const [part, inputs] of Object.entries(env)) {
+      if (!doc.parts.some((p) => p.id === part)) continue
+      for (const [key, value] of Object.entries(inputs))
+        await send({ type: 'input', part, key, value })
+    }
+  })
+  return loading
+}
+
+circuit.subscribe(() => void follow())
 
 onPython((r) => {
   const state = useWorkbench.getState()

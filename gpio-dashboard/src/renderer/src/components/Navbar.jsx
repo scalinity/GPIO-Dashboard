@@ -42,8 +42,8 @@ export default function Navbar() {
         ))}
       </div>
 
-      {/* Right: Connection status */}
-      <ConnectionStatus />
+      {/* Right: Connection status (the Studio carries it in its own top bar) */}
+      {activeTab !== 'studio' && <ConnectionStatus />}
     </nav>
   )
 }

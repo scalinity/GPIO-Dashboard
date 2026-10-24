@@ -3,12 +3,16 @@
 // end on its net, from the same geometry and netlist the rest of the app uses.
 import { Plane, type Ray, Vector3 } from 'three/webgpu'
 import { boardDef } from '../core/defs/boards'
+import { partDef } from '../core/defs/parts'
 import { boardHoles, nearestHole, railHoleRow, stripKey } from '../core/geometry/breadboard'
 import type { CircuitDoc, HoleRef } from '../core/model/types'
 import type { Netlist } from '../core/netlist/netlist'
+import { modulePinInScene } from './coords'
 
 const plane = new Plane(new Vector3(0, 1, 0), 0)
 const hit = new Vector3()
+/** Half the 2.54 mm pitch: a ray this close to a module pin picks it. */
+const PIN_REACH_MM = 1.27
 
 /** The hole under a ray, on any board, or null. */
 export function pickHole(doc: CircuitDoc, ray: Ray): HoleRef | null {
@@ -62,4 +66,19 @@ export function hoverInfo(doc: CircuitDoc, nets: Netlist, hole: HoleRef): HoverI
       : `${hole.rail.startsWith('top') ? 'Top' : 'Bottom'} ${hole.rail.endsWith('+') ? '+' : '−'} rail · row ${Math.round(railHoleRow(def, hole.index) * 10) / 10}`
   const prefix = doc.boards.length > 1 ? `${board.id} · ` : ''
   return { hole, strip, wireEnds, net, text: `${prefix}${where} · ${net ? `net ${net}` : 'empty'}` }
+}
+
+/** The off-board module connector pin nearest along the ray that it passes within reach of. */
+export function pickModulePin(doc: CircuitDoc, ray: Ray): { part: string; pin: string } | null {
+  let best: { part: string; pin: string; distance: number } | null = null
+  for (const part of doc.parts) {
+    if (!part.placement.offboardPose) continue
+    for (const pin of partDef(part.defId).pins) {
+      const at = modulePinInScene(part, pin.id)
+      if (!at || ray.distanceSqToPoint(at) > PIN_REACH_MM ** 2) continue
+      const distance = ray.origin.distanceTo(at)
+      if (!best || distance < best.distance) best = { part: part.id, pin: pin.id, distance }
+    }
+  }
+  return best && { part: best.part, pin: best.pin }
 }

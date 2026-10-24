@@ -1,24 +1,22 @@
 // The 3D stage (SPEC 10, 11.2): R3F with WebGPURenderer from its async factory, rendering on demand.
 // React owns what the document declares (the stage and the models); StudioView owns the camera,
-// hover and frame loop.
+// hover, gestures, leads, footprints, labels and the frame loop.
 import { Canvas, useFrame } from '@react-three/fiber'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef } from 'react'
 import { AgXToneMapping, type WebGPURenderer } from 'three/webgpu'
 import type { CircuitDoc } from '../core/model/types'
-import { PRESETS } from './camera'
+import { useStudio } from '../state/studioStore'
 import Models from './Models'
 import { createRenderer } from './renderer'
 import Stage from './Stage'
-import { StudioView } from './view'
+import type { StudioView } from './view'
 
 declare global {
   interface Window {
-    /** Dev builds only: the Studio's frame counter, hover record and hole projection, for tests. */
+    /** Dev builds only: the Studio's frame counter, hover and ghost records, hole projection. */
     __studio?: StudioView
   }
 }
-
-const PRESET_LABELS = { fit: 'Fit (F)', iso: 'Iso (2)', top: 'Top (3)', front: 'Front (4)' }
 
 /** Drives every frame: R3F leaves rendering to a subscriber with a positive priority. */
 function Frames({ view }: { view: StudioView }) {
@@ -28,12 +26,13 @@ function Frames({ view }: { view: StudioView }) {
   return null
 }
 
-export default function Studio({ doc }: { doc: CircuitDoc }) {
-  const [view] = useState(() => new StudioView())
+export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDoc }) {
   const tooltip = useRef<HTMLDivElement>(null)
+  const labels = useRef<HTMLDivElement>(null)
+  const notice = useStudio((s) => s.notice)
   const attach = useCallback(
     (element: HTMLDivElement) => {
-      const detach = view.attach(element, tooltip.current!)
+      const detach = view.attach(element, tooltip.current!, labels.current!)
       if (import.meta.env.DEV) window.__studio = view
       return () => {
         detach()
@@ -42,10 +41,10 @@ export default function Studio({ doc }: { doc: CircuitDoc }) {
     },
     [view]
   )
-  // The toolbar sits outside the element the orbit controls listen on: their pointer capture
-  // would otherwise take the buttons' clicks.
+  // Anything clickable sits outside the element the orbit controls listen on: their pointer
+  // capture would otherwise take its clicks.
   return (
-    <div className="relative flex-1 min-h-0">
+    <div className="relative flex-1 min-h-0 min-w-0">
       <div ref={attach} className="absolute inset-0" data-testid="studio">
         <Canvas
           gl={createRenderer}
@@ -62,8 +61,10 @@ export default function Studio({ doc }: { doc: CircuitDoc }) {
           <Stage />
           <Models doc={doc} />
           <primitive object={view.overlay} />
+          <primitive object={view.layers} />
           <Frames view={view} />
         </Canvas>
+        <div ref={labels} className="absolute inset-0 overflow-hidden pointer-events-none" />
         <div
           ref={tooltip}
           hidden
@@ -71,17 +72,14 @@ export default function Studio({ doc }: { doc: CircuitDoc }) {
           className="absolute left-0 top-0 pointer-events-none rounded-btn bg-surface-900/90 border border-white/[0.06] px-2 py-1 text-xs text-gray-200 font-mono whitespace-nowrap"
         />
       </div>
-      <div
-        className="absolute top-3 right-3 flex gap-1 glass-panel rounded-btn p-1"
-        role="toolbar"
-        aria-label="Camera"
-      >
-        {PRESETS.map((preset) => (
-          <button key={preset} className="btn-ghost text-xs" onClick={() => view.preset(preset)}>
-            {PRESET_LABELS[preset]}
-          </button>
-        ))}
-      </div>
+      {notice && (
+        <div
+          role="status"
+          className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[80%] glass-panel rounded-btn px-3 py-1.5 text-xs text-amber-300"
+        >
+          {notice}
+        </div>
+      )}
     </div>
   )
 }

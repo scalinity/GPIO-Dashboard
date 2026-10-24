@@ -1,8 +1,10 @@
 // Run on Pi for any project or tutorial (SPEC 14.3): upload, run, stream, stop. ERC errors block a
 // run unless the user overrides them in the dialog; only UI handlers call run().
 import { create } from 'zustand'
-import type { Issue } from '../core/erc/erc'
 import { codePins } from '../core/code/pins'
+import { partDef } from '../core/defs/parts'
+import { erc, type Issue } from '../core/erc/erc'
+import type { CircuitDoc } from '../core/model/types'
 import { cleanupPins, killScript, runScript, scriptName, uploadScript } from '../native/ssh'
 import { useSense } from './senseStore'
 
@@ -90,3 +92,15 @@ export const useRun = create<RunState>((set, get) => ({
     set({ status: 'done' })
   }
 }))
+
+/** A project id for Run on Pi: [a-zA-Z0-9_-] only (SPEC 14.3). */
+const projectId = (source: string | null, doc: CircuitDoc) =>
+  (source && /^[\w-]+$/.test(source) ? source : doc.meta.name)
+    .replace(/[^A-Za-z0-9_-]+/g, '-')
+    .slice(0, 48) || 'project'
+
+/** Run on Pi for a document with the code being edited, gated by ERC over both. */
+export function runOnPi(source: string | null, doc: CircuitDoc, code: string): Promise<void> {
+  const withCode = { ...doc, code: { ...doc.code, source: code } }
+  return useRun.getState().run(projectId(source, doc), code, erc(withCode, partDef))
+}
