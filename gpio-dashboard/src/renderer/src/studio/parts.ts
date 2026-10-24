@@ -5,7 +5,15 @@
 // holes are too close to lie between stands on end); an off-board module on the table, its first
 // pin at the document's pose. Leads run from each pin empty into its hole. A part with no model
 // still gets its leads, as short stubs out of its holes.
-import { Color, type Group, Matrix4, Mesh, MeshStandardNodeMaterial, Vector3 } from 'three/webgpu'
+import {
+  Color,
+  type Group,
+  Matrix4,
+  Mesh,
+  MeshStandardNodeMaterial,
+  type Texture,
+  Vector3
+} from 'three/webgpu'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { boardDef } from '../core/defs/boards'
 import { partDef } from '../core/defs/parts'
@@ -26,8 +34,13 @@ export interface PartHandle {
   setColor(name: string, color: Color | null): void
   /** Light emitted by everything called `name`, linear (bloom picks up what passes 1); null is off. */
   setEmission(name: string, color: Color | null): void
-  /** A transform after node `name`'s own (a plunger's travel, a horn's turn); null restores it. */
+  /**
+   * A transform after node `name`'s own, in the node's frame in mm about its origin (a plunger's
+   * travel, a horn's turn); null restores it.
+   */
   setTransform(name: string, matrix: Matrix4 | null): void
+  /** A texture only this part's copy has, as the colour and emission map of `name`; null restores. */
+  setTexture(name: string, texture: Texture | null): void
 }
 
 /** The 4-band code's colours (sRGB), for the resistor's rings. */
@@ -47,7 +60,7 @@ const BAND: Record<string, string> = {
 }
 
 /** An LED lens's tint per colour option (sRGB): diffused epoxy of that colour, white water-clear. */
-const LENS: Record<string, string> = {
+export const LENS: Record<string, string> = {
   red: '#ff2a1f',
   green: '#2bd14b',
   blue: '#2a5cff',
@@ -77,6 +90,7 @@ interface Handled {
   color: Map<string, Color | null>
   emit: Map<string, Color | null>
   transform: Map<string, Matrix4 | null>
+  texture: Map<string, Texture | null>
 }
 
 /** The file for a part, by its props; null when none is listed. */
@@ -194,18 +208,42 @@ export class PartLayer {
     const state = (): Handled => {
       let h = this.handled.get(id)
       if (!h)
-        this.handled.set(id, (h = { color: new Map(), emit: new Map(), transform: new Map() }))
+        this.handled.set(
+          id,
+          (h = { color: new Map(), emit: new Map(), transform: new Map(), texture: new Map() })
+        )
       return h
     }
-    const changed = () => {
-      this.apply(id)
-      this.invalidate()
+    // The copy is looked up again on each call: a redraw can move it in its file.
+    const copy = () => {
+      const now = this.slots.get(id)
+      return now && { at: now.index, instances: this.files.get(now.file)! }
     }
     return {
       names: this.files.get(slot.file)!.names(),
-      setColor: (name, color) => (state().color.set(name, color), changed()),
-      setEmission: (name, color) => (state().emit.set(name, color), changed()),
-      setTransform: (name, matrix) => (state().transform.set(name, matrix), changed())
+      setColor: (name, color) => {
+        state().color.set(name, color)
+        this.reapplyColor(id, name)
+        this.invalidate()
+      },
+      setEmission: (name, color) => {
+        state().emit.set(name, color)
+        const c = copy()
+        c?.instances.emit(c.at, name, color)
+        this.invalidate()
+      },
+      setTransform: (name, matrix) => {
+        state().transform.set(name, matrix)
+        const c = copy()
+        c?.instances.transform(c.at, name, matrix)
+        this.invalidate()
+      },
+      setTexture: (name, texture) => {
+        state().texture.set(name, texture)
+        const c = copy()
+        c?.instances.texture(c.at, name, texture)
+        this.invalidate()
+      }
     }
   }
 
@@ -262,6 +300,16 @@ export class PartLayer {
     return lift ? pose.clone().premultiply(new Matrix4().makeTranslation(0, lift, 0)) : pose
   }
 
+  /** Part `id`'s colour of `name`: what the handle set, else the value's, else the model's. */
+  private reapplyColor(id: string, name: string): void {
+    const slot = this.slots.get(id)
+    const part = this.doc?.parts.find((p) => p.id === id)
+    if (!slot || !part) return
+    const values = new Map(valueColors(part, partDef(part.defId)))
+    const set = this.handled.get(id)?.color.get(name)
+    this.files.get(slot.file)!.color(slot.index, name, set ?? values.get(name) ?? null)
+  }
+
   /** The value's colours, then whatever the handle set, on part `id`'s copy. */
   private apply(id: string): void {
     const slot = this.slots.get(id)
@@ -274,6 +322,7 @@ export class PartLayer {
       instances.color(slot.index, name, h?.color.get(name) ?? values.get(name) ?? null)
     h?.emit.forEach((c, name) => instances.emit(slot.index, name, c))
     h?.transform.forEach((m, name) => instances.transform(slot.index, name, m))
+    h?.texture.forEach((t, name) => instances.texture(slot.index, name, t))
   }
 
   /** The body's pose and the leads' paths; null when the part cannot be placed yet. */

@@ -10,10 +10,12 @@ import {
   InstancedMesh,
   type Material,
   Matrix4,
-  type Mesh,
+  Mesh,
   type MeshStandardMaterial,
   MeshPhysicalNodeMaterial,
-  type Object3D
+  type Object3D,
+  type Texture,
+  Vector3
 } from 'three/webgpu'
 import { instancedDynamicBufferAttribute } from 'three/tsl'
 
@@ -29,9 +31,14 @@ interface Piece {
   emission: InstancedBufferAttribute | null
   /** The material made for tint or emission, which this class owns. */
   owned: Material | null
+  /** Copies drawn as a mesh of their own, for a texture only they have, by copy index. */
+  screens: Map<number, Mesh>
 }
 
 const white = new Color(1, 1, 1)
+const ONE = new Vector3(1, 1, 1)
+/** A copy hidden from its instanced mesh while a mesh of its own draws it. */
+const HIDDEN = new Matrix4().makeScale(0, 0, 0)
 
 /** A node material with every own property of `m` (as three converts materials itself). */
 function nodeMaterial(m: Material): MeshPhysicalNodeMaterial {
@@ -67,7 +74,8 @@ export class ModelInstances {
         mesh: null!,
         tinted: false,
         emission: null,
-        owned: null
+        owned: null,
+        screens: new Map()
       }
       piece.mesh = this.instanced(piece, capacity)
       this.pieces.push(piece)
@@ -104,6 +112,7 @@ export class ModelInstances {
     this.poses = poses
     this.nodes = poses.map(() => new Map())
     for (const piece of this.pieces) {
+      this.clearScreens(piece)
       if (grow) {
         this.release(piece)
         piece.mesh = this.instanced(piece, poses.length * 2)
@@ -158,6 +167,38 @@ export class ModelInstances {
     else this.nodes[i]!.delete(name)
     for (const piece of this.pieces) {
       if (!piece.chain.some((n) => n.name === name)) continue
+      this.place(piece, i)
+      this.changed(piece)
+    }
+  }
+
+  /**
+   * Gives copy `i`'s meshes called `name` a texture only this copy has (the LCD's characters), lit
+   * as the model's own emission map; null restores the model's. The copy is drawn as a mesh of its
+   * own while it has one, so its handle keeps working through `set`, which clears it.
+   */
+  texture(i: number, name: string, texture: Texture | null): void {
+    for (const piece of this.named(name)) {
+      let own = piece.screens.get(i)
+      if (!texture) {
+        if (own) this.removeScreen(piece, i)
+        this.place(piece, i)
+        this.changed(piece)
+        continue
+      }
+      if (!own) {
+        const material = (piece.source.material as MeshStandardMaterial).clone()
+        own = new Mesh(piece.source.geometry, material)
+        own.matrixAutoUpdate = false
+        own.castShadow = own.receiveShadow = true
+        this.group.add(own)
+        piece.screens.set(i, own)
+      }
+      const material = own.material as MeshStandardMaterial
+      material.map = material.emissiveMap = texture
+      material.emissive.copy(white)
+      material.emissiveIntensity = 0.8
+      material.needsUpdate = true
       this.place(piece, i)
       this.changed(piece)
     }
@@ -218,19 +259,45 @@ export class ModelInstances {
     piece.mesh.setColorAt(i, color ?? (piece.source.material as MeshStandardMaterial).color)
   }
 
+  /**
+   * A copy's matrix for a piece. A node's extra transform acts in the node's own frame in mm, about
+   * its origin: between the node's translation and rotation and its scale (a quantized mesh node's
+   * scale is its extent in mm), so a travel of 1 is 1 mm whatever the scale.
+   */
   private local(piece: Piece, i: number): Matrix4 {
     const m = new Matrix4()
     const nodes = this.nodes[i]
     for (const n of piece.chain) {
-      m.multiply(n.matrix)
       const extra = nodes?.get(n.name)
-      if (extra) m.multiply(extra)
+      if (!extra) m.multiply(n.matrix)
+      else
+        m.multiply(new Matrix4().compose(n.position, n.quaternion, ONE))
+          .multiply(extra)
+          .multiply(new Matrix4().makeScale(n.scale.x, n.scale.y, n.scale.z))
     }
     return m
   }
 
   private place(piece: Piece, i: number): void {
-    piece.mesh.setMatrixAt(i, this.local(piece, i).premultiply(this.poses[i]!))
+    const matrix = this.local(piece, i).premultiply(this.poses[i]!)
+    const own = piece.screens.get(i)
+    if (own) {
+      own.matrix.copy(matrix)
+      own.matrixWorldNeedsUpdate = true
+    }
+    piece.mesh.setMatrixAt(i, own ? HIDDEN : matrix)
+  }
+
+  private removeScreen(piece: Piece, i: number): void {
+    const own = piece.screens.get(i)
+    if (!own) return
+    this.group.remove(own)
+    ;(own.material as MeshStandardMaterial).dispose()
+    piece.screens.delete(i)
+  }
+
+  private clearScreens(piece: Piece): void {
+    for (const i of [...piece.screens.keys()]) this.removeScreen(piece, i)
   }
 
   private changed(piece: Piece): void {
@@ -242,6 +309,7 @@ export class ModelInstances {
   }
 
   private release(piece: Piece): void {
+    this.clearScreens(piece)
     this.group.remove(piece.mesh)
     piece.mesh.dispose()
     piece.owned?.dispose()
