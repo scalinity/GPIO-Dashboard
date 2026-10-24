@@ -302,3 +302,38 @@ decision and consequences. Numbering is stable; superseded records say so.
     quiet mismatch.
   - Currents away from the datasheet point are a model, not a measurement. The Inspect
     panel labels them "simulated".
+
+## ADR-0013 Probe-signature ranges: pull resistance, node capacitance and settle time
+
+- **Context.** SPEC 9 asks probe-signature mode to carry the pull resistance as a range
+  through every prediction, and to predict the pair test as a transient from the precharge
+  state with a node-capacitance range.
+  - The pull range is documented: the Raspberry Pi GPIO doc gives 37–86 kΩ up and
+    35–98 kΩ down (ADR-0009).
+  - No source gives a GPIO net's capacitance on this bench. That net is the RP1 pad, a
+    200 mm ribbon conductor, the T-board trace, a breadboard strip, and any leads.
+- **Decision.**
+  - Pull range: the documented min–max (`core/constants/rp1.ts`). A bench calibration
+    fixture (SPEC 18) may later narrow it, and `probeSignature` takes the range as a
+    parameter for that reason.
+  - Node capacitance: 10–100 pF per GPIO net. This is a modelling choice: a few pF for the
+    pad and strip, and tens of pF for a ribbon conductor and leads, with a wide margin either
+    side. Every pair-test reading is predicted at both ends, so a result that depends on it
+    comes out ambiguous rather than wrong.
+  - Settle time: 100 µs between applying the driving pin's pull and reading. The slowest
+    corner (98 kΩ × 100 pF ≈ 10 µs) settles in about ten time constants, and gmin
+    (1e-12 S) discharges an isolated 10 pF net with a 10 s time constant. So connected nets
+    settle while isolated nets hold their precharge. sense.py (M6) uses the same settle time.
+  - Pins are skipped by role on their net: transistor bases, logic and ADC inputs and
+    outputs, driver outputs and module signal inputs. Each skip names the pin and the
+    reason.
+  - Observable means some reading is certain at every corner of the ranges and differs
+    from what an unattached pin would read:
+    - follows its bias in the bias test
+    - follows its own pull, or holds its precharge while another pin drives, in the pair
+      test
+- **Consequences.**
+  - LED paths come out unobservable, as SPEC 14.5 expects (about 1.6 V at tens of µA).
+  - GPIO2/3 read tied-high through the board's 1.8 kΩ pull-ups.
+  - The capacitance range is unverified until the bench calibration fixture runs. It is
+    listed in HIL_CHECKLIST.md with that fixture.

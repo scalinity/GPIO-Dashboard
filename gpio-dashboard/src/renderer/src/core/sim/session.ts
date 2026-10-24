@@ -33,23 +33,13 @@ export class SimSession {
   private t = 0
   private x: Float64Array | undefined
   private readonly gpio = new Map<number, GpioState>()
-  private readonly env = new Map<string, Record<string, EnvValue>>()
+  private readonly env: Map<string, Record<string, EnvValue>>
   private error: string | null = null
   /** GPIOs whose nets reach a behavioural part's pin: their PWM is stepped edge by edge. */
   private readonly listened: Set<number>
 
   constructor(readonly circuit: Circuit) {
-    for (const part of circuit.doc.parts) {
-      const def = circuit.defs(part.defId)
-      const seeded: Record<string, EnvValue> = {}
-      for (const [key, schema] of Object.entries(def.properties)) seeded[key] = schema.default
-      for (const [key, value] of Object.entries(part.props)) {
-        if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string') {
-          seeded[key] = value
-        }
-      }
-      this.env.set(part.id, seeded)
-    }
+    this.env = circuit.defaultEnv()
     const behaviorNodes = new Set(circuit.behaviors.flatMap((b) => [...b.pinNode.values()]))
     this.listened = new Set(
       [...circuit.gpioNodes].filter(([, node]) => behaviorNodes.has(node)).map(([bcm]) => bcm)

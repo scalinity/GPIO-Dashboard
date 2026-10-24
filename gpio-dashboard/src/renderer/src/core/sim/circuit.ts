@@ -69,9 +69,12 @@ export class Circuit {
       this.supplies.set(name, source)
       this.fixed.push(source)
     }
+    // By every name a net carries, so a GPIO shorted to a supply keeps its node.
     for (const net of this.nl.nets) {
-      const bcm = /^GPIO(\d+)$/.exec(net.name)
-      if (bcm) this.gpioNodes.set(Number(bcm[1]), this.nodeOfNet.get(net.name)!)
+      for (const name of net.names) {
+        const bcm = /^GPIO(\d+)$/.exec(name)
+        if (bcm) this.gpioNodes.set(Number(bcm[1]), this.nodeOfNet.get(net.name)!)
+      }
     }
     // The board's fixed 1.8 kΩ pull-ups on GPIO2/3 (ADR-0009).
     const v33 = this.nodeOfNet.get('3V3')
@@ -82,6 +85,24 @@ export class Circuit {
       }
     }
     for (const part of doc.parts) this.addPart(part, defs(part.defId), factories)
+  }
+
+  /** Each part's inputs (switch state, wiper, lux, temperature...), seeded from its props. */
+  defaultEnv(): Map<string, Record<string, EnvValue>> {
+    const env = new Map<string, Record<string, EnvValue>>()
+    for (const part of this.doc.parts) {
+      const seeded: Record<string, EnvValue> = {}
+      for (const [key, schema] of Object.entries(this.defs(part.defId).properties)) {
+        seeded[key] = schema.default
+      }
+      for (const [key, value] of Object.entries(part.props)) {
+        if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string') {
+          seeded[key] = value
+        }
+      }
+      env.set(part.id, seeded)
+    }
+    return env
   }
 
   pinNode(part: string, pin: string): number {
@@ -321,9 +342,21 @@ export class Circuit {
   }
 
   /**
-   * One DC solve at a stimulus. `averaged` overrides output pins with a level between 0 and 1
-   * (a PWM pin's duty while the display is averaged). Behaviours are not updated here.
+   * The devices for one stimulus. `averaged` overrides output pins with a level between 0 and 1
+   * (a PWM pin's duty while the display is averaged); `extra` adds devices (probe pulls, node
+   * capacitance). Behaviours contribute their present drives and loads; they are not updated.
    */
+  devices(
+    gpio: ReadonlyMap<number, GpioState>,
+    env: (part: string) => Record<string, EnvValue>,
+    averaged: Map<number, number> = new Map(),
+    extra: Device[] = []
+  ): Device[] {
+    for (const read of this.inputs) read(env)
+    return [...this.fixed, ...this.gpioDevices(gpio, averaged), ...this.behaviorDevices(), ...extra]
+  }
+
+  /** One DC solve at a stimulus (see devices()). */
   solve(
     gpio: ReadonlyMap<number, GpioState>,
     env: (part: string) => Record<string, EnvValue>,
@@ -332,13 +365,7 @@ export class Circuit {
     extra: Device[] = [],
     options?: SolveOptions
   ): { x: Float64Array; devices: Device[] } {
-    for (const read of this.inputs) read(env)
-    const devices = [
-      ...this.fixed,
-      ...this.gpioDevices(gpio, averaged),
-      ...this.behaviorDevices(),
-      ...extra
-    ]
+    const devices = this.devices(gpio, env, averaged, extra)
     const branches = devices.reduce((n, d) => n + d.branchCount, 0)
     const start = guess && guess.length === this.nodes - 1 + branches ? guess : undefined
     return { x: solveDc(this.nodes, devices, options, start), devices }
