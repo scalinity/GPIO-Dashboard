@@ -14,6 +14,7 @@ import type { NetState } from '../core/sense/sense'
 import type { EnvValue } from '../core/sim/behavior'
 import type { Snapshot } from '../core/sim/session'
 import { bodyBox } from './bodies'
+import { defOf } from './coords'
 import { emissionOf } from './glow'
 import { Halos } from './halos'
 import { type Label, type LabelLayer } from './labels'
@@ -39,6 +40,9 @@ const TINT: Record<NetState['state'], string | null> = {
 const TINT_SIZE_MM = 2.0
 /** The most causes a diverged net's tag lists. */
 const CAUSES_SHOWN = 2
+/** What the assistant added or changed and has not been kept, and its ghosts (SPEC 11.8). */
+const REVIEW_HALO = new Color(0.9, 0.55, 3)
+const REVIEW_TINT = new Color('#A78BFA')
 
 export interface SimInputs {
   /** The document being drawn. */
@@ -56,6 +60,8 @@ export interface SimInputs {
     /** Asks for a diverged pin's ranked causes (a simulation; it senses nothing). */
     findCauses(pin: number): void
   }
+  /** Parts and leads tinted as the assistant's: its ghosts, and what its turn changed. */
+  review: { parts: string[]; wires: string[] }
 }
 
 /** What the visuals drew, read back for tests. */
@@ -74,6 +80,8 @@ export interface VisualsReport {
   tints: number
   /** Each LCD's lines. */
   lcd: Record<string, [string, string]>
+  /** Parts and leads tinted as the assistant's. */
+  review: string[]
 }
 
 const signature = (c: Color) => `${c.r.toFixed(2)},${c.g.toFixed(2)},${c.b.toFixed(2)}`
@@ -86,6 +94,7 @@ export class SimVisuals {
   private readonly screens = new Map<string, LcdScreen>()
   private readonly lcdLines = new Map<string, [string, string]>()
   private haloIds: string[] = []
+  private reviewIds: string[] = []
   private haloKey = ''
   private haloDoc: CircuitDoc | null = null
   private fxKey = ''
@@ -152,7 +161,8 @@ export class SimVisuals {
       halos: this.haloIds,
       tags: this.tags?.texts() ?? [],
       tints: this.tintCount,
-      lcd: Object.fromEntries(this.lcdLines)
+      lcd: Object.fromEntries(this.lcdLines),
+      review: this.reviewIds
     }
   }
 
@@ -170,7 +180,7 @@ export class SimVisuals {
     const seen = new Set<string>()
     for (const part of i.doc.parts) {
       seen.add(part.id)
-      const def = partDef(part.defId)
+      const def = defOf(i.doc, part.defId)
       const handle = this.parts.handle(part.id)
       if (handle) {
         this.light(part.id, handle, emissionOf(part, def, i.snapshot))
@@ -223,17 +233,23 @@ export class SimVisuals {
       if (RATING_CODES.has(issue.code) && issue.severity !== 'info')
         for (const ref of issue.refs)
           if (i.doc.parts.some((p) => p.id === ref)) rated.set(ref, issue.severity)
-    const key = JSON.stringify([...rated])
+    // A rating halo says more than the assistant's tint, so it wins.
+    const reviewed = i.review.parts.filter((id) => !rated.has(id))
+    const key = JSON.stringify([[...rated], reviewed])
     if (key === this.haloKey && this.cache?.doc === this.haloDoc) return
     this.haloKey = key
     this.haloDoc = this.cache?.doc ?? null
     this.haloIds = [...rated.keys()]
-    this.halos.set(
-      [...rated].flatMap(([id, severity]) => {
+    this.halos.set([
+      ...[...rated].flatMap(([id, severity]) => {
         const box = bodyBox(i.doc, { kind: 'part', id })
         return box ? [{ box, color: HALO_COLOR[severity as 'error' | 'warning'] }] : []
+      }),
+      ...reviewed.flatMap((id) => {
+        const box = bodyBox(i.doc, { kind: 'part', id })
+        return box ? [{ box, color: REVIEW_HALO }] : []
       })
-    )
+    ])
     this.invalidate()
   }
 
@@ -258,11 +274,15 @@ export class SimVisuals {
   ): void {
     const amps = i.current && i.snapshot ? wireCurrents(i.doc, i.snapshot, partDef, i.env) : {}
     const tintOf = new Map<string, Color>()
+    for (const id of i.review.wires) tintOf.set(id, REVIEW_TINT)
+    // Board Sense's tint is a measurement, so it wins over the assistant's.
     if (tinted.size)
       for (const net of this.nl.nets)
         for (const m of net.members)
           if (m.kind === 'wire' && tinted.has(net.name))
             tintOf.set(m.wire, tinted.get(net.name)!.color)
+    const drawn = new Set([...i.doc.parts.map((p) => p.id), ...i.doc.wires.map((w) => w.id)])
+    this.reviewIds = [...i.review.parts, ...i.review.wires].filter((id) => drawn.has(id))
     const fx = new Map<string, WireFxState>(
       i.doc.wires.map((w) => [w.id, { amps: amps[w.id] ?? 0, tint: tintOf.get(w.id) ?? null }])
     )

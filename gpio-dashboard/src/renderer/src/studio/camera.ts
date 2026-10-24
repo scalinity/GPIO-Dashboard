@@ -58,16 +58,20 @@ export function presetView(
   camera: PerspectiveCamera,
   target: Vector3
 ): View {
-  const sphere = contentBox(doc).getBoundingSphere(new Sphere())
-  const vfov = MathUtils.degToRad(camera.fov)
-  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect)
-  const distance = (sphere.radius / Math.sin(Math.min(vfov, hfov) / 2)) * 1.05
   const direction =
     preset === 'fit'
       ? camera.position.clone().sub(target).normalize()
       : new Vector3().setFromSpherical(
           new Spherical(1, DIRECTIONS[preset].phi, DIRECTIONS[preset].theta)
         )
+  return sphereView(contentBox(doc).getBoundingSphere(new Sphere()), camera, direction)
+}
+
+/** The view that frames `sphere`, looking along `direction` (toward the camera, unit length). */
+export function sphereView(sphere: Sphere, camera: PerspectiveCamera, direction: Vector3): View {
+  const vfov = MathUtils.degToRad(camera.fov)
+  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect)
+  const distance = (sphere.radius / Math.sin(Math.min(vfov, hfov) / 2)) * 1.05
   return {
     position: sphere.center.clone().addScaledVector(direction, distance),
     target: sphere.center.clone()

@@ -3,7 +3,9 @@
 // the frame loop.
 // Pointer and key handlers act directly on three objects and request a frame, so a hover shows on
 // the very next frame (SPEC 11.3, acceptance 8) without waiting on React. Edits go through the
-// studio store's edit(), one transaction each.
+// studio store's edit(), one transaction each. While an assistant turn owns the document the canvas
+// is read-only: the camera and hover work, nothing edits (SPEC 11.8). The assistant's ghosts are
+// drawn into the shown document, its changes tinted, and its cues marked; it can capture a view.
 import {
   BoxGeometry,
   Color,
@@ -14,28 +16,32 @@ import {
   PerspectiveCamera,
   Raycaster,
   type Scene,
+  Sphere,
   Vector2,
   Vector3,
   type WebGPURenderer
 } from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import type { CapturedView, ViewPreset } from '../assistant/context'
 import { boardDef } from '../core/defs/boards'
 import { PI_HEADER } from '../core/defs/controllers'
-import { partDef } from '../core/defs/parts'
 import { holeKey, isValidHole, parseHoleKey } from '../core/geometry/breadboard'
 import { tboardPinHoles } from '../core/geometry/tboard'
 import type { CircuitDoc, Endpoint, Op, Vec3, Wire } from '../core/model/types'
 import type { Problem } from '../core/ops/validate'
 import { circuit } from '../state/circuit'
+import { LOCKED_MESSAGE } from '../state/circuitStore'
 import { useSense } from '../state/senseStore'
 import { edit, type Selection, type Tool, useStudio } from '../state/studioStore'
 import { useWorkbench } from '../state/workbenchStore'
 import { BenchLayer } from './bench'
 import { bodyBox, pickBody, pointsBox } from './bodies'
 import { Cables, type CablesReport, placeColliders, type Placement, TABLE, toCore } from './cables'
-import { CameraTween, type Preset, presetView } from './camera'
-import { endpointInScene, holeInScene, poseMatrix } from './coords'
-import { FrameLoop } from './frameLoop'
+import { CameraTween, type Preset, presetView, sphereView } from './camera'
+import { defOf, endpointInScene, holeInScene, poseMatrix } from './coords'
+import { cuePlaces } from './cues'
+import { FrameLoop, SETTLE_FRAMES } from './frameLoop'
+import { ghostIds, withGhosts } from './ghosts'
 import {
   boardTop,
   type Gesture,
@@ -72,6 +78,14 @@ const TBOARD_COLOR = new Color('#FCA5A5')
 const GHOST_SIZE_MM = 2.3
 const LEGAL = new Color('#22C55E')
 const ILLEGAL = new Color('#EF4444')
+const CUE_SIZE_MM = 2.8
+const CUE_COLOR = new Color('#C4B5FD')
+/** Focus frames at least a sphere this big, so one hole is not filled edge to edge. */
+const FOCUS_MIN_RADIUS_MM = 25
+/** capture_view waits at most this long for the cables to sleep (SPEC 12.5). */
+const CAPTURE_SLEEP_MS = 2000
+/** A captured view's longest side, in pixels: what the API reads without downscaling. */
+const CAPTURE_MAX_PX = 1568
 /** A press that moves further than this, in pixels, is a drag rather than a click. */
 const CLICK_PX = 4
 /** A lead grabbed this close to one of its route hints moves that hint rather than adding one. */
@@ -104,6 +118,22 @@ export interface SceneReport {
   leadEnds: { id: string; offAxisMm: number; depthMm: number }[]
   /** What the simulation and Board Sense paint: glow, motion, flow, halos, tags, tints. */
   sim: VisualsReport
+  /** The parts and leads drawn only as the assistant's ghosts. */
+  ghosts: string[]
+  /** How many places the assistant's cue marks. */
+  cueMarks: number
+}
+
+/** A capture_view in progress: waiting for the cables to sleep, then for TRAA to settle. */
+interface Capture {
+  preset: ViewPreset
+  since: number
+  /** Frames to draw at the preset before reading it; null until the camera is there. */
+  frames: number | null
+  /** The view to go back to afterwards. */
+  back: { position: Vector3; target: Vector3 } | null
+  resolve(view: CapturedView): void
+  reject(error: Error): void
 }
 
 /** A press on the canvas: what it selects as a click, and what it drags once it moves. */
@@ -131,6 +161,9 @@ export class StudioView {
   private readonly highlights = new Markers(this.overlay, 0.15)
   private readonly footprints = new Markers(this.layers, 0.1)
   private readonly ghostMarkers = new Markers(this.layers, 0.3)
+  /** The assistant's highlight (SPEC 12.5): marks on what it names, until dismissed. */
+  private readonly cueMarkers = new Markers(this.layers, 0.35)
+  private capturing: Capture | null = null
   private readonly wires = new WireLayer(this.layers)
   private readonly bench = new BenchLayer(this.layers)
   private readonly parts = new PartLayer(this.layers, () => this.invalidate())
@@ -223,7 +256,10 @@ export class StudioView {
     if (this.cables.poll() || this.redrawCables) this.showCables()
     if (this.cables.moving) moving = true
     if (this.visuals.step(now)) moving = true
+    const capture = this.capturing && this.captureStep(now)
+    if (this.capturing) moving = true
     this.post.render()
+    if (capture) this.finishCapture(capture)
     if (this.canvas) {
       const [w, h] = [this.canvas.clientWidth, this.canvas.clientHeight]
       this.labels?.project(this.camera, w, h)
@@ -244,8 +280,47 @@ export class StudioView {
     this.invalidate()
   }
 
+  /**
+   * capture_view (SPEC 12.5): waits for the cables to sleep (at most 2 s), draws the preset's view
+   * until TRAA has settled, reads it as a PNG no larger than the API reads, and puts the camera
+   * back where it was.
+   */
+  capture(preset: ViewPreset): Promise<CapturedView> {
+    if (!this.post || !this.canvas)
+      return Promise.reject(new Error('The 3D stage is not open, so there is nothing to capture.'))
+    this.capturing?.reject(new Error('A newer capture replaced this one.'))
+    return new Promise((resolve, reject) => {
+      this.capturing = {
+        preset,
+        since: performance.now(),
+        frames: null,
+        back: null,
+        resolve,
+        reject
+      }
+      this.invalidate()
+    })
+  }
+
+  /** Frames `refs` (parts, leads, boards, holes or nets), keeping the view's direction. */
+  focusOn(refs: string[]): void {
+    const doc = this.drawnDoc()
+    const { box } = cuePlaces(doc, circuit.engine.state.netlist, refs, {
+      size: CUE_SIZE_MM,
+      color: CUE_COLOR
+    })
+    if (box.isEmpty()) return
+    const sphere = box.getBoundingSphere(new Sphere())
+    sphere.radius = Math.max(sphere.radius, FOCUS_MIN_RADIUS_MM)
+    const direction = this.camera.position.clone().sub(this.controls.target).normalize()
+    const from = { position: this.camera.position, target: this.controls.target }
+    this.tween.begin(performance.now(), from, sphereView(sphere, this.camera, direction))
+    this.invalidate()
+  }
+
   /** Starts placing a part from the library; the pointer carries its ghost until release. */
   place(defId: string): void {
+    if (this.refuseWhileLocked()) return
     this.cancel()
     useStudio.setState({ selection: null, tool: 'select' })
     this.gesture = { kind: 'place', defId, rotation: 0 }
@@ -331,7 +406,9 @@ export class StudioView {
         })
       ),
       leadEnds: [...this.parts.leadEnds(), ...this.wires.maleTips()],
-      sim: this.visuals.report()
+      sim: this.visuals.report(),
+      ghosts: ghostIds(circuit.getSnapshot(), this.ghosted()),
+      cueMarks: this.cueMarkers.count
     }
   }
 
@@ -370,6 +447,7 @@ export class StudioView {
       const key = e.key.toLowerCase()
       if ((e.metaKey || e.ctrlKey) && key === 'z') {
         e.preventDefault()
+        if (this.refuseWhileLocked()) return
         this.cancel()
         if (e.shiftKey) circuit.redo()
         else circuit.undo()
@@ -404,15 +482,18 @@ export class StudioView {
         if (
           now.selection !== before.selection ||
           now.labels !== before.labels ||
-          now.preview !== before.preview
+          now.preview !== before.preview ||
+          now.ghosts !== before.ghosts
         )
           this.draw()
         else if (
           now.voltages !== before.voltages ||
           now.current !== before.current ||
-          now.sense !== before.sense
+          now.sense !== before.sense ||
+          now.tinted !== before.tinted
         )
           this.syncVisuals()
+        if (now.cue !== before.cue) this.showCue()
       }),
       // The simulation's snapshots, the part inputs and the issues, and Board Sense's states.
       useWorkbench.subscribe((now, before) => {
@@ -436,8 +517,11 @@ export class StudioView {
     element.addEventListener('pointerdown', onDown, { capture: true })
     element.addEventListener('pointermove', onMove)
     element.addEventListener('pointerleave', onLeave)
+    this.showCue()
     return () => {
       this.cancel()
+      this.capturing?.reject(new Error('The 3D stage closed before the capture.'))
+      this.capturing = null
       unsubscribe.forEach((u) => u())
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('pointermove', onGestureMove)
@@ -521,7 +605,8 @@ export class StudioView {
       occupant?.kind === 'part' &&
       selected?.kind === 'part' &&
       selected.id === occupant.part &&
-      partDef(doc.parts.find((x) => x.id === occupant.part)!.defId).footprint.kind === 'flex-2lead'
+      defOf(doc, doc.parts.find((x) => x.id === occupant.part)!.defId).footprint.kind ===
+        'flex-2lead'
     ) {
       return { select: selected, drag: { kind: 'leg', id: occupant.part, pin: occupant.pin } }
     }
@@ -549,7 +634,7 @@ export class StudioView {
         const part = doc.parts.find((x) => x.id === sel.id)!
         const pose = part.placement.offboardPose
         if (pose) return table && { kind: 'module', id: part.id, from: table, pose }
-        const pin1 = part.placement.pins[partDef(part.defId).pins[0]!.id]
+        const pin1 = part.placement.pins[defOf(doc, part.defId).pins[0]!.id]
         return pin1 ? { kind: 'part', id: part.id, grab: grabVector(doc, p.hole, pin1) } : null
       }
       case 'tboard':
@@ -596,7 +681,9 @@ export class StudioView {
     const p = this.pointerAt(e)
     if (!p) return
     const wireTool = useStudio.getState().tool === 'wire'
-    const { select, drag } = wireTool ? { select: null, drag: null } : this.pick(p)
+    const picked = wireTool ? { select: null, drag: null } : this.pick(p)
+    // Read-only while the assistant works: a press still selects, but drags nothing (it orbits).
+    const { select, drag } = circuit.locked ? { ...picked, drag: null } : picked
     if (select?.kind === 'part') this.pressSwitch(select.id)
     // The orbit controls ignore a press that drags something.
     if (drag) this.controls.enabled = false
@@ -639,8 +726,9 @@ export class StudioView {
    * the button is; a retain-press one and a tilt switch change state on each click.
    */
   private pressSwitch(id: string): void {
-    const part = circuit.getSnapshot().parts.find((p) => p.id === id)
-    const def = part && partDef(part.defId)
+    const doc = circuit.getSnapshot()
+    const part = doc.parts.find((p) => p.id === id)
+    const def = part && defOf(doc, part.defId)
     if (!part || !def) return
     const { env, setInput } = useWorkbench.getState()
     const value = (key: string) => env[id]?.[key] ?? part.props[key] ?? def.properties[key]?.default
@@ -670,8 +758,16 @@ export class StudioView {
     })
   }
 
+  /** While an assistant turn owns the document, says so and returns true. */
+  private refuseWhileLocked(): boolean {
+    if (!circuit.locked) return false
+    useStudio.setState({ notice: LOCKED_MESSAGE })
+    return true
+  }
+
   /** The wire tool: the first click picks a free end, the second commits the lead. */
   private wireClick(p: Pointer | null): void {
+    if (this.refuseWhileLocked()) return
     if (this.gesture?.kind === 'wire') {
       this.commit()
       if (this.proposal) this.cancel()
@@ -756,23 +852,29 @@ export class StudioView {
     this.invalidate()
   }
 
-  /** The document being drawn: the drag's preview, else the committed one. */
+  /** The committed document with the assistant's ghosts in it. */
+  private ghosted(): CircuitDoc {
+    return withGhosts(circuit.getSnapshot(), useStudio.getState().ghosts)
+  }
+
+  /** The document being drawn: the drag's preview, else the committed one with any ghosts. */
   private drawnDoc(): CircuitDoc {
-    return useStudio.getState().preview ?? circuit.getSnapshot()
+    return useStudio.getState().preview ?? this.ghosted()
   }
 
   /**
    * Draws what the document holds (or the preview of a drag): the bench, parts, leads, footprints,
-   * labels and selection. What a drag moves hovers above its holes; what a commit moved seats.
+   * labels and selection. What a drag moves, and every ghost, hovers above its holes; what a
+   * commit moved seats.
    */
   private draw(): void {
     const { preview, selection, labels } = useStudio.getState()
     const committed = circuit.getSnapshot()
-    const doc = preview ?? committed
+    const doc = preview ?? this.ghosted()
     const now = performance.now()
-    if (preview) this.insertion.hover(reseated(committed, preview))
-    else {
-      this.insertion.hover([])
+    this.insertion.hover(doc === committed ? [] : reseated(committed, doc))
+    // A drag's commit is measured once its preview is gone; the assistant's as each one lands.
+    if (!preview) {
       if (this.committed && this.committed !== committed)
         this.insertion.start(reseated(this.committed, committed), now)
       this.committed = committed
@@ -799,7 +901,7 @@ export class StudioView {
         })
     }
     for (const part of doc.parts) {
-      for (const pin of partDef(part.defId).pins) {
+      for (const pin of defOf(doc, part.defId).pins) {
         const hole = part.placement.pins[pin.id]
         const at = hole
           ? endpointInScene(doc, { hole })
@@ -811,6 +913,8 @@ export class StudioView {
     this.placeSelection(doc, selection)
     this.labels?.set(labels ? labelsOf(doc) : [])
     this.syncVisuals()
+    // A highlight follows what it names as the document changes.
+    if (useStudio.getState().cue?.marks) this.showCue()
     this.invalidate()
   }
 
@@ -872,10 +976,22 @@ export class StudioView {
   /** Brings the simulation's visuals onto the stores' present state. */
   private syncVisuals(): void {
     const { sim, env } = useWorkbench.getState()
-    const { voltages, current, sense } = useStudio.getState()
+    const { voltages, current, sense, tinted } = useStudio.getState()
     const board = useSense.getState()
+    const doc = this.drawnDoc()
+    const ghosts = new Set(ghostIds(circuit.getSnapshot(), doc))
     this.visuals.sync({
-      doc: this.drawnDoc(),
+      doc,
+      review: {
+        parts: [
+          ...(tinted?.parts ?? []),
+          ...doc.parts.filter((p) => ghosts.has(p.id)).map((p) => p.id)
+        ],
+        wires: [
+          ...(tinted?.wires ?? []),
+          ...doc.wires.filter((w) => ghosts.has(w.id)).map((w) => w.id)
+        ]
+      },
       snapshot: sim?.snapshot ?? null,
       env,
       issues: sim?.issues ?? [],
@@ -888,6 +1004,64 @@ export class StudioView {
         findCauses: (pin) => void useSense.getState().findCauses(pin)
       }
     })
+  }
+
+  /** Marks what the assistant's highlight names; a focus or no cue marks nothing. */
+  private showCue(): void {
+    const cue = useStudio.getState().cue
+    this.cueMarkers.set(
+      cue?.marks
+        ? cuePlaces(this.drawnDoc(), circuit.engine.state.netlist, cue.refs, {
+            size: CUE_SIZE_MM,
+            color: CUE_COLOR
+          }).markers
+        : []
+    )
+    this.invalidate()
+  }
+
+  /**
+   * One frame of a capture: once the cables sleep (or 2 s pass), jump to the preset and draw
+   * SETTLE_FRAMES frames there. Returns the capture on the frame to read, after it is drawn.
+   */
+  private captureStep(now: number): Capture | null {
+    const c = this.capturing!
+    if (c.frames === null) {
+      if (this.cables.moving && now - c.since < CAPTURE_SLEEP_MS) return null
+      this.tween.cancel()
+      c.back = { position: this.camera.position.clone(), target: this.controls.target.clone() }
+      const to = presetView(c.preset, circuit.getSnapshot(), this.camera, this.controls.target)
+      this.camera.position.copy(to.position)
+      this.controls.target.copy(to.target)
+      this.camera.lookAt(to.target)
+      c.frames = SETTLE_FRAMES
+      return null
+    }
+    c.frames -= 1
+    return c.frames <= 0 ? c : null
+  }
+
+  /** Reads the frame just drawn (it is still the canvas's current image), then restores the view. */
+  private finishCapture(c: Capture): void {
+    this.capturing = null
+    try {
+      const canvas = this.canvas!
+      const scale = Math.min(1, CAPTURE_MAX_PX / Math.max(canvas.width, canvas.height))
+      const out = document.createElement('canvas')
+      out.width = Math.max(1, Math.round(canvas.width * scale))
+      out.height = Math.max(1, Math.round(canvas.height * scale))
+      out.getContext('2d')!.drawImage(canvas, 0, 0, out.width, out.height)
+      const data = out.toDataURL('image/png').replace(/^data:image\/png;base64,/, '')
+      c.resolve({ mediaType: 'image/png', data })
+    } catch (e) {
+      c.reject(e instanceof Error ? e : new Error(String(e)))
+    }
+    if (c.back) {
+      this.camera.position.copy(c.back.position)
+      this.controls.target.copy(c.back.target)
+      this.camera.lookAt(c.back.target)
+    }
+    this.invalidate()
   }
 
   private pointer(e: PointerEvent | null): void {

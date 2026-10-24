@@ -1,7 +1,9 @@
-// The Studio's UI state (SPEC 11.2–11.5): the selection, the tool, the Inspect toggles, the drawer,
-// the document a drag would leave (drawn instead of the committed one), and the Studio's one path
-// to change the document: edit(), a single transaction through circuitStore.dispatch.
+// The Studio's UI state (SPEC 11.2–11.5, 11.8): the selection, the tool, the Inspect toggles, the
+// drawer, the document a drag would leave (drawn instead of the committed one), what the assistant
+// shows on the stage (ghosts, tints, a teaching cue), and the Studio's one path to change the
+// document: edit(), a single transaction through circuitStore.dispatch.
 import { create } from 'zustand'
+import type { Ghost } from '../assistant/context'
 import type { CircuitDoc, Op } from '../core/model/types'
 import { circuit } from './circuit'
 import { isTemplate } from './projectStore'
@@ -11,13 +13,21 @@ export type Selection =
 
 export type Tool = 'select' | 'wire'
 
-export type DrawerTab = 'code' | 'erc' | 'sim' | 'steps' | 'board'
+export type DrawerTab = 'claude' | 'code' | 'erc' | 'sim' | 'steps' | 'board'
 
 /** A right click on a T-board GPIO pin: the pin and where the menu opens (client pixels). */
 export interface PinMenu {
   bcm: number
   x: number
   y: number
+}
+
+/** The assistant's teaching cue (focus, highlight): a caption, and marks on what it names. */
+export interface Cue {
+  refs: string[]
+  note: string
+  /** Highlight marks the refs on the bench; focus only moves the camera. */
+  marks: boolean
 }
 
 interface StudioState {
@@ -36,6 +46,11 @@ interface StudioState {
   preview: CircuitDoc | null
   /** Why the last edit was refused, until the next one. */
   notice: string | null
+  /** The assistant's streaming tool calls, drawn as non-committing ghosts (SPEC 12.6), by call. */
+  ghosts: Record<string, Ghost>
+  /** What the assistant's last turn added or changed, tinted until kept (SPEC 11.8). */
+  tinted: { parts: string[]; wires: string[] } | null
+  cue: Cue | null
 }
 
 export const useStudio = create<StudioState>(() => ({
@@ -49,7 +64,10 @@ export const useStudio = create<StudioState>(() => ({
   pinMenu: null,
   drawer: null,
   preview: null,
-  notice: null
+  notice: null,
+  ghosts: {},
+  tinted: null,
+  cue: null
 }))
 
 /** One user edit as one transaction. Returns whether it was committed. */
