@@ -45,13 +45,15 @@ const num = (def: PartDef, key: string): number => {
 }
 
 /**
- * An LED die. Single LEDs are keyed `<color>.<size>.*`; RGB LEDs `<color>.*`.
- * The fit point is the datasheet's typical Vf at its test current.
+ * An LED die. Single LEDs are keyed `<color>.<size>.*`, RGB LEDs `<color>.*`, and displays (one
+ * die type throughout) have unprefixed params, key ''. The fit point is the datasheet's typical
+ * Vf at its test current.
  */
 export function ledParams(def: PartDef, key: string): DiodeParams {
-  const vf = num(def, `${key}.vfTypV`)
+  const at = (name: string) => num(def, key ? `${key}.${name}` : name)
+  const vf = at('vfTypV')
   const { n, rs } = vf >= INGAN_MIN_VF ? DIODE_FAMILY.ledInGaN : DIODE_FAMILY.led
-  const ifA = num(def, `${key}.ifTestMa`) / 1000
+  const ifA = at('ifTestMa') / 1000
   return { is: saturationCurrent(vf, ifA, n, rs), n, rs }
 }
 
