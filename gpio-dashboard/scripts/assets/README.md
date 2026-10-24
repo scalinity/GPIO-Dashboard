@@ -89,3 +89,85 @@ each texture's format and size, the budgets, and the geometry hash.
 To add an asset: a `sources.json` entry for anything downloaded, a script in `blender/` that
 reads its content file and uses `lib/`, an entry in `assets.ts` with its budget, and the checks
 for its kind in `verify.ts`. Never commit `.blend` files or downloads.
+
+## Part models (SPEC 7, 10.4)
+
+```sh
+BLENDER_BIN=... npm run assets:build -- parts          # every part; or name them: led-5mm resistor ...
+npm run assets:check -- parts                          # their checks, and parts/index.json
+BLENDER_BIN=... npm run assets:check -- --rebuild parts
+```
+
+`parts` stands for every part asset; any asset name also works for `build` and `check`.
+
+**Files.** `src/renderer/public/models/parts/<defId>.glb`, or `<defId>-<variant>.glb` where a
+property changes the shape (the LED's `size`), each with `.manifest.json` and `.colliders.json`.
+They are the same kind of GLB as the boards (meshopt, quantization), without textures.
+`parts/index.json` maps each part definition to its files, sorted by definition, and `build`
+merges its entries into it:
+
+```json
+{
+  "led": [
+    { "file": "led-3mm.glb", "when": { "size": "3mm" } },
+    { "file": "led-5mm.glb", "when": { "size": "5mm" } }
+  ],
+  "resistor": [{ "file": "resistor.glb" }]
+}
+```
+
+**Bodies only.** The leads are the runtime's. Each `pin-<pinId>` empty (the part definition's pin
+id) is where a lead leaves the body, and its +z axis points out of the body along the lead: down
+for every part but the axial ones, whose pin 1 points along -x and pin 2 along +x. In the glTF
+file that axis is the empty's local +y: take `(0, 1, 0)` through the node's world rotation, then
+convert with (x, y, z) -> (x, -z, y). The lead's diameter is in the definition's params.
+
+**Frames.** As the boards: 1 unit = 1 mm, modelled in the core frame (z up), exported y up.
+
+- Rigid parts: the origin is `pins[0]`'s hole centre on the board's top surface (z = 0), the body
+  sits where it seats, and each pin empty is at `(dx * 2.54, dy * 2.54)` from its `offsetPitch`
+  (within 0.05 mm). A part whose real leads leave the body at another pitch (TO-92 and the RGB
+  LED at 1.27 mm, the tact switch's 6.5 x 4.5 mm terminals, the potentiometer's 5.0 mm) has its
+  formed section of lead in the model, in a material named `lead`, ending at the pin on the
+  board's surface. The other rigid parts have their pins at the body's underside.
+- flex-2lead parts: the origin is the midpoint of the two pin empties, `pins[0]` toward -x and
+  `pins[1]` toward +x, both at model z = 0. The root node's glTF `extras` carry `seatMm`, the
+  height of that origin (and so of the pins) above the board's top surface when the part sits.
+  The pins are the definition's lead spacing apart, or for the axial parts one body length, where
+  the leads leave the end caps.
+
+**Names the studio looks up.**
+
+| Part                       | Animated nodes                             | Materials driven from the value or state                                              |
+| -------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `resistor`                 |                                            | `band-1` to `band-4`: the four rings, each its own primitive (default 220 ohm, 5 %)   |
+| `led`, 3 and 5 mm          |                                            | `lens` (transmissive; tinted and lit by the studio), `die`                            |
+| `rgb-led-ca`, `rgb-led-cc` |                                            | `lens`, `die-r`, `die-g`, `die-b`                                                     |
+| `tact-switch-6mm`          | `plunger`, travels -z                      |                                                                                       |
+| `potentiometer-10k`        | `shaft`, turns about its own axis (core y) |                                                                                       |
+
+Animate relative to a node's loaded transform: quantization moves a mesh node's origin to its
+bounding box's centre, which for `plunger` and `shaft` is on the part's axis. `shaft` is modelled
+at 50 % wiper with its slot upright, and its cross-section is symmetric, so it turns in place.
+The driven materials carry a custom property `driven` (glTF `extras`), so that dedup keeps
+materials with equal parameters apart.
+
+**Checks** (`verify-parts.ts`, measured from the GLB):
+
+- the definition's family, the geometry hash, the triangle and byte budgets, and no textures;
+- the root, with `seatMm` for flex parts and none for rigid ones;
+- every `pin-*` empty, animated node and driven material present;
+- pins within 0.05 mm of their `offsetPitch` (rigid), or of plus and minus half the lead spacing
+  (flex), and every lead axis within 1 degree of its exit direction;
+- the body, without the `lead` stubs, within the datasheet's dimensions (`parts.ts` reads them
+  from the definition's `geometry.params`), and the colliders covering it;
+- `parts/index.json` listing every part file, sorted.
+
+**Colliders.** `<name>.colliders.json` as for the boards, in the model's frame: the body's box,
+and for the potentiometer a `shaft` capsule.
+
+**Adding a part.** A script in `blender/` that takes `--part <definition>` and `--name` with the
+shared arguments, builds the body with `blender/partkit.py` (whose export keeps custom
+properties, which `lib/export.py` drops), and ends with `pk.write`. An entry for its family in
+`parts.ts`'s `FAMILIES` (triangle budget, and the expectation read from the params) and one in
+`PARTS` for each definition and variant.

@@ -2,10 +2,12 @@
 //
 // Rebuilds the shipped models headlessly (SPEC 10.3): pinned sources, then a STEP read through
 // occt-import-js where the model starts from one, then the asset's Blender script, then
-// gltf-transform. Writes <name>.glb, <name>.manifest.json and <name>.colliders.json.
+// gltf-transform. Writes <name>.glb, <name>.manifest.json and <name>.colliders.json (the part
+// models go in parts/, and are listed in parts/index.json). "parts" names every part model.
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
   copyFileSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -15,9 +17,10 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { type Asset, ASSETS, BAKE, type Manifest, MODELS_DIR, ROOT, asset as named } from './assets'
+import { type Asset, BAKE, type Manifest, MODELS_DIR, ROOT, assetDir, select } from './assets'
 import { geometryHash, glbIO, textures, triangleCount } from './glb'
 import { ktxOnPath, optimize } from './optimize'
+import { addToIndex } from './parts'
 import { ASSETS_DIR, extractSource, sha256, source } from './sources'
 import { stepToGlb } from './step-to-glb'
 
@@ -130,7 +133,7 @@ export async function build(
         path: `scripts/assets/blender/${asset.script}`,
         args,
         sha256: Object.fromEntries(
-          [asset.script, ...libs.map((f) => `lib/${f}`)].map((f) => [
+          [asset.script, ...(asset.support ?? []), ...libs.map((f) => `lib/${f}`)].map((f) => [
             `blender/${f}`,
             fileHash(join(BLENDER_DIR, f))
           ])
@@ -153,12 +156,15 @@ export async function build(
       geometryHash: geometryHash(written)
     }
 
-    copyFileSync(glb, join(outDir, `${asset.name}.glb`))
-    copyFileSync(colliders, join(outDir, `${asset.name}.colliders.json`))
+    const dest = assetDir(asset, outDir)
+    mkdirSync(dest, { recursive: true })
+    copyFileSync(glb, join(dest, `${asset.name}.glb`))
+    copyFileSync(colliders, join(dest, `${asset.name}.colliders.json`))
     writeFileSync(
-      join(outDir, `${asset.name}.manifest.json`),
+      join(dest, `${asset.name}.manifest.json`),
       `${JSON.stringify(manifest, null, 2)}\n`
     )
+    if (asset.part) addToIndex(dest, asset)
     return manifest
   } finally {
     rmSync(work, { recursive: true, force: true })
@@ -168,7 +174,7 @@ export async function build(
 if (import.meta.main) {
   const argv = process.argv.slice(2)
   const names = argv.filter((a) => !a.startsWith('--'))
-  for (const a of names.length ? names.map(named) : ASSETS) {
+  for (const a of select(names)) {
     const started = Date.now()
     const m = await build(a, join(ROOT, MODELS_DIR), argv.includes('--allow-version-drift'))
     const tex = m.textures.map((t) => `${t.format} ${t.size.join('x')}`).join(', ')

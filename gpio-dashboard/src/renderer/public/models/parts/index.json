@@ -1,0 +1,96 @@
+{
+  "active-buzzer": [
+    {
+      "file": "active-buzzer.glb"
+    }
+  ],
+  "ceramic-capacitor": [
+    {
+      "file": "ceramic-capacitor.glb"
+    }
+  ],
+  "diode-1n4007": [
+    {
+      "file": "diode-1n4007.glb"
+    }
+  ],
+  "electrolytic-capacitor": [
+    {
+      "file": "electrolytic-capacitor.glb"
+    }
+  ],
+  "ldr": [
+    {
+      "file": "ldr.glb"
+    }
+  ],
+  "led": [
+    {
+      "file": "led-3mm.glb",
+      "when": {
+        "size": "3mm"
+      }
+    },
+    {
+      "file": "led-5mm.glb",
+      "when": {
+        "size": "5mm"
+      }
+    }
+  ],
+  "ntc-10k": [
+    {
+      "file": "ntc-10k.glb"
+    }
+  ],
+  "passive-buzzer": [
+    {
+      "file": "passive-buzzer.glb"
+    }
+  ],
+  "pn2222": [
+    {
+      "file": "pn2222.glb"
+    }
+  ],
+  "potentiometer-10k": [
+    {
+      "file": "potentiometer-10k.glb"
+    }
+  ],
+  "resistor": [
+    {
+      "file": "resistor.glb"
+    }
+  ],
+  "rgb-led-ca": [
+    {
+      "file": "rgb-led-ca.glb"
+    }
+  ],
+  "rgb-led-cc": [
+    {
+      "file": "rgb-led-cc.glb"
+    }
+  ],
+  "s8050": [
+    {
+      "file": "s8050.glb"
+    }
+  ],
+  "s8550": [
+    {
+      "file": "s8550.glb"
+    }
+  ],
+  "tact-switch-6mm": [
+    {
+      "file": "tact-switch-6mm.glb"
+    }
+  ],
+  "tilt-switch": [
+    {
+      "file": "tilt-switch.glb"
+    }
+  ]
+}

@@ -1,19 +1,21 @@
-// npm run assets:check [-- --rebuild] [--allow-version-drift]
+// npm run assets:check [-- <asset>...] [--rebuild] [--allow-version-drift]
 //
 // Verifies the committed models (SPEC 10.3; SPEC 20 item 14): each GLB against its manifest, its
 // budgets and the content file it was built from; the folder's total size; and the shipped HDRI
 // against its pin. --rebuild also builds every asset into a temporary folder and compares it with
-// the committed one: geometry hashes exactly, baked textures by SSIM.
+// the committed one: geometry hashes exactly, baked textures by SSIM. Named assets (or "parts"
+// for all the part models) limit both to those.
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ASSETS, MODELS_BUDGET_BYTES, MODELS_DIR, ROOT } from './assets'
+import { MODELS_BUDGET_BYTES, MODELS_DIR, ROOT, assetDir, select } from './assets'
 import { build } from './build'
 import { geometryHash, readGlb } from './glb'
 import { ktxOnPath } from './optimize'
 import { SOURCES, sha256 } from './sources'
 import { verifyAsset } from './verify'
+import { verifyIndex, verifyPart } from './verify-parts'
 
 /** GPU and CPU bakes are not bit-exact, so baked textures match by similarity (SPEC 10.3). */
 const SSIM_MIN = 0.99
@@ -79,6 +81,17 @@ function ssim(a: Image, b: Image): number {
   return least
 }
 
+/** Assets named on the command line (and "parts" for all the parts), else every asset. */
+const assets = select(process.argv.slice(2).filter((a) => !a.startsWith('--')))
+
+/** Bytes in a folder and the folders in it. */
+const folderBytes = (dir: string): number =>
+  readdirSync(dir, { withFileTypes: true }).reduce(
+    (n, f) =>
+      n + (f.isDirectory() ? folderBytes(join(dir, f.name)) : statSync(join(dir, f.name)).size),
+    0
+  )
+
 let failed = false
 const report = (ok: boolean, line: string) => {
   failed ||= !ok
@@ -90,12 +103,16 @@ for (const s of SOURCES.filter((s) => s.shipped)) {
   report(ok, `${s.shipped}: SHA-256 matches sources.json ${s.id}`)
 }
 
-for (const asset of ASSETS) {
-  for (const f of await verifyAsset(asset)) report(f.ok, `${asset.name} ${f.check}: ${f.detail}`)
+for (const asset of assets) {
+  const findings = asset.kind === 'part' ? await verifyPart(asset) : await verifyAsset(asset)
+  for (const f of findings) report(f.ok, `${asset.name} ${f.check}: ${f.detail}`)
+}
+if (assets.some((a) => a.part)) {
+  for (const f of verifyIndex(assets)) report(f.ok, `parts ${f.check}: ${f.detail}`)
 }
 
 const models = join(ROOT, MODELS_DIR)
-const total = readdirSync(models).reduce((n, f) => n + statSync(join(models, f)).size, 0)
+const total = folderBytes(models)
 report(
   total <= MODELS_BUDGET_BYTES,
   `${MODELS_DIR}: ${total} bytes in all (max ${MODELS_BUDGET_BYTES})`
@@ -105,10 +122,10 @@ if (process.argv.includes('--rebuild')) {
   ktxOnPath()
   const out = mkdtempSync(join(tmpdir(), 'assets-rebuild-'))
   try {
-    for (const asset of ASSETS) {
+    for (const asset of assets) {
       await build(asset, out, process.argv.includes('--allow-version-drift'))
-      const was = await readGlb(join(models, `${asset.name}.glb`))
-      const now = await readGlb(join(out, `${asset.name}.glb`))
+      const was = await readGlb(join(assetDir(asset, models), `${asset.name}.glb`))
+      const now = await readGlb(join(assetDir(asset, out), `${asset.name}.glb`))
       const hash = geometryHash(now)
       report(
         geometryHash(was) === hash,
