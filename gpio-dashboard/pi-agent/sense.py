@@ -55,7 +55,8 @@ BIAS = {"up": "PULL_UP", "down": "PULL_DOWN", "off": "DISABLED"}
 
 NEEDS_V2 = (
     "Board Sense needs the libgpiod 2.x Python binding. Raspberry Pi OS Trixie has it as apt "
-    "python3-libgpiod; Bookworm's apt package is 1.6.3, so use pip install gpiod there."
+    "python3-libgpiod; on Bookworm, whose apt package is 1.6.3, the agent's install.sh puts gpiod 2 "
+    "in a venv. Deploy the agent again from the dashboard."
 )
 
 
@@ -118,6 +119,8 @@ def claim_reason(info):
         return "gpiod line info unavailable"
     if info["used"]:
         return f"line in use by {info.get('consumer') or 'another process'}"
+    if info.get("direction") == "OUT":
+        return "an output; sensing would change it"
     return None
 
 

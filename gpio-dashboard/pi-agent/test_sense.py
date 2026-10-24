@@ -388,6 +388,14 @@ class Exclusions(BenchCase):
         self.assertEqual(data["skipped"], [{"bcm": 2, "reason": "alternate function SDA1"}])
         assert_safe(self, bench.board, claimed=[2])
 
+    def test_a_pin_left_as_an_output_is_skipped(self):
+        state = free(range(2, 28)) | {"6": {"bcm": 6, "direction": "OUT", "function": "GPIO", "used": False}}
+        bench = self.bench(state=state)
+        data = bench.sweep([4, 6])[-1]
+        self.assertEqual(data["pins"], [4])
+        self.assertEqual(data["skipped"], [{"bcm": 6, "reason": "an output; sensing would change it"}])
+        assert_safe(self, bench.board, claimed=[6])
+
     def test_a_pin_gpiod_reports_used_is_skipped_with_the_consumer(self):
         state = free(range(2, 28)) | {"5": used(5, "my-script")}
         bench = self.bench(state=state)
