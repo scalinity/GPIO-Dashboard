@@ -63,3 +63,33 @@ Environment facts a fresh session needs:
 | 1.9 live proxy test | todo | |
 
 Suite at fc780d9/991ac40: cargo test 65 pass / 19 ignored; live-tests 19/19; node 6/6; Vitest 29/29; lint 0 errors; typecheck ok.
+
+### Research carried into M2 (verified 2026-10-23; turn each into data with its source)
+- **Pi 5 header pins**: the official table "Pin names, types, and typical functions" in
+  `raspberrypi/documentation` master@1bf32ac,
+  `documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc`. All 40 rows
+  parse; the GP numbers cross-check against the T-board label table from the photos. A
+  parser that handles empty function cells and the one-line header row was tried in the
+  scratchpad; rebuild it as a committed script, or transcribe with a test.
+- **RP1 electrical values**: ADR-0009 (V_IL ≤ 0.8, V_IH ≥ 2.0, R_PU 37/55/86 kΩ,
+  R_PD 35/55/98 kΩ, I_IL ≤ 3 µA, I_OL/I_OH per drive strength, 16 mA per pin / 50 mA
+  total, GP2/GP3 1.8 kΩ pull-ups).
+- **BB830** (datasheet BPS-MAR-BB830+BB830T-001 Rev 3.05, SHA-256 `bf594dc5…cbd61bcf85c`,
+  from datasheet.octopart.com; AN0002 included):
+  - 165.1 × 54.6 × 8.5 mm, 63 rows, 0.1″ square holes.
+  - Rails: 4 × 50 holes in groups of 5, holes in line with the circuit rows.
+  - AN0002 §3.3 and §4: the BR1's outer strips are on 0.1″ centres from the circuit
+    area, and the BB830's sit 0.05″ further out. So the BB830 rail lines are **0.25″
+    and 0.35″** from the outermost circuit column (a or j). This matches §3.2: the
+    BB400's outer strips sit 0.25″ from the circuit area, with holes offset 0.050″ along
+    the rows.
+  - Rail holes along the rows: the datasheet's internal-connections diagram, and the
+    top-down kit photo measured with `bb_rows` (column a → 63 rows; left inner rail → 50
+    holes), agree on rows **3–7, 9–13, …, 57–61** (start 3 + 6k, k = 0..9).
+  - Across the board, the kit photo gives inner/outer rail at 2.66/3.76 pitch (left) and
+    2.93/4.01 pitch (right) from the nearest circuit column, with the trench at 2.96
+    pitch. That's nearer 2.5/3.5 (BB830) than 1.5/2.5. The generic board sits about 0.3
+    pitch further out: record it as a photo difference, and keep the BB830 values.
+  - The BB400 datasheet URL returned HTML, not a PDF. Find another copy in M2.
+- **Kit photo legend** (IMAGES.md): one side is `+` outer / `−` inner, the other `+` inner
+  / `−` outer.
