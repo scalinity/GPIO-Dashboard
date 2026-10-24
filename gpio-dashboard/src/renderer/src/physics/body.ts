@@ -70,6 +70,8 @@ export interface Body extends Constraints {
   hintI: Int32Array
   hintTarget: Float64Array
   hintCount: number
+  /** Where each hint pulls this frame: its target, within the wire's reach (reachHints). */
+  hintGoal: Float64Array
   hintW: Float64Array
   /** Whether the bending factors were found with pressed particles' weights (weighPressed). */
   pressFactor: boolean

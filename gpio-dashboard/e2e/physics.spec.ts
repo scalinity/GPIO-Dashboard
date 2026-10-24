@@ -330,7 +330,7 @@ test.describe('route hints', () => {
     await page.mouse.move(from.x, from.y)
     await page.mouse.down()
     for (let k = 1; k <= 12; k++) {
-      await page.mouse.move(from.x, from.y - 5 * k)
+      await page.mouse.move(from.x + 5 * k, from.y)
       await page.waitForTimeout(30)
     }
     await page.mouse.up()

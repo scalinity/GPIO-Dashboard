@@ -599,6 +599,26 @@ describe('route hints', () => {
     run(world, 300)
     expect(Math.min(...wire(world, id).map((p) => dist(p, targets[1]!)))).toBeGreaterThan(3)
   })
+
+  it('pull a lead toward a target out of its reach as far as it goes, and it comes to rest', () => {
+    const world = newWorld(TABLE, BOARD)
+    const id = world.addLead({ a: at(-30, 0, BOARD_TOP), b: at(30, 0, BOARD_TOP), wireMm: 165 })
+    // 160 mm up: 150 mm of wire from each housing, where the lead has 82.5 either side of its middle.
+    world.setRouteHints(id, [[0, 0, 160]])
+    let frames = 0
+    while (!world.allAsleep() && frames < 300) {
+      world.step()
+      frames++
+    }
+    const top = Math.max(...wire(world, id).map((p) => p[2]))
+    // Highest the middle can be: 82.5 mm of wire from an exit 30 mm to the side, 12 mm up a housing.
+    const reach = BOARD_TOP + HOUSING + Math.sqrt(82.5 ** 2 - 30 ** 2)
+    console.info(
+      `out-of-reach hint: asleep after ${frames} frames, top ${top.toFixed(1)} of ${reach.toFixed(1)} mm`
+    )
+    expect(world.isAsleep(id)).toBe(true)
+    expect(top).toBeGreaterThan(reach - 8)
+  })
 })
 
 describe('solid jumpers', () => {

@@ -400,6 +400,7 @@ export class CableWorld {
       triStart: 0,
       hintI: new Int32Array(MAX_HINTS),
       hintTarget: new Float64Array(3 * MAX_HINTS),
+      hintGoal: new Float64Array(3 * MAX_HINTS),
       hintW: new Float64Array(MAX_HINTS),
       pressFactor: false,
       hintCount: 0,
@@ -484,7 +485,10 @@ export class CableWorld {
 
   /**
    * Soft target points for a lead's span (at most 3, in the table frame). Each pulls the particle
-   * nearest its projection onto the chord between the lead's ends.
+   * whose wire either side best reaches it: s along the wire from the first exit with
+   * s - |t - a| = (L - s) - |t - b|, the same to spare both ways. A lead standing up from its
+   * housings does not follow the chord between them, so the particle nearest a target's
+   * projection onto the chord could be the wrong side of the arch for it.
    */
   setRouteHints(id: BodyId, points: readonly Vec3[]): void {
     const b = this.body(id)
@@ -492,16 +496,15 @@ export class CableWorld {
     const pts = points.slice(0, MAX_HINTS)
     this.endPoint(b, 0, tmpA)
     this.endPoint(b, 1, tmpB)
-    const cx = tmpB[0]! - tmpA[0]!,
-      cy = tmpB[1]! - tmpA[1]!,
-      cz = tmpB[2]! - tmpA[2]!
-    const len2 = cx * cx + cy * cy + cz * cz || 1
     const free0 = b.first + b.wireStart + 1
     const free1 = b.first + b.wireEnd - 2
+    const seg = b.freeLength / (b.exitB - b.exitA)
     let changed = pts.length !== b.hintCount
     pts.forEach((p, k) => {
-      const f = ((p[0] - tmpA[0]!) * cx + (p[1] - tmpA[1]!) * cy + (p[2] - tmpA[2]!) * cz) / len2
-      const i = free0 + Math.round(Math.min(1, Math.max(0, f)) * (free1 - free0))
+      const da = Math.hypot(p[0] - tmpA[0]!, p[1] - tmpA[1]!, p[2] - tmpA[2]!)
+      const db = Math.hypot(p[0] - tmpB[0]!, p[1] - tmpB[1]!, p[2] - tmpB[2]!)
+      const along = (b.freeLength + da - db) / 2
+      const i = Math.min(free1, Math.max(free0, b.exitA + Math.round(along / seg)))
       for (let a = 0; a < 3; a++) {
         if (b.hintTarget[3 * k + a] !== p[a]) changed = true
         b.hintTarget[3 * k + a] = p[a]!
@@ -540,6 +543,48 @@ export class CableWorld {
       w[i] = on ? w[i]! / PRESS_MASS : w[i]! * PRESS_MASS
     }
     return any
+  }
+
+  /**
+   * Where each route hint pulls this frame: its target, brought within what the wire either side of
+   * its particle can reach from each exit (the lens between two balls, by alternating projection),
+   * measured from where the exits end the frame. A target 160 mm above a 165 mm lead's housings
+   * pulled it taut against them, and bending, stretch and the hint never agreed: it was still
+   * moving at 150 mm/s after 15 s. Brought within reach, the lead rests as near the target as it
+   * can and sleeps.
+   */
+  private reachHints(b: Body) {
+    const { xe } = this
+    const seg = b.dRest[0]!
+    const a3 = 3 * b.exitA,
+      c3 = 3 * b.exitB
+    for (let k = 0; k < b.hintCount; k++) {
+      const i = b.hintI[k]!
+      const ra = (i - b.exitA) * seg
+      const rb = (b.exitB - i) * seg
+      let tx = b.hintTarget[3 * k]!,
+        ty = b.hintTarget[3 * k + 1]!,
+        tz = b.hintTarget[3 * k + 2]!
+      for (let it = 0; it < 8; it++) {
+        for (const [o, r] of [
+          [a3, ra],
+          [c3, rb]
+        ] as const) {
+          const dx = tx - xe[o]!,
+            dy = ty - xe[o + 1]!,
+            dz = tz - xe[o + 2]!
+          const d = Math.sqrt(dx * dx + dy * dy + dz * dz)
+          if (d <= r) continue
+          const f = r / d
+          tx = xe[o]! + dx * f
+          ty = xe[o + 1]! + dy * f
+          tz = xe[o + 2]! + dz * f
+        }
+      }
+      b.hintGoal[3 * k] = tx
+      b.hintGoal[3 * k + 1] = ty
+      b.hintGoal[3 * k + 2] = tz
+    }
   }
 
   /**
@@ -791,6 +836,7 @@ export class CableWorld {
             Math.abs(xe[3 * i + 2]! - x[3 * i + 2]!)
         )
       }
+      if (b.hintCount > 0) this.reachHints(b)
       let move = 0
       for (let i = b.first; i < end; i++) {
         const i3 = 3 * i
@@ -1229,7 +1275,7 @@ export class CableWorld {
       if (b.rig) gatherRows(x, b)
       // Softest first, so the stiffest constraints have the last word in the substep.
       if (b.hintCount > 0) {
-        solveGoals(x, w, b.hintI, b.hintTarget, b.hintCount, HINT_ALPHA, invH2)
+        solveGoals(x, w, b.hintI, b.hintGoal, b.hintCount, HINT_ALPHA, invH2)
         this.weighHints(b, true)
       }
       const pressed = this.weighPressed(b, true)

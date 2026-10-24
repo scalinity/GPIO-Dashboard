@@ -4,7 +4,18 @@
 import { describe, expect, it } from 'vitest'
 import dupont from '../content/leads/dupont.json'
 import { wireLengthMm } from '../core/reach/reach'
-import { BOARD, BOARD_TOP, TABLE, at, boxShape, dist, newWorld, pathLength, run, wire } from './testkit'
+import {
+  BOARD,
+  BOARD_TOP,
+  TABLE,
+  at,
+  boxShape,
+  dist,
+  newWorld,
+  pathLength,
+  run,
+  wire
+} from './testkit'
 import type { Vec3 } from './types'
 import { CableWorld } from './world'
 
@@ -113,7 +124,9 @@ describe('lead shape', () => {
     const a = rest(12)
     const b = rest(48)
     const apart = Math.max(...a.map((p, i) => dist(p, b[i]!)))
-    console.info(`resting shape at 12 and at 48 substeps: every particle within ${apart.toFixed(2)} mm`)
+    console.info(
+      `resting shape at 12 and at 48 substeps: every particle within ${apart.toFixed(2)} mm`
+    )
     expect(apart).toBeLessThan(1)
   })
 })
