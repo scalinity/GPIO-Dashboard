@@ -2162,7 +2162,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   near the most height its wire allows, so a target dragged up from its stub is out of every
   lead's reach. The reopened lead lies within 0.00 mm of where it was left.
 
-## ADR-F-1 The Studio draws one geometry pass and redraws the shadow map every other frame
+## ADR-0082 The Studio draws one geometry pass and redraws the shadow map every other frame
 
 - **Context.** SPEC 10.8 asks for 60 fps in the Tauri window with physics awake and the full post
   stack, and says to scale effect quality first (AO resolution, then depth of field). ADR-0078

@@ -43,7 +43,7 @@ import { type Backend, setStatus } from './status'
  * R3F hands it the DOM canvas it made.
  */
 export async function createRenderer({ canvas }: { canvas: EventTarget }): Promise<WebGPURenderer> {
-  // TRAA resolves edges, and it requires MSAA off. Dev builds time the GPU's passes (ADR-F-1).
+  // TRAA resolves edges, and it requires MSAA off. Dev builds time the GPU's passes (ADR-0082).
   const renderer = new WebGPURenderer({
     canvas: canvas as HTMLCanvasElement,
     antialias: false,
@@ -92,7 +92,7 @@ const finish = (input: Output): Output => {
   return vec4(peak.sub(min(below.mul(stretch), peak)), mapped.a)
 }
 
-/** The key light's shadow map is redrawn every this many frames (ADR-F-1). */
+/** The key light's shadow map is redrawn every this many frames (ADR-0082). */
 const SHADOW_EVERY = 2
 
 export class Post {
@@ -112,7 +112,7 @@ export class Post {
   ) {
     // One geometry pass draws the colour, the packed normal and the velocity. GTAO reads that
     // pass's depth and normals, and the same pass applies the occlusion to its ambient light: the
-    // occlusion it applies was drawn from the previous frame's depth and normals (ADR-F-1).
+    // occlusion it applies was drawn from the previous frame's depth and normals (ADR-0082).
     const colour = pass(scene, camera)
     colour.setMRT(mrt({ output, normal: packNormalToRGB(normalView), velocity }))
     colour.getTexture('normal').type = UnsignedByteType
