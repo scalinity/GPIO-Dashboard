@@ -2988,7 +2988,7 @@ declare it.
     time it was given. Input changes during a run are not a parameter of the tool.
   - SPEC 13.2 lists the old five classes and wants the line updated.
 
-## ADR-B10-1 Build Mode draws a document derived from the circuit, and never writes to it
+## ADR-0109 Build Mode draws a document derived from the circuit, and never writes to it
 
 - **Context.** SPEC 11.7 grows the bench step by step, and SPEC 11.9 makes a tutorial a read-only
   template. The Studio draws `circuit.getSnapshot()`, and `circuit.open()` settles the cables
@@ -3019,7 +3019,7 @@ declare it.
   - Opening another project or tutorial ends Build Mode; an edit of the same one (undo, the
     assistant) regenerates the steps and keeps the step in hand where it still exists.
 
-## ADR-B10-2 The step's holes are ringed by DOM elements, so a held step draws no frames
+## ADR-0110 The step's holes are ringed by DOM elements, so a held step draws no frames
 
 - **Context.** SPEC 11.7 asks for a pulsing ghost at the exact holes; SPEC 10.2 and 10.8 ask for
   zero frames when the scene is static. A pulse drawn in the scene renders the whole post stack
@@ -3038,7 +3038,7 @@ declare it.
   The tone classes are written out in `stepMarks.ts`: the stylesheet's content scan does not see a
   class assembled from a template string (the first version lost its colours that way).
 
-## ADR-B10-3 Framing, and depth of field as an option that is off until asked for
+## ADR-0111 Framing, and depth of field as an option that is off until asked for
 
 - **Decision.**
   - A step's frame is the bounding sphere of its marks and its part's box, at least 25 mm across
@@ -3056,7 +3056,7 @@ declare it.
   swaps to the depth-of-field output and back) and a screenshot in Chromium on WebGPU shows the
   background soften with the step sharp.
 
-## ADR-B10-4 Step confirmation: signatures once per step, two sweeps to believe, a stricter "changed"
+## ADR-0112 Step confirmation: signatures once per step, two sweeps to believe, a stricter "changed"
 
 - **Context.** `checkStep` simulates the board before and after the step on every call: 0.15 to
   6.8 s per call on the shipped tutorials (led-dot-matrix 6.8 s, four-digit-seven-segment 3.1 s),
@@ -3089,7 +3089,7 @@ declare it.
 - **Consequences.** Core's `checkStep` should adopt the stricter rule and expose its two
   signatures so a caller can compute them once (see the lane report).
 
-## ADR-B10-5 Progress is kept in browser storage, by project
+## ADR-0113 Progress is kept in browser storage, by project
 
 - **Decision.** The steps done and the step in hand (by step key, so edits elsewhere do not move
   them) are written to `localStorage` under `gpio.build.progress.project:<file id>` once the
@@ -3103,7 +3103,7 @@ declare it.
   Board Sense does what Done does for a step it confirms. A finished build reopens finished, with
   Start over.
 
-## ADR-B10-6 Tutorials open as templates and fork as themselves
+## ADR-0114 Tutorials open as templates and fork as themselves
 
 - **Decision.** `openTemplate` opens a tutorial's document with no project file (so `isTemplate()`
   holds and `edit()` refuses it), named by the tutorial's id for Run on Pi. `forkTemplate` writes
@@ -3116,7 +3116,7 @@ declare it.
   `projects_write`, `projects_list` and `projects_delete` in the Tauri window, a fork gave the same
   document.
 
-## ADR-B10-7 A hardware checkpoint has a place in the step, and it is empty
+## ADR-0115 A hardware checkpoint has a place in the step, and it is empty
 
 - **Decision.** `useBuild.checkpoint` is the tutorial checkpoint (`Checkpoint`, from the tutorial
   schema's `checkpoints`) that follows the step in hand, and the panel renders one under the step
