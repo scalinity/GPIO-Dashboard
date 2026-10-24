@@ -144,7 +144,7 @@ Notes carried into M5 (Pyodide shims):
 - The DHT11 counts its power-up wait from its first powered update: start sessions at t = 0.
 - The kit's code is at https://github.com/lafvintech/Basic-Starter-Kit-for-Raspberry-Pi (from its "Download the Code" page); `python/ADCDevice.py` drives the ADS7830 at 0x48 with cmd 0x84.
 
-## M4 correctness audit and verified content — done pending the exit suite (2026-10-24)
+## M4 correctness audit and verified content — done (2026-10-24)
 
 | Task | Status | Verified / notes |
 |------|--------|------------------|
@@ -162,3 +162,22 @@ Core fixes found while building M4: `codePins` counts `SMBus(1)` as I2C use of G
 README: SPEC schedules the rewrite for M12, but M4's exit needs zero open findings, so the false claims the audit lists get corrected at M4 and the full rewrite stays in M12.
 
 M5 groundwork in the working tree (not committed until M4 is pushed): `pyodide@314.0.7` (exact), Vite plugin serving and emitting `/pyodide/*`, `workers/bridge.ts` (virtual time, 5 µs per call), shims in `workers/python/` (RPi.GPIO, gpiozero subset, smbus/smbus2 with Linux errno 121, time prelude), `workers/python.ts`, `workers/codeCheck.ts` (+ test: runs each tutorial's code per assertion; blinking-led passes, and a mutation that never drives LOW fails), `workers/pyodide.worker.ts`. ADR-0017 to write with the commit.
+
+## M5 code in the loop — done (2026-10-24)
+
+| Task | Status | Verified / notes |
+|------|--------|------------------|
+| 5.1 Pyodide + shims | done | `pyodide@314.0.7` from npm, served/emitted at `/pyodide/` by a Vite plugin; RPi.GPIO, gpiozero subset, smbus/smbus2 shims on `workers/bridge.ts` in virtual time (ADR-0017); `python.test.ts` (8) incl. Linux errno 121, EOF stdin, a late stop not leaking into the next call |
+| 5.2 compile check + Run in Sim | done | Workbench Code panel (editor via callback ref, no effects), Check → line/column diagnostics, Run in Sim (real time, 10×, max) with Stop through Pyodide's interrupt buffer and part inputs through shared memory; checked in Chromium (Blinking LED at real time ≈ one line per 0.5 s, D1 5.79 mA, Stop → done; a syntax error → "line 1, column 8: expected ':'"). `codeCheck.test.ts`: each tutorial's own code drives every code-driven assertion: 134 of 157 assertions across 26 tutorials; the other 23 are circuit facts (`"code": false`) under stimuli the program never sets. All pass in ~4 s |
+| 5.3 project-level Run on Pi | done | `state/runStore.ts`: upload to `/tmp/gpio_dashboard/project_<id>.py`, run, kill on Stop, then `pinctrl set <program's pins> ip pn`; ERC errors open an override dialog; the Tutorials page uses the same path. `runStore.test.ts` against a mocked native layer (D14 run part). On-Pi checks are in `HIL_CHECKLIST.md` (PI_HOST unset) |
+
+Simulator speed found on the way: an event-free `advanceTo` only moves the clock, and input readings are cached between settles (044edf4); without it, polling loops solved the circuit twice per 5 µs call.
+
+M4 + M5 exit suite (2026-10-24, at 4f98426):
+- `cargo test`: 86 passed / 20 ignored. `live-tests.sh`: 19/19.
+- `npm test`: node 7/7 + Vitest 1427/1427 (51 files, including every tutorial's code checks). Lint 0 errors (35 warnings). Typecheck clean. `pi-agent` unittest OK. `npm run build`: .app and .dmg.
+
+Open threads:
+- LCD1602 tutorial waits for an I2C level-shifter part (branch `held/lcd1602-tutorial`, local only).
+- HIL items in `docs/v2/HIL_CHECKLIST.md`.
+- Theory templates have no arithmetic, so derived values (a divider's ratio) are written out in a few theory files.
