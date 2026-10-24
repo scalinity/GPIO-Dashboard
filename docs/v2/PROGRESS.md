@@ -143,3 +143,22 @@ Notes carried into M5 (Pyodide shims):
 - I2C devices are transaction-level (`behavior.i2c`); after each transaction the session must settle (call `update`) so time-stamped behaviour (ADS1115 conversion start) uses the transaction time.
 - The DHT11 counts its power-up wait from its first powered update: start sessions at t = 0.
 - The kit's code is at https://github.com/lafvintech/Basic-Starter-Kit-for-Raspberry-Pi (from its "Download the Code" page); `python/ADCDevice.py` drives the ADS7830 at 0x48 with cmd 0x84.
+
+## M4 correctness audit and verified content — in progress (2026-10-24)
+
+| Task | Status | Verified / notes |
+|------|--------|------------------|
+| 4.1 inventory | done in M2 | `content/inventory.json` + test (now checked against `PART_DEFS`) |
+| 4.2 audit | in progress | `docs/v2/AUDIT.md`: one marked section per item (`<!-- section:<id> -->`), findings numbered `<id>-<n>`, plus the D1–D18 register (section `defects`, uncommitted until the subagent sections land). Non-tutorial items (pins.js, depictions, other hard-coded facts, README claims) are with a Sonnet subagent ("audit-facts") |
+| 4.3 tutorials | in progress | Format: `content/tutorials/<id>/{doc.gpiob, tutorial.json, theory.md}`; `core/tutorials/{tutorial,assert,theory,audit}.ts`; `content/tutorials/tutorials.test.ts` runs SPEC 13.1 on each and keeps AUDIT.md's generated tables in step (`UPDATE_AUDIT=1`). Exemplar `blinking-led` (kit 1.1.1, active low) done. Three Sonnet subagents build the other 26: LEDs/displays, actuators/inputs, analog/I2C/sensors |
+| 4.4 steps | done | `core/steps/steps.ts`: SPEC 11.7 order and wording, colour bands (4/5-band by tolerance), wiring table; 13 golden tests |
+| 4.5 retire SVG | done | Breadboard page, SVG renderer, old tutorial cards and `data/tutorials.js` removed (8c6d465); Tutorials page lists verified tutorials with theory, steps, table, code and the existing run path; checked in Chromium. D6–D13 regression tests still to write (`content/tutorials/regressions.test.ts`) once the tutorials land |
+| 4.6 cross-check | written, uncommitted | `src/renderer/src/audit.test.ts`: every baseline tutorial id (frozen list from 52639d9), pins/depictions/facts/readme/defects sections, D1–D18, eight-column rows with source and guard, no open status except D14 (scheduled M5, M8 by SPEC 19) |
+
+Decisions this milestone: ADR-0015 (collisions are ERC warnings), ADR-0016 (tutorial code is written for this app; the kit's code is GPL-3.0 at lafvintech/Basic-Starter-Kit-for-Raspberry-Pi and this repo has no license, so nothing is copied).
+
+Core fixes found while building M4: `codePins` counts `SMBus(1)` as I2C use of GPIO2/3 (a10d20a); floating detection uses a bounded 1 V / 1 GΩ probe, since the 1 nA probe failed to converge on a floating node beside a diode (091c59f).
+
+README: SPEC schedules the rewrite for M12, but M4's exit needs zero open findings, so the false claims the audit lists get corrected at M4 and the full rewrite stays in M12.
+
+M5 groundwork in the working tree (not committed until M4 is pushed): `pyodide@314.0.7` (exact), Vite plugin serving and emitting `/pyodide/*`, `workers/bridge.ts` (virtual time, 5 µs per call), shims in `workers/python/` (RPi.GPIO, gpiozero subset, smbus/smbus2 with Linux errno 121, time prelude), `workers/python.ts`, `workers/codeCheck.ts` (+ test: runs each tutorial's code per assertion; blinking-led passes, and a mutation that never drives LOW fails), `workers/pyodide.worker.ts`. ADR-0017 to write with the commit.
