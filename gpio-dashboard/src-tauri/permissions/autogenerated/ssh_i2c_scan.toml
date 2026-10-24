@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ssh-i2c-scan"
+description = "Enables the ssh_i2c_scan command without any pre-configured scope."
+commands.allow = ["ssh_i2c_scan"]
+
+[[permission]]
+identifier = "deny-ssh-i2c-scan"
+description = "Denies the ssh_i2c_scan command without any pre-configured scope."
+commands.deny = ["ssh_i2c_scan"]

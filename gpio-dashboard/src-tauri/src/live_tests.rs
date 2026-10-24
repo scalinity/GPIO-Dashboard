@@ -689,3 +689,22 @@ fn the_agent_socket_runs_through_the_ssh_tunnel_to_a_loopback_only_server() {
         ssh.disconnect().await;
     });
 }
+
+/// The I2C scan runs over SSH and reports why it failed when the host lacks i2c-tools,
+/// as this Mac does. (The grid parser is covered by i2c.rs; the real scan by the HIL run.)
+#[test]
+#[ignore = "needs a local sshd; run src-tauri/live-tests.sh"]
+fn an_i2c_scan_without_i2c_tools_reports_why() {
+    run(async {
+        let (ssh, _) = connected("k_ed25519").await;
+        let result = crate::commands::i2c_scan(&ssh, 1).await;
+        assert_eq!(result["success"], false);
+        let error = result["error"].as_str().unwrap();
+        assert!(error.contains("i2cdetect"), "{error}");
+        assert_eq!(
+            crate::commands::i2c_scan(&ssh, 99).await["error"],
+            "Invalid I2C bus 99: use 0 to 31"
+        );
+        ssh.disconnect().await;
+    });
+}

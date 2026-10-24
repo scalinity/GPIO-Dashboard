@@ -12,6 +12,7 @@ const COMMANDS: &[&str] = &[
     "ssh_gpio_cleanup",
     "ssh_scp_buffer",
     "ssh_get_status",
+    "ssh_i2c_scan",
     "gpio_connect",
     "gpio_disconnect",
     "terminal_create",
@@ -30,6 +31,12 @@ const COMMANDS: &[&str] = &[
     "settings_set_anthropic_key",
     "settings_has_anthropic_key",
     "settings_clear_anthropic_key",
+    "projects_list",
+    "projects_read",
+    "projects_write",
+    "projects_delete",
+    "projects_export",
+    "projects_import",
     "open_external",
 ];
 

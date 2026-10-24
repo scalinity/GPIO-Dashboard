@@ -11,7 +11,8 @@ use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::{
-    agent,
+    agent, i2c,
+    projects::{self, Projects},
     settings::{self, Settings},
     ssh::{Auth, Ssh, Target},
     ws::{Route, Ws},
@@ -248,6 +249,35 @@ pub fn ssh_get_status(ssh: State<'_, Ssh>) -> CommandResult {
     Ok(json!({ "status": ssh.status() }))
 }
 
+/// Lists the devices that answer on an I2C bus (`i2cdetect -y <bus>` on the Pi).
+#[tauri::command]
+pub async fn ssh_i2c_scan(ssh: State<'_, Ssh>, bus: i64) -> CommandResult {
+    Ok(i2c_scan(&ssh, bus).await)
+}
+
+pub(crate) async fn i2c_scan(ssh: &Ssh, bus: i64) -> Value {
+    let command = u8::try_from(bus)
+        .map_err(|_| format!("Invalid I2C bus {bus}"))
+        .and_then(i2c::i2cdetect_command);
+    let command = match command {
+        Ok(command) => command,
+        Err(e) => return error_json(e),
+    };
+    let out = match ssh.execute(&command, COMMAND_TIMEOUT).await {
+        Ok(out) => out,
+        Err(e) => return error_json(e),
+    };
+    let text = if out.code == Some(0) {
+        out.stdout
+    } else {
+        format!("{}{}", out.stdout, out.stderr)
+    };
+    match i2c::parse_i2cdetect(&text) {
+        Ok(devices) => json!({ "success": true, "devices": devices }),
+        Err(e) => error_json(e),
+    }
+}
+
 // --- GPIO WebSocket ---
 
 /// Connects the telemetry socket to the agent through the SSH session (D18): the agent
@@ -419,6 +449,119 @@ fn has_anthropic_key(read: impl Fn(&str) -> Result<String, String>) -> bool {
     read(settings::ANTHROPIC_KEY).is_ok_and(|key| !key.is_empty())
 }
 
+// --- Projects ---
+
+fn result_json(result: Result<Value, String>) -> Value {
+    result.unwrap_or_else(error_json)
+}
+
+#[tauri::command]
+pub fn projects_list(projects: State<'_, Projects>) -> CommandResult {
+    Ok(result_json(
+        projects
+            .list()
+            .map(|list| json!({ "success": true, "projects": list })),
+    ))
+}
+
+#[tauri::command]
+pub fn projects_read(projects: State<'_, Projects>, id: String) -> CommandResult {
+    Ok(result_json(
+        projects
+            .read(&id)
+            .map(|doc| json!({ "success": true, "doc": doc })),
+    ))
+}
+
+#[tauri::command]
+pub fn projects_write(projects: State<'_, Projects>, id: String, doc: Value) -> CommandResult {
+    Ok(result_json(
+        projects
+            .write(&id, &doc)
+            .map(|()| json!({ "success": true })),
+    ))
+}
+
+#[tauri::command]
+pub fn projects_delete(projects: State<'_, Projects>, id: String) -> CommandResult {
+    Ok(result_json(
+        projects.delete(&id).map(|()| json!({ "success": true })),
+    ))
+}
+
+/// Saves a project anywhere the user picks, through the native save dialog.
+#[tauri::command]
+pub async fn projects_export(app: AppHandle, doc: Value) -> CommandResult {
+    if let Err(e) = projects::validate_doc(&doc) {
+        return Ok(error_json(e));
+    }
+    let name = export_file_name(doc["meta"]["name"].as_str().unwrap_or(""));
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .set_title("Export Project")
+        .add_filter("Breadboard project", &["gpiob"])
+        .set_file_name(name)
+        .save_file(move |picked| {
+            let _ = tx.send(picked);
+        });
+    let path = rx
+        .await
+        .ok()
+        .flatten()
+        .and_then(|picked| picked.into_path().ok());
+    Ok(match path {
+        None => json!({ "canceled": true }),
+        Some(path) => result_json(
+            projects::write_doc_file(&path, &doc)
+                .map(|()| json!({ "success": true, "path": path.display().to_string() })),
+        ),
+    })
+}
+
+/// Reads a project file the user picks, through the native open dialog.
+#[tauri::command]
+pub async fn projects_import(app: AppHandle) -> CommandResult {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .set_title("Import Project")
+        .add_filter("Breadboard project", &["gpiob"])
+        .pick_file(move |picked| {
+            let _ = tx.send(picked);
+        });
+    let path = rx
+        .await
+        .ok()
+        .flatten()
+        .and_then(|picked| picked.into_path().ok());
+    Ok(match path {
+        None => json!({ "canceled": true }),
+        Some(path) => result_json(
+            projects::read_doc_file(&path).map(|doc| json!({ "success": true, "doc": doc })),
+        ),
+    })
+}
+
+/// A file name for an exported project: the project name, kept to safe characters.
+fn export_file_name(name: &str) -> String {
+    let stem: String = name
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>()
+        .trim()
+        .chars()
+        .take(80)
+        .collect();
+    format!("{}.gpiob", if stem.is_empty() { "project" } else { &stem })
+}
+
 // --- System ---
 
 /// Opens an http(s) link in the system browser.
@@ -487,6 +630,18 @@ mod tests {
         // settings_get never serves it: it is neither allowlisted nor the password entry.
         assert!(!SETTINGS_ALLOWLIST.contains(&settings::ANTHROPIC_KEY));
         assert_ne!(settings::ANTHROPIC_KEY, settings::PASSWORD_KEY);
+    }
+
+    #[test]
+    fn export_names_keep_safe_characters_only() {
+        assert_eq!(export_file_name("Blinking LED"), "Blinking LED.gpiob");
+        assert_eq!(export_file_name("a/b:c"), "a_b_c.gpiob");
+        assert_eq!(export_file_name("  "), "project.gpiob");
+        assert_eq!(export_file_name(""), "project.gpiob");
+        assert_eq!(
+            export_file_name(&"x".repeat(200)).len(),
+            80 + ".gpiob".len()
+        );
     }
 
     #[test]
