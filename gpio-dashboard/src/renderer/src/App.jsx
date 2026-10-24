@@ -10,6 +10,7 @@ import PinoutPage from './pages/PinoutPage'
 import TutorialsPage from './pages/TutorialsPage'
 import MonitorPage from './pages/MonitorPage'
 import WorkbenchPage from './pages/WorkbenchPage'
+import StudioPage from './pages/StudioPage'
 import DevOverlay from './dev/DevOverlay'
 import { useRun } from './state/runStore'
 
@@ -18,6 +19,7 @@ const PAGES = {
   pinout: PinoutPage,
   tutorials: TutorialsPage,
   workbench: WorkbenchPage,
+  studio: StudioPage,
   monitor: MonitorPage
 }
 

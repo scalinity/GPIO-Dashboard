@@ -1,6 +1,7 @@
 // Dev overlay (SPEC 18 "Native window"): what the real webview reports about itself.
 // Shown by default in dev builds; Cmd/Ctrl+Shift+D toggles it in any build.
 import { Suspense, use, useSyncExternalStore } from 'react'
+import { getStatus, subscribeStatus } from '../studio/status'
 import { probePlatform, type PlatformProbe } from './probe'
 
 let visible = import.meta.env.DEV
@@ -64,6 +65,20 @@ function ProbeRows({ probe }: { probe: Promise<PlatformProbe> }) {
   )
 }
 
+function StudioRows() {
+  const { backend, frames, fps } = useSyncExternalStore(subscribeStatus, getStatus)
+  if (!backend) return <Row label="renderer" value="not started (open the Studio)" />
+  return (
+    <>
+      <Row label="renderer" value={backend} ok={backend === 'WebGPU'} />
+      <Row
+        label="frames"
+        value={`${frames}${fps === null ? '' : ` · last run ${fps.toFixed(0)} fps`}`}
+      />
+    </>
+  )
+}
+
 export default function DevOverlay() {
   const shown = useSyncExternalStore(subscribe, () => visible)
   if (!shown) return null
@@ -72,6 +87,7 @@ export default function DevOverlay() {
       data-testid="dev-overlay"
       className="fixed bottom-3 right-3 z-50 max-w-xl rounded-lg border border-slate-700 bg-slate-950/90 p-3 font-mono text-[11px] leading-5 shadow-lg pointer-events-none"
     >
+      <StudioRows />
       <Suspense fallback={<Row label="platform" value="probing…" />}>
         <ProbeRows probe={probePlatform()} />
       </Suspense>

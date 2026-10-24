@@ -9,6 +9,7 @@ import type { GpioState } from '../core/sim/circuit'
 import type { ProbeSignature } from '../core/sim/probe'
 import type { SimRequest, SimResponse } from '../workers/simHost'
 import type { Diagnostic } from '../workers/python'
+import { circuit } from './circuit'
 import { checkCode, onPython, runCode, sendInputs, stopCode } from './pyClient'
 import { simRequest } from './simClient'
 
@@ -82,7 +83,10 @@ export const useWorkbench = create<WorkbenchState>((set, get) => {
         codeOutput: [],
         codeError: null
       })
-      if (problems.length === 0) await send({ type: 'load', doc })
+      if (problems.length === 0) {
+        circuit.open(doc)
+        await send({ type: 'load', doc })
+      }
     },
     async setGpio(bcm, state) {
       set({ gpio: { ...get().gpio, [bcm]: state } })

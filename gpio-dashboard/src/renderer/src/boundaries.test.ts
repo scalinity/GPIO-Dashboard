@@ -25,6 +25,7 @@ const cases: [file: string, code: string, allowed: boolean][] = [
   ['core/x.ts', 'export const n = window.api', false],
   ['core/x.ts', 'export const d = document.body', false],
   ['core/x.ts', "import { netlist } from './netlist/build'\nexport { netlist }", true],
+  ['core/x.ts', "import { StudioView } from '../studio/view'\nexport { StudioView }", false],
   // physics/ is visual only
   ['physics/x.ts', "import { store } from '../state/circuitStore'\nexport { store }", false],
   ['physics/x.ts', "import { run } from '../assistant/loop'\nexport { run }", false],
@@ -45,7 +46,16 @@ const cases: [file: string, code: string, allowed: boolean][] = [
     'assistant/x.ts',
     "import type { AssistantContext } from './context'\nexport type { AssistantContext }",
     true
-  ]
+  ],
+  // studio/ renders with WebGPURenderer and TSL, never the legacy renderer or drei
+  ['studio/x.ts', "import { WebGLRenderer } from 'three'\nexport { WebGLRenderer }", false],
+  [
+    'studio/x.tsx',
+    "import { OrbitControls } from '@react-three/drei'\nexport { OrbitControls }",
+    false
+  ],
+  ['studio/x.ts', "import { WebGPURenderer } from 'three/webgpu'\nexport { WebGPURenderer }", true],
+  ['studio/x.ts', "import { circuit } from '../state/circuit'\nexport { circuit }", true]
 ]
 
 describe('module boundary lint rules (SPEC 4.5)', () => {

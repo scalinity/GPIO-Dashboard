@@ -156,6 +156,32 @@ export default [
     }
   },
   {
+    // The Studio renders with WebGPURenderer and TSL only (SPEC 10.2).
+    files: [`${R}/studio/**/*.{ts,tsx}`],
+    rules: {
+      // R3F elements take three.js properties, which this rule reads as unknown DOM attributes.
+      'react/no-unknown-property': 'off',
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'three',
+              importNames: ['WebGLRenderer'],
+              message: 'The Studio uses WebGPURenderer, never the legacy WebGLRenderer (SPEC 10.2).'
+            }
+          ],
+          patterns: [
+            {
+              group: ['@react-three/drei', '@react-three/drei/*'],
+              message: 'drei helpers build on GLSL ShaderMaterial; write TSL instead (SPEC 10.2).'
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
     ...eslintPluginPrettierRecommended,
     rules: {
       ...eslintPluginPrettierRecommended.rules,
