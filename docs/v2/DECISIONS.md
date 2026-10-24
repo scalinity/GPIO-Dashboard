@@ -3123,7 +3123,7 @@ declare it.
   when it is set. It is `null` until M11, which fills it from the tutorial's
   `checkpoints[].afterStep` and runs the I2C scan, the press watch or the LED toggle (SPEC 14.4).
 
-## ADR-S-1 A step is confirmed by the pins its own change reads on, and its signatures are computed once
+## ADR-0116 A step is confirmed by the pins its own change reads on, and its signatures are computed once
 
 - **Context.**
   - `checkStep` counted a pin as changed when its whole row of the pair table differed. GPIO2 and
@@ -3156,10 +3156,10 @@ declare it.
     ultrasonic tutorials (one each), and W30 to W33 of four-digit-seven-segment.
   - ADR-0112's request of core is met, and the test it asked for, which pinned the difference
     between the local rule and core's, is replaced by tests of core on the shipped tutorials
-    (ADR-S-4).
+    (ADR-0119).
   - Per-step cost for Build Mode is the signatures, once per step and pin set; judging is free.
 
-## ADR-S-2 A probe that cannot converge reports a board it knows nothing about
+## ADR-0117 A probe that cannot converge reports a board it knows nothing about
 
 - **Context.** `probeSignature` threw `ConvergenceError: gmin stepping stalled at 1e-12` on
   four-digit-seven-segment steps 45 to 51 (W34, W21, W22, W25, W27, W29, W24). The bias and
@@ -3188,7 +3188,7 @@ declare it.
   - A board that stalls at both tolerances still has no readings. The test for that stubs the solve,
     because no shipped board stalls any more.
 
-## ADR-S-3 `docUpTo` finds a step by its key
+## ADR-0118 `docUpTo` finds a step by its key
 
 - **Context.** `docUpTo` kept the parts and leads whose id was among the `refs` of steps 0 to the
   index. Part ids and lead ids are unique only within their own lists (ADR-0092), so a part and a
@@ -3199,7 +3199,7 @@ declare it.
 - **Consequences.** The T-board step, whose key is `tboard`, adds nothing to the document, even to
   a part named `tboard`.
 
-## ADR-S-4 The full-probe check of the shipped tutorials is split over four files, and two tutorials are opt-in
+## ADR-0119 The full-probe check of the shipped tutorials is split over four files, and two tutorials are opt-in
 
 - **Context.** SPEC 14.5 and 18 ask for the observability rule to hold on the tutorials, not on
   three probed pins. That needs a signature of the board at every step of all 26 tutorials, 26

@@ -40,7 +40,7 @@ export interface ProbeSignature {
   /** Whether the net's expected readings differ, for certain, from "nothing attached". */
   observable: Record<number, boolean>
   /**
-   * Why the board could not be solved, when it could not (ADR-S-2). No reading is then known:
+   * Why the board could not be solved, when it could not (ADR-0117). No reading is then known:
    * every one is ambiguous and no net is observable, so nothing is matched or refuted by it.
    */
   unsolved?: string
@@ -70,7 +70,7 @@ function agree<T extends string>(readings: T[], ambiguous: T): T {
  * Tolerances for the retry of a solve that stalls. A reading is classified against 0.8 V and
  * 2.0 V and the pull range alone moves a reading by volts, so an error of 1e-4 relative (0.1 mV
  * at 1 V) and 0.1 µV on a node matters only to a reading already on a threshold. An LED network
- * rings under the trapezoidal rule and does not reach 1e-6; at these it settles (ADR-S-2).
+ * rings under the trapezoidal rule and does not reach 1e-6; at these it settles (ADR-0117).
  */
 const LOOSE: SolveOptions = { reltol: 1e-4, vntol: 1e-7 }
 
@@ -127,7 +127,7 @@ export function probeSignature(
   } catch (e) {
     // A partly built board can have no operating point Newton finds. That is not a divergence of
     // the board from the twin, and it is not an exception for the caller: it is a board whose
-    // readings are not known (ADR-S-2).
+    // readings are not known (ADR-0117).
     if (!(e instanceof ConvergenceError)) throw e
     return unsolved(probed, skipped, e.message)
   }

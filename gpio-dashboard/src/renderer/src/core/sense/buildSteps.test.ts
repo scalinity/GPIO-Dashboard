@@ -175,7 +175,7 @@ describe('a board the simulator cannot solve', () => {
   })
 
   it('does not occur in the shipped tutorials: four-digit-seven-segment’s steps 45 to 51 solve', () => {
-    // Their pair-test transients stalled at gmin 1e-12 at the default tolerances (ADR-S-2). The
+    // Their pair-test transients stalled at gmin 1e-12 at the default tolerances (ADR-0117). The
     // pins are the finished document's probed GPIOs, as Board Sense probes them.
     const pins = [
       2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 26

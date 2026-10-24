@@ -35,7 +35,7 @@ export interface StepSignatures {
 
 /**
  * The document as it stands once steps 0..index are done. A step is found by its key, so a part
- * and a lead that share an id are two steps (ADR-0092, ADR-S-3).
+ * and a lead that share an id are two steps (ADR-0092, ADR-0118).
  */
 export function docUpTo(doc: CircuitDoc, steps: BuildStep[], index: number): CircuitDoc {
   const done = new Set(steps.slice(0, index + 1).map((s) => s.key))
@@ -73,8 +73,8 @@ const biasKey = (s: ProbeSignature, p: number) => {
  * Whole-row comparison is not enough. GPIO2 and GPIO3 are observable through the Pi's board
  * pull-ups on any board and always match, so a step that only changes how some other pin answers
  * them (an LED path to 3V3, say) would count them as changed and confirm itself on a measurement
- * that says nothing about it (ADR-S-1). A board that could not be solved (`unsolved`) has no
- * readings, so a step to or from one changes nothing that can be seen (ADR-S-2).
+ * that says nothing about it (ADR-0116). A board that could not be solved (`unsolved`) has no
+ * readings, so a step to or from one changes nothing that can be seen (ADR-0117).
  */
 export function changedPins(
   before: ProbeSignature,

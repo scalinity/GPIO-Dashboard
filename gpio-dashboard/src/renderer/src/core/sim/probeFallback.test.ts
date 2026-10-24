@@ -1,4 +1,4 @@
-// What probe-signature mode does with a board whose solve stalls (ADR-S-2): it solves again at
+// What probe-signature mode does with a board whose solve stalls (ADR-0117): it solves again at
 // looser tolerances, and if that stalls too it reports a board whose readings are not known.
 // Bench strips: 3V3 rows 1/9 a-e, GND row 5 a-e, GPIO17 row 6 a-e, GPIO27 row 7 a-e,
 // GPIO18 row 6 f-j.

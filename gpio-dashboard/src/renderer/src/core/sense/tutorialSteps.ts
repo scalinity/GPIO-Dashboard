@@ -1,5 +1,5 @@
-// The Board Sense step check on every shipped tutorial, on a full probe (SPEC 14.5, 18; ADR-S-1).
-// Shared by the test files that split the tutorials between workers (ADR-S-4): one board per
+// The Board Sense step check on every shipped tutorial, on a full probe (SPEC 14.5, 18; ADR-0116).
+// Shared by the test files that split the tutorials between workers (ADR-0119): one board per
 // step, 26 candidate GPIOs, and a signature costs 0.1 s to 3 s, so the set takes minutes in one file.
 import { describe, expect, it } from 'vitest'
 import { partDef } from '../defs/parts'
@@ -38,7 +38,7 @@ export const SEEN: Record<string, string[]> = {
 }
 
 /**
- * The steps that `checkStep` confirmed on a full probe before ADR-S-1, on no evidence about the
+ * The steps that `checkStep` confirmed on a full probe before ADR-0116, on no evidence about the
  * step: each only changed how some pin answers GPIO2 and GPIO3, which always match. Eight of the
  * LED bar graph's, eight of the flowing LEDs', the Blinking LED's last lead, among others.
  */
