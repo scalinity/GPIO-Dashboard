@@ -15,11 +15,9 @@ import math
 import os
 import sys
 
-import bpy
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import devicekit as kit  # noqa: E402
-from lib import scene  # noqa: E402
 
 args, part = kit.start()
 G = part['geometry']['params']
@@ -32,7 +30,7 @@ PITCH_X = G.get('digitPitchMm', 0.0)
 SEG = G['segmentWidthMm']
 SHEAR = math.tan(math.radians(G['slantDeg']))
 STANDOFF = 0.5  # the body's underside above the board; the datasheet draws none
-PROUD = 0.05  # the segments stand this far above the face
+PROUD = 0.05  # the face lies this far below the segments' tops, which stand at the body's height
 GAP = 0.3  # between neighbouring segments
 DP_DIA = 1.5  # the drawing's decimal point
 
@@ -44,17 +42,17 @@ cx, cy = (min(px) + max(px)) / 2, (min(py) + max(py)) / 2
 face_mat = kit.material('face', '8c8d8f', Roughness=0.5)
 seg_mat = kit.material('segment', 'ecebe6', Roughness=0.35)
 
-root = scene.link(bpy.data.objects.new(part['id'], None))
+root = kit.root(args)
 
 m = kit.Mesh()
-m.box((cx - L / 2, cy - W / 2, STANDOFF), (cx + L / 2, cy + W / 2, H), face_mat, taper=0.1)
+m.box((cx - L / 2, cy - W / 2, STANDOFF), (cx + L / 2, cy + W / 2, H - PROUD), face_mat, taper=0.1)
 body = m.to_object('body', root)
 
 # The digit: segment centrelines on a 6 mm wide, DIGIT_H tall frame, sheared to the slant.
 half_w = (DIGIT_W - 2 * math.tan(math.radians(G['slantDeg'])) * (DIGIT_H / 2)) / 2  # unslanted half width
 xv = half_w - SEG / 2  # vertical segments' centrelines
 yh = DIGIT_H / 2 - SEG / 2  # horizontal segments' centrelines (a and d; g is at 0)
-z0, z1 = H - 0.6, H + PROUD
+z0, z1 = H - 0.6, H
 
 
 def hexagon(length, vertical):
@@ -70,7 +68,7 @@ def segment(name, centre, outline, origin):
     ox, oy = origin
     ring = [(ox + centre[0] + x + (centre[1] + y) * SHEAR, oy + centre[1] + y) for x, y in outline]
     sm = kit.Mesh()
-    sm.prism(ring, z0, z1, seg_mat)
+    sm.extrude(ring, z0, z1, seg_mat)
     return sm.to_object(name, root)
 
 
@@ -101,12 +99,11 @@ for d in range(DIGITS):
         z1,
         seg_mat,
         n=12,
-        smooth=False,
     )
     nodes.append(dm.to_object(prefix + 'dp', root))
 
 for pin, x, y in zip(pins, px, py):
     kit.pin_empty(root, pin['id'], (x, y, STANDOFF), (0, 0, -1))
 
-kit.finish(args, root, [kit.box_of('body', body)])
+kit.finish(args, root, [kit.box_of('body', body, *nodes)])
 print(f"{part['id']}: {kit.triangles(root)} triangles, {len(nodes)} segment nodes")

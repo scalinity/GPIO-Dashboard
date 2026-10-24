@@ -27,11 +27,9 @@ import importlib
 import os
 import sys
 
-import bpy
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import devicekit as kit  # noqa: E402
-from lib import scene  # noqa: E402
 
 args, part = kit.start(lambda p: p.add_argument('--step-glb'))
 # Two definitions (the power module and the relay) carry no variant; their id names the drawing.
@@ -55,7 +53,7 @@ if VARIANT not in DRAWN_IN:
     raise RuntimeError(f'module.py has no variant {VARIANT}')
 module, function = DRAWN_IN[VARIANT]
 
-root = scene.link(bpy.data.objects.new(part['id'], None))
+root = kit.root(args)
 colliders = getattr(importlib.import_module(module), function)(root, part, args)
 # The board and what stands on it hang under one "body" node; bodyMm describes it.
 for name, objs in colliders:

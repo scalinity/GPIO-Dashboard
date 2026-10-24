@@ -1,0 +1,63 @@
+{
+  "name": "ads7830-module",
+  "tools": {
+    "blender": "Blender 5.2.2 LTS",
+    "ktx": "ktx version: v4.4.2"
+  },
+  "script": {
+    "path": "scripts/assets/blender/module.py",
+    "args": {
+      "part": "src/renderer/src/content/parts/ads7830-module.part.json",
+      "name": "ads7830-module",
+      "texture": "512x512",
+      "samples": 128,
+      "seed": 0
+    },
+    "sha256": {
+      "blender/module.py": "67a7db8fd33c8d1a17a268c76ef8c62d71c5aed2941cca6bef814378666a3cb9",
+      "blender/partkit.py": "041c73af3746cbcb89435960a5fc4e19af8c61d8411d7679641d5664a1390ea4",
+      "blender/devicekit.py": "5cbe22dc9c2d951e94336d88fbeff00b27d5ac701ad9aac55a7cae6858f82c29",
+      "blender/modparts.py": "ce20bce52a769aa64c8a63e675c78afa2b6c99d696d7852bb97f2d3a3ad65c05",
+      "blender/mod_sensors.py": "da2805ebc730f48ca6e9db815f4007019896b0726a34569e73d28c54d47e9198",
+      "blender/mod_ads.py": "a978bcc1bdc6f6a7d8fb4bc2f16f6100a88a478bcc6c3d4ba9bbc36c4528c899",
+      "blender/mod_boards.py": "7ef1723cf0425cf4be9fdbfa9a526d37802b62213cc5176a3264cba63ad3c776",
+      "blender/lib/__init__.py": "fde31da9f6d72b2297d6828833720649d7d25feab9e48e41ede38379551cb95a",
+      "blender/lib/bake.py": "79d84decfc2118f593cbd56a4b2de266e48c41e5f27ba36cded71d45b83f7ed1",
+      "blender/lib/export.py": "5832244f9a618a46fd65b3f7b0f5c816c591ead0510aebe744e339423a8774a7",
+      "blender/lib/materials.py": "4fd8a2aaf9f6f5b064f8bf9737e168abf65cfc1a5789fb7a248cb8e0b91187cb",
+      "blender/lib/scene.py": "7d4ebb2378fead7573344de3b3a44bf12a34dc2bdc7b544c91c608837e196089"
+    }
+  },
+  "inputs": [
+    {
+      "path": "src/renderer/src/content/parts/ads7830-module.part.json",
+      "sha256": "272f5ec92bca18f7d40e893ff010081e0d0164eff43388c184633e85a20c2138"
+    }
+  ],
+  "sources": [],
+  "triangles": 556,
+  "bytes": 24996,
+  "textures": [
+    {
+      "name": "pcb-legend",
+      "format": "ETC1S",
+      "size": [
+        512,
+        512
+      ],
+      "slots": [
+        "baseColorTexture"
+      ]
+    }
+  ],
+  "budget": {
+    "texturePx": [
+      512,
+      512
+    ],
+    "triangles": 680,
+    "bytes": 40000,
+    "met": true
+  },
+  "geometryHash": "8eaf558199ef2731f891d2f27234f66ea255392c9795d27a63f8b95962144bb4"
+}

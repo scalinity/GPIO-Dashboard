@@ -1,9 +1,10 @@
-"""Helpers shared by the display, IC and module family scripts (SPEC 10.4 "Parts").
+"""What the display, IC and module families need beyond partkit.py (SPEC 7, 10.4 "Parts").
 
-lib/ holds what every asset shares; this file holds what the part families need on top of it: a
-small mesh builder with material slots, pin empties, a planar-UV decal baked from text and
-shapes, and the end-of-script export. A family script reads the part definition JSON, builds in
-the part's frame, then calls finish().
+partkit.py holds what every part script shares: the arguments, the root, the pin-<id> empties, the
+mesh Builder and an export that keeps custom properties. This file adds the rest the displays, ICs
+and off-board modules ask for: a Builder with tapered boxes, frusta, tubes and drilled slabs; a
+planar-UV decal baked from text and shapes; circuit boards with a legend; male headers; the STEP
+helpers; and development previews.
 
 Frames (SPEC 7, the part GLB contract). Millimetres, z up.
   Rigid (on-board) parts: the origin is pin[0]'s hole centre on the board's top surface (z = 0);
@@ -13,7 +14,6 @@ Frames (SPEC 7, the part GLB contract). Millimetres, z up.
   lowest values, z = 0 at the table). Pin empties sit at each connector's tip and their local +z
   points out along the pin, where the mating housing arrives.
 """
-import json
 import math
 import os
 import sys
@@ -23,35 +23,30 @@ import bpy
 from mathutils import Matrix, Vector
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import partkit  # noqa: E402
 from lib import bake, export, materials, scene  # noqa: E402
 
-PITCH = 2.54
+PITCH = partkit.PITCH
 LEG = 0.64  # a 2.54 mm header pin's square side
 
 
 def start(add_args=None):
-    """scene.start() plus --part (the part definition), --texture (the budget) and --preview.
-
-    --preview <dir> renders PNGs of the result for looking at it while developing; the build
-    never passes it. Returns (args, part definition).
-    """
+    """partkit.start() plus --preview <dir>, which renders PNGs of the result for looking at it
+    while developing (the build never passes it). Returns (args, part definition); args.px is the
+    texture budget as [w, h]."""
     def extra(p):
-        p.add_argument('--part', required=True)
-        p.add_argument('--texture', required=True)
         p.add_argument('--preview')
         if add_args:
             add_args(p)
 
-    args = scene.start(extra)
-    with open(args.part) as f:
-        part = json.load(f)
-    args.px = [int(n) for n in args.texture.split('x')]
+    args, part, _ = partkit.start(extra)
+    args.px = [int(n) for n in (args.texture or '0x0').split('x')]
     return args, part
 
 
 def rgb(hex6):
-    """An sRGB hex colour as the linear values Blender takes."""
-    return materials.srgb(*(int(hex6[i:i + 2], 16) / 255 for i in (0, 2, 4)))
+    """An sRGB hex colour (no #) as the linear values Blender takes."""
+    return partkit.colour('#' + hex6)
 
 
 _cache = {}
@@ -64,6 +59,11 @@ def material(name, hex6, **inputs):
     return _cache[name]
 
 
+def driven(mat):
+    """A material the studio recolours or lights (partkit.driven keeps dedup from merging it)."""
+    return partkit.driven(mat)
+
+
 def emissive(name, hex6):
     """A material with its colour as emission, for baking flat colours into a texture."""
     key = f'{name}:emission'
@@ -72,42 +72,24 @@ def emissive(name, hex6):
     return _cache[key]
 
 
-# --- A mesh builder with material slots --------------------------------------------------------
+# --- partkit's Builder, with what the families add -----------------------------------------------
 
 
-class Mesh:
-    """A bmesh whose faces carry slot indices into mats. Solids are built from rings of vertices
-    wound so that every face points out of the solid: a ring counter-clockwise from above, or
-    about its axis, gives outward side faces."""
-
-    def __init__(self):
-        self.bm = bmesh.new()
-        self.mats = []
-
-    def slot(self, mat):
-        if mat not in self.mats:
-            self.mats.append(mat)
-        return self.mats.index(mat)
+class Mesh(partkit.Builder):
+    """partkit.Builder plus tapered boxes, frusta, tubes, lofts between rings, drilled slabs and
+    planar UVs. Solids are wound so every face points out: a ring counter-clockwise from above, or
+    about its axis, gives outward side faces. to_object() welds the seams and shades by angle."""
 
     def _verts(self, points):
-        return [self.bm.verts.new(p) for p in points]
+        return [self._v(p) for p in points]
 
-    def _face(self, verts, mat, smooth=False):
-        f = self.bm.faces.new(verts)
-        f.material_index = self.slot(mat)
-        f.smooth = smooth
-        return f
-
-    def quad(self, a, b, c, d, mat):
-        return self._face(self._verts([a, b, c, d]), mat)
-
-    def loft(self, lower, upper, mat, caps=(True, True), smooth=False):
+    def loft(self, lower, upper, mat, caps=(True, True)):
         """A solid between two rings of (x, y, z) points listed counter-clockwise from above."""
         n = len(lower)
-        side = self._verts(lower), self._verts(upper)
+        a, b = self._verts(lower), self._verts(upper)
         for i in range(n):
             j = (i + 1) % n
-            self._face([side[0][i], side[0][j], side[1][j], side[1][i]], mat, smooth)
+            self._face([a[i], a[j], b[j], b[i]], mat)
         if caps[0]:
             self._face(list(reversed(self._verts(lower))), mat)
         if caps[1]:
@@ -115,6 +97,8 @@ class Mesh:
 
     def box(self, lo, hi, mat, taper=0.0, caps=(True, True)):
         """An axis-aligned box. taper insets the top ring on every side."""
+        if taper == 0.0 and caps == (True, True):
+            return super().box(lo, hi, mat)
         (x0, y0, z0), (x1, y1, z1) = lo, hi
         t = taper
         self.loft(
@@ -124,21 +108,24 @@ class Mesh:
             caps,
         )
 
-    def prism(self, ring, z0, z1, mat, caps=(True, True)):
+    def extrude(self, ring, z0, z1, mat, caps=(True, True)):
         """A polygon (x, y points, counter-clockwise from above) extruded from z0 to z1."""
-        self.loft([(x, y, z0) for x, y in ring], [(x, y, z1) for x, y in ring], mat, caps)
+        self.prism(ring, z0, z1, mat, bottom=mat if caps[0] else None, top=mat if caps[1] else None)
 
-    def disc(self, c, r, z0, z1, mat, n=16, r_top=None, caps=(True, True), smooth=True):
+    def disc(self, c, r, z0, z1, mat, n=16, r_top=None, caps=(True, True)):
         """A vertical cylinder or cone frustum around (cx, cy)."""
         cx, cy = c
         rt = r if r_top is None else r_top
-        ring = lambda rad, z: [
-            (cx + rad * math.cos(2 * math.pi * k / n), cy + rad * math.sin(2 * math.pi * k / n), z)
-            for k in range(n)
-        ]
-        self.loft(ring(r, z0), ring(rt, z1), mat, caps, smooth)
 
-    def tube(self, p0, p1, r, mat, n=12, caps=(True, True), r1=None, smooth=True):
+        def ring(rad, z):
+            return [
+                (cx + rad * math.cos(2 * math.pi * k / n), cy + rad * math.sin(2 * math.pi * k / n), z)
+                for k in range(n)
+            ]
+
+        self.loft(ring(r, z0), ring(rt, z1), mat, caps)
+
+    def tube(self, p0, p1, r, mat, n=12, caps=(True, True), r1=None):
         """A cylinder (or frustum, r1 at p1) from p0 to p1 along any axis."""
         a, b = Vector(p0), Vector(p1)
         axis = (b - a).normalized()
@@ -146,15 +133,18 @@ class Mesh:
         u = axis.cross(helper).normalized()
         v = axis.cross(u).normalized()
         rr = r if r1 is None else r1
-        ring = lambda c, rad: [
-            tuple(c + rad * (math.cos(2 * math.pi * k / n) * u + math.sin(2 * math.pi * k / n) * v))
-            for k in range(n)
-        ]
+
+        def ring(c, rad):
+            return [
+                tuple(c + rad * (math.cos(2 * math.pi * k / n) * u + math.sin(2 * math.pi * k / n) * v))
+                for k in range(n)
+            ]
+
         # Rings run counter-clockwise about the axis, so the side faces point outward.
-        sides = (self._verts(ring(a, r)), self._verts(ring(b, rr)))
+        lo, up = self._verts(ring(a, r)), self._verts(ring(b, rr))
         for i in range(n):
             j = (i + 1) % n
-            self._face([sides[0][i], sides[0][j], sides[1][j], sides[1][i]], mat, smooth)
+            self._face([lo[i], lo[j], up[j], up[i]], mat)
         if caps[0]:
             self._face(list(reversed(self._verts(ring(a, r)))), mat)
         if caps[1]:
@@ -164,51 +154,31 @@ class Mesh:
         """A plate with straight holes through it: outline and holes are (x, y) rings, all
         counter-clockwise from above. The top takes top_mat when given."""
         top = top_mat or mat
-        loops = []
-        for ring, hole in [(outline, False)] + [(h, True) for h in holes]:
-            pts = list(reversed(ring)) if hole else list(ring)
-            up = self._verts([(x, y, z1) for x, y in pts])
+        rings = [(list(outline), False)] + [(list(reversed(h)), True) for h in holes]
+        for pts, _hole in rings:
             lo = self._verts([(x, y, z0) for x, y in pts])
-            low2 = self._verts([(x, y, z0) for x, y in pts])
-            up2 = self._verts([(x, y, z1) for x, y in pts])
+            up = self._verts([(x, y, z1) for x, y in pts])
             n = len(pts)
             for i in range(n):
                 j = (i + 1) % n
                 self._face([lo[i], lo[j], up[j], up[i]], mat)
-            loops.append((up2, low2, hole))
-        # Top and bottom faces with the holes cut out.
-        for k, z, m in ((0, z1, top), (1, z0, mat)):
+        # The top and the bottom, filled around the holes.
+        for z, m, facing_up in ((z1, top, True), (z0, mat, False)):
             edges = []
-            for ring_set in loops:
-                verts = ring_set[k]
-                for i in range(len(verts)):
-                    edges.append(self.bm.edges.new((verts[i - 1], verts[i])))
+            for pts, _hole in rings:
+                verts = self._verts([(x, y, z) for x, y in pts])
+                edges += [self.bm.edges.new((verts[i - 1], verts[i])) for i in range(len(verts))]
             res = bmesh.ops.triangle_fill(self.bm, use_beauty=True, use_dissolve=False, edges=edges)
             for f in res['geom']:
                 if isinstance(f, bmesh.types.BMFace):
-                    f.material_index = self.slot(m)
+                    f.material_index = self._slot(m)
                     f.normal_update()
-                    if (f.normal.z < 0) == (k == 0):
+                    if (f.normal.z > 0) != facing_up:
                         f.normal_flip()
 
-    def planar_uv(self, rect, where):
-        """UVs from x, y over rect = (x0, y0, x1, y1) for faces where(face) is true; every other
-        face collapses to (0, 0) so it takes no texture."""
-        x0, y0, x1, y1 = rect
-        uv = self.bm.loops.layers.uv.verify()
-        for f in self.bm.faces:
-            on = where(f)
-            for loop in f.loops:
-                co = loop.vert.co
-                loop[uv].uv = ((co.x - x0) / (x1 - x0), (co.y - y0) / (y1 - y0)) if on else (0, 0)
-
     def to_object(self, name, parent=None):
-        mesh = bpy.data.meshes.new(name)
-        self.bm.to_mesh(mesh)
-        self.bm.free()
-        for m in self.mats:
-            mesh.materials.append(m)
-        return scene.link(bpy.data.objects.new(name, mesh), parent)
+        """Weld the seams, shade by angle and make the mesh object under parent."""
+        return self.finish(name, parent)
 
 
 def cut(obj, cutters):
@@ -277,13 +247,13 @@ def circle(cx, cy, r, n=12, clockwise=False):
 
 def pin_empty(root, pin_id, position, direction):
     """The empty "pin-<id>" at position whose local +z points along direction (core frame)."""
-    obj = scene.link(bpy.data.objects.new(f'pin-{pin_id}', None), root)
-    obj.empty_display_type = 'SINGLE_ARROW'
-    obj.empty_display_size = 1.0
-    obj.location = position
-    obj.rotation_mode = 'QUATERNION'
-    obj.rotation_quaternion = Vector((0, 0, 1)).rotation_difference(Vector(direction))
-    return obj
+    turn = Vector((0, 0, 1)).rotation_difference(Vector(direction)).to_euler()
+    return partkit.pin(root, pin_id, position, (turn.x, turn.y, turn.z))
+
+
+def root(args):
+    """The part's root node, named for the file."""
+    return partkit.root(args.name)
 
 
 def node(root, name, location=(0, 0, 0)):
@@ -389,10 +359,10 @@ def textured(mat, img):
 
 
 def finish(args, root, boxes):
-    """Export the GLB and the colliders, then render previews when --preview was given."""
+    """Export the GLB (with custom properties) and the colliders, then render previews when
+    --preview was given."""
     bpy.context.view_layer.update()
-    export.glb(args.out, root)
-    export.colliders(args.colliders, boxes)
+    partkit.write(args, root, boxes)
     if args.preview:
         _preview(args.preview, root)
 
@@ -609,9 +579,9 @@ def dome(m, centre, rx, ry, rz, z0, mat, n=24, rings=8):
             apex = m._verts([(cx, cy, zb)])[0]
             lo = m._verts(ring(za, sa))
             for i in range(n):
-                m._face([lo[i], lo[(i + 1) % n], apex], mat, True)
+                m._face([lo[i], lo[(i + 1) % n], apex], mat)
         else:
-            m.loft(ring(za, sa), ring(zb, sb), mat, caps=(False, False), smooth=True)
+            m.loft(ring(za, sa), ring(zb, sb), mat, caps=(False, False))
 
 
 def label(text, x, y, height=0.9, rotation=0, align='CENTER', ink=SILK):

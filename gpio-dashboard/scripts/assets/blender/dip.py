@@ -13,11 +13,9 @@ to the seating plane) and a "pin-<id>" empty at its lower end whose +z points do
 import os
 import sys
 
-import bpy
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import devicekit as kit  # noqa: E402
-from lib import scene  # noqa: E402
 
 args, part = kit.start()
 G = part['geometry']['params']
@@ -46,7 +44,7 @@ epoxy = kit.material('epoxy', '121213', Roughness=0.55)
 top = kit.material('epoxy-top', '121213', Roughness=0.5)
 tin = kit.material('lead', 'c4c6c8', Metallic=1.0, Roughness=0.32)
 
-root = scene.link(bpy.data.objects.new(part['id'], None))
+root = kit.root(args)
 
 # --- Body: drafted sides, the notch and the dimple cut in, the top marked ------------------------
 m = kit.Mesh()

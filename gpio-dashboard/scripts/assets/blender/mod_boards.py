@@ -7,16 +7,13 @@ Modules with a header lie on its pin tails with the pins up. The keypad and the 
 female housing on a cable or tail; it lies flat on the table with its socket openings facing
 along the cable, away from the module, and its pin empties point out of the openings.
 """
-import math
 import os
 import sys
 
-import bpy
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import devicekit as kit  # noqa: E402
 import modparts as mp  # noqa: E402
-from lib import scene  # noqa: E402
 
 
 def mounting_holes(L, W, span_x, span_y, d):
@@ -255,9 +252,17 @@ def lcd1602(root, part, args):
     # The character area of an HD44780 16 x 2: 15 pitches + a character wide, one pitch + a character high.
     char_w, char_h, pitch_x, pitch_y = 2.95, 5.55, 3.55, 5.95
     area_w, area_h = 15 * pitch_x + char_w, pitch_y + char_h
-    # The screen as a quad with UVs 0-1 over the character area, +v toward the top row.
-    screen = kit.panel(root, 'lcd-screen', (cx - area_w / 2, cy - area_h / 2, top + stack - 0.4), (area_w, 0, 0), (0, area_h, 0),
-                       kit.material('lcd-screen', '2a46b8', Roughness=0.25))
+    # The screen: a quad with UVs 0-1 over the character area, +v toward the top row. Its texture is
+    # the backlit glass with the 32 blank character cells; the studio draws characters over it.
+    cells = [
+        ('box', c * pitch_x, area_h - char_h - r * pitch_y, c * pitch_x + char_w, area_h - r * pitch_y, '3158dc')
+        for r in range(2)
+        for c in range(16)
+    ]
+    glass = kit.decal('lcd-screen', (0, 0, area_w, area_h), [256, 64], '2a46b8', cells)
+    screen_mat = kit.material('lcd-screen', '2a46b8', Roughness=0.25)
+    kit.textured(screen_mat, glass)
+    screen = kit.panel(root, 'lcd-screen', (cx - area_w / 2, cy - area_h / 2, top + stack - 0.4), (area_w, 0, 0), (0, area_h, 0), screen_mat)
     strip = [(p['id'], (hx + p['offsetPitch'][0] * kit.PITCH, hy)) for p in pins]
     pin_obj = mp.headers(root, [strip], top)
     return [('body', [pcb, bezel, screen]), ('pins', [pin_obj])]
@@ -290,7 +295,7 @@ def sg90(root, part, args):
     hm = kit.Mesh()
     hm.disc((0, 0), 3.6, 0, 3.0, white, n=20)
     arm = [(-10.5, -1.0), (-9.5, -2.1), (9.5, -2.1), (10.5, -1.0), (10.5, 1.0), (9.5, 2.1), (-9.5, 2.1), (-10.5, 1.0)]
-    hm.prism(arm, 1.0, 2.2, white)
+    hm.extrude(arm, 1.0, 2.2, white)
     hm.to_object('horn-mesh', pivot)
     # The three-wire cable leaves the case's -y side near its base and runs straight out.
     housing_w, housing_len, housing_h = pins[-1]['offsetPitch'][0] * pitch + pitch, 8.0, 2.54
@@ -312,4 +317,4 @@ def sg90(root, part, args):
     front = kit.panel(root, 'housing-face', (hx, y_back - housing_len - 0.02, 0.0), (housing_w, 0, 0), (0, 0, housing_h), hole_mat)
     for p in pins:
         kit.pin_empty(root, p['id'], (hx + (p['offsetPitch'][0] + 0.5) * pitch, y_back - housing_len - 0.02, housing_h / 2), (0, -1, 0))
-    return [('body', [body]), ('cable', [wire_obj]), ('connector', [housing, front])]
+    return [('body', [body]), ('horn', [pivot]), ('cable', [wire_obj]), ('connector', [housing, front])]

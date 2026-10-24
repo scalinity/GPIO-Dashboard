@@ -102,7 +102,8 @@ BLENDER_BIN=... npm run assets:check -- --rebuild parts
 
 **Files.** `src/renderer/public/models/parts/<defId>.glb`, or `<defId>-<variant>.glb` where a
 property changes the shape (the LED's `size`), each with `.manifest.json` and `.colliders.json`.
-They are the same kind of GLB as the boards (meshopt, quantization), without textures.
+They are the same kind of GLB as the boards (meshopt, quantization), without textures unless the
+file's budget names one (the IC markings and module legends below).
 `parts/index.json` maps each part definition to its files, sorted by definition, and `build`
 merges its entries into it:
 
@@ -154,7 +155,8 @@ materials with equal parameters apart.
 
 **Checks** (`verify-parts.ts`, measured from the GLB):
 
-- the definition's family, the geometry hash, the triangle and byte budgets, and no textures;
+- the definition's family, the geometry hash, the triangle and byte budgets, and no textures
+  except within a budgeted texture size (KTX2);
 - the root, with `seatMm` for flex parts and none for rigid ones;
 - every `pin-*` empty, animated node and driven material present;
 - pins within 0.05 mm of their `offsetPitch` (rigid), or of plus and minus half the lead spacing
@@ -263,3 +265,84 @@ the odd pins'). `idc-socket`: `body` (with the bump) and `strain-relief`. The Du
 
 `ribbon` has textures only: `build.ts` encodes the PNGs its script saves with `ktx create`, and
 `assets:check --rebuild` compares the lookup exactly and the ridge map by SSIM.
+
+## Displays, ICs and off-board modules (ADR-A3b)
+
+Twenty-one parts in seven families, built by `dip.py`, `seven_segment.py`, `bar_graph.py`,
+`dot_matrix.py`, `motor.py` and `module.py`. They use `partkit.py` and add `devicekit.py` (tapered
+boxes, tubes and drilled slabs, a baked decal, boards with a legend, male headers, the STEP
+helpers; `--preview <dir>` renders PNGs while developing) and, for the modules, `modparts.py` and
+the variant files `mod_sensors.py`, `mod_ads.py` and `mod_boards.py`. Build one with
+`npm run assets:build -- hc-sr04`. The files are 7 to 229 KB each, 0.67 MB together with their
+manifests and colliders.
+
+**On-board parts** (`ic-74hc595`, `ic-adc0834`, `ic-l293d`, the two seven-segment displays, the
+four-digit display, `bar-graph-10`, `led-matrix-8x8`, and the bare `dht11`) follow the rigid frame
+above: the origin is pin 1's hole, with `pin-<id>` empties at `offsetPitch * 2.54` and +z pointing
+down. The body floats a standoff above the board: the DIP's `standoffMinMm` (0.51 mm), 0.5 mm for
+the displays, 2.0 mm for the DHT11. The empties are at the body's underside, where the runtime lead
+starts. The DIP also has the shoulder of each lead, in the `lead` material, and its top carries the
+part number as a KTX2 marking. TI's 5.08 mm height counts from the seating plane, so the DIP's
+body, which floats on its standoff, is 4.57 mm thick and `assets:check` expects that.
+
+**Off-board modules** (`ads1115-module`, `ads7830-module`, `breadboard-power-module`,
+`dht11-module`, `hc-sr04`, `hc-sr501`, `joystick-module`, `keypad-4x4`, `lcd1602-i2c`,
+`relay-module-5v`, `sg90`, `dc-motor`):
+
+- *Origin.* The footprint's corner on the table: the model's lowest x, y and z are all 0 (checked
+  to 0.05 mm). x runs along the header row, y across it, z up. A module with a header rests on its
+  pins' 1.5 mm tails; the keypad, servo and motor lie on the table.
+- *Pins.* The module keeps its connector's layout: pin i is at pin 1 + `offsetPitch` * 2.54 mm
+  (the relay's screw terminal block at its own 5 mm pitch), so the definition's offsets map straight
+  onto the model. `assets:check` measures every pin's place relative to the first (0.05 mm) and the
+  2.54 mm pitch of neighbouring header pins. The header pins are in the model, the plastic base and
+  the metal pin in the node `pins`. `pin-<id>` is at the tip of each, +z up, where a female Dupont
+  housing mates; the header is on the board's top face with its pins up whichever side the real
+  board's header is on, so that a housing can reach it. Three kinds differ, each listed in
+  `parts.ts` under `axes`:
+  - the relay's screw terminals `NC`, `COM` and `NO`: at the block's front face, +z along +y, out
+    of the board's edge;
+  - the keypad and the servo: the female housing at the end of a flat tail or a cable lies on the
+    table with its sockets facing -y, away from the module, and the empties are on that face;
+  - the motor: two leads, each ending in a one-pin housing whose male pin sticks out along -y.
+- *Body.* A node `body` holds the board and what stands on it (the servo's case, the motor's can).
+  `pins`, `cable` or `tail`, `connector` and the animated nodes are beside it. `bodyMm` describes
+  `body` (the servo's with its `horn`). The DHT11 breakout's `bodyMm` height is the sensor's 5.5 mm
+  thickness, which stands 15.5 mm tall on the board, so only its footprint is compared.
+- *Textures.* A board's solder-mask top carries its silkscreen legend as one KTX2 base-colour map
+  (UVs run over the board's outline). The DHT11's grille, the relay's case top and terminal face,
+  the keypad's keys, the LCD's screen and the housings' socket holes are small maps on panels of
+  their own. The ADS1115 also has the occlusion map baked from its STEP; no other module has one.
+
+**Names the studio looks up** (all unique in a file):
+
+| Part | Node | What it is |
+| ---- | ---- | ---------- |
+| the seven-segment displays | `seg-a` to `seg-g`, `seg-dp` | one mesh each; the four-digit display's are `seg-<d>-<a..g\|dp>`, d from 1 at the leftmost digit |
+| `bar-graph-10` | `bar-1` to `bar-10` | segment n is over pin n (LED n runs from pin n to pin 21 - n) |
+| `led-matrix-8x8` | `dot-<row>-<col>` | row 1 at the top (+y), column 1 at the left (-x), as the datasheet's top view |
+| `hc-sr501` | `lens` | the white dome |
+| `relay-module-5v` | `lens`, `armature` | the indicator LED; the armature's pivot, hinged inside the case about core y |
+| `sg90` | `horn` | a pivot on the output shaft's axis; the horn's mesh is its child, at rest along x (1.5 ms) |
+| `dc-motor` | `rotor` | a pivot on the shaft's axis, turning about its own x axis; the shaft is its child |
+| `joystick-module` | `stick` | a pivot at the top of the thumbstick's base, for tilting |
+| `lcd1602-i2c` | `lcd-screen` | the character area, 56.2 x 11.5 mm (15 pitches and a character wide, a pitch and a character high, from the LCD-1602A datasheet), UVs 0 to 1 with glTF (0, 0) at the top left seen from above |
+| `dht11` | `grille` | the sensor's vents, a panel in front of the housing |
+
+The animated and tilting nodes are empty pivots with a mesh child, not meshes: quantization moves a
+mesh node's origin to its bounding box's centre, which is not the axis of a horn, a shaft or a
+thumbstick. A pivot's translation is its axis point and its rotation is the identity, so rotating
+it about its own axis turns the part in place. The segments and bars share the material `segment`
+and the dots `dot`; the studio gives each node its own material when it lights it. `lcd-screen`'s
+texture is the blank backlit glass with its 32 character cells, and the studio replaces it with its
+character texture.
+
+**Sources.** The ADS1115 module and the motor are made from Adafruit's own STEP files, MIT licensed
+(Copyright (c) 2016 Adafruit Industries), which permits copying and redistribution with the notice.
+`sources.json` pins the licence and the two files by SHA-256 at commit `c128bce` (2026-10-01) of
+`adafruit/Adafruit_CAD_Parts` (`1085 ADS1115 ADC`, `711 DC Toy Motor`), retrieved 2026-10-24; the
+licence text is in each manifest and the notice in each GLB's `asset.copyright`. The other models
+are drawn in Blender from their datasheet drawings (Kingbright SA56-11EWA, CA56-12EWA and DC10EWA,
+Toplite TOP-CA-788BS, TI MPDI002C, Aosong DHT11, Elecfreaks HC-SR04, the LCD-1602A) or, where the
+definition's figures are approximate (the LAFVIN ADS7830, the power module, the relay module, the
+HC-SR501, the KY-023, the keypad, the SG90), from those figures. No unlicensed model is used.

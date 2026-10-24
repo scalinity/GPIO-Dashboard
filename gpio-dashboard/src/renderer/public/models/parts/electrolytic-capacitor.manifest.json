@@ -15,7 +15,7 @@
     },
     "sha256": {
       "blender/electrolytic_cap.py": "d0a1b8b93e2a8d759fd1f8fd6b93d664423c0a3e48d6dbdade87f9435a0d8440",
-      "blender/partkit.py": "340e277cd1f5d2e76e2bdbba10f1b157a6a4bb76747907ca534345bcfc6720b6",
+      "blender/partkit.py": "041c73af3746cbcb89435960a5fc4e19af8c61d8411d7679641d5664a1390ea4",
       "blender/lib/__init__.py": "fde31da9f6d72b2297d6828833720649d7d25feab9e48e41ede38379551cb95a",
       "blender/lib/bake.py": "79d84decfc2118f593cbd56a4b2de266e48c41e5f27ba36cded71d45b83f7ed1",
       "blender/lib/export.py": "5832244f9a618a46fd65b3f7b0f5c816c591ead0510aebe744e339423a8774a7",
