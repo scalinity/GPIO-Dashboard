@@ -5,14 +5,15 @@ import { EditorState, Compartment } from '@codemirror/state'
 import { python } from '@codemirror/lang-python'
 import { oneDark } from '@codemirror/theme-one-dark'
 import useTutorialStore from '../store/tutorialStore'
+import { useRun } from '../state/runStore'
 
 const customTheme = EditorView.theme({
-  '&': { backgroundColor: '#0A0F1A', height: '100%' },           // surface-900
-  '.cm-gutters': { backgroundColor: '#050A14', border: 'none' },  // surface-950
-  '.cm-activeLineGutter': { backgroundColor: '#0A0F1A' },         // surface-900
-  '.cm-activeLine': { backgroundColor: '#6366F108' },              // accent/3
+  '&': { backgroundColor: '#0A0F1A', height: '100%' }, // surface-900
+  '.cm-gutters': { backgroundColor: '#050A14', border: 'none' }, // surface-950
+  '.cm-activeLineGutter': { backgroundColor: '#0A0F1A' }, // surface-900
+  '.cm-activeLine': { backgroundColor: '#6366F108' }, // accent/3
   '.cm-selectionBackground': { backgroundColor: '#6366F120 !important' }, // accent/12
-  '.cm-cursor': { borderLeftColor: '#6366F1' }                     // accent
+  '.cm-cursor': { borderLeftColor: '#6366F1' } // accent
 })
 
 export default function CodeEditor({ code, originalCode }) {
@@ -23,7 +24,7 @@ export default function CodeEditor({ code, originalCode }) {
   const setEditorCode = useTutorialStore((s) => s.setEditorCode)
   const resetCode = useTutorialStore((s) => s.resetCode)
   const isCodeModified = useTutorialStore((s) => s.isCodeModified)
-  const executionStatus = useTutorialStore((s) => s.executionStatus)
+  const executionStatus = useRun((s) => s.status)
 
   const readOnly = executionStatus === 'running' || executionStatus === 'deploying'
 
@@ -84,15 +85,15 @@ export default function CodeEditor({ code, originalCode }) {
     <div className="flex flex-col gap-2">
       {isCodeModified && (
         <div className="flex justify-end">
-          <button
-            onClick={() => resetCode(originalCode)}
-            className="btn-ghost text-xs"
-          >
+          <button onClick={() => resetCode(originalCode)} className="btn-ghost text-xs">
             Reset Code
           </button>
         </div>
       )}
-      <div ref={containerRef} className="rounded-btn overflow-hidden border border-white/[0.04] h-80" />
+      <div
+        ref={containerRef}
+        className="rounded-btn overflow-hidden border border-white/[0.04] h-80"
+      />
     </div>
   )
 }

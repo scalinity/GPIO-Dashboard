@@ -11,6 +11,7 @@ import TutorialsPage from './pages/TutorialsPage'
 import MonitorPage from './pages/MonitorPage'
 import WorkbenchPage from './pages/WorkbenchPage'
 import DevOverlay from './dev/DevOverlay'
+import { useRun } from './state/runStore'
 
 const PAGES = {
   connect: ConnectPage,
@@ -54,7 +55,7 @@ function App() {
     if (window.api?.ssh?.onTutorialOutput) {
       cleanups.push(
         window.api.ssh.onTutorialOutput(({ stream, data }) => {
-          useTutorialStore.getState().addOutput({ stream, data })
+          useRun.getState().addOutput({ stream, data })
         })
       )
     }

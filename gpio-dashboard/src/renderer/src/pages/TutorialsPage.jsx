@@ -6,12 +6,15 @@ import { useState } from 'react'
 import CodeEditor from '../components/CodeEditor'
 import { partDef } from '../core/defs/parts'
 import { TUTORIALS } from '../core/defs/tutorials'
+import { erc } from '../core/erc/erc'
 import { buildSteps } from '../core/steps/steps'
 import { renderTheory } from '../core/tutorials/theory'
 import Markdown from '../panels/Markdown'
+import RunBlockedDialog from '../panels/RunBlockedDialog'
 import useConnectionStore from '../store/connectionStore'
 import useTutorialStore from '../store/tutorialStore'
 import useUiStore from '../store/uiStore'
+import { useRun } from '../state/runStore'
 import { useWorkbench } from '../state/workbenchStore'
 
 function Wiring({ tutorial }) {
@@ -57,10 +60,7 @@ function Wiring({ tutorial }) {
 
 function Code({ tutorial }) {
   const editorCode = useTutorialStore((s) => s.editorCode)
-  const status = useTutorialStore((s) => s.executionStatus)
-  const output = useTutorialStore((s) => s.executionOutput)
-  const deployAndRun = useTutorialStore((s) => s.deployAndRun)
-  const stopExecution = useTutorialStore((s) => s.stopExecution)
+  const { status, output, run, stop } = useRun()
   const connected = useConnectionStore((s) => s.status === 'connected')
   const running = status === 'running' || status === 'deploying'
   return (
@@ -70,14 +70,14 @@ function Code({ tutorial }) {
       </div>
       <div className="flex items-center gap-2">
         {running ? (
-          <button className="btn-danger text-sm flex items-center gap-1.5" onClick={stopExecution}>
+          <button className="btn-danger text-sm flex items-center gap-1.5" onClick={stop}>
             <Square className="w-4 h-4" /> Stop
           </button>
         ) : (
           <button
             className="btn-success text-sm flex items-center gap-1.5"
             disabled={!connected}
-            onClick={deployAndRun}
+            onClick={() => run(tutorial.meta.id, editorCode, erc(tutorial.doc, partDef))}
           >
             <Play className="w-4 h-4" /> Run on Pi
           </button>
@@ -85,6 +85,7 @@ function Code({ tutorial }) {
         {!connected && <span className="text-xs text-gray-500">Connect to your Pi to run.</span>}
         <span className="text-xs text-gray-500">{status}</span>
       </div>
+      <RunBlockedDialog />
       {output.length > 0 && (
         <pre className="text-xs font-mono text-gray-300 bg-surface-900 rounded p-3 max-h-48 overflow-y-auto">
           {output.map((l) => l.data).join('')}

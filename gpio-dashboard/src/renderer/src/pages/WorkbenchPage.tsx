@@ -7,6 +7,7 @@ import { SAMPLES } from '../core/defs/samples'
 import { netlist } from '../core/netlist/netlist'
 import { migrate } from '../core/serialize/gpiob'
 import { importProject } from '../native/projects'
+import CodePanel from '../panels/CodePanel'
 import ErcPanel from '../panels/ErcPanel'
 import SimPanel from '../panels/SimPanel'
 import { USER_GPIOS, useWorkbench } from '../state/workbenchStore'
@@ -21,7 +22,7 @@ function usedGpios(doc: Parameters<typeof netlist>[0]): number[] {
 
 export default function WorkbenchPage() {
   const { source, doc, problems, sim, error, open } = useWorkbench()
-  const [tab, setTab] = useState<'erc' | 'sim'>('sim')
+  const [tab, setTab] = useState<'erc' | 'sim' | 'code'>('sim')
   const openFile = async () => {
     try {
       const raw = await importProject()
@@ -81,6 +82,7 @@ export default function WorkbenchPage() {
             {(
               [
                 ['sim', 'Sim/Probes'],
+                ['code', 'Code'],
                 ['erc', `ERC${sim ? ` (${sim.issues.length})` : ''}`]
               ] as const
             ).map(([id, label]) => (
@@ -96,11 +98,9 @@ export default function WorkbenchPage() {
             ))}
           </div>
           <div className="flex-1 overflow-y-auto p-4">
-            {tab === 'erc' ? (
-              <ErcPanel issues={sim?.issues ?? []} />
-            ) : (
-              <SimPanel doc={doc} gpios={usedGpios(doc)} />
-            )}
+            {tab === 'erc' && <ErcPanel issues={sim?.issues ?? []} />}
+            {tab === 'sim' && <SimPanel doc={doc} gpios={usedGpios(doc)} />}
+            {tab === 'code' && <CodePanel doc={doc} />}
           </div>
         </>
       )}
