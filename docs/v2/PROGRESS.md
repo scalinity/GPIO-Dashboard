@@ -269,8 +269,11 @@ M9 exit suite (2026-10-24, at 2755e33 + E2E_PORT):
 - Open: web search refused at the organization level (account setting); ghosts of custom parts defined in the same streaming batch are not drawn; keypad keys can't be pressed in `simulate` (text input); a fetched datasheet costs ≈$0.45.
 
 
-## M10 Build Mode in the Studio — in progress (2026-10-24)
+## M10 Build Mode in the Studio — merged, exit pending (2026-10-24)
+
+M10 lane merged onto v2 after M9's push (10 commits; ADR-0109…0115): tutorials open as templates and fork (`openTemplate`, `forkTemplate`); `useBuild` store (Next/Back/Done, progress in localStorage per project/tutorial); `stepScene` (docUpTo, ghost, rings); DOM pulsing rings so a held step draws zero frames; framing ≤600 ms, DoF option off by default; Board Sense confirmations via signatures in a worker + `judge`/`changedPins` (two sweeps to believe); empty checkpoint slot (ADR-0115). e2e 74/74 in its worktree: **all 26 tutorials (411 steps) play through Build Mode**; Button W3 confirms against the mock, other steps 'not electrically verifiable'; a wrong W3 shows divergence + ranked causes. Tauri 3D not checked: the Mac session is locked (WKWebView hidden), so visuals were checked with headless WebGPU.
 
 | Lane | Model | Scope | Status |
 |------|-------|-------|--------|
-| M10 build | Sonnet, worktree (base dcda0cf) | Tutorials open in the Studio as templates + Fork to my projects; Build Mode over `buildSteps` (frame ≤600 ms, optional DoF via `Post.setFocus`, pulsing ghosts, text/why/mistake by step key, Next/Back/Done, `docUpTo(step)` bench, progress per project); Board Sense confirmations via `checkStep` (mock board built step by step); empty checkpoint slot for M11; e2e: every tutorial plays through; ADR-B10-n. Commits replay after M9's exit push | running |
+| S core sense | Sonnet, worktree (base 2fcbcba) | core `checkStep` confirms 24 of 34 steps on no evidence (GPIO2/3 board pull-ups counted as changed; SPEC 14.5 says LED paths never verified) → move `changedPins` rule into core; split signatures (once per step) from judging; ConvergenceError → unobservable (4-digit steps 45–51); `docUpTo` by step key; Build Mode switches to core; full 26-pin test over every tutorial; ADR-S-n | running |
+| M11 twin | Sonnet, worktree (base 2fcbcba) | Live Pi state in 3D (Inspect toggle, read-only), divergence badges (telemetry 14.4 + Board Sense), Build Mode checkpoints (I2C scan, press the button, toggle LED via the ERC-gated run path, user click only), mocked HIL e2e flows that skip without PI_HOST, HIL_CHECKLIST additions; ADR-T11-n | running |
