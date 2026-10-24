@@ -1069,3 +1069,136 @@ decision and consequences. Numbering is stable; superseded records say so.
     ERC agree on when a lead goes taut.
   - The ribbon's 200 mm (photo 4) is left as it was: its callout's ends sit at the sockets,
     and `ribbonReach` already measures between them.
+
+## ADR-0043 The displays, ICs and modules are seven Blender families on the part registry
+
+- **Context.**
+  - SPEC 7 and 10.4 ask for a Blender family script per footprint family, parameterized by the
+    part definitions' datasheet dimensions: DIP, seven-segment, bar graph, dot matrix and
+    modules. The registry, `partkit.py` and `verify-parts.ts` came from the on-board lane
+    (ADR-0029 to ADR-0032), where parts carry no textures.
+  - The studio draws these parts' value-dependent detail itself (SPEC 10.4, 10.6), which asks for
+    names it can find: segments, bars, dots, the relay's LED lens, the LCD's screen quad.
+- **Decision.**
+  - Seven families in `parts.ts`, named by the definitions' `geometry.family`: `dip` (3 files),
+    `seven-segment` (2), `seven-segment-4digit`, `bar-graph`, `dot-matrix`, `motor` and `module`
+    (12 files: one script, a variant per `geometry.params.variant`, or the definition's id for
+    the two definitions that name none). `seven_segment.py` draws both seven-segment families.
+  - `blender/devicekit.py` builds on `partkit.py` (arguments, root, pin empties, Builder, export
+    with extras) and adds what these need: tapered boxes, frusta, tubes and drilled slabs; a decal
+    baked from text and shapes; boards with a baked legend and male headers; the STEP helpers.
+    `partkit.start()` takes an `add_args` for a family's own arguments.
+  - Textures are allowed where a file's budget names a size: the DIPs' part-number marking, the
+    boards' silkscreen legend, the DHT11's grille, the relay's case top and terminal face, the
+    keypad's keys, the LCD's screen, the housings' socket holes. They are KTX2 (ETC1S), at most
+    1024 x 1024, and `assets:check` still demands none from a file whose budget names none. What
+    is printed on a board has no geometry to be, and a 20 x 6 mm chip top is not worth a mesh
+    per letter.
+  - `verify-parts.ts` gains the checks for off-board modules (below), per-pin axes, a body taken
+    from named top-level nodes, and the LCD screen's size and UV orientation.
+  - Budgets per file: 14 to 9,000 triangles and 12 to 300 KB, each about 20% over what the script
+    makes. The 21 files total 0.67 MB with their manifests and colliders; the largest is the
+    ADS1115 at 229 KB and 7,500 triangles.
+- **Consequences.**
+  - The displays' segments, bars and dots are separate nodes of one shared material; the studio
+    gives each node its own material to light it.
+  - A new module is a function in a `mod_*.py` file, an entry in `module.py`'s table and one in
+    `parts.ts`'s `MODULES`.
+
+## ADR-0044 Off-board modules lie on the table with the definition's pin layout and a header on top
+
+- **Context.** The part GLB contract puts an off-board module's origin at its footprint corner on
+  the table, its header pins in the model, and `pin-<id>` at each pin tip, axis out along the pin.
+  The definitions give each pin an `offsetPitch` from the first pin "as a layout hint", and their
+  `bodyMm` as the module's [x, y, z]. Several real boards carry the header on the other side or
+  along their short edge (the HC-SR04, HC-SR501 and KY-023 plug into a breadboard upright; the
+  LCD's backpack is behind the glass), and no source read shows which.
+- **Decision.**
+  - The model's x axis runs along the header row and y across it, so a pin's `offsetPitch`
+    maps onto the model without a rotation: pin i is at pin 1 + `offsetPitch` * 2.54 mm
+    (a screw terminal block at its own pitch, 5 mm for the relay). `bodyMm`'s x and y are the
+    model's. `assets:check` measures each pin against the first within 0.05 mm, the 2.54 mm pitch
+    of header neighbours, and the origin: the model's lowest x, y and z are 0, which
+    `module.py` sets by moving every top-level node after the variant is drawn.
+  - Every header is straight, on the board's top face, pins up (6 mm above a 2.5 mm base, 1.5 mm
+    tails below), so a female Dupont housing mates from above whichever side the real board
+    has it on. The module rests on the tails. The empties are at the pin tips, +z up.
+  - Female connectors lie flat on the table with their sockets facing -y, away from the module:
+    the keypad's 1 x 8 housing at the end of its 86 mm tail (flat, 0.35 mm), the SG90's 3-way
+    housing at the end of its 250 mm cable (three 1.1 mm wires, straight), and the relay's three
+    screw terminals, whose entries face out of the board's far edge (+y). `parts.ts` lists those
+    axes, and `assets:check` measures them within 1 degree.
+  - The servo's cable and the keypad's tail run along -y from the long side, not from the end
+    the real part uses, because the definitions put the sockets in a row along x. The cable
+    lengths are the definitions'; the motor's leads, which no source gives, are 100 mm.
+  - The bare DHT11 is a rigid part: the origin on pin VDD's hole, empties down, and the housing
+    2.0 mm above the board; its definition's 8 mm leads are the runtime's.
+  - The DHT11 breakout stands its sensor upright on the board (the sensor is 15.5 mm tall,
+    12 mm wide and 5.5 mm thick, as the Aosong drawing shows), so the definition's `bodyMm` height
+    of 5.5 mm is not the model's; `assets:check` compares that module's footprint only.
+- **Consequences.** A studio that rotates a module on the table rotates its pins with it. A
+  module whose real header is on the other side or edge looks different from its photo; the
+  README lists which. If a source later shows a header's real side, that module's script moves
+  its header and its `axes` entry, and nothing else changes.
+
+## ADR-0045 Two models come from Adafruit's STEP files; the others are drawn from their datasheets
+
+- **Context.** SPEC 10.4 prefers, for an off-board module, the manufacturer's official STEP
+  through the pipeline, if its licence allows redistribution, then a Blender model from the
+  datasheet drawing. Never an unlicensed model.
+- **Decision.**
+  - The ADS1115 breakout is Adafruit product 1085, the very board the definition's variant
+    names, and the 130 motor is Adafruit product 711, the datasheet the definition cites.
+    Adafruit publishes both as STEP in `adafruit/Adafruit_CAD_Parts`, licensed MIT (Copyright
+    (c) 2016 Adafruit Industries), which permits copying and redistribution with the notice.
+    They are pinned in `sources.json` by SHA-256 at commit `c128bce` (2026-10-01), with the
+    licence as its own entry, retrieved 2026-10-24, and read by `step-to-glb.ts`. `Asset.step`
+    takes a bare pinned file (no `file`) and a `licenseSource`, so a STEP need not be in an
+    archive. The licence text goes in each manifest and the notice in each GLB.
+  - The ADS1115's STEP is a bare board: Adafruit ships the header loose. `mod_ads.py` checks the
+    ten pads the definition names are drilled where the pins go (within 0.05 mm) before it draws
+    the header on them, lifts the board onto the tails, makes the 3 x 3 mm converter black, and
+    bakes a 512 x 512 occlusion map.
+  - The motor's STEP has two bodies, the can with its shaft and the end cap with its lugs.
+    `motor.py` turns the motor onto the table, splits the shaft into `rotor`'s child and the lugs
+    into `terminals`, and adds the leads and housings, which the STEP lacks.
+  - `step-to-glb.ts` accepts more meshes than it counted bodies: an assembly can place one body
+    several times (the ADS1115 repeats its passives), and each placement reads as a mesh. Fewer
+    still fails.
+  - Every other module is drawn in Blender from the datasheet drawing where one exists (the
+    Kingbright, Toplite, TI, Aosong, Elecfreaks and LCD-1602A drawings) and from the definition's
+    figures where they are the only source. The search for an official STEP covered Adafruit's
+    CAD repository, whose other servos, joysticks and motors are different parts (a metal-gear
+    micro servo, a thumbstick, a TT motor). For the other parts' makers (TowerPro, Elecfreaks,
+    LAFVIN, Songle, Joy-IT, the kit's relay and power boards) it went no further than the sources
+    the definitions cite. A STEP found later, with a licence that permits redistribution and
+    pinned the same way, would replace the Blender model.
+- **Consequences.**
+  - The motor's can is 30 mm long in Adafruit's STEP and 27.5 mm in the datasheet's figure,
+    the difference being the bearing boss; `assets:check` allows 2.6 mm on that axis only.
+  - Each of the two files weighs 28 KB (motor) and 229 KB (ADS1115).
+
+## ADR-0046 The displays and the DIP follow their datasheet drawings, snapped to the board's grid
+
+- **Context.** The definitions snap their pins to the 2.54 mm breadboard grid: the dot matrix's
+  real 2.5 mm pitch and 15 mm rows are 2.54 and 15.24 mm, and the bar graph's recommended 7.5 mm
+  rows are 7.62 mm. Kingbright's four-digit drawing puts its 12 pins in a block 12.7 mm wide at
+  the middle of a 50.3 mm body.
+- **Decision.**
+  - The body is centred on its pins, as each drawing shows, so the four-digit display's body
+    overhangs its pins by 18.8 mm each side. The dot matrix's dots stay on their 2.5 mm pitch,
+    centred on the body, a pin up to 0.14 mm off the dot above it.
+  - Standoffs: the DIP's 0.51 mm minimum (TI MPDI002C); 0.5 mm under each display, whose
+    drawings give none, so a lead and a gap show. The segments, bars and dots stand flush with the
+    body's stated height and the face lies 0.05 mm below them, so the height is the stated one and
+    the surfaces do not fight.
+  - The digit is Kingbright's: 14.22 mm tall, 8 mm across including the slant, segments 1.5 mm
+    wide, slanted 8 degrees (both drawings give these), and a decimal point 1.5 mm across at the
+    lower right.
+  - The DIP has the half-round notch (1.0 mm radius, 0.5 mm deep) and the pin-1 dimple cut with
+    an exact Boolean, the drafted body sides (0.25 mm), and its top marked with the part number
+    (`SN74HC595N`, `ADC0834CCN`, `L293DNE`) in a KTX2 map.
+- **Consequences.** The studio places the dot matrix's pins from the definition and its dots from
+  the model; a dot is never more than 0.14 mm from the hole row it belongs to. The displays'
+  segment shapes are mine, from the drawing's outline; a lookdev pass can refine them.
+
