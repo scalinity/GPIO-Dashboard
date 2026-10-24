@@ -4,6 +4,7 @@ import { create } from 'zustand'
 import type { Issue } from '../core/erc/erc'
 import { codePins } from '../core/code/pins'
 import { cleanupPins, killScript, runScript, scriptName, uploadScript } from '../native/ssh'
+import { useSense } from './senseStore'
 
 export type RunStatus = 'idle' | 'deploying' | 'running' | 'done' | 'error'
 
@@ -55,6 +56,15 @@ export const useRun = create<RunState>((set, get) => ({
       )
     ]
     set({ blocked: null, status: 'deploying', filename: null, pins, output: [] })
+    // Board Sense holds GPIO lines during a sweep; the program needs them (SPEC 14.5).
+    if (!(await useSense.getState().pauseForRun())) {
+      get().addOutput({
+        stream: 'stderr',
+        data: 'Board Sense did not confirm within 1 s that it had released the pins, so the run did not start.'
+      })
+      set({ status: 'error' })
+      return
+    }
     try {
       const filename = scriptName(projectId)
       set({ filename })
@@ -65,6 +75,8 @@ export const useRun = create<RunState>((set, get) => ({
     } catch (e) {
       get().addOutput({ stream: 'stderr', data: e instanceof Error ? e.message : String(e) })
       set({ status: 'error' })
+    } finally {
+      await useSense.getState().resumeAfterRun()
     }
   },
   cancelBlocked() {

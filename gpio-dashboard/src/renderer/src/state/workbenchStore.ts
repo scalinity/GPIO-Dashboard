@@ -50,7 +50,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => {
     const res = await simRequest(req)
     if (res.type === 'state') set({ sim: res, error: null })
     else if (res.type === 'probe') set({ probe: res.signature, error: null })
-    else set({ error: res.message })
+    else if (res.type === 'error') set({ error: res.message })
   }
   return {
     source: null,

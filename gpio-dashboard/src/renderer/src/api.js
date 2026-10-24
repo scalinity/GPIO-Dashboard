@@ -98,6 +98,15 @@ export function createApi({ invoke, listen, Channel }) {
       clearKey: () => structured('settings_clear_anthropic_key')
     },
 
+    // Board Sense (SPEC 14.5): only the Board tab's handlers call these.
+    sense: {
+      start: (pins, settleUs, periodMs) => structured('sense_start', { pins, settleUs, periodMs }),
+      stop: () => structured('sense_stop'),
+      pause: () => structured('sense_pause'),
+      resume: () => structured('sense_resume'),
+      onSweep: (callback) => on('gpio:sense', callback),
+      onEvent: (callback) => on('gpio:sense-event', callback)
+    },
     projects: {
       list: () => structured('projects_list'),
       read: (id) => structured('projects_read', { id }),

@@ -2,7 +2,7 @@
 // part inputs reach a running program through shared memory, since Python blocks the worker.
 import type { EnvValue } from '../core/sim/behavior'
 import type { CircuitDoc } from '../core/model/types'
-import { CONTROL, type PyRequest, type PyResponse } from '../workers/pyodide.worker'
+import { CONTROL, type PyRequest, type PyResponse } from '../workers/pyProtocol'
 
 const INPUT_BYTES = 64 * 1024
 let worker: Worker | null = null

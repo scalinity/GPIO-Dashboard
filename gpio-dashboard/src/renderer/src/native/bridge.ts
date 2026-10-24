@@ -36,6 +36,14 @@ export interface Bridge {
     hasKey(): Promise<boolean>
     clearKey(): Promise<{ success: true } | Failure>
   }
+  sense: {
+    start(pins: number[], settleUs: number, periodMs: number): Promise<{ success: true } | Failure>
+    stop(): Promise<{ success: true } | Failure>
+    pause(): Promise<{ paused: boolean } | Failure>
+    resume(): Promise<{ success: true } | Failure>
+    onSweep(callback: (sweep: unknown) => void): () => void
+    onEvent(callback: (event: unknown) => void): () => void
+  }
   projects: {
     list(): Promise<{ success: true; projects: unknown[] } | Failure>
     read(id: string): Promise<{ success: true; doc: unknown } | Failure>

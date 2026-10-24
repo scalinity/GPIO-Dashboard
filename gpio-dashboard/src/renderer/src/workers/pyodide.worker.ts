@@ -4,33 +4,13 @@
 // a wake word for paced sleeps, and a counter bumped when `inputs` (part inputs as JSON) changes.
 import type { PyodideInterface } from 'pyodide'
 import { partDef } from '../core/defs/parts'
-import type { CircuitDoc } from '../core/model/types'
 import type { EnvValue } from '../core/sim/behavior'
 import { BEHAVIORS } from '../core/sim/behaviors'
 import { Circuit } from '../core/sim/circuit'
-import { SimSession, type Snapshot } from '../core/sim/session'
+import { SimSession } from '../core/sim/session'
 import { Bridge } from './bridge'
-import { compileCheck, createPython, runProgram, type Diagnostic } from './python'
-import type { ReadLevel } from './simHost'
-
-export const CONTROL = { interrupt: 0, wake: 1, inputs: 2 } as const
-
-export type PyRequest =
-  | { type: 'check'; source: string }
-  | {
-      type: 'run'
-      doc: CircuitDoc
-      /** Virtual seconds per real second; Infinity runs as fast as the solver allows. */
-      timeScale: number
-      control: SharedArrayBuffer
-      inputs: SharedArrayBuffer
-    }
-
-export type PyResponse =
-  | { type: 'diagnostics'; diagnostics: Diagnostic[] }
-  | { type: 'output'; stream: 'stdout' | 'stderr'; text: string }
-  | { type: 'state'; snapshot: Snapshot; reads: Record<number, ReadLevel> }
-  | { type: 'exit'; error: string | null }
+import { CONTROL, type PyRequest, type PyResponse } from './pyProtocol'
+import { compileCheck, createPython, runProgram } from './python'
 
 /** Snapshots go to the UI at most this often, in real time. */
 const POST_EVERY_MS = 33

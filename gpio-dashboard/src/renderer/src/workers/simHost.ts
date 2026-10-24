@@ -7,6 +7,9 @@ import type { EnvValue } from '../core/sim/behavior'
 import { BEHAVIORS } from '../core/sim/behaviors'
 import { simChecks } from '../core/sim/checks'
 import { Circuit, type GpioState } from '../core/sim/circuit'
+import { rankCandidates, type Ranked } from '../core/sense/candidates'
+import { mockSweep } from '../core/sense/mockAgent'
+import type { Measured, Sweep } from '../core/sense/sense'
 import { probeSignature, type ProbeSignature } from '../core/sim/probe'
 import { SimSession, type Snapshot } from '../core/sim/session'
 
@@ -16,6 +19,10 @@ export type SimRequest =
   | { type: 'input'; part: string; key: string; value: EnvValue }
   | { type: 'advance'; t: number }
   | { type: 'probe'; pins: number[] }
+  /** A simulated sweep of a physical board document (the mock sense agent). */
+  | { type: 'mockSweep'; board: CircuitDoc; pins: number[]; t: number }
+  /** Candidate causes for a measurement that diverged from the loaded document. */
+  | { type: 'candidates'; measured: Measured; pins: number[] }
 
 export type ReadLevel = ReturnType<SimSession['read']>
 
@@ -29,6 +36,8 @@ export type SimResponse =
       reads: Record<number, ReadLevel>
     }
   | { type: 'probe'; signature: ProbeSignature }
+  | { type: 'sweep'; sweep: Sweep }
+  | { type: 'candidates'; ranked: Ranked[] }
   | { type: 'error'; message: string }
 
 export class SimHost {
@@ -43,6 +52,9 @@ export class SimHost {
         this.session = new SimSession(new Circuit(req.doc, partDef, BEHAVIORS))
         this.inputs.clear()
         return this.state()
+      }
+      if (req.type === 'mockSweep') {
+        return { type: 'sweep', sweep: mockSweep(req.board, partDef, req.pins, req.t) }
       }
       const session = this.session
       if (!session) return { type: 'error', message: 'No circuit is loaded' }
@@ -60,6 +72,11 @@ export class SimHost {
           return this.state()
         case 'probe':
           return { type: 'probe', signature: probeSignature(session.circuit, req.pins) }
+        case 'candidates':
+          return {
+            type: 'candidates',
+            ranked: rankCandidates(this.doc!, partDef, req.measured, req.pins)
+          }
       }
     } catch (e) {
       return { type: 'error', message: e instanceof Error ? e.message : String(e) }
