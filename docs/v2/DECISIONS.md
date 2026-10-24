@@ -1202,3 +1202,120 @@ decision and consequences. Numbering is stable; superseded records say so.
   the model; a dot is never more than 0.14 mm from the hole row it belongs to. The displays'
   segment shapes are mine, from the drawing's outline; a lookdev pass can refine them.
 
+## ADR-B2-1 The bench and the parts are instanced per model file, with handles per copy
+
+- **Context.** SPEC 10.8 asks for repeated meshes to be instanced: the Pi's 40 header pins, a
+  Dupont housing at every lead end, identical parts. The sim-driven visuals (SPEC 10.6, 11.5) need
+  each placed part's named meshes, materials and nodes: an LED lens's emission, a ring's colour, a
+  plunger's travel. ADR-0026's `Models` clones a node tree per placement, which instances nothing.
+- **Decision.**
+  - `studio/instances.ts` (`ModelInstances`) draws one loaded GLB any number of times: an
+    `InstancedMesh` per mesh in the file, each copy's matrix being its pose times the mesh's place
+    in the model. The T-board, both IDC sockets, the two Dupont housings and every part file use
+    it. The Pi's pins are one `InstancedMesh` of 40 posts from `pi5-board.json`'s header. The
+    boards and the Pi's body stay in `Models`.
+  - A copy's colour, emission and node transforms are set by name: a mesh's, an ancestor node's
+    or a material's. Colour uses `instanceColor` over a white copy of the material; emission an
+    instanced attribute that a node-material copy reads as its `emissiveNode`; a node transform
+    composes after the node's own into the copies' matrices. Each is built the first time
+    something asks for it.
+  - `view.part(id)` returns a `PartHandle` (`names`, `setColor`, `setEmission`, `setTransform`)
+    whose settings the parts layer keeps per part and puts back after every redraw;
+    `view.piPin(physical, color)` tints a header pin.
+  - The resistor's rings come from `resistorBands`; an LED's lens takes a tint per `color`
+    option. A 1 % value, five bands, shows as its four-band reading with the 1 % ring, because four
+    rings are modelled (ADR-0031).
+- **Consequences.**
+  - No per-copy `Mesh` exists. A copy needing its own texture (the LCD's characters) gets it from
+    a mesh of its own, which the handle does not yet give.
+  - The first `setEmission` or `setColor` on a mesh builds its material copy, a shader compile
+    once.
+  - Segments, bars and dots are separate meshes in their files, so each is its own instanced mesh:
+    64 for the dot matrix, whatever the number of matrices.
+
+## ADR-B2-2 Where part bodies seat, and how their leads bend
+
+- **Context.** The part contract (ADR-0030, ADR-0044) gives rigid origins on pins[0]'s hole,
+  flexible parts' `seatMm` and pin spacing, modules' origins at their lowest corner with pins on
+  the definition's layout, and `pin-<id>` empties with their axes. The leads are the runtime's, at
+  the real diameter. The resistor's definition calls a 1- or 2-pitch span an upright mount.
+- **Decision.**
+  - A flexible part lies at its seat height midway between its holes, turned to them. An axial
+    one (its pins' axes level) whose holes are closer than its pin spacing plus two lead diameters
+    stands on end over pins[0]'s hole, `seatMm` above it.
+  - A module is placed with its first pin's x and y at the document's pose, where core already
+    puts that pin. Once its model loads, its pins' heights and axes and its footprint replace the
+    assumed ones (`ASSUMED_HEIGHTS_MM.modulePin`) in the studio's drawing, picking, labels,
+    selection box and lead ends. Core's reach keeps its assumption.
+  - A lead is a polyline of corners from the empty to 2 mm down its hole, bent at one lead diameter:
+    straight down; down to a knee halfway, across and down; along an axial body, then down; or up,
+    over and down from a body on end. Its diameter is the first of `leadDiameterMm`, `leadDiaMm`,
+    `leadDiaMaxMm`, `leadSquareMm`, `leadWidthMm`, `leadWidthMaxMm`, `pinWidthMm`,
+    `terminalWidthMm` in the params, read with the variant prefix (`5mm.`) where one applies.
+    A part's leads are one merged mesh.
+  - A part whose file is missing or fails draws no body, and its leads as 3 mm stubs out of its
+    holes; its footprint markers stay.
+- **Consequences.** Every tutorial's parts draw with bodies; their lead ends measure within
+  1e-5 mm of their holes' axes. A radial part seated 1 mm up has little room for its knee. Square
+  and flat leads are drawn round.
+
+## ADR-B2-3 Dupont housings mate by gender; the Pi's socket turns a quarter
+
+- **Context.** SPEC 6.5: a male end goes into a hole or a female socket, a female end onto a male
+  pin. The housings' origins are the male's pin tip and the female's mouth, with a `wire` empty
+  where the wire leaves. The Pi end of the ribbon has brown on the edge away from the ports.
+- **Decision.**
+  - An end is male unless it is on a module's male pin. A male's tip goes the exposed pin's
+    5.5 mm into what it plugs into; a female's mouth sits that far down the pin (ADR-0044's pins
+    stand 6 mm, so it rests 0.5 mm above the base). The housing's axis follows the end's (up from a
+    hole, the module's pin or socket axis otherwise), turned square to the board. Solid jumpers
+    have no housing.
+  - The wire's tube starts at each housing's `wire` empty, runs 3 mm (`minBendRadiusMm`) along the
+    housing's axis and arches as before.
+  - The Pi's socket rests on the header base's top (5.326 mm, pi5.colliders.json), turned +90°
+    about the Pi's z so contact 1 meets pin 1; its cable then leaves toward the Pi's middle with
+    brown away from the ports. The T-board's sits on the `socket` empty unturned.
+- **Consequences.** The rigid cables in the servo's and keypad's models (ADR-0044) run straight
+  wherever the document puts the module, through a board if it is in the way.
+
+## ADR-B2-4 The ribbon's design curve rises in a loop
+
+- **Context.** The ribbon's strip is drawn between the two sockets' cable lines along a design
+  curve of `ribbon.json`'s 200 mm until the physics lane (M8) simulates it. On the bench layout
+  the two exits point 90° apart in plan (the Pi's toward the front, the T-board's toward the Pi),
+  and the cable's face must turn over between them. A flat cable cannot bend in its own plane;
+  lying on the table it could turn only by folding. Photo 1 shows the real cable rising in a loop.
+  A first design that sagged the slack onto the table crumpled where it turned.
+- **Decision.**
+  - The centreline is a centripetal Catmull-Rom curve through the two exits, points 20 mm out of
+    each, and a crown that leans `s` toward where both exits point and stands `s / 2` above the
+    higher exit. It is held above the table, the boards' tops and the Pi's PCB. `s` is found by
+    bisection so that the drawn rows' middle measures the cable's length.
+  - The cable's width follows rotation-minimizing frames from the Pi's exit line; the twist left
+    at the T-board's is spread in proportion to how steeply the cable runs, where a flat cable
+    twists most easily.
+  - Rows every 2.5 mm with 9 points across (the physics grid has 5 to 9). With 2 points the
+    colours kinked along each quad's diagonal wherever the strip bent in its plane.
+  - The strip's u runs from conductor 1's edge, v one unit per pitch along; the colour lookup is
+    sampled nearest, the ridge map repeated. Its geometry is a function of the rows, so the
+    simulated grid can replace them.
+- **Consequences.** The design is a loop standing as if stiff, not a drape onto the table; the
+  simulation replaces it. A span longer than the cable is drawn at its shortest design, not taut
+  and tinted (SPEC 10.5 gives that to the simulation).
+
+## ADR-B2-5 Committed parts and lead ends seat over 150 ms; GPU resources go with the Studio
+
+- **Context.** SPEC 10.6 and 11.3: parts and leads seat with an eased insertion of about 150 ms.
+  SPEC 10.8: dispose on unmount. ADR-0026 left GPU resources to the renderer's disposal.
+- **Decision.**
+  - Against the committed document last drawn, every part whose placement changed and every lead
+    end whose endpoint changed drops 4 mm into its holes over 150 ms, eased out. While a drag
+    previews it, it hovers at 4 mm. Frames run while anything is dropping. Undo, redo and opening
+    a document seat what they move; moving a board, which changes no hole, does not.
+  - When the Studio detaches, its layers free their geometry, instanced meshes and materials, and
+    every loaded model's and texture's GPU side; the layers stay usable, and React's development
+    remount draws them again. A document change frees what it removes: a part's leads, a file
+    nothing uses any longer, rebuilt tubes and the ribbon.
+- **Consequences.** The scene still stops drawing once the drop and TRAA's settling frames end.
+  Opening a tutorial seats all of it at once.
+
