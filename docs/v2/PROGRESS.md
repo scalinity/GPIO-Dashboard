@@ -200,3 +200,17 @@ M6 exit suite (2026-10-24, at 31c6801):
 - `cargo test`: 91 passed / 20 ignored. `live-tests.sh`: 19/19.
 - `npm test`: node + Vitest 1450/1450 (54 files, including every tutorial's code checks). Lint 0 errors (35 warnings). Typecheck clean. `pi-agent` unittest 58/58. `npm run build`: .app and .dmg.
 - Board Sense was never started against a real Pi (PI_HOST unset). The bench fixtures and the agent install are on `HIL_CHECKLIST.md`.
+
+## M7 3D Studio and hero assets — in progress (2026-10-24)
+
+94b1a34 pins the studio HDRI (Poly Haven Studio Small 09, 1k, CC0) in `scripts/assets/sources.json` and ships it as `public/env/studio_small_09_1k.hdr`. Download cache: `~/.cache/gpio-dashboard-assets/`.
+
+GLB runtime contract (fixed in both lane briefs): `public/models/<name>.glb`, meshopt + KTX2; 1 glTF unit = 1 mm; glTF +Y up, so core (x, y, z) is three (x, z, −y); a breadboard's origin is its core local origin (row-1 end, column-a edge, top surface z = 0); the Pi's 40 header pins are not in pi5.glb and are instanced from `pi5-header.json`.
+
+| Lane | Model | Scope | Status |
+|------|-------|-------|--------|
+| A1 assets | Opus subagent, worktree | 7.1 pipeline (sources, step-to-glb, Blender scripts, gltf-transform, manifests, colliders, `assets:build/check`, `--rebuild` SSIM) + bb-830, bb-400, pi5; ADRs as `ADR-A1-<n>` | running |
+| B1 studio | Opus subagent, worktree | 7.3 WebGPURenderer via R3F, stage, IBL, post (GTAO, bloom, TRAA, DoF off), on-demand loop + frame counter; app-wide CircuitStore; GLB loading; hole picking/strip+net hover; camera presets; Playwright e2e; Tauri-window check; ADRs as `ADR-B1-<n>` | running |
+| P physics core | Sonnet subagent, worktree | M8 8.1–8.3 pure TS XPBD in `physics/` with headless tests; merged only after M7 exits (milestone order) | running |
+
+Next after A1/B1: T-board, IDC, ribbon maps, Dupont housings, part families (follow A1's pattern); 7.4 drag-place/Properties/Labels; 7.5 overlays, LED glow, animated parts, Board Sense overlay; 7.6 drawer + projects gallery; 7.7 LOOKDEV.md.
