@@ -668,15 +668,25 @@ describe('plain tools fallback', () => {
   const tooComplex = () =>
     jsonError(400, 'invalid_request_error', 'tools: Schema is too complex for compilation.')
 
-  it('retries the first request once without strict and eager', async () => {
+  it('first drops eager streaming and keeps strict (SPEC 12.4)', async () => {
     const t = setup([tooComplex(), end(text('Working.'))])
     const result = await t.run('hi')
     expect(result.reason).toBe('end_turn')
     const [first, second] = t.requests.map((r) => r.body.tools as Record<string, unknown>[])
     expect(first!.some((x) => x.strict === true)).toBe(true)
     expect(first!.some((x) => x.eager_input_streaming === true)).toBe(true)
-    expect(second!.some((x) => 'strict' in x || 'eager_input_streaming' in x)).toBe(false)
+    expect(second!.some((x) => x.strict === true)).toBe(true)
+    expect(second!.some((x) => 'eager_input_streaming' in x)).toBe(false)
     expect(t.log.some((e) => e.type === 'notice' && e.code === 'plain-tools')).toBe(true)
+  })
+
+  it('drops strict only when the API refuses the strict schemas too', async () => {
+    const t = setup([tooComplex(), tooComplex(), end(text('Working.'))])
+    const result = await t.run('hi')
+    expect(result.reason).toBe('end_turn')
+    const third = t.requests[2]!.body.tools as Record<string, unknown>[]
+    expect(third.some((x) => 'strict' in x || 'eager_input_streaming' in x)).toBe(false)
+    expect(t.requests).toHaveLength(3)
   })
 
   it('does not retry once a thinking block could be bound to the tools', async () => {

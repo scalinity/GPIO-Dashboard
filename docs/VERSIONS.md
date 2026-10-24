@@ -45,7 +45,7 @@ checked with `npm view <pkg> version` or the tool's `--version` on 2026-10-23.
 
 | Package | Version | Reason |
 |---------|---------|--------|
-| @anthropic-ai/sdk | ^1.3.0 | latest 1.x (checked 2026-10-24); sends `anthropic-version: 2026-10-21` and `Authorization: Bearer`, and its request types carry no temperature, top_p or top_k (SPEC 12.1). The assistant builds it with a placeholder key and `nativeAnthropicFetch` (ADR-M9-1) |
+| @anthropic-ai/sdk | 1.3.0 (exact) | latest 1.x (checked 2026-10-24); pinned exactly because the assistant imports the SDK's private `_vendor/partial-json-parser`, which a minor release may move; sends `anthropic-version: 2026-10-21` and `Authorization: Bearer`, and its request types carry no temperature, top_p or top_k (SPEC 12.1). The assistant builds it with a placeholder key and `nativeAnthropicFetch` (ADR-M9-1) |
 
 ## Rust
 

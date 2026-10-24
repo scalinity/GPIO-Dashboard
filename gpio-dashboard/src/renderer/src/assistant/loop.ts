@@ -141,7 +141,8 @@ export class AssistantSession {
   private readonly system: Anthropic.TextBlockParam[]
   private readonly web: boolean
   private tools: Anthropic.ToolUnion[]
-  private compat = false
+  /** 0: strict and eager tools; 1: strict without eager (SPEC 12.4); 2: plain tools. */
+  private fallback: 0 | 1 | 2 = 0
   private readonly revisions = new RevisionMemory()
   private readonly previews = new Set(TOOLS.filter((t) => t.preview).map((t) => t.name))
   private turns = 0
@@ -173,7 +174,7 @@ export class AssistantSession {
 
   private buildTools(): Anthropic.ToolUnion[] {
     return [
-      ...apiTools({ eager: this.eager && !this.compat, strict: !this.compat }),
+      ...apiTools({ eager: this.eager && this.fallback === 0, strict: this.fallback < 2 }),
       ...(this.web ? webTools() : [])
     ]
   }
@@ -181,11 +182,12 @@ export class AssistantSession {
   /**
    * An API that refuses the strict or eager tool schemas (they are not checkable offline) would
    * leave the assistant unusable. On the first request only, before any thinking block exists to
-   * invalidate, retry once with plain tools: runtime validation does not depend on them.
+   * invalidate, retry without eager streaming, keeping strict (SPEC 12.4); if that is refused too,
+   * retry with plain tools. Runtime validation does not depend on either.
    */
   private canFallBack(e: unknown): boolean {
     return (
-      !this.compat &&
+      this.fallback < 2 &&
       e instanceof Anthropic.BadRequestError &&
       /strict|eager|too complex|schema/i.test(e.message) &&
       !this.messages.some((m) => m.role === 'assistant')
@@ -318,13 +320,15 @@ export class AssistantSession {
       } catch (e) {
         if (signal.aborted) return finish('aborted')
         if (this.canFallBack(e)) {
-          this.compat = true
+          this.fallback += 1
           this.tools = this.buildTools()
           emit({
             type: 'notice',
             code: 'plain-tools',
             message:
-              'The API refused the strict tool schemas, so tools run without them. Input is still validated here.'
+              this.fallback === 1
+                ? 'The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.'
+                : 'The API refused the strict tool schemas, so tools run without them. Input is still validated here.'
           })
           continue
         }
