@@ -13,6 +13,7 @@ import websockets
 
 from gpio_monitor import GpioMonitor
 from code_executor import CodeExecutor
+from sense import MESSAGES as SENSE_MESSAGES, Sensor
 from system_info import get_info
 
 logging.basicConfig(
@@ -91,6 +92,7 @@ async def handle_client(ws: websockets.WebSocketServerProtocol, monitor: GpioMon
 
     clients[ws] = {}
     executor = CodeExecutor()
+    sensor = Sensor(lambda msg: ws.send(json.dumps(msg)), monitor.read_all)
 
     try:
         async for raw in ws:
@@ -134,12 +136,16 @@ async def handle_client(ws: websockets.WebSocketServerProtocol, monitor: GpioMon
                     clients[ws].pop("subscribe", None)
                     log.info("Client %s unsubscribed from pin filter", remote)
 
+            elif msg_type in SENSE_MESSAGES:
+                await sensor.handle(msg)
+
             else:
                 await ws.send(json.dumps({"type": "error", "message": f"Unknown type: {msg_type}"}))
 
     except websockets.ConnectionClosed:
         pass
     finally:
+        sensor.stop()
         await executor.stop()
         clients.pop(ws, None)
         log.info("Client disconnected: %s", remote)

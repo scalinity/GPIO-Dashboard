@@ -11,7 +11,7 @@ const INSTALL_TIMEOUT: Duration = Duration::from_secs(300);
 const TOKEN_ATTEMPTS: u32 = 5;
 
 // Compiled in, so the app needs no resource directory at runtime.
-const AGENT_FILES: [(&str, &[u8]); 6] = [
+const AGENT_FILES: [(&str, &[u8]); 7] = [
     ("agent.py", include_bytes!("../../pi-agent/agent.py")),
     (
         "code_executor.py",
@@ -26,6 +26,7 @@ const AGENT_FILES: [(&str, &[u8]); 6] = [
         "requirements.txt",
         include_bytes!("../../pi-agent/requirements.txt"),
     ),
+    ("sense.py", include_bytes!("../../pi-agent/sense.py")),
     (
         "system_info.py",
         include_bytes!("../../pi-agent/system_info.py"),
@@ -156,6 +157,20 @@ mod tests {
             !stop.contains("/agent.py"),
             "the stop command must not contain the literal path"
         );
+    }
+
+    #[test]
+    fn every_agent_source_file_is_deployed() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../pi-agent");
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let name = entry.unwrap().file_name().into_string().unwrap();
+            if name.ends_with(".py") && !name.starts_with("test_") {
+                assert!(
+                    AGENT_FILES.iter().any(|(deployed, _)| *deployed == name),
+                    "{name} is not in AGENT_FILES"
+                );
+            }
+        }
     }
 
     #[test]
