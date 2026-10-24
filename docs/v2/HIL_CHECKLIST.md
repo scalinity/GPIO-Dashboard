@@ -48,9 +48,176 @@ says what to do, what to expect, and which part of the app it confirms. Record r
 - [ ] **Relay module polarity.** S HIGH energises the coil (the module's LED lights and NO
   closes). Settled from SunFounder's module page and Davinci lesson; confirm on the board.
 
-## Board Sense (M6)
+## Board Sense bench fixtures (SPEC 18)
 
-Bench fixtures for Board Sense, with exact holes, are added in M6.
+Run each through the Workbench's **Board** tab: choose the fixture, press **Use as the twin**,
+build it on the bench, press **Sense the Pi's board**, then **It is built: record what Board
+Sense sees**, and copy the results into `docs/v2/hil/`. Sensing changes only the pull on input
+pins, never drives a pin, and pauses for any Run on Pi. Never leave a part on the bench that a
+fixture does not list: bias changes reach it too. The holes below are generated from the
+fixture documents in `core/sense/fixtures.ts`.
+
+### 1. An empty board
+
+- [ ] Every probed net follows its bias; the Board tab verifies nothing.
+
+<!-- generated:empty -->
+| Ref | Part | Pin | Hole | Net |
+|-----|------|-----|------|-----|
+
+1. Plug the ribbon into the Pi's 40-pin header and into the T-board, then seat the T-board with pin 1 (3V3) in row 1, its two pin rows in columns d and h, header toward row 0.
+<!-- /generated:empty -->
+
+### 2a. Calibration: GPIO17 to GND through 10 kΩ
+
+- [ ] Record GPIO17 under pull-up and pull-down.
+
+<!-- generated:calibration-10k -->
+| Ref | Part | Pin | Hole | Net |
+|-----|------|-----|------|-----|
+| R1 | 10 kΩ resistor (brown, black, orange, gold) | Lead 1 | row 30 column b | GPIO17 |
+| R1 | 10 kΩ resistor (brown, black, orange, gold) | Lead 2 | row 34 column b | GND |
+| W1 | yellow male–male jumper | end a | row 6 column a | GPIO17 |
+| W1 | yellow male–male jumper | end b | row 30 column a | GPIO17 |
+| W2 | black male–male jumper | end a | row 34 column a | GND |
+| W2 | black male–male jumper | end b | row 5 column b | GND |
+
+1. Plug the ribbon into the Pi's 40-pin header and into the T-board, then seat the T-board with pin 1 (3V3) in row 1, its two pin rows in columns d and h, header toward row 0.
+2. Insert R1, the 10 kΩ resistor (brown, black, orange, gold), from row 30 column b to row 34 column b.
+3. Use a yellow 20 cm male–male jumper (W1) from row 6 column a to row 30 column a.
+4. Use a black 20 cm male–male jumper (W2) from row 34 column a to row 5 column b.
+<!-- /generated:calibration-10k -->
+
+### 2b. Calibration: GPIO17 to GND through 47 kΩ
+
+- [ ] Record GPIO17 under pull-up and pull-down.
+
+<!-- generated:calibration-47k -->
+| Ref | Part | Pin | Hole | Net |
+|-----|------|-----|------|-----|
+| R1 | 47 kΩ resistor (yellow, violet, orange, gold) | Lead 1 | row 30 column b | GPIO17 |
+| R1 | 47 kΩ resistor (yellow, violet, orange, gold) | Lead 2 | row 34 column b | GND |
+| W1 | yellow male–male jumper | end a | row 6 column a | GPIO17 |
+| W1 | yellow male–male jumper | end b | row 30 column a | GPIO17 |
+| W2 | black male–male jumper | end a | row 34 column a | GND |
+| W2 | black male–male jumper | end b | row 5 column b | GND |
+
+1. Plug the ribbon into the Pi's 40-pin header and into the T-board, then seat the T-board with pin 1 (3V3) in row 1, its two pin rows in columns d and h, header toward row 0.
+2. Insert R1, the 47 kΩ resistor (yellow, violet, orange, gold), from row 30 column b to row 34 column b.
+3. Use a yellow 20 cm male–male jumper (W1) from row 6 column a to row 30 column a.
+4. Use a black 20 cm male–male jumper (W2) from row 34 column a to row 5 column b.
+<!-- /generated:calibration-47k -->
+
+### 2c. Calibration: GPIO17 to GND through 100 kΩ
+
+- [ ] Record GPIO17 under pull-up and pull-down.
+
+<!-- generated:calibration-100k -->
+| Ref | Part | Pin | Hole | Net |
+|-----|------|-----|------|-----|
+| R1 | 100 kΩ resistor (brown, black, yellow, gold) | Lead 1 | row 30 column b | GPIO17 |
+| R1 | 100 kΩ resistor (brown, black, yellow, gold) | Lead 2 | row 34 column b | GND |
+| W1 | yellow male–male jumper | end a | row 6 column a | GPIO17 |
+| W1 | yellow male–male jumper | end b | row 30 column a | GPIO17 |
+| W2 | black male–male jumper | end a | row 34 column a | GND |
+| W2 | black male–male jumper | end b | row 5 column b | GND |
+
+1. Plug the ribbon into the Pi's 40-pin header and into the T-board, then seat the T-board with pin 1 (3V3) in row 1, its two pin rows in columns d and h, header toward row 0.
+2. Insert R1, the 100 kΩ resistor (brown, black, yellow, gold), from row 30 column b to row 34 column b.
+3. Use a yellow 20 cm male–male jumper (W1) from row 6 column a to row 30 column a.
+4. Use a black 20 cm male–male jumper (W2) from row 34 column a to row 5 column b.
+<!-- /generated:calibration-100k -->
+
+### 2d. Calibration: GPIO17 to GND through 220 kΩ
+
+- [ ] Record GPIO17 under pull-up and pull-down. Together, 2a–2d narrow the pull-to-threshold ratio on this Pi (SPEC 9).
+
+<!-- generated:calibration-220k -->
+| Ref | Part | Pin | Hole | Net |
+|-----|------|-----|------|-----|
+| R1 | 220 kΩ resistor (red, red, yellow, gold) | Lead 1 | row 30 column b | GPIO17 |
+| R1 | 220 kΩ resistor (red, red, yellow, gold) | Lead 2 | row 34 column b | GND |
+| W1 | yellow male–male jumper | end a | row 6 column a | GPIO17 |
+| W1 | yellow male–male jumper | end b | row 30 column a | GPIO17 |
+| W2 | black male–male jumper | end a | row 34 column a | GND |
+| W2 | black male–male jumper | end b | row 5 column b | GND |
+
+1. Plug the ribbon into the Pi's 40-pin header and into the T-board, then seat the T-board with pin 1 (3V3) in row 1, its two pin rows in columns d and h, header toward row 0.
+2. Insert R1, the 220 kΩ resistor (red, red, yellow, gold), from row 30 column b to row 34 column b.
+3. Use a yellow 20 cm male–male jumper (W1) from row 6 column a to row 30 column a.
+4. Use a black 20 cm male–male jumper (W2) from row 34 column a to row 5 column b.
+<!-- /generated:calibration-220k -->
+
+### 3. GPIO18 with a 10 kΩ pull-up and a button
+
+- [ ] Released: GPIO18 tied high, matched. Hold the button: tied low.
+
+<!-- generated:pull-up-button -->
+| Ref | Part | Pin | Hole | Net |
+|-----|------|-----|------|-----|
+| R1 | 10 kΩ resistor (brown, black, orange, gold) | Lead 1 | row 30 column b | GPIO18 |
+| R1 | 10 kΩ resistor (brown, black, orange, gold) | Lead 2 | row 34 column b | 3V3 |
+| SW1 | 6 mm tactile switch (4-pin) | Terminal 1 | row 40 column e | GPIO18 |
+| SW1 | 6 mm tactile switch (4-pin) | Terminal 2 | row 40 column f | GPIO18 |
+| SW1 | 6 mm tactile switch (4-pin) | Terminal 3 | row 42 column e | GND |
+| SW1 | 6 mm tactile switch (4-pin) | Terminal 4 | row 42 column f | GND |
+| P1 | red male–male jumper | end a | row 1 column a | 3V3 |
+| P1 | red male–male jumper | end b | the bottom + rail at row 3 | 3V3 |
+| P2 | black male–male jumper | end a | row 5 column a | GND |
+| P2 | black male–male jumper | end b | the bottom − rail at row 4 | GND |
+| W1 | yellow male–male jumper | end a | row 6 column j | GPIO18 |
+| W1 | yellow male–male jumper | end b | row 30 column a | GPIO18 |
+| W2 | red male–male jumper | end a | row 34 column a | 3V3 |
+| W2 | red male–male jumper | end b | the bottom + rail at row 33 | 3V3 |
+| W3 | yellow male–male jumper | end a | row 30 column c | GPIO18 |
+| W3 | yellow male–male jumper | end b | row 40 column a | GPIO18 |
+| W4 | black male–male jumper | end a | row 42 column a | GND |
+| W4 | black male–male jumper | end b | the bottom − rail at row 39 | GND |
+
+1. Plug the ribbon into the Pi's 40-pin header and into the T-board, then seat the T-board with pin 1 (3V3) in row 1, its two pin rows in columns d and h, header toward row 0.
+2. Use a red 20 cm male–male jumper (P1) from row 1 column a to the bottom + rail at row 3.
+3. Use a black 20 cm male–male jumper (P2) from row 5 column a to the bottom − rail at row 4.
+4. Use a red 20 cm male–male jumper (W2) from row 34 column a to the bottom + rail at row 33.
+5. Use a black 20 cm male–male jumper (W4) from row 42 column a to the bottom − rail at row 39.
+6. Insert R1, the 10 kΩ resistor (brown, black, orange, gold), from row 30 column b to row 34 column b.
+7. Insert SW1, the 6 mm tactile switch (4-pin), across the trench with pin 1 (Terminal 1) in row 40 column e and pin 4 (Terminal 4) in row 42 column f.
+8. Use a yellow 20 cm male–male jumper (W1) from row 6 column j to row 30 column a.
+9. Use a yellow 20 cm male–male jumper (W3) from row 30 column c to row 40 column a.
+<!-- /generated:pull-up-button -->
+
+### 4. A lead between GPIO17 and GPIO27
+
+- [ ] With this fixture as the twin: matched. With an empty twin: GPIO17 and GPIO27 diverge as a gpio-short.
+
+<!-- generated:gpio-short -->
+| Ref | Part | Pin | Hole | Net |
+|-----|------|-----|------|-----|
+| W1 | yellow male–male jumper | end a | row 6 column a | GPIO17 |
+| W1 | yellow male–male jumper | end b | row 7 column a | GPIO17 |
+
+1. Plug the ribbon into the Pi's 40-pin header and into the T-board, then seat the T-board with pin 1 (3V3) in row 1, its two pin rows in columns d and h, header toward row 0.
+2. Use a yellow 20 cm male–male jumper (W1) from row 6 column a to row 7 column a.
+<!-- /generated:gpio-short -->
+
+### 5. Faults on fixture 3
+
+With fixture 3 as the twin, build it with one fault at a time. Each should diverge on GPIO18,
+and **Find likely causes** should list the true fault among the top three:
+- [ ] W1's end in row 31 column a instead of row 30 (missing path).
+- [ ] W2 left out, so there is no pull-up (missing path).
+- [ ] W4's end on the bottom + rail instead of the bottom − rail; then hold the button (wrong
+  level).
+
+### 6. The kit's Blinking LED
+
+- [ ] Open the Blinking LED tutorial in the Workbench and build it. GPIO17 must show
+  unobserved (an LED path), never matched or diverged. Then run its Toggle LED checkpoint and
+  confirm the LED lights.
+
+### 7. Presence (not built)
+
+Presence sensing needs a timing spike on the Pi (ADR-0018). It is not part of this build.
+
 
 ## Not shipped, pending a part
 

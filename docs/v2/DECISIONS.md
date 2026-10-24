@@ -436,3 +436,24 @@ decision and consequences. Numbering is stable; superseded records say so.
     loop does not advance it.
   - Native extensions (the kit's `dht_c_driver.so`) cannot run in the browser. Tutorials
     use pure-Python code paths, which ADR-0016 requires anyway.
+
+## ADR-0018 Presence sensing is not built
+
+- **Context.** SPEC 14.5 makes presence sensing a stretch goal, gated by a spike in M6: time
+  each pin's charge under its pull with 10 ns resolution or better, using PIO cycle counts on
+  RP1 through piolib, and see whether a dangling lead's few picofarads, about a tenth of a
+  microsecond, can be told from noise, hand proximity and ribbon movement. If it can't, drop
+  it and record an ADR.
+- **Decision.**
+  - The spike needs the Pi and the bench. This build never runs Board Sense against the real
+    Pi (SPEC 18), and no Pi is reachable from it.
+  - So presence sensing is not built. The `presence` divergence kind is never produced, and
+    bench fixture 7 is listed in `HIL_CHECKLIST.md` as not part of this build.
+  - Board Sense ships with the bias and pair tests, which need no timing finer than the
+    100 µs settle time (ADR-0013).
+- **Consequences.**
+  - A lead whose far end touches nothing stays invisible to Board Sense, as SPEC 14.5 already
+    says of microsecond timing.
+  - Building presence later means the spike first: a piolib program on RP1 that times the
+    charge edge, its noise measured on the bench with and without a dangling lead, and a
+    keep-or-drop decision recorded here.
