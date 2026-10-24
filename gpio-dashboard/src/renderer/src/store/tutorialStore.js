@@ -8,8 +8,6 @@ const useTutorialStore = create((set, get) => ({
   executionStatus: 'idle', // idle | deploying | running | completed | error
   executionOutput: [],
   completedTutorials: [],
-  showWiringOverlay: false,
-  overlayTutorialId: null,
 
   selectTutorial: (id, defaultCode) => {
     set({
@@ -68,18 +66,6 @@ const useTutorialStore = create((set, get) => ({
       // ignore
     }
   },
-
-  showWiring: (tutorialId) =>
-    set({
-      showWiringOverlay: true,
-      overlayTutorialId: tutorialId
-    }),
-
-  hideWiring: () =>
-    set({
-      showWiringOverlay: false,
-      overlayTutorialId: null
-    }),
 
   deployAndRun: async () => {
     const { editorCode, selectedTutorialId } = get()

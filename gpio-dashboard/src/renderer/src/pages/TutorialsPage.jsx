@@ -1,116 +1,219 @@
-import { useMemo, useState } from 'react'
-import { BookOpen, Check } from 'lucide-react'
-import TUTORIALS, { CATEGORIES, DIFFICULTIES } from '../data/tutorials'
+// Tutorials (SPEC 11.1, 13.1): the verified content, until the Studio and Build Mode exist. Each
+// shows its theory, the generated wiring table and build steps, and its code, which runs on the
+// Pi through the existing run path. "Open in Workbench" checks and simulates its circuit.
+import { ArrowLeft, BookOpen, ExternalLink, FlaskConical, Play, Square } from 'lucide-react'
+import { useState } from 'react'
+import CodeEditor from '../components/CodeEditor'
+import { partDef } from '../core/defs/parts'
+import { TUTORIALS } from '../core/defs/tutorials'
+import { buildSteps } from '../core/steps/steps'
+import { renderTheory } from '../core/tutorials/theory'
+import Markdown from '../panels/Markdown'
+import useConnectionStore from '../store/connectionStore'
 import useTutorialStore from '../store/tutorialStore'
-import TutorialCard from '../components/TutorialCard'
-import TutorialDetail from '../components/TutorialDetail'
+import useUiStore from '../store/uiStore'
+import { useWorkbench } from '../state/workbenchStore'
 
-const ALL_CATEGORIES = ['all', ...Object.keys(CATEGORIES)]
-const ALL_DIFFICULTIES = Object.keys(DIFFICULTIES)
-
-export default function TutorialsPage() {
-  const selectedTutorialId = useTutorialStore((s) => s.selectedTutorialId)
-  const completedTutorials = useTutorialStore((s) => s.completedTutorials)
-  const [categoryFilter, setCategoryFilter] = useState('all')
-  const [difficultyFilter, setDifficultyFilter] = useState(null)
-
-  const selectedTutorial = useMemo(
-    () => TUTORIALS.find((t) => t.id === selectedTutorialId),
-    [selectedTutorialId]
+function Wiring({ tutorial }) {
+  const { table, steps } = buildSteps(tutorial.doc, partDef)
+  return (
+    <div className="space-y-4 text-sm">
+      <ol className="list-decimal pl-5 space-y-1.5 text-gray-200">
+        {steps.map((s, i) => (
+          <li key={i}>
+            {s.text}
+            {s.why && <span className="block text-xs text-gray-400">Why: {s.why}</span>}
+            {s.mistake && (
+              <span className="block text-xs text-amber-400">Common mistake: {s.mistake}</span>
+            )}
+          </li>
+        ))}
+      </ol>
+      <table className="text-xs font-mono">
+        <thead className="text-gray-400 text-left">
+          <tr>
+            {['Ref', 'Part', 'Pin', 'Hole', 'Net'].map((h) => (
+              <th key={h} className="pr-4 pb-1 font-medium">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="text-gray-300">
+          {table.map((r, i) => (
+            <tr key={i} className="border-t border-white/[0.04]">
+              <td className="pr-4 py-1">{r.ref}</td>
+              <td className="pr-4">{r.what}</td>
+              <td className="pr-4">{r.pin}</td>
+              <td className="pr-4">{r.at}</td>
+              <td>{r.net}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
+}
 
-  const filtered = useMemo(() => {
-    return TUTORIALS.filter((t) => {
-      if (categoryFilter !== 'all' && t.category !== categoryFilter) return false
-      if (difficultyFilter && t.difficulty !== difficultyFilter) return false
-      return true
-    })
-  }, [categoryFilter, difficultyFilter])
+function Code({ tutorial }) {
+  const editorCode = useTutorialStore((s) => s.editorCode)
+  const status = useTutorialStore((s) => s.executionStatus)
+  const output = useTutorialStore((s) => s.executionOutput)
+  const deployAndRun = useTutorialStore((s) => s.deployAndRun)
+  const stopExecution = useTutorialStore((s) => s.stopExecution)
+  const connected = useConnectionStore((s) => s.status === 'connected')
+  const running = status === 'running' || status === 'deploying'
+  return (
+    <div className="flex flex-col gap-3 h-full">
+      <div className="h-80 rounded-lg overflow-hidden border border-white/[0.06]">
+        <CodeEditor code={editorCode} originalCode={tutorial.doc.code.source} />
+      </div>
+      <div className="flex items-center gap-2">
+        {running ? (
+          <button className="btn-danger text-sm flex items-center gap-1.5" onClick={stopExecution}>
+            <Square className="w-4 h-4" /> Stop
+          </button>
+        ) : (
+          <button
+            className="btn-success text-sm flex items-center gap-1.5"
+            disabled={!connected}
+            onClick={deployAndRun}
+          >
+            <Play className="w-4 h-4" /> Run on Pi
+          </button>
+        )}
+        {!connected && <span className="text-xs text-gray-500">Connect to your Pi to run.</span>}
+        <span className="text-xs text-gray-500">{status}</span>
+      </div>
+      {output.length > 0 && (
+        <pre className="text-xs font-mono text-gray-300 bg-surface-900 rounded p-3 max-h-48 overflow-y-auto">
+          {output.map((l) => l.data).join('')}
+        </pre>
+      )}
+    </div>
+  )
+}
 
-  if (selectedTutorial) {
-    return <TutorialDetail tutorial={selectedTutorial} />
+function Detail({ tutorial, onBack }) {
+  const [tab, setTab] = useState('theory')
+  const { meta } = tutorial
+  const openInWorkbench = () => {
+    useWorkbench.getState().open(meta.id, tutorial.doc)
+    useUiStore.getState().setActiveTab('workbench')
   }
-
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-6 py-4 border-b border-white/[0.04] space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-accent-light" />
-            <h2 className="text-lg font-semibold text-gray-100">Tutorials</h2>
-          </div>
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400">
-            <Check className="w-3.5 h-3.5" />
-            {completedTutorials.length} / {TUTORIALS.length}
-          </span>
+      <div className="px-6 py-4 border-b border-white/[0.04] space-y-2">
+        <div className="flex items-center gap-3">
+          <button className="btn-ghost" aria-label="Back to tutorials" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <h2 className="text-lg font-semibold text-gray-100">{meta.title}</h2>
+          {meta.kitProject && <span className="text-xs text-gray-500">kit {meta.kitProject}</span>}
+          {meta.tags.map((t) => (
+            <span
+              key={t}
+              className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400"
+            >
+              {t}
+            </span>
+          ))}
+          <button
+            className="ml-auto btn-secondary text-sm flex items-center gap-1.5"
+            onClick={openInWorkbench}
+          >
+            <FlaskConical className="w-4 h-4" /> Open in Workbench
+          </button>
         </div>
-
-        {/* Category filter tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto">
-          {ALL_CATEGORIES.map((cat) => {
-            const isActive = categoryFilter === cat
-            const label = cat === 'all' ? 'All' : CATEGORIES[cat].label
-            const color = cat === 'all' ? null : CATEGORIES[cat].color
-            return (
-              <button
-                key={cat}
-                onClick={() => setCategoryFilter(cat)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
-                  isActive
-                    ? 'text-white'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.06]'
-                }`}
-                style={
-                  isActive
-                    ? { backgroundColor: color ? color + '30' : '#374151', color: color || '#E5E7EB' }
-                    : undefined
-                }
+        <p className="text-sm text-gray-400">{meta.summary}</p>
+        <div className="flex flex-wrap gap-3 text-xs">
+          {[meta.sources.kit, ...meta.sources.datasheets, ...meta.sources.pi]
+            .filter(Boolean)
+            .map((url) => (
+              <a
+                key={url}
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-accent-light flex items-center gap-1"
               >
-                {label}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Difficulty filter pills */}
-        <div className="flex items-center gap-2">
-          {ALL_DIFFICULTIES.map((diff) => {
-            const isActive = difficultyFilter === diff
-            const d = DIFFICULTIES[diff]
-            return (
-              <button
-                key={diff}
-                onClick={() => setDifficultyFilter(isActive ? null : diff)}
-                className={`px-3 py-1 text-xs rounded-full font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
-                  isActive ? 'ring-1' : 'opacity-60 hover:opacity-100'
-                }`}
-                style={{
-                  backgroundColor: d.color + '20',
-                  color: d.color,
-                  '--tw-ring-color': d.color
-                }}
-              >
-                {d.label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Tutorial grid */}
-      <div className="flex-1 overflow-y-auto p-6">
-        {filtered.length === 0 ? (
-          <div className="text-center text-gray-500 py-12">
-            No tutorials match the selected filters.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filtered.map((tutorial) => (
-              <TutorialCard key={tutorial.id} tutorial={tutorial} />
+                <ExternalLink className="w-3 h-3" />
+                {new URL(url).hostname}
+              </a>
             ))}
-          </div>
-        )}
+        </div>
+        <div className="flex gap-1 pt-1" role="tablist">
+          {['theory', 'wiring', 'code'].map((t) => (
+            <button
+              key={t}
+              role="tab"
+              aria-selected={tab === t}
+              className={`tab-button ${tab === t ? 'active' : ''}`}
+              onClick={() => setTab(t)}
+            >
+              {{ theory: 'Theory', wiring: 'Wiring and steps', code: 'Code' }[t]}
+            </button>
+          ))}
+        </div>
       </div>
+      <div className="flex-1 overflow-y-auto p-6">
+        {tab === 'theory' && (
+          <Markdown text={renderTheory(tutorial.theory, tutorial.doc, partDef)} />
+        )}
+        {tab === 'wiring' && <Wiring tutorial={tutorial} />}
+        {tab === 'code' && <Code tutorial={tutorial} />}
+      </div>
+    </div>
+  )
+}
+
+export default function TutorialsPage() {
+  const selectedId = useTutorialStore((s) => s.selectedTutorialId)
+  const selectTutorial = useTutorialStore((s) => s.selectTutorial)
+  const clearTutorial = useTutorialStore((s) => s.clearTutorial)
+  const selected = TUTORIALS.find((t) => t.meta.id === selectedId)
+  if (selected) return <Detail tutorial={selected} onBack={clearTutorial} />
+  const kit = TUTORIALS.filter((t) => t.meta.kitProject)
+  const extras = TUTORIALS.filter((t) => !t.meta.kitProject)
+  const list = (items) => (
+    <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+      {items.map((t) => (
+        <li key={t.meta.id}>
+          <button
+            className="card w-full text-left"
+            onClick={() => selectTutorial(t.meta.id, t.doc.code.source)}
+          >
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              {t.meta.kitProject ? `kit ${t.meta.kitProject}` : 'extra'}
+              {t.meta.tags.map((tag) => (
+                <span key={tag} className="text-amber-400">
+                  · {tag}
+                </span>
+              ))}
+            </div>
+            <div className="text-sm font-semibold text-gray-100 mt-1">{t.meta.title}</div>
+            <div className="text-xs text-gray-400 mt-1">{t.meta.summary}</div>
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+  return (
+    <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+      <div className="flex items-center gap-2">
+        <BookOpen className="w-5 h-5 text-accent-light" />
+        <h2 className="text-lg font-semibold text-gray-100">Tutorials</h2>
+      </div>
+      <section className="space-y-2">
+        <h3 className="text-sm font-semibold text-gray-300">The kit&apos;s projects</h3>
+        {list(kit)}
+      </section>
+      {extras.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="text-sm font-semibold text-gray-300">Extras</h3>
+          {list(extras)}
+        </section>
+      )}
     </div>
   )
 }

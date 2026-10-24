@@ -7,7 +7,6 @@ import Navbar from './components/Navbar'
 import TerminalPanel from './components/TerminalPanel'
 import ConnectPage from './pages/ConnectPage'
 import PinoutPage from './pages/PinoutPage'
-import BreadboardPage from './pages/BreadboardPage'
 import TutorialsPage from './pages/TutorialsPage'
 import MonitorPage from './pages/MonitorPage'
 import WorkbenchPage from './pages/WorkbenchPage'
@@ -16,7 +15,6 @@ import DevOverlay from './dev/DevOverlay'
 const PAGES = {
   connect: ConnectPage,
   pinout: PinoutPage,
-  breadboard: BreadboardPage,
   tutorials: TutorialsPage,
   workbench: WorkbenchPage,
   monitor: MonitorPage
