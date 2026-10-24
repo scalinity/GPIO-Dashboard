@@ -14,11 +14,13 @@ import type { PartDefs } from '../netlist/netlist'
 export const ASSUMED_HEIGHTS_MM = {
   /** T-board header top: board top + yellow pin spacer (2.5) + PCB (1.6) + box header (11.2). */
   tboardSocketAboveBoard: 2.5 + 1.6 + 11.2,
-  /** Pi header pin tips: about 3 mm of underside clearance + PCB (1.6) + header (8.5). */
-  piSocket: 3 + 1.6 + 8.5,
   /** Off-board module pins rest about 10 mm above the table. */
   modulePin: 10
 }
+
+/** The Pi's header pin tips above the table, from the official STEP resting on its lowest point
+ * (ADR-0020; measured when pi5.glb is built). */
+export const PI_PIN_TIPS_ABOVE_TABLE_MM = 11.326
 
 export function toTable(t: Transform2D, [x, y]: Vec2): Vec2 {
   const r = (t.rotationDeg * Math.PI) / 180
@@ -93,7 +95,7 @@ export function ribbonEnds(doc: CircuitDoc): { pi: Vec3; tboard: Vec3 } | null {
     piBoardJson.header.centerMm as unknown as Vec2
   )
   return {
-    pi: [px, py, ASSUMED_HEIGHTS_MM.piSocket],
+    pi: [px, py, PI_PIN_TIPS_ABOVE_TABLE_MM],
     tboard: [tx, ty, def.body.heightMm + ASSUMED_HEIGHTS_MM.tboardSocketAboveBoard]
   }
 }
