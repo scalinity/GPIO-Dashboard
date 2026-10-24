@@ -5,10 +5,10 @@ Modelled in tboard.json's frame (mm, z up): pin 1 at the origin, +x along the st
 stem's pins reach below it. The PCB sits on the spacers, the shrouded box header on the PCB at
 negative x (the bar), its key slot in the long wall at -x, away from the stem.
 
-Nodes: `tboard` (root) with `pcb`, `header`, `pins`, `pads`, `spacers`, and the empty `socket` at
-the box header's rim, in the middle: the IDC socket's origin goes there, with the same axes as
-the header's pins. The header's pin 1 is the +y end of its key-side row (the underside photo puts
-the square pad there).
+Nodes: `tboard` (root) with `pcb`, `header`, `pins`, `pads`, `spacers`, and the empty `socket` in
+the box header's middle, SOCKET_SEAT below its rim: the IDC socket's origin goes there, with the
+same axes as the header's pins, and its plug stands in the cavity. The header's pin 1 is the +y end
+of its key-side row (the underside photo puts the square pad there).
 
 Textures: each PCB face takes one planar map set. The top's colour (mask, traces, white silkscreen
 from the pin table, the title), the traces' relief as a tangent-space normal map, and AO are baked
@@ -60,7 +60,8 @@ HDR_TAIL_BELOW = 1.2  # the box header's pin tails below the PCB
 HOLE_D, PAD_D, MOUNT_PAD_D, VIA_D = 1.0, 1.6764, 4.1, 0.7  # drill and pad: Adafruit T-Cobbler Plus; the mounting ring: photo 5
 PAD_Z = 0.03  # pads stand this far proud of the mask
 TRACE_W, TRACE_RELIEF = 0.2, 0.05
-WALL = (1.2, 1.9)  # shroud walls: the long ones, and the ends
+WALL = (1.2, 2.95)  # shroud walls: the long ones, and the ends; the cavity (6.4 x 52.6) takes the socket's 6.10 x 51.6 plug (ADR-L-1)
+SOCKET_SEAT = 5.08  # the socket's mating face sits this far below the rim (idc.py's PLUG: its ears rest on the end walls)
 BASE = 2.0  # shroud floor
 KEY = (6.5, 4.5)  # key slot in the long wall at -x: (width, depth from the rim)
 PIN_DEPTH = 2.0  # header pins end this far below the rim
@@ -90,8 +91,9 @@ TRACE_RED_TOP = materials.srgb(0.67, 0.06, 0.07)  # fainter on the top, where th
 WHITE = materials.srgb(0.93, 0.93, 0.9)
 INK = materials.srgb(0.04, 0.04, 0.05)
 GREY = materials.srgb(0.62, 0.64, 0.67)
-TIN = materials.srgb(0.84, 0.84, 0.86)
-YELLOW = materials.srgb(0.98, 0.8, 0.05)
+TIN = materials.srgb(0.84, 0.84, 0.86)  # the pins' nickel
+SOLDER = materials.srgb(0.70, 0.70, 0.72)  # pads and solder cones: tin that has dulled, as the photos show (ADR-L-2)
+YELLOW = materials.srgb(1.0, 0.76, 0.0)
 FR4 = materials.srgb(0.82, 0.74, 0.52)
 
 bm = bmesh.new()
@@ -147,12 +149,16 @@ def tube(cx, cy, z0, z1, r):
 def cone(cx, cy, z0, z1, r0, r1, n=8):
     """A solder fillet: wide at z0, narrowing to a capped z1."""
     a, b = circle(cx, cy, z0, r0, n), circle(cx, cy, z1, r1, n)
+    start = len(bm.faces)
     if z1 > z0:
         band(a, b)
         bm.faces.new(b)
     else:
         band(b, a)
         bm.faces.new(b[::-1])
+    bm.faces.ensure_lookup_table()
+    for f in bm.faces[start:]:  # a fillet is rounded: smooth shading, not an octagon's facets
+        f.smooth = True
 
 
 def post(cx, cy, levels):
@@ -245,10 +251,12 @@ def pcb_face(z, top):
             loop[uv].uv = place(loop.vert.co.x, loop.vert.co.y)
 
 
-mask_top = materials.principled('mask-top', RED, Roughness=0.5, Coat_Weight=1.0, Coat_Roughness=0.08)
-mask_bottom = materials.principled('mask-bottom', RED, Roughness=0.5, Coat_Weight=1.0, Coat_Roughness=0.08)
+# Soldermask is a semi-gloss: the studio's bright HDRI, reflected off a smoother mask, washes the red
+# to pink at a low camera angle, so the base is nearly matt and the coat a faint sheen (ADR-L-2).
+mask_top = materials.principled('mask-top', RED, Roughness=0.9, Coat_Weight=0.06, Coat_Roughness=0.2)
+mask_bottom = materials.principled('mask-bottom', RED, Roughness=0.9, Coat_Weight=0.06, Coat_Roughness=0.2)
 fr4 = materials.principled('fr4', FR4, Roughness=0.7)
-tin = materials.principled('tin', TIN, Metallic=1.0, Roughness=0.25)
+tin = materials.principled('tin', SOLDER, Metallic=1.0, Roughness=0.55)
 pin_mat = materials.principled('pin', TIN, Metallic=1.0, Roughness=0.3)
 shroud_mat = materials.principled('shroud', GREY, Roughness=0.55)
 spacer_mat = materials.principled('spacer', YELLOW, Roughness=0.45)
@@ -493,7 +501,7 @@ pcb = bpy.context.view_layer.objects.active
 pcb.name = pcb.data.name = 'pcb'
 pcb.parent = root
 socket = scene.link(bpy.data.objects.new('socket', None), root)
-socket.location = (CX, CY, Z_H)
+socket.location = (CX, CY, Z_H - SOCKET_SEAT)
 export.glb(args.out, root, tangents=True)
 
 boxes = [export.box('pcb', [pcb]), export.box('header', [header])]

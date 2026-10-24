@@ -13,7 +13,7 @@
       "seed": 0
     },
     "sha256": {
-      "blender/idc.py": "ffdec116dcfe7d8933ad5c78e9e251af2d831531368e22ceedf6e4f33b56aebf",
+      "blender/idc.py": "b13fedfc6c9022235b45f819c8cae6baf9d909d54b4f2cfe799cf0a7c8365c38",
       "blender/lib/__init__.py": "fde31da9f6d72b2297d6828833720649d7d25feab9e48e41ede38379551cb95a",
       "blender/lib/bake.py": "79d84decfc2118f593cbd56a4b2de266e48c41e5f27ba36cded71d45b83f7ed1",
       "blender/lib/export.py": "5832244f9a618a46fd65b3f7b0f5c816c591ead0510aebe744e339423a8774a7",
@@ -28,8 +28,8 @@
     }
   ],
   "sources": [],
-  "triangles": 1052,
-  "bytes": 580832,
+  "triangles": 1156,
+  "bytes": 677396,
   "textures": [
     {
       "name": "idc-normal",
@@ -63,5 +63,5 @@
     "bytes": 1000000,
     "met": true
   },
-  "geometryHash": "59da0187a81063c70aa05311da676defd7c09df1891809f6a6235e6f6e85c708"
+  "geometryHash": "3fc2611ebf40acc382373ebe0380aee2d586a72464315706df51a2da2673a3cd"
 }

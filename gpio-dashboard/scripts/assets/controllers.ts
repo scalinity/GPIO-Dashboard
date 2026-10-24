@@ -27,6 +27,24 @@ import {
 import { COINCIDENCE_MM, type Finding } from './verify'
 
 const CONTROLLER_KINDS: Asset['kind'][] = ['tboard', 'idc', 'ribbon', 'dupont']
+
+/**
+ * The 3M 891-series socket, 40 contacts, from the sheet's drawings (TS-0449-L sheet 2, ADR-L-1),
+ * and where it seats in the T-board's box header. `tboard` and `idc` are each checked against it.
+ */
+export const IDC_3M = {
+  /** The lower body's width (the bottom view's 0.240 in) and length (B for 40 contacts). */
+  widthMm: 6.1,
+  bodyMm: 51.6,
+  /** The cover with its latch ears (A for 40 contacts). */
+  earsMm: 55.4,
+  /** The lower body below the cover (0.200 in): the ears' underside, and so how far the socket stands in a header. */
+  seatMm: 5.08,
+  /** The contact openings' depth in the mating face: a Pi header's posts stand 6.0 mm over its base. */
+  contactDepthMm: 6.0,
+  /** The polarization bump's width and where its foot is above the mating face. */
+  bump: { widthMm: 6, fromMm: 0.8 }
+}
 export const isController = (asset: Asset) => CONTROLLER_KINDS.includes(asset.kind)
 
 // --- KTX2: encoding a PNG the Blender script saved, and reading a file back --------------------------
@@ -317,12 +335,55 @@ function tboard(doc: Document, t: Tboard): Finding[] {
     )
   )
 
-  // The socket's empty sits on the rim, in the middle.
-  const socket = find(nodeAt(doc, 'socket'), at)
+  // The socket's empty is where its mating face sits when seated: in the middle of the header,
+  // the 3M body's seating depth below the rim.
+  const seat: Vec3 = [at[0], at[1], top - IDC_3M.seatMm]
+  const socket = find(nodeAt(doc, 'socket'), seat)
   out.push({
     check: 'socket',
     ok: socket <= COINCIDENCE_MM && nodeAt(doc, 'tboard') !== undefined,
-    detail: `"socket" ${mm(socket)} from the header's rim centre (${at.map((v) => v.toFixed(2)).join(', ')}); root "tboard" ${nodeAt(doc, 'tboard') ? 'present' : 'missing'}`
+    detail: `"socket" ${mm(socket)} from the seating plane, ${IDC_3M.seatMm} mm below the rim, in the header's middle (${seat.map((v) => v.toFixed(2)).join(', ')}); root "tboard" ${nodeAt(doc, 'tboard') ? 'present' : 'missing'}`
+  })
+
+  // The socket's lower body goes into the cavity: it fits between the walls, its ears rest on the
+  // end walls, its mating face is above the floor, its bump stands in the key slot above the slot's
+  // floor, and the header's pins enter its contact openings.
+  const unique = (values: number[]) =>
+    [...new Set(values.map((v) => v.toFixed(3)))].map(Number).sort((a, b) => a - b)
+  const xs = unique(rim.map((p) => p[0])) // outer, inner, inner, outer
+  const ys = unique(rim.map((p) => p[1])) // outer, inner, the slot's two sides, inner, outer
+  const cavity =
+    xs.length === 4 && ys.length === 6 ? [xs[2]! - xs[1]!, ys[4]! - ys[1]!] : [NaN, NaN]
+  const floor = Math.min(
+    ...points(doc, 'shroud')
+      .map((p) => p[2])
+      .filter((z) => z > board.max[2] + 0.01)
+  )
+  const keyFloor = Math.min(
+    ...points(doc, 'shroud')
+      .filter(
+        ([x, y]) =>
+          Math.abs(x - shroud.min[0]) < 0.01 && y >= slot[0]! - 0.01 && y <= slot[1]! + 0.01
+      )
+      .map((p) => p[2])
+  )
+  const matingZ = top - IDC_3M.seatMm
+  const tips = pins.filter((b) => b.min[2] > 0).map((b) => b.max[2])
+  const engaged = Math.min(...tips) - matingZ
+  const slotWidth = slot[1]! - slot[0]!
+  out.push({
+    check: 'socket fit',
+    ok:
+      cavity[0]! >= IDC_3M.widthMm + 0.2 &&
+      cavity[1]! >= IDC_3M.bodyMm + 0.2 &&
+      IDC_3M.earsMm > cavity[1]! &&
+      IDC_3M.earsMm <= span(shroud, 1) &&
+      matingZ - floor >= 1 &&
+      slotWidth >= IDC_3M.bump.widthMm + 0.2 &&
+      keyFloor <= matingZ + IDC_3M.bump.fromMm &&
+      engaged > 0 &&
+      engaged <= IDC_3M.contactDepthMm,
+    detail: `cavity ${mm(cavity[0]!)} x ${mm(cavity[1]!)} for the ${IDC_3M.widthMm} x ${IDC_3M.bodyMm} mm body; the ${IDC_3M.earsMm} mm ears overlap each end wall by ${mm((IDC_3M.earsMm - cavity[1]!) / 2)}; mating face ${mm(matingZ - floor)} above the floor; key slot ${mm(slotWidth)} wide for the ${IDC_3M.bump.widthMm} mm bump, its floor ${mm(matingZ + IDC_3M.bump.fromMm - keyFloor)} below the bump's foot; pins enter ${mm(engaged)} of ${IDC_3M.contactDepthMm} mm`
   })
   return out
 }
@@ -333,6 +394,7 @@ interface Ribbon {
   conductors: number
   pitchMm: number
   widthMm: number
+  thicknessMm: number
   colors: string[]
   conductor1Color: string
 }
@@ -342,22 +404,42 @@ function idc(doc: Document, r: Ribbon): Finding[] {
   const positions = r.conductors / 2
   const out: Finding[] = []
 
-  // Mating face at z = 0, the body 21 pitches long: a pitch of margin beyond the end contacts.
-  const body = bounds(doc)
-  const long = (positions + 1) * pitch
-  const off = worst(span(body, 1) - long, (body.min[1] + body.max[1]) / 2, body.min[2])
+  // Mating face at z = 0. The lower body (below the cover) is the 3M sheet's 6.10 x 51.6 mm, its
+  // width measured away from the bump; the cover's ears are 55.4 mm over all and start the seating
+  // depth above the face; nothing is off-centre.
+  const all = bounds(doc)
+  const plug = points(doc, 'idc-grey').filter(([, , z]) => z < IDC_3M.seatMm - 0.1)
+  const along = plug.map((p) => p[1])
+  const across = plug.filter(([, y]) => Math.abs(y) > 3.5).map((p) => p[0])
+  const ears = points(doc, 'idc-grey').filter(([, y]) => Math.abs(y) > IDC_3M.bodyMm / 2 + 0.05)
+  const seat = Math.min(...ears.map((p) => p[2]))
+  const off = worst(
+    Math.max(...along) - Math.min(...along) - IDC_3M.bodyMm,
+    Math.max(...across) - Math.min(...across) - IDC_3M.widthMm,
+    span(all, 1) - IDC_3M.earsMm,
+    seat - IDC_3M.seatMm,
+    (all.min[1] + all.max[1]) / 2,
+    all.min[2]
+  )
   out.push({
     check: 'dimensions',
     ok: off <= COINCIDENCE_MM,
-    detail: `body ${mm(span(body, 1))} long (${positions + 1} pitches), centred, mating face on z = 0, worst ${mm(off)}`
+    detail: `lower body ${mm(Math.max(...across) - Math.min(...across))} x ${mm(Math.max(...along) - Math.min(...along))} (3M: ${IDC_3M.widthMm} x ${IDC_3M.bodyMm}), ears ${mm(span(all, 1))} over all, their underside ${mm(seat)} above the mating face, centred, face on z = 0, worst ${mm(off)}`
   })
 
-  // The 2 x 20 contact openings, each ending in its own piece of metal.
+  // The 2 x 20 contact openings, each ending in its own piece of metal, as deep as the 3M contacts.
   const expected: Vec2[] = Array.from({ length: r.conductors }, (_, i) => [
     ((i % 2) - 0.5) * pitch,
     (positions / 2 - 0.5 - Math.floor(i / 2)) * pitch
   ])
-  out.push(holes('contacts', expected, islands(doc, 'idc-contact').map(centre), 'contact openings'))
+  const openings = islands(doc, 'idc-contact')
+  const depth = worst(...openings.map((b) => span(b, 2) - IDC_3M.contactDepthMm))
+  out.push(holes('contacts', expected, openings.map(centre), 'contact openings'))
+  out.push({
+    check: 'contact depth',
+    ok: depth <= COINCIDENCE_MM && openings.length === r.conductors,
+    detail: `${openings.length} openings ${IDC_3M.contactDepthMm} mm deep, worst ${mm(depth)}`
+  })
 
   // Pin 1 is contact 1, the +y end of the row on the bump's side; the cable leaves at the -x wall
   // with conductor 1 at its +y edge.
@@ -373,9 +455,9 @@ function idc(doc: Document, r: Ribbon): Finding[] {
       line <= COINCIDENCE_MM &&
       !!a &&
       a[0] < 0 &&
-      a[2] > 0 &&
-      a[2] < span(body, 2),
-    detail: `"pin1" ${mm(pin1)} from contact 1; "cable-a" and "cable-b" ${r.widthMm} mm apart on one line at x = ${a?.[0].toFixed(2)}, z = ${a?.[2].toFixed(2)}, conductor 1's edge at +y (worst ${mm(line)})`
+      a[2] - r.thicknessMm / 2 > IDC_3M.seatMm &&
+      a[2] < span(all, 2),
+    detail: `"pin1" ${mm(pin1)} from contact 1; "cable-a" and "cable-b" ${r.widthMm} mm apart on one line at x = ${a?.[0].toFixed(2)}, z = ${a?.[2].toFixed(2)} (the cable's underside is above the ${IDC_3M.seatMm} mm a header's rim reaches), conductor 1's edge at +y (worst ${mm(line)})`
   })
   return out
 }

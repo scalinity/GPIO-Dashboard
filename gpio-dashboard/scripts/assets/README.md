@@ -56,8 +56,10 @@ Pi rests on (the model's lowest point, its underside parts); the PCB spans z 1.4
 | `board` | the mesh: one primitive per STEP colour, all sharing one occlusion map |
 | `header` | empty at the 40-pin header's centre on the PCB's top face: core (32.5, 52.5, 2.756) |
 
-Materials are `solder-mask` (the PCB, with a clear coat) and `step-<rrggbb>` for every other
-STEP colour (the STEP's sRGB colour; metal or plastic per `blender/pi5.py`).
+Materials are `solder-mask` (the PCB, with a faint clear coat) and `step-<rrggbb>` for every other
+STEP colour (named by the STEP's sRGB colour; metal or plastic per `blender/pi5.py`). Two albedos
+differ from the STEP's, which `LOOK` in `pi5.py` lists: the mask is a bright green, and the yellow
+metal (the USB-A shells) is nickel, as in Raspberry Pi's photographs (ADR-L-2).
 
 The 40 header pins are not in the file. The STEP's pins stood on `pi5-board.json`'s grid (the
 build fails otherwise) as 0.64 mm square posts from z 0.886 to 11.326, that is 8.57 mm above the
@@ -199,29 +201,33 @@ stem pins reach down to z = -6.
 | `pins`    | mesh: the stem's 40 pins and the box header's 40, material `pin`                                |
 | `pads`    | mesh: pads, plated holes, vias and solder, material `tin`                                       |
 | `spacers` | mesh: the two 1 x 20 yellow spacers, material `spacer`                                          |
-| `socket`  | empty on the header's rim, at its centre `(centerXMm, centerYMm, 15.3)`                         |
+| `socket`  | empty in the header's middle, 5.08 mm below the rim: `(centerXMm, centerYMm, 10.22)`            |
 
-The IDC socket's origin goes on `socket`, with no rotation. The PCB's two faces are mapped planar,
+The IDC socket's origin goes on `socket`, with no rotation: its lower body then stands in the header's
+cavity (6.4 x 52.6 mm, floor 2.0 mm above the PCB) and its latch ears rest on the end walls (ADR-L-1). The PCB's two faces are mapped planar,
 as each reads from outside with the header up: u across +y and v down +x on the top, u mirrored on
 the underside. The silkscreen labels come from the pin table and are baked into `mask-top`'s
 colour. The header's key slot is in its -x wall. Its pin 1 is the +y end of the key-side row
 (x = centerXMm - pitch / 2), which holds the odd pins (ADR-0037).
 
-**idc-socket.glb** (`ribbon.json`; 3M 891 series, 2 x 20, for 1.27 mm cable). Origin at the centre
-of the mating face, which faces -z: the socket plugs down onto upward pins, its body above. x runs
-across the two rows (contacts at x = -1.27 and +1.27), y along them. It is modelled seated on the
-rim, not inserted into the shroud (ADR-0038).
+**idc-socket.glb** (`ribbon.json`; 3M 891 series, 2 x 20, for 1.27 mm cable, TS-0449-L). Origin at
+the centre of the mating face, which faces -z: the socket plugs down onto upward pins, its body
+above. x runs across the two rows (contacts at x = -1.27 and +1.27), y along them. The lower body is
+6.10 x 51.6 mm and goes into a box header's cavity; the cover above it carries the latch ears, 55.4 mm
+over all, whose underside is 5.08 mm above the mating face (ADR-L-1). On a Pi the face rests on the
+header's base.
 
 | Node         | What it is                                                                      |
 | ------------ | ------------------------------------------------------------------------------- |
 | `idc-socket` | root                                                                            |
 | `body`       | mesh: `idc-grey` (normal and AO maps), and `idc-contact`, the 40 openings' metal |
 | `pin1`       | empty at contact 1, `(-1.27, +24.13, 0)`                                        |
-| `cable-a`    | empty at the conductor-1 end of the cable's exit line, `(-4.5, +25.4, 6.0)`     |
-| `cable-b`    | the line's other end, `(-4.5, -25.4, 6.0)`                                      |
+| `cable-a`    | empty at the conductor-1 end of the cable's exit line, `(-3.05, +25.4, 6.3)`    |
+| `cable-b`    | the line's other end, `(-3.05, -25.4, 6.3)`                                     |
 
 The bump and the cable are on the -x wall. Seated on the T-board's `socket` with no rotation, the
-bump meets the key slot and the cable runs away from the stem. The line from `cable-a` to `cable-b`
+bump stands in the key slot and the cable runs away from the stem, its underside above the header's
+rim. The line from `cable-a` to `cable-b`
 is the cable's mid-plane where it leaves the wall; conductor 1 is at `cable-a`.
 
 **ribbon-ridges.ktx2, ribbon-colors.ktx2** (`ribbon.json`; `ribbon.manifest.json`). No GLB. Both
@@ -247,7 +253,7 @@ long, on the z axis: `housing` (black plastic, AO map) and `metal`.
 the node has no rotation of its own).
 
 **Colliders.** `tboard`: `pcb`, `header`, and a `spacer-` and a `pins-` box for each strip (`a` is
-the odd pins'). `idc-socket`: `body` (with the bump) and `strain-relief`. The Dupont ends:
+the odd pins'). `idc-socket`: `body` (with the bump) and `strain-relief` (the cover with its ears, from 5.08 mm up). The Dupont ends:
 `housing`, and the male's `pin` capsule. Each file encloses its model to within 0.05 mm.
 
 **Checks** (`controllers.ts`):
@@ -257,9 +263,12 @@ the odd pins'). `idc-socket`: `body` (with the bump) and `strain-relief`. The Du
   is z = 0; the 40 stem pins at `pitchMm` x index along x and `rowSpacingPitches` across, the box
   header's 40 pins on its 2 x 20 grid, and the mounting holes, each within 0.05 mm and one to one;
   the shroud's size, position and height, with the key slot in the -x wall and the +x wall plain;
-  the `socket` empty;
-- `idc-socket`: the body 21 pitches long with its mating face on z = 0; the 40 contact openings on
-  the 2 x 20 grid; `pin1`, `cable-a` and `cable-b`;
+  the `socket` empty at the seating plane, and the socket's fit (the cavity takes the lower body, the
+  ears rest on the end walls, the bump stands in the key slot above its floor, the pins enter the
+  contact openings);
+- `idc-socket`: the lower body 6.10 x 51.6 mm, the ears 55.4 mm over all and 5.08 mm up, the mating face
+  on z = 0; the 40 contact openings on the 2 x 20 grid, each 6.0 mm deep; `pin1`, `cable-a` and
+  `cable-b`, the cable's underside clear of a header's rim;
 - `dupont-*`: the housing's size and position, the pin's side, tip and exposed length, and `wire`;
 - `ribbon`: the lookup's 40 texels against the sequence, and the ridge map's 40 crowns and seam.
 

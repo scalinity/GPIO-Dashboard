@@ -6,6 +6,10 @@ at x = -1.27 and +1.27), y along them. Pin 1 is the contact at (-1.27, +24.13): 
 the polarization bump, at the +y end. The cable leaves through the -x wall, under the strain
 relief, with conductor 1 at the +y edge.
 
+The lower body (6.10 x 51.6 mm, the sheet's bottom view) is the plug: it goes down into a box
+header's cavity, and the latch ears at the cover's two ends, PLUG mm above the mating face, rest on
+the shroud's end walls. The polarization bump stands in the shroud's key slot.
+
 Empties: `pin1` at contact 1, and `cable-a`, `cable-b` at the two ends of the line where the
 ribbon leaves the socket (`cable-a` at the conductor-1 edge), at the cable's mid-plane.
 
@@ -31,20 +35,23 @@ with open(args.ribbon) as f:
     R = json.load(f)
 TEXTURE = [int(n) for n in args.texture.split('x')]
 
-# Shape (mm). The 3M 891 sheet (TS-0449-L) gives the contact grid, the 10.7 mm assembled height
-# with the standard strain relief and the 1.5 mm bump; the rest reads like photo 3's sockets.
+# Shape (mm). The 3M 891 sheet (TS-0449-L, 40 contacts; ADR-L-1) gives the body's 6.10 width and
+# 51.6 length (B), the cover's 55.4 with its end ears (A), the 5.08 (0.200 in) lower body below the
+# cover and the 10.7 assembled height; the rest reads like photo 3's sockets.
 PITCH = 2.54
 ROW_X = PITCH / 2  # the two rows sit this far either side of the axis
 POSITIONS = R['conductors'] // 2  # contacts per row
-LENGTH, WIDTH = 21 * PITCH, 9.0  # body: 21 pitches long, with a pitch of margin either end
+LENGTH, WIDTH = 51.6, 6.10  # the body: B, and the width of the sheet's bottom view
+EARS = 55.4  # A: the cover with the latch ears at its ends
+PLUG = 5.08  # the lower body that goes into a header; the ears' underside is this high
 BODY_H, COVER_H = 7.1, 3.6  # the cover is the strain relief's plate: 10.7 in all
 COVER_END = 0.6  # the cover stops this far short of the body's ends
 LIP = 1.0  # the strain relief overhangs the cable wall (-x) by this much
 EDGE = 0.25  # rounding of the moulded edges
-OPENING = (1.2, 0.9, 2.2)  # contact opening: (side at the face, side at its floor, depth)
-CABLE = (R['widthMm'], R['thicknessMm'], 6.0)  # the cable's width, thickness, and mid-plane height
-SLOT = (R['widthMm'] + 1.0, R['thicknessMm'] + 0.1, 0.6)  # the cable slot in the wall: (length, height, depth)
-BUMP = (6.0, 1.2, 5.3)  # polarization bump on the cable wall: (width, protrusion, height from the face)
+OPENING = (1.2, 0.9, 6.0)  # contact opening: (side at the face, side at its floor, depth): a Pi header's posts stand 6.0 mm over its base
+CABLE = (R['widthMm'], R['thicknessMm'], 6.3)  # the cable's width, thickness, and mid-plane height
+SLOT = (R['widthMm'] + 0.1, R['thicknessMm'] + 0.1, 0.6)  # the cable slot in the wall: (length, height, depth)
+BUMP = (6.0, 1.2, 0.8, 5.5)  # polarization bump on the cable wall: (width, protrusion, bottom, top), clear of the key slot's floor
 TRIANGLE = (2.4, 2.4, 0.25)  # pin-1 triangle on the cover: (base, height, relief)
 RIBS = (0.6, 0.25, 0.7)  # the cover's moulded ribs, one between each pair of contacts: (width, relief, margin from its edges)
 AO_DISTANCE = 3.0
@@ -93,7 +100,9 @@ def build(ribs):
     y = LENGTH / 2
     box(x0, x1, -y, y, 0, BODY_H)
     box(x0 - LIP, x1 - 0.3, -(y - COVER_END), y - COVER_END, BODY_H, BODY_H + COVER_H)
-    box(x0 - BUMP[1], x0 + 0.5, -BUMP[0] / 2, BUMP[0] / 2, 0, BUMP[2], rounded=0.15)
+    for s in (-1, 1):  # the latch ears, at the cover's ends
+        box(x0, x1, *sorted((s * y, s * EARS / 2)), PLUG, BODY_H + COVER_H)
+    box(x0 - BUMP[1], x0 + 0.5, -BUMP[0] / 2, BUMP[0] / 2, BUMP[2], BUMP[3], rounded=0.15)
 
     # Contact openings in the mating face.
     planes = [((x, 0, 0), (1, 0, 0)) for r in (-ROW_X, ROW_X) for x in (r - OPENING[0] / 2, r + OPENING[0] / 2)]
@@ -182,7 +191,7 @@ for name, at in (
 export.glb(args.out, root, tangents=True)
 export.colliders(args.colliders, [
     {'name': 'body', 'min': [-WIDTH / 2 - BUMP[1], -LENGTH / 2, 0], 'max': [WIDTH / 2, LENGTH / 2, BODY_H]},
-    {'name': 'strain-relief', 'min': [-WIDTH / 2 - LIP, -LENGTH / 2 + COVER_END, BODY_H],
-     'max': [WIDTH / 2 - 0.3, LENGTH / 2 - COVER_END, BODY_H + COVER_H + TRIANGLE[2]]},
+    {'name': 'strain-relief', 'min': [-WIDTH / 2 - LIP, -EARS / 2, PLUG],
+     'max': [WIDTH / 2, EARS / 2, BODY_H + COVER_H + TRIANGLE[2]]},
 ])
 print(f'idc-socket: {len(body_mesh.polygons)} faces')

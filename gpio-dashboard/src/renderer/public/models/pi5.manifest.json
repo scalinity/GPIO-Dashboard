@@ -14,7 +14,7 @@
       "seed": 0
     },
     "sha256": {
-      "blender/pi5.py": "9f981bf6c42fae3e61bd928879a4374712827aa6590942fb877ee9f32c6b0c01",
+      "blender/pi5.py": "c135f7753f811bfce804f59ef9bbcf69f2655530f246c84efe5f46e73601749c",
       "blender/lib/__init__.py": "fde31da9f6d72b2297d6828833720649d7d25feab9e48e41ede38379551cb95a",
       "blender/lib/bake.py": "79d84decfc2118f593cbd56a4b2de266e48c41e5f27ba36cded71d45b83f7ed1",
       "blender/lib/export.py": "5832244f9a618a46fd65b3f7b0f5c816c591ead0510aebe744e339423a8774a7",
@@ -53,7 +53,7 @@
   },
   "license": "= Disclaimer =\r\nThis 3D model is provided under the MIT license included at the end of this file. The 3D model may incorporate individual 3D models that have been provided by third parties with permission to redistribute. No additional license terms are imposed by this use of third party provided 3D models, where applicable.\r\n\r\nThe overall 3D model and any individual 3D models incorporated into the whole, whether created by first or a third party, are provided here for guidance only and without guarantee of accuracy. Additionally, provided 3D model data may not reflect the most current version(s). Any third party intending to use the provided 3D model for appearance and fitment purposes must refer to manufacturer information and conduct suitable measurements of the physical product.\r\n\r\n= MIT License =\r\nCopyright (c) 2026 Raspberry Pi Ltd\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\r\n",
   "triangles": 195000,
-  "bytes": 4981548,
+  "bytes": 4981612,
   "textures": [
     {
       "name": "pi5-occlusion",

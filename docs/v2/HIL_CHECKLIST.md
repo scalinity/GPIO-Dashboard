@@ -17,9 +17,11 @@ says what to do, what to expect, and which part of the app it confirms. Record r
   T-board's box header the brown conductor (conductor 1) sits at. The model reads photo 5 as
   pin 1 at the column-h end of the row beside the key slot (ADR-0037); if the brown edge is at
   the column-d end instead, `tboard.py`, `idc.py` and their checks change together.
-- [ ] **How far the IDC socket sits in the box header.** Note whether the socket's body goes
-  down inside the shroud, and how much of it stays above the rim. The model rests it on the
-  rim (ADR-0038).
+- [ ] **How far the IDC socket sits in the box header.** Measure how far the socket's lower
+  body goes down inside the shroud, and whether its latch ears rest on the shroud's end walls.
+  The model seats the lower body 5.08 mm below the rim (the 3M 891 sheet's 0.200 in step) with
+  its ears on the end walls (ADR-L-1); if the real socket sits deeper or shallower, change
+  `SOCKET_SEAT` in `tboard.py` and `PLUG` in `idc.py` together.
 
 ## Pi agent and monitor
 

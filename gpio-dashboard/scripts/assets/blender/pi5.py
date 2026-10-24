@@ -47,6 +47,10 @@ SMOOTH_ANGLE = math.radians(30)
 METALS = {'9a9a9a': 0.35, '7f7f7f': 0.4, '6b7682': 0.35, 'dadada': 0.3, 'ffd43e': 0.25, 'deb87a': 0.3}
 SOLDER_MASK = '004311'
 PLASTIC_ROUGHNESS = 0.5
+# Where the STEP's colour is not the board's look (ADR-L-2): its CAD green is the dark end of the
+# mask, where the official photos' board is a bright green, and its yellow metal is the USB-A
+# shells, which are nickel. The material keeps the STEP colour's name; only its albedo differs.
+LOOK = {'004311': '0f7a3b', 'ffd43e': 'b8b8bc'}
 
 bpy.ops.import_scene.gltf(filepath=args.step_glb)
 bodies = [o for o in bpy.context.scene.objects if o.type == 'MESH']
@@ -160,9 +164,11 @@ for slot in board.material_slots:
     old = slot.material
     hexa = old.name.removeprefix('step-')
     old.name = f'imported-{hexa}'  # frees the name for the material that replaces it
-    rgb = materials.srgb(*(int(hexa[i:i + 2], 16) / 255 for i in (0, 2, 4)))
+    look = LOOK.get(hexa, hexa)
+    rgb = materials.srgb(*(int(look[i:i + 2], 16) / 255 for i in (0, 2, 4)))
     if hexa == SOLDER_MASK:
-        mat = materials.principled('solder-mask', rgb, Roughness=0.5, Coat_Weight=1.0, Coat_Roughness=0.08)
+        # Nearly matt with a faint coat: a glossier mask reflects the studio's bright HDRI as a pink veil.
+        mat = materials.principled('solder-mask', rgb, Roughness=0.9, Coat_Weight=0.15, Coat_Roughness=0.35)
     elif hexa in METALS:
         mat = materials.principled(f'step-{hexa}', rgb, Metallic=1.0, Roughness=METALS[hexa])
     else:
