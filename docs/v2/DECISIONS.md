@@ -180,3 +180,38 @@ decision and consequences. Numbering is stable; superseded records say so.
   - `app > security > headers` stays in tauri.conf.json, and a test checks that the
     loopback server sends the same values.
   - tokio gains the `net` and `io-util` features; no new crates.
+
+## ADR-0009 RP1 GPIO electrical values come from the official Raspberry Pi documentation
+
+- **Context.** SPEC 9 and 14.5 say no official source gives RP1's input thresholds or
+  pull resistances. They fall back to JESD8C.01's 0.8 V / 2.0 V band and a pull range
+  chosen by ADR. On 2026-10-23 the official documentation source does publish them:
+  - Repository `raspberrypi/documentation`, branch master, commit `1bf32ac`.
+  - File `documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc`.
+  - Section "RP1 products": "voltage specifications for the GPIO pins on RP1-based
+    products (Raspberry Pi 5, 500, and 500+)".
+  - Values: V_IL max 0.8 V; V_IH min 2.0 V, max 3.3 V; I_IL max 3 µA; V_OL max 0.4 V;
+    V_OH min 2.9 V.
+  - I_OL / I_OH (min/typ/max) at drive strength 2, 4, 8, 12 mA:
+    6.1/9.6/13.5, 9.2/14.3/20.2, 15.3/23.9/33.7, 18.4/28.7/40.5 mA (low);
+    4.5/6.3/8.4, 6.8/9.5/12.6, 11.4/15.8/21, 13.6/19/25.2 mA (high).
+  - R_PU 37/55/86 kΩ; R_PD 35/55/98 kΩ.
+  - The same file also says: GPIO2/GPIO3 have fixed 1.8 kΩ pull-ups to 3.3 V; "An
+    individual GPIO pin can supply up to 16 mA … all GPIO pins combined … a maximum total
+    current of 50 mA"; pins "aren't 5 V tolerant".
+  - Verified by reading the AsciiDoc source directly. The rendered page sits behind a bot
+    challenge.
+- **Decision.**
+  - The probe-signature threshold band uses the official V_IL / V_IH. They equal
+    JESD8C.01's values, which stays cited as the generic standard behind them.
+  - Pull resistances are carried as the official ranges: pull-up 37–86 kΩ, pull-down
+    35–98 kΩ, typical 55 kΩ. Every prediction is computed across the range (SPEC 9).
+  - The calibration fixture (SPEC 18, bench fixture 2) still narrows the effective ratio on
+    the actual Pi.
+  - GPIO output resistance in the simulator comes from V_OH/V_OL and I_OH/I_OL at the
+    configured drive strength.
+  - Per-pin and total current limits for ERC use the 16 mA / 50 mA statement.
+- **Consequences.** These numbers live in `core/constants` with this source. The spec's
+  "no official source" premise no longer holds for Raspberry Pi 5, and the code follows
+  the official document. The leakage (≤ 3 µA) bounds how long an isolated net holds its
+  precharge in the pair test (SPEC 14.5).
