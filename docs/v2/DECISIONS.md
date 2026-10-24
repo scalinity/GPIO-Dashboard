@@ -839,3 +839,73 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** Another lane's parts register the same way, in their own families and
   entries. Each build merges into `index.json`, so lanes' entries combine; a clash is two
   entries for one file, resolved by rebuilding.
+
+## ADR-B3-1 Studio gestures propose ops; circuitStore.check() judges them
+
+- **Context.** SPEC 11.3 asks for drag-placing with a green/red glow per footprint hole, a wire
+  tool that offers only legal targets, and live moves of boards, the Pi, the T-board, modules,
+  parts and lead ends. SPEC 4.5 allows only `circuitStore.dispatch` to change a document, and
+  SPEC 8 has ghost previews produce provisional connectivity events.
+- **Decision.**
+  - Each gesture (`studio/gestures.ts`) turns the pointer's hole, module pin or table point into
+    a proposal: the ops it would dispatch, the holes and module pins it puts leads in, and what to
+    select afterwards. `studio/placement.ts` builds the ops (ids by designator prefix, default
+    props, seating by an anchor hole, quarter turns, removals, the inventory's default lead).
+  - The view runs `circuitStore.check()` once per changed proposal. A hole glows red when a
+    problem names it, every hole glows red when a problem concerns the edit as a whole, and all
+    glow green when it passes. A legal proposal becomes the preview: the studio store's
+    `preview` document, which the leads, footprints, labels and models draw instead of the
+    committed one, and `engine.preview()` for provisional events. Release commits it through
+    `edit()`, one transaction; Esc or an illegal release drops it.
+  - Leads are tubes along a design curve (`designCurve`, then `leadGeometry(points)`), so
+    simulated points can replace the curve. Placed parts show as footprint markers and a
+    selection box from `bodyMm` grown to take in the pins; the same box picks them. Labels are
+    DOM tags re-projected on every drawn frame.
+- **Consequences.** Every legality decision stays in core/ops/validate; the Studio adds none of
+  its own except that a library footprint must land wholly on a board, and that a lead's first
+  end must be a free hole (nothing in it, not under the T-board). Nothing renders while still:
+  a proposal is recomputed only when its ops change, and every change requests frames.
+
+## ADR-B3-2 The Workbench follows the app's document; code joins it on leaving the editor
+
+- **Context.** ADR-0027 left `workbenchStore.doc` set only by `open()`, so Studio edits never
+  reached the sim or ERC, and the Code panel's program lived outside the document.
+- **Decision.** `workbenchStore.follow()` runs on every CircuitStore change (and when the Studio
+  mounts): it takes the new document, reloads it into the sim worker, and replays the GPIO states
+  and part inputs already set, for parts that still exist. Loads run one after another, and a
+  load whose document has been replaced meanwhile is skipped. `open()` validates as before and
+  hands a valid document to the CircuitStore, which `follow()` then picks up. Leaving the code
+  editor commits the program with one `SetCode` transaction; Save does the same first. The
+  editor reloads (a `codeRevision` key) only when the document's code changed and differs from
+  what is being edited, as after an undo.
+- **Consequences.** ERC, the sim, Build Steps and Board Sense's expectations follow every commit,
+  undo and redo. Running Python keeps the document it started with until it is run again.
+
+## ADR-B3-3 Placing and moving by hand
+
+- **Context.** SPEC 11.3: flexible two-lead parts are placed by anchor plus span; boards, the
+  Pi, the T-board and modules move by dragging; lead ends are draggable. The orbit controls also
+  take a left drag on the canvas.
+- **Decision.**
+  - A library drag seats pin 1 in the hole under the pointer and the other pins at the
+    definition's offsets, turned by R in quarter steps; a flexible part starts at its native
+    pitch. Once placed (and selected), dragging either of its legs to another hole sets the span.
+  - Pressing on a lead end, a selected flexible part's leg, a part, a module, the T-board or the
+    Pi drags it; a press on a board drags it only when the board is already selected, so a drag
+    over a board orbits otherwise. A press that moves at most 4 px is a click and selects.
+  - The T-board moves by whole rows, and by column pairs as the pointer crosses columns.
+- **Consequences.** Moving a board carries everything plugged into it for free, since parts and
+  leads name holes on it. Moves that the rules refuse glow red and are not committed.
+
+## ADR-B3-4 Projects in the app data folder; tutorials stay templates
+
+- **Context.** SPEC 11.9: `.gpiob` files in the app data folder with a gallery, Save As and Open
+  through Rust's native dialogs, tutorials as read-only templates, forking in M10.
+- **Decision.** Save writes the open document with `projects_write` under its file id, which
+  is made from the name and the time on the first save and kept afterwards. Save As exports a
+  copy through `projects_export` and leaves the open project as it was. Open… reads through
+  `projects_import`; the gallery lists `projects_list` and opens with `projects_read`. A
+  document that carries `meta.sourceTutorialId` and has no project file id is a template: the
+  Studio refuses its edits and Save, with a notice.
+- **Consequences.** Opening a tutorial and building on it waits for "Fork to my projects". The
+  e2e tests stand in for the native commands with an in-memory `window.api.projects`.
