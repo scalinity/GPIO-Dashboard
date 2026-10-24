@@ -2854,3 +2854,136 @@ decision and consequences. Numbering is stable; superseded records say so.
   - The recorded runs have no eager streaming and no strict tools. They measure the model with the
     plain tools, not the ghosts: whether a preview appears before a tool's input completes is a
     property of the app's window, which a headless run cannot see.
+
+## ADR-X9-1 Eleven tools are strict, twelve stream eagerly, and a refused first request drops one flag at a time
+
+Supersedes the strictness decision of ADR-0084 ("every tool that takes parameters is strict") and
+the fallback of ADR-0085 (one retry that drops both flags). The rest of both stands: the Zod
+schemas, the shapes that strict forces, `eager_input_streaming` on the 12 mutation tools, and
+retrying on the first request only. ADR-0104's last consequence (the recorded runs have no eager
+streaming and no strict tools) no longer holds.
+
+- **Context.**
+  - ADR-0084 sent `strict: true` on all 20 tools that take parameters, inside the documented limits
+    (20 strict tools, 24 optional parameters, 16 union-typed parameters). The API has a further
+    limit that is not documented and can not be checked offline. The first live run (docs/v2/EVALS.md,
+    problem 1) was refused, with and without eager streaming, with:
+    ```
+    400 invalid_request_error: The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.
+    ```
+    Plain tools were accepted. Every session therefore ran on plain tools with no eager streaming,
+    and the early ghosts of acceptance 5 (SPEC 12.4, 12.6) were lost. The notice the loop showed
+    for its first step blamed eager streaming, which was not the cause.
+  - Measured live: `eager_input_streaming` on 12 plain tools is accepted; each of the 20 strict
+    tools compiles alone; the limit is the size of the compiled grammar, not a count. Growing the
+    strict set from the mutation tools, 11 fit in the whole 22-tool request with eager on the 12
+    mutation tools, and no other tool fit beside them.
+- **Decision.**
+  - `STRICT_TOOLS` in `tools/index.ts` is the set sent with `strict: true`: `get_circuit_state`,
+    `add_board`, `place_tboard`, `place_part`, `move_part`, `remove_part`, `set_part_props`,
+    `connect`, `set_wire_props`, `remove_wire`, `write_code`. They are the tools that change the
+    document through the most structured input (a hole, a net, a property list), plus the one read
+    that every turn starts with. The other nine are checked by their Zod schemas when they run, as
+    all 22 are. A contract test pins the set; the live checks `strict-set`, `strict-all` and
+    `strict-room` measure it again.
+  - `eager_input_streaming` stays on all 12 mutation tools, strict or not.
+  - On the first request of a conversation (no assistant message yet, so no thinking block is
+    bound to the tools), a 400 whose message names strict, eager, a grammar, a schema or
+    complexity is answered by dropping one flag and sending the request again: strict first,
+    eager first when the message names it. The chain is strict and eager, then eager alone, then
+    plain tools. Each step tells the user with a notice (`strict-refused`, `eager-refused`) that
+    quotes the API's own message, so it names the cause the API gave. After the last step the
+    error ends the turn.
+- **Consequences.**
+  - Nine tools lose the grammar guarantee: `search_parts`, `define_custom_part`, `simulate`,
+    `run_code_in_sim`, `capture_view`, `focus`, `highlight`, `annotate_build_steps`, `ask_user`.
+    Their input is validated here, and a wrong input comes back as `INVALID_INPUT`, which the model
+    reads and corrects.
+  - Adding a tool to the set is a live question: add it to `STRICT_TOOLS`, run
+    `npm run evals:live -- --checks-only`, and keep it only if `strict-set` still answers yes.
+  - If the API's budget changes, the first request falls back by itself and says why.
+
+## ADR-X9-2 A web tool the API refuses is dropped from the first request
+
+Amends ADR-0086, whose web tools had no answer to an organization that does not have them.
+
+- **Context.**
+  - Web search is refused for this organization at times, with
+    `400 invalid_request_error: Web search is not enabled for this organization`, and accepted at
+    others with the same key and tools (docs/v2/EVALS.md, problem 2). The loop retried only
+    strict, eager and schema errors, so the refusal ended the turn, and the user could do nothing
+    with it. Web fetch was accepted every time.
+- **Decision.**
+  - On the first request of a conversation, a 400 that says `web search` or `web fetch` "is not
+    enabled" removes that tool from the conversation's tools, sends the request again, and tells the
+    user with a `web-tools-refused` notice that quotes the API and names the setting that turns the
+    web tools off. The other web tool stays: fetch alone still reads a datasheet URL the user gives.
+    It can happen once for each tool.
+  - A refusal later in a conversation is not retried: the tools are bound to the thinking blocks
+    already in the history (ADR-0087), so the turn ends with the API's message.
+- **Consequences.**
+  - The conversation's tools are fixed again after the first request, so the cache and the thinking
+    blocks hold from there.
+  - The evals meet the refusal through the loop and record the notice. The harness takes web search
+    out in transit only for `--no-search` or after `--wait-for-search` finds it refused throughout,
+    and resends a refused request unchanged only under `--search` or `--wait-for-search`.
+
+## ADR-X9-3 A simulator input is a declared property, and a part with no model adds no devices
+
+Follows ADR-0093, which says that anything that seeds a simulator input through a property must
+declare it.
+
+- **Context.**
+  - `simulate` takes inputs by property name, and accepts only the properties a part declares.
+    `tact-switch-6mm` declared `mode` and not `pressed`, which the simulator reads, so no press could
+    be simulated (`{"NO_SUCH_INPUT":"SW1 has no input pressed"}`). `tilt-switch` already declared
+    `tilted`. A part with `simModel: "none"` made `Circuit` throw, so the whole project failed with
+    `SIM_ERROR`.
+- **Decision.**
+  - The fix is in the part definition, the layer ADR-0093 names, and not in a mapping inside the
+    tool: `tact-switch-6mm` declares `pressed` (boolean, default false). The Properties panel
+    already treats `pressed` as an input property.
+  - `simulate` checks an input's name and value with `propProblem`, the check `validateDoc` and
+    `set_part_props` use, so `BAD_PROP` keeps its meaning. A wrong name lists the part's properties
+    (`NO_SUCH_INPUT`); a wrong value type is `BAD_INPUT`.
+  - A test records every environment key the simulator reads from each library part and requires it
+    to be declared. The keypad's `pressedKeys` is text, which a property can not be yet, so it is
+    the one listed exception.
+  - `Circuit.addPart` treats `none` as a part whose pins are nets and which stamps nothing.
+- **Consequences.**
+  - A tact switch now has a `pressed` property in the document's defaults, shown with the other
+    input properties.
+  - The assistant can not press a keypad key in `simulate`; that needs a text property type.
+
+## ADR-X9-4 `signal.pause` waits in virtual time, and the gpiozero shim covers what the code reader knows
+
+- **Context.**
+  - `signal.pause()` returns at once under Pyodide, so a program that sets gpiozero callbacks and
+    pauses ended at t = 0 in `run_code_in_sim`. The shim defined five classes while
+    `core/code/pins.ts` reads sixteen, so `from gpiozero import DistanceSensor` raised ImportError and
+    the assistant fell back to RPi.GPIO (docs/v2/EVALS.md, problems 4 and 6).
+- **Decision.**
+  - `_prelude.py` replaces `signal.pause` with a loop of 10 ms virtual sleeps. It ends when the run
+    does: Stop, Ctrl+C and the end of the run's time all arrive as `KeyboardInterrupt`. 10 ms is how
+    late after an input changes a callback runs.
+  - The prelude also keeps a list of pollers, which a sleep runs each period of virtual time. A
+    device whose events gpiozero takes from a thread (a distance sensor's range events) adds one
+    when a callback is set. Devices with edge events use the simulator's edge detection, as `Button`
+    did. With no poller a sleep is exactly one `_sim.sleep`, so every existing program keeps its times.
+  - The shim gains `OutputDevice`, `DigitalOutputDevice`, `PWMOutputDevice`, `RGBLED`, `Servo`,
+    `AngularServo`, `InputDevice`, `DigitalInputDevice`, `MotionSensor`, `LineSensor` and
+    `DistanceSensor`. They drive and read the pins the part models answer on: `DistanceSensor` pulses
+    TRIG for 10 us and times ECHO call by call (5 us of virtual time each) against the HC-SR04
+    model, `Servo` and `AngularServo` send the pulse width as PWM for the SG90 model, and
+    `MotionSensor` reads the HC-SR501's OUT. A callback may take the device or nothing, as in gpiozero.
+    Not modelled: fades (`PWMLED.pulse`, `RGBLED.blink`), `Button.when_held`, and the sensors'
+    smoothing queues.
+  - `codePins` reads `RGBLED`'s three pins and `DistanceSensor`'s two by position as well as by
+    keyword, and exports the class list so a test can require the shim to have each one.
+- **Consequences.**
+  - The eval harness no longer swaps `signal.pause` in for the scores: the model sees what the scores
+    judge.
+  - Nothing changes a part's input during a `run_code_in_sim`, so a callback that waits for an
+    edge on a pin does not run there: the run shows that the program sets up and waits for the
+    time it was given. Input changes during a run are not a parameter of the tool.
+  - SPEC 13.2 lists the old five classes and wants the line updated.
