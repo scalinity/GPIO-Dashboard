@@ -1,8 +1,9 @@
-// Hardware in the loop (SPEC 18): the flows an automated run may do on the bench, because none of
-// them drives or probes a pin: telemetry reaching the twin (the tunnel, D18), the I2C scan, and the
-// run and stop of a script that only prints (D17). Each runs against the mock Pi always, and against
-// the real Pi when PI_HOST is set (PI_USER and PI_KEY are optional; see e2e/pi.ts). Everything that
-// drives a pin, presses a button or senses the board is on docs/v2/HIL_CHECKLIST.md instead.
+// Hardware in the loop (SPEC 18): telemetry reaching the twin (the tunnel, D18), the I2C scan, and the
+// run and stop of a script that only prints (D17). Each runs against the mock Pi always. Against the
+// real Pi (PI_HOST set; PI_USER and PI_KEY optional, see e2e/pi.ts) an automated run may only do what
+// neither drives nor probes a pin, so it reads telemetry and runs the print-only script; the I2C scan
+// clocks probes out on SDA and SCL, so on the real Pi it is a hand check on docs/v2/HIL_CHECKLIST.md,
+// with everything else that drives a pin, presses a button or senses the board.
 import { expect, type Page, test } from '@playwright/test'
 import { openTutorial, report } from './helpers'
 import { type MockPi, mockPi, type PiLink, realPi } from './pi'
@@ -98,6 +99,9 @@ const FLOWS: Record<string, Flow> = {
   }
 }
 
+/** Drives the I2C bus, so it runs against the mock Pi only. */
+const I2C_FLOW = Object.keys(FLOWS).find((name) => name.startsWith('the I2C checkpoint'))!
+
 test.describe('against the mock Pi', () => {
   for (const [name, flow] of Object.entries(FLOWS))
     test(name, async ({ page }) => {
@@ -109,7 +113,7 @@ test.describe('against the mock Pi', () => {
 test.describe('against the real Pi', () => {
   test.skip(!PI_HOST, SKIPPED)
   test.setTimeout(120_000)
-  for (const [name, flow] of Object.entries(FLOWS))
+  for (const [name, flow] of Object.entries(FLOWS).filter(([, f]) => f !== FLOWS[I2C_FLOW]))
     test(name, async ({ page }) => {
       const pi = await realPi(page, PI_HOST!)
       try {

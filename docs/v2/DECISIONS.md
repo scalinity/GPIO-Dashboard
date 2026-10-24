@@ -3226,7 +3226,7 @@ declare it.
     seen steps (W30 to W33) are checked only when `FULL_PROBE=1`; two of its boards that stalled
     (steps 45 and 48) are solved on every run by `buildSteps.test.ts`.
 
-## ADR-T11-1 Live Pi state is the telemetry store, seen through the connection
+## ADR-0120 Live Pi state is the telemetry store, seen through the connection
 
 - **Context.** SPEC 11.2 and 14.4 want the Pi's pins on the bench. Telemetry already reaches the app:
   the agent sends `gpio_state` about ten times a second, `ws.rs` drops a frame identical to the last,
@@ -3248,7 +3248,7 @@ declare it.
   whatever the 10 Hz sampling catches: a duty cycle is not visible, and an LED on a PWM pin flickers
   between its lit and dark states.
 
-## ADR-T11-2 The bench is painted from the pins, and lit by a simulation of its own
+## ADR-0121 The bench is painted from the pins, and lit by a simulation of its own
 
 - **Context.** SPEC 11.5 asks for "Live Pi state" as an Inspect toggle that tints the header pins and the
   T-board strips from telemetry, and lights LEDs and other outputs from the real pin levels in place of
@@ -3276,7 +3276,7 @@ declare it.
   levels. The Pi's header pins sit under the ribbon's IDC socket in the iso view; the strips are the
   readable part.
 
-## ADR-T11-3 Telemetry divergences: four kinds, held for 600 ms
+## ADR-0122 Telemetry divergences: four kinds, held for 600 ms
 
 - **Context.** SPEC 14.4 compares live pins with what the document and its code expect: an output
   driven where the netlist says input, or a level the simulation says cannot happen.
@@ -3294,9 +3294,9 @@ declare it.
     net has no switch, sensor or part output on it that could change it.
 - **Not done.** A switch's orientation ("GPIO18 expected HIGH while SW1 is released but reads LOW") is
   not a continuous check: the app cannot know whether the button is held. It is the press checkpoint
-  (ADR-T11-6), which asks for rest first and then the press.
+  (ADR-0125), which asks for rest first and then the press.
 
-## ADR-T11-4 Badges are buttons outside the orbit element, and open a card
+## ADR-0123 Badges are buttons outside the orbit element, and open a card
 
 - **Context.** SPEC 14.4 and 14.5 want divergences badged in 3D, each linking to its explanation, and
   everything clickable outside the orbit controls' element (their pointer capture takes clicks).
@@ -3314,7 +3314,7 @@ declare it.
 - **Consequences.** An e2e test asserts the stage element holds no button and the badge sits inside
   the canvas rectangle.
 
-## ADR-T11-5 A checkpoint hangs on the first step that completes what it checks
+## ADR-0124 A checkpoint hangs on the first step that completes what it checks
 
 - **Context.** SPEC 11.7 lets a step define a hardware checkpoint, and ADR-0115 left the slot empty,
   to be filled from the tutorial's `checkpoints[].afterStep`. Those lists are written by hand, and
@@ -3347,7 +3347,7 @@ declare it.
 - **Consequences.** `Checkpoint` is still the tutorial schema's type, so a hand-written list can be
   checked against `deriveCheckpoints`.
 
-## ADR-T11-6 How a checkpoint runs: one click, and what it touches
+## ADR-0125 How a checkpoint runs: one click, and what it touches
 
 - **Context.** SPEC 1 (principle 5) and 18: only the user's click runs code on the Pi or touches a
   pin, and never the assistant.
@@ -3379,7 +3379,7 @@ declare it.
 - **Consequences.** A toggle drives a pin as an output, so what is wired to it on the bench matters:
   the card says so before the click, and the ERC gate stands in for what the document knows.
 
-## ADR-T11-7 One set of hardware-in-the-loop flows, on a mock Pi or a real one
+## ADR-0126 One set of hardware-in-the-loop flows, on a mock Pi or a real one
 
 - **Context.** SPEC 18 and 19 (M11): the automated HIL flows pass when the Pi is reachable, otherwise
   against mocks, and are limited to flows that neither drive nor probe a pin.
@@ -3391,8 +3391,10 @@ declare it.
   it refuses a script that mentions a GPIO library, a path outside `/tmp/gpio_dashboard`, an invalid
   bus, and a cleanup that would set a pin. `e2e/pi.spec.ts` proves that against a stand-in `ssh` that
   logs every command, and `e2e/hil.spec.ts` runs the three flows (telemetry through the tunnel, the
-  I2C scan from the checkpoint, a print-only run and stop) on the mock always and on the real Pi when
-  `PI_HOST` is set, with a skip note when it is not. Press, toggle and Board Sense need the user's
+  I2C scan from the checkpoint, a print-only run and stop) on the mock always. On the real Pi, when
+  `PI_HOST` is set, it runs only the two that neither drive nor probe a pin: the I2C scan clocks
+  address probes out on SDA and SCL, so on the real Pi it stays a hand check; a skip note shows when
+  `PI_HOST` is not set. Press, toggle and Board Sense need the user's
   hands or drive a pin: they are on `docs/v2/HIL_CHECKLIST.md`.
 - **Consequences.** The tunnel, the agent and the Rust commands are still proved by the Rust tests and
   the checklist; the browser flows prove the app's reading of what they return.

@@ -241,12 +241,13 @@ them with only the parts each one names on the bench. Record the results in `doc
 
 ### Automated flows on the real Pi (reads only; none drives or probes a pin)
 
-- [ ] **The three HIL flows pass against the Pi.** Prerequisites: your SSH key logs in as the Pi's
-  user without a prompt, the Pi is already in `~/.ssh/known_hosts`, and `i2c-tools` is installed.
+- [ ] **The two automated HIL flows pass against the Pi.** Prerequisites: your SSH key logs in as
+  the Pi's user without a prompt, and the Pi is already in `~/.ssh/known_hosts`.
   From `gpio-dashboard/`, run
   `PI_HOST=<host> PI_USER=<user> PI_KEY=<private key file> E2E_PORT=<free port> npx playwright test e2e/hil.spec.ts`.
-  Expect the three "against the real Pi" tests to pass, and "HIL: ran the flows against <host>".
-  They read `pinctrl get`, run `i2cdetect -y 1`, and upload, run and stop a script that only prints.
+  Expect the two "against the real Pi" tests to pass, and "HIL: ran the flows against <host>".
+  They read `pinctrl get`, and upload, run and stop a script that only prints. The I2C scan clocks
+  probes out on the bus, so it is not automated on the Pi: the checkpoint items below cover it.
   Record the pass count and the Pi's OS release. They do not use the Pi agent or the Rust tunnel;
   the next item covers those.
 
@@ -290,7 +291,7 @@ state. If the window cannot be seen (the screen is locked), say so in the result
   dev overlay's "frames rendered while idle" stays at 0 once the scene settles. Record the overlay.
 - [ ] **Header pin visibility.** Look at the Pi's header from the Top and Iso presets. The IDC socket
   covers the header pins in Iso, so note whether any tinted header pin is visible in any view
-  (ADR-T11-2); the T-board strips are the paint you can rely on.
+  (ADR-0121); the T-board strips are the paint you can rely on.
 
 ### Build Mode checkpoints on the bench
 
