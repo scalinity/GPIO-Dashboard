@@ -6,10 +6,12 @@ import type { Body, Spec } from './body'
 import { buildJumper, buildLead, buildRibbon } from './builders'
 import { solveChain, solveCurvature, solveGoals, solveLongRange, straighten } from './constraints'
 import {
-  contactParticleCollider,
-  contactPointTriangle,
-  contactSegmentCollider,
-  contactSegmentSegment
+  gapParticleCollider,
+  gapPointTriangle,
+  gapSegmentCollider,
+  solveRibbonPairs,
+  solveRodPairs,
+  solveSurfaces
 } from './contacts'
 import type { Collider, Pool } from './contacts'
 import { SpatialHash } from './hash'
@@ -33,6 +35,8 @@ import type {
 export const FRAME_DT = 1 / 60
 export const GRAVITY = 9810
 export const DEFAULT_SUBSTEPS = 12
+/** How far a particle at rest falls in one frame, mm. */
+const FALL = 0.5 * GRAVITY * FRAME_DT * FRAME_DT
 
 /** Broad-phase padding beyond the contact reach, mm. */
 const SKIN = 0.75
@@ -40,7 +44,7 @@ const HASH_CELL = 8
 /** Linear velocity damping, 1/s: cable internal friction and air drag. */
 const DAMPING = 2
 /** A body that has slowed below SLOW_SPEED (mm/s), or is being settled, is damped harder. */
-const SLOW_DAMPING = 14
+const SLOW_DAMPING = 60
 const SLOW_SPEED = 40
 const MAX_SPEED = 3000
 /** Longest a particle's broad-phase box is stretched along its motion in one frame, mm. */
@@ -54,6 +58,8 @@ const MAX_HINTS = 3
 /** Where along a rod segment it is tested against ribbon triangles (spacing 1.5 mm at 3 mm). */
 const SAMPLES = [0.25, 0.75]
 const DEFAULT_MAX_PARTICLES = 8192
+/** Allowance on the motion bound that skips distant contact pairs, mm. */
+const BOUND_MARGIN = 0.1
 
 /** The phases `WorldOptions.profile` times, in the order a frame runs them. */
 export const PHASES = [
@@ -77,20 +83,30 @@ const PREPARE = 0,
   VELOCITY = 7,
   FINISH = 8
 
-/** A growable table of fixed-width integer records. */
-class Records {
+/** A growable table of fixed-width records: `si` integers and `sf` floats each. */
+class Table {
   d = new Int32Array(1024)
+  f = new Float64Array(1024)
   n = 0
-  constructor(readonly stride: number) {}
+  constructor(
+    readonly si: number,
+    readonly sf: number
+  ) {}
+  /** Reserves the next record and returns its number. */
   next(): number {
-    const o = this.n * this.stride
-    if (o + this.stride > this.d.length) {
-      const bigger = new Int32Array(this.d.length * 2)
-      bigger.set(this.d)
-      this.d = bigger
+    const s = this.n
+    if ((s + 1) * this.si > this.d.length) {
+      const d = new Int32Array(this.d.length * 2)
+      d.set(this.d)
+      this.d = d
+    }
+    if ((s + 1) * this.sf > this.f.length) {
+      const f = new Float64Array(this.f.length * 2)
+      f.set(this.f)
+      this.f = f
     }
     this.n++
-    return o
+    return s
   }
 }
 
@@ -158,10 +174,15 @@ export class CableWorld {
   private box = new Float64Array(0)
   private readonly hash = new SpatialHash(HASH_CELL)
   // This frame's candidate contacts.
-  private readonly cand = new Records(4) // seg i, j (or particle i, -1), collider, body
-  private readonly segSeg = new Records(6) // i, j, k, l, body, body
-  private readonly segTri = new Records(7) // i, j, a, b, c, body, body
-  private readonly links = new Records(2) // body slot pairs that touch
+  // Ints and floats of each record: [seg i, j (or particle i, -1), collider, slot] + [slack, radius];
+  // [i, j, k, l, slot, slot] + [slack, reach]; [i, j, a, b, c, slot, slot] + [slack, reach]; and
+  // the pairs of body slots that touch.
+  private readonly cand = new Table(4, 2)
+  private readonly rod = new Table(6, 2)
+  private readonly rib = new Table(7, 2)
+  private readonly links = new Table(2, 0)
+  /** Per awake body: how far its primitives may have moved toward a neighbour's by now, mm. */
+  private bound = new Float64Array(64)
 
   constructor(options: WorldOptions = {}) {
     this.substeps = Math.max(1, Math.round(options.substeps ?? DEFAULT_SUBSTEPS))
@@ -311,8 +332,15 @@ export class CableWorld {
     for (let k = 0; k < dRest.length; k++) {
       dRest[k] = Math.sqrt(c.dLat2[k]! + c.dAlong[k]! * c.dAlong[k]!)
     }
+    const invH2 = (this.substeps / FRAME_DT) ** 2
+    const cInv = new Float64Array(c.cA.length)
+    for (let k = 0; k < cInv.length; k++) {
+      const wsum = this.w[c.cA[k]!]! + 4 * this.w[c.cB[k]!]! + this.w[c.cC[k]!]!
+      cInv[k] = wsum > 0 ? -1 / (wsum + c.cAlpha[k]! * invH2) : 0
+    }
     const body: Body = {
       ...c,
+      cInv,
       dRest,
       gTarget: new Float64Array(3 * c.gI.length),
       id: this.nextId++,
@@ -353,7 +381,7 @@ export class CableWorld {
       scale: 1,
       index: this.bodies.length,
       slot: 0,
-      pad: spec.radius + SKIN,
+      pad: spec.radius + SKIN / 2,
       speed: Infinity,
       move: 0,
       damp: 1,
@@ -452,8 +480,8 @@ export class CableWorld {
   /** Wakes the body and every body that sleeps with it. */
   private wake(b: Body) {
     b.quiet = 0
-    b.speed = Infinity
     if (!b.asleep) return
+    b.speed = Infinity
     const group = b.group
     for (const o of this.bodies) {
       if (o.asleep && o.group === group) {
@@ -563,7 +591,7 @@ export class CableWorld {
     this.bodies.forEach((b, bi) => {
       for (let k = 0; k < b.segI.length; k++) this.primBody[b.segStart + k] = bi
       for (let k = 0; k < b.triA.length; k++) this.primBody[s + b.triStart + k] = bi
-      this.fillBoxes(b, b.radius + SKIN, false)
+      this.fillBoxes(b, b.radius + SKIN / 2, false)
     })
     this.primDirty = false
   }
@@ -613,14 +641,13 @@ export class CableWorld {
 
   private prepare(awake: Body[]) {
     const { x, xe, v, w } = this
-    const g2 = 0.5 * GRAVITY * FRAME_DT * FRAME_DT
     for (const b of awake) {
       this.refreshEndFrames(b)
       let travel = 0
       const end = b.first + b.n
       // A body that has all but stopped is held up by what it rests on, so it is not expected to
       // fall; a body that has just been woken or is moving is.
-      const fall = b.speed < SLOW_SPEED ? 0 : g2
+      const fall = b.speed < SLOW_SPEED ? 0 : FALL
       for (let i = b.first; i < end; i++) {
         const i3 = 3 * i
         if (w[i]! > 0) {
@@ -658,11 +685,13 @@ export class CableWorld {
         move = Math.max(move, Math.min(d, MAX_SWEEP))
       }
       b.move = move
-      b.pad = b.radius + SKIN + Math.min(travel, MAX_SWEEP)
+      b.pad = b.radius + SKIN / 2 + Math.min(travel, MAX_SWEEP)
       this.fillBoxes(b, b.pad, true)
     }
     this.hash.build(this.box, this.box.length / 6)
     this.wakeTouching(awake)
+    awake.sort((a, b) => a.index - b.index)
+    if (this.bound.length < awake.length) this.bound = new Float64Array(2 * awake.length)
     awake.forEach((b, s) => {
       b.slot = s
       this.xf.set(x.subarray(3 * b.first, 3 * (b.first + b.n)), 3 * b.first)
@@ -696,7 +725,8 @@ export class CableWorld {
           box[o + 2]!,
           box[o + 3]!,
           box[o + 4]!,
-          box[o + 5]!
+          box[o + 5]!,
+          -1
         )
         for (let q = 0; q < cnt; q++) {
           const id = hash.result[q]!
@@ -707,6 +737,7 @@ export class CableWorld {
               m.asleep = false
               m.quiet = 0
               m.speed = Infinity
+              m.move = FALL
               this.xe.set(this.x.subarray(3 * m.first, 3 * (m.first + m.n)), 3 * m.first)
               awake.push(m)
             }
@@ -717,11 +748,12 @@ export class CableWorld {
   }
 
   private collectColliderContacts(awake: Body[]) {
-    const { cand, x, xe, w, box } = this
+    const { cand, x, xe, w, box, colliders } = this
     cand.n = 0
-    if (this.colliders.length === 0) return
+    if (colliders.length === 0) return
     for (const b of awake) {
-      this.colliders.forEach((c, ci) => {
+      for (let ci = 0; ci < colliders.length; ci++) {
+        const c = colliders[ci]!
         if (
           b.lo[0]! > c.hi[0]! ||
           b.hi[0]! < c.lo[0]! ||
@@ -730,7 +762,7 @@ export class CableWorld {
           b.lo[2]! > c.hi[2]! ||
           b.hi[2]! < c.lo[2]!
         ) {
-          return
+          continue
         }
         const cb = tmpBounds
         cb.set(c.lo)
@@ -738,11 +770,14 @@ export class CableWorld {
         if (b.segI.length > 0) {
           for (let k = 0; k < b.segI.length; k++) {
             if (!overlap(box, 6 * (b.segStart + k), cb, 0)) continue
-            const o = cand.next()
+            const s = cand.next()
+            const o = s * 4
             cand.d[o] = b.segI[k]!
             cand.d[o + 1] = b.segJ[k]!
             cand.d[o + 2] = ci
-            cand.d[o + 3] = b.index
+            cand.d[o + 3] = b.slot
+            cand.f[2 * s] = gapSegmentCollider(x, c, b.segI[k]!, b.segJ[k]!, b.radius)
+            cand.f[2 * s + 1] = b.radius
           }
         } else {
           for (let i = b.first; i < b.first + b.gridCount; i++) {
@@ -754,21 +789,29 @@ export class CableWorld {
               hit = Math.min(p, q) - b.pad <= c.hi[a]! && Math.max(p, q) + b.pad >= c.lo[a]!
             }
             if (!hit) continue
-            const o = cand.next()
+            const s = cand.next()
+            const o = s * 4
             cand.d[o] = i
             cand.d[o + 1] = -1
             cand.d[o + 2] = ci
-            cand.d[o + 3] = b.index
+            cand.d[o + 3] = b.slot
+            cand.f[2 * s] = gapParticleCollider(x, c, i, b.radius)
+            cand.f[2 * s + 1] = b.radius
           }
         }
-      })
+      }
     }
   }
 
+  /**
+   * Finds every pair of primitives that can touch this frame, in an order that depends only on
+   * the primitives' numbers. Contacts are solved in list order, and an order that shifts from one
+   * frame to the next (as a hash's cell order does when boxes move) keeps a settled pile ringing.
+   */
   private collectPairs(awake: Body[]) {
-    const { hash, box, primBody, segCount, segSeg, segTri, links, x } = this
-    segSeg.n = 0
-    segTri.n = 0
+    const { hash, box, primBody, segCount, rod, rib, links, x, bodies } = this
+    rod.n = 0
+    rib.n = 0
     links.n = 0
     for (const b of awake) {
       for (let k = 0; k < b.segI.length; k++) {
@@ -780,7 +823,8 @@ export class CableWorld {
           box[o + 2]!,
           box[o + 3]!,
           box[o + 4]!,
-          box[o + 5]!
+          box[o + 5]!,
+          g
         )
         const si = 3 * b.segI[k]!,
           sj = 3 * b.segJ[k]!
@@ -788,12 +832,14 @@ export class CableWorld {
           my = 0.5 * (x[si + 1]! + x[sj + 1]!),
           mz = 0.5 * (x[si + 2]! + x[sj + 2]!)
         const half = 0.5 * len3(x[si]! - x[sj]!, x[si + 1]! - x[sj + 1]!, x[si + 2]! - x[sj + 2]!)
+        let nr = 0
+        let nt = 0
         for (let q = 0; q < cnt; q++) {
           const id = hash.result[q]!
-          if (id === g || !overlap(box, o, box, 6 * id)) continue
-          const other = this.bodies[primBody[id]!]!
+          // Each rod pair is found from its lower segment; ribbon triangles come after every rod.
+          if (!overlap(box, o, box, 6 * id)) continue
+          const other = bodies[primBody[id]!]!
           if (id < segCount) {
-            if (id < g) continue
             if (other === b && id - g < 3) continue
             const l = id - other.segStart
             // Keep only pairs that can come within reach during the frame (a sphere test).
@@ -803,11 +849,10 @@ export class CableWorld {
               dy = my - 0.5 * (x[oi + 1]! + x[oj + 1]!),
               dz = mz - 0.5 * (x[oi + 2]! + x[oj + 2]!)
             const oh = 0.5 * len3(x[oi]! - x[oj]!, x[oi + 1]! - x[oj + 1]!, x[oi + 2]! - x[oj + 2]!)
-            const lim = b.radius + other.radius + half + oh + b.move + other.move + SKIN
+            const reach = b.radius + other.radius
+            const lim = reach + half + oh + b.move + other.move + SKIN
             if (dx * dx + dy * dy + dz * dz > lim * lim) continue
-            const keep = b.radius + other.radius + b.move + other.move + SKIN
-            const ox = other.segI[l]!,
-              oy = other.segJ[l]!
+            const keep = reach + b.move + other.move + SKIN
             const near = closestSegSeg(
               x[si]!,
               x[si + 1]!,
@@ -815,22 +860,16 @@ export class CableWorld {
               x[sj]!,
               x[sj + 1]!,
               x[sj + 2]!,
-              x[3 * ox]!,
-              x[3 * ox + 1]!,
-              x[3 * ox + 2]!,
-              x[3 * oy]!,
-              x[3 * oy + 1]!,
-              x[3 * oy + 2]!,
+              x[oi]!,
+              x[oi + 1]!,
+              x[oi + 2]!,
+              x[oj]!,
+              x[oj + 1]!,
+              x[oj + 2]!,
               scratch
             )
             if (near > keep * keep) continue
-            const r = segSeg.next()
-            segSeg.d[r] = b.segI[k]!
-            segSeg.d[r + 1] = b.segJ[k]!
-            segSeg.d[r + 2] = other.segI[l]!
-            segSeg.d[r + 3] = other.segJ[l]!
-            segSeg.d[r + 4] = b.index
-            segSeg.d[r + 5] = other.index
+            nr = this.keepCandidate(this.keptRod, nr, id, Math.sqrt(near) - reach)
           } else {
             const l = id - segCount - other.triStart
             const ta = 3 * other.triA[l]!,
@@ -846,27 +885,123 @@ export class CableWorld {
             )
             const lim = b.radius + other.radius + half + rad + b.move + other.move + SKIN
             if ((mx - cx) ** 2 + (my - cy) ** 2 + (mz - cz) ** 2 > lim * lim) continue
-            const r = segTri.next()
-            segTri.d[r] = b.segI[k]!
-            segTri.d[r + 1] = b.segJ[k]!
-            segTri.d[r + 2] = other.triA[l]!
-            segTri.d[r + 3] = other.triB[l]!
-            segTri.d[r + 4] = other.triC[l]!
-            segTri.d[r + 5] = b.index
-            segTri.d[r + 6] = other.index
-          }
-          if (other !== b) {
-            const u = links.next()
-            links.d[u] = b.slot
-            links.d[u + 1] = other.slot
+            nt = this.keepCandidate(this.keptTri, nt, id, 0)
           }
         }
+        // Rods in ascending segment number, then triangles in ascending triangle number.
+        this.emitRods(b, k, nr)
+        this.emitTriangles(b, k, nt)
       }
     }
   }
 
+  // Candidates kept for one segment: the primitive's number and its slack (unsorted).
+  private keptRod = { id: new Int32Array(64), slack: new Float64Array(64) }
+  private keptTri = { id: new Int32Array(64), slack: new Float64Array(64) }
+
+  /** Appends (id, slack) to a kept list, in order of id (insertion sort: the list is short). */
+  private keepCandidate(
+    list: { id: Int32Array; slack: Float64Array },
+    n: number,
+    id: number,
+    slack: number
+  ): number {
+    if (n === list.id.length) {
+      const ids = new Int32Array(2 * n)
+      const slacks = new Float64Array(2 * n)
+      ids.set(list.id)
+      slacks.set(list.slack)
+      list.id = ids
+      list.slack = slacks
+    }
+    let j = n
+    while (j > 0 && list.id[j - 1]! > id) {
+      list.id[j] = list.id[j - 1]!
+      list.slack[j] = list.slack[j - 1]!
+      j--
+    }
+    list.id[j] = id
+    list.slack[j] = slack
+    return n + 1
+  }
+
+  private emitRods(b: Body, k: number, count: number) {
+    const { rod, links } = this
+    for (let q = 0; q < count; q++) {
+      const id = this.keptRod.id[q]!
+      const other = this.bodyOfSegment(id)
+      const l = id - other.segStart
+      const r = rod.next()
+      const o = r * 6
+      rod.d[o] = b.segI[k]!
+      rod.d[o + 1] = b.segJ[k]!
+      rod.d[o + 2] = other.segI[l]!
+      rod.d[o + 3] = other.segJ[l]!
+      rod.d[o + 4] = b.slot
+      rod.d[o + 5] = other.slot
+      rod.f[2 * r] = this.keptRod.slack[q]!
+      rod.f[2 * r + 1] = b.radius + other.radius
+      if (other !== b) {
+        const u = links.next()
+        links.d[2 * u] = b.slot
+        links.d[2 * u + 1] = other.slot
+      }
+    }
+  }
+
+  private emitTriangles(b: Body, k: number, count: number) {
+    const { rib, links, segCount, x } = this
+    for (let q = 0; q < count; q++) {
+      const id = this.keptTri.id[q]!
+      const other = this.bodyOfTriangle(id)
+      const l = id - segCount - other.triStart
+      const r = rib.next()
+      const o = r * 7
+      rib.d[o] = b.segI[k]!
+      rib.d[o + 1] = b.segJ[k]!
+      rib.d[o + 2] = other.triA[l]!
+      rib.d[o + 3] = other.triB[l]!
+      rib.d[o + 4] = other.triC[l]!
+      rib.d[o + 5] = b.slot
+      rib.d[o + 6] = other.slot
+      const reach = b.radius + other.radius
+      let slack = Infinity
+      for (const ts of SAMPLES) {
+        slack = Math.min(
+          slack,
+          Math.sqrt(
+            gapPointTriangle(
+              x,
+              b.segI[k]!,
+              b.segJ[k]!,
+              ts,
+              other.triA[l]!,
+              other.triB[l]!,
+              other.triC[l]!
+            )
+          ) - reach
+        )
+      }
+      rib.f[2 * r] = slack
+      rib.f[2 * r + 1] = reach
+      if (other !== b) {
+        const u = links.next()
+        links.d[2 * u] = b.slot
+        links.d[2 * u + 1] = other.slot
+      }
+    }
+  }
+
+  private bodyOfSegment(id: number): Body {
+    return this.bodies[this.primBody[id]!]!
+  }
+
+  private bodyOfTriangle(id: number): Body {
+    return this.bodies[this.primBody[id]!]!
+  }
+
   private substep(awake: Body[], moving: Collider[], t: number, h: number) {
-    const { x, xp, v, w, pool, bodies } = this
+    const { x, xp, v, w, pool, bound, colliders, cand, rod, rib } = this
     const invH2 = 1 / (h * h)
     for (const c of moving) {
       c.p0.set(c.p)
@@ -920,52 +1055,25 @@ export class CableWorld {
       this.relax(b)
     }
     this.lap(PREDICT)
-    const constrain = () => {
-      for (const b of awake) {
-        if (b.rig) gatherRows(x, b)
-        // Softest first, so the stiffest constraints have the last word in the substep.
-        if (b.hintCount > 0) solveGoals(x, w, b.hintI, b.hintTarget, b.hintCount, HINT_ALPHA, invH2)
-        solveCurvature(x, w, b, invH2)
-        if (b.gI.length > 0) solveGoals(x, w, b.gI, b.gTarget, b.gI.length, b.gAlpha, invH2)
-        solveChain(x, w, b)
-        solveLongRange(x, w, b)
-        if (b.scale > 1 + 1e-9) straighten(x, b)
-        if (b.rig) layRows(x, b)
-      }
+    for (const b of awake) {
+      if (b.rig) gatherRows(x, b)
+      // Softest first, so the stiffest constraints have the last word in the substep.
+      if (b.hintCount > 0) solveGoals(x, w, b.hintI, b.hintTarget, b.hintCount, HINT_ALPHA, invH2)
+      solveCurvature(x, w, b)
+      if (b.gI.length > 0) solveGoals(x, w, b.gI, b.gTarget, b.gI.length, b.gAlpha, invH2)
+      solveChain(x, w, b)
+      solveLongRange(x, w, b)
+      if (b.scale > 1 + 1e-9) straighten(x, b)
+      if (b.rig) layRows(x, b)
     }
-    const { cand, segSeg, segTri, colliders } = this
-    const surfaces = () => {
-      for (let s = 0; s < cand.n; s++) {
-        const o = s * cand.stride
-        const c = colliders[cand.d[o + 2]!]!
-        const r = bodies[cand.d[o + 3]!]!.radius
-        if (cand.d[o + 1]! >= 0) contactSegmentCollider(pool, c, cand.d[o]!, cand.d[o + 1]!, r)
-        else contactParticleCollider(pool, c, cand.d[o]!, r)
-      }
-    }
-    const cables = () => {
-      for (let s = 0; s < segSeg.n; s++) {
-        const o = s * segSeg.stride
-        const d = segSeg.d
-        const reach = bodies[d[o + 4]!]!.radius + bodies[d[o + 5]!]!.radius
-        contactSegmentSegment(pool, d[o]!, d[o + 1]!, d[o + 2]!, d[o + 3]!, reach)
-      }
-      for (let s = 0; s < segTri.n; s++) {
-        const o = s * segTri.stride
-        const d = segTri.d
-        const reach = bodies[d[o + 5]!]!.radius + bodies[d[o + 6]!]!.radius
-        for (const ts of SAMPLES) {
-          contactPointTriangle(pool, d[o]!, d[o + 1]!, ts, d[o + 2]!, d[o + 3]!, d[o + 4]!, reach)
-        }
-      }
-    }
-    constrain()
     this.lap(CHAINS)
+    this.measure(awake)
     // Cables first, then surfaces: what a pile rests on has the last word, so a stack settles
     // instead of creeping. The order is the same every substep; alternating it kept piles awake.
-    cables()
+    solveRodPairs(x, w, rod.d, rod.f, rod.n, bound)
+    solveRibbonPairs(pool, SAMPLES, rib.d, rib.f, rib.n, bound)
     this.lap(CABLES)
-    surfaces()
+    solveSurfaces(pool, colliders, cand.d, cand.f, cand.n, bound)
     this.lap(SURFACES)
     const inv = 1 / h
     const maxStep = MAX_SPEED * h
@@ -973,13 +1081,12 @@ export class CableWorld {
       const end = b.first + b.n
       const damp = b.damp
       for (let i = b.first; i < end; i++) {
-        if (w[i]! === 0) continue
-        const i3 = 3 * i
+        const i3 = i * 3
         let dx = x[i3]! - xp[i3]!,
           dy = x[i3 + 1]! - xp[i3 + 1]!,
           dz = x[i3 + 2]! - xp[i3 + 2]!
         const d2 = dx * dx + dy * dy + dz * dz
-        if (d2 > maxStep * maxStep) {
+        if (w[i]! !== 0 && d2 > maxStep * maxStep) {
           // No particle may travel farther than MAX_SPEED allows in a substep: a safeguard against
           // an overlap or conflicting constraints throwing one across the scene.
           const f = maxStep / Math.sqrt(d2)
@@ -990,12 +1097,35 @@ export class CableWorld {
           x[i3 + 1] = xp[i3 + 1]! + dy
           x[i3 + 2] = xp[i3 + 2]! + dz
         }
-        v[i3] = dx * inv * damp
-        v[i3 + 1] = dy * inv * damp
-        v[i3 + 2] = dz * inv * damp
+        if (w[i]! !== 0) {
+          v[i3] = dx * inv * damp
+          v[i3 + 1] = dy * inv * damp
+          v[i3 + 2] = dz * inv * damp
+        }
       }
     }
     this.lap(VELOCITY)
+  }
+
+  /**
+   * How far each body's primitives have moved since the frame began, plus an allowance for what
+   * the contacts themselves will move. A contact pair whose gap at the frame's start exceeds the
+   * sum of its two bodies' bounds cannot be touching, so the contact solvers pass it by.
+   */
+  private measure(awake: Body[]) {
+    const { x, xf, bound } = this
+    for (const b of awake) {
+      const end = 3 * (b.first + b.n)
+      let far2 = 0
+      for (let i = 3 * b.first; i < end; i += 3) {
+        const fx = x[i]! - xf[i]!,
+          fy = x[i + 1]! - xf[i + 1]!,
+          fz = x[i + 2]! - xf[i + 2]!
+        const f2 = fx * fx + fy * fy + fz * fz
+        if (f2 > far2) far2 = f2
+      }
+      bound[b.slot] = Math.sqrt(far2) + BOUND_MARGIN
+    }
   }
 
   /**
@@ -1109,7 +1239,7 @@ export class CableWorld {
       b.asleep = true
       b.group = groupOf.get(r)!
       this.v.fill(0, 3 * b.first, 3 * (b.first + b.n))
-      this.fillBoxes(b, b.radius + SKIN, false)
+      this.fillBoxes(b, b.radius + SKIN / 2, false)
     })
   }
 }

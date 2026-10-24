@@ -15,6 +15,8 @@ export interface Constraints {
   cB: Int32Array
   cC: Int32Array
   cAlpha: Float64Array
+  /** Per constraint: -1 / (w_a + 4 w_b + w_c + alpha / h^2), or 0 when nothing in it can move. */
+  cInv: Float64Array
   /** Long-range attachments: particle lI stays within lMax * scale of the clamped particle lA. */
   lI: Int32Array
   lA: Int32Array
@@ -118,7 +120,7 @@ export interface Spec {
   radius: number
   x0: Float64Array
   w: Float64Array
-  constraints: Omit<Constraints, 'dRest' | 'gTarget'>
+  constraints: Omit<Constraints, 'dRest' | 'gTarget' | 'cInv'>
   rig: { innerA: number; innerB: number; lateral: Float64Array } | null
   segI: Int32Array
   segJ: Int32Array

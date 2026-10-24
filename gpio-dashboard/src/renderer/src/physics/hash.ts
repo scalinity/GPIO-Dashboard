@@ -68,8 +68,20 @@ export class SpatialHash {
     }
   }
 
-  /** Ids of boxes sharing a cell with the query box; returns how many, in `result`. */
-  query(lox: number, loy: number, loz: number, hix: number, hiy: number, hiz: number): number {
+  /**
+   * Ids greater than `above` of boxes sharing a cell with the query box; returns how many, in
+   * `result` (in no particular order). A cell lists its ids in ascending order, so the scan of
+   * each cell stops at the first id that is not greater.
+   */
+  query(
+    lox: number,
+    loy: number,
+    loz: number,
+    hix: number,
+    hiy: number,
+    hiz: number,
+    above: number
+  ): number {
     const inv = this.inv
     const x0 = Math.floor(lox * inv),
       x1 = Math.min(Math.floor(hix * inv), x0 + MAX_SPAN)
@@ -83,8 +95,10 @@ export class SpatialHash {
       for (let iy = y0; iy <= y1; iy++) {
         for (let iz = z0; iz <= z1; iz++) {
           const h = this.cellHash(ix, iy, iz)
-          for (let e = this.starts[h]!; e < this.starts[h + 1]!; e++) {
+          const first = this.starts[h]!
+          for (let e = this.starts[h + 1]! - 1; e >= first; e--) {
             const id = this.entries[e]!
+            if (id <= above) break
             if (this.stamp[id] === tag) continue
             this.stamp[id] = tag
             if (n === this.result.length) {

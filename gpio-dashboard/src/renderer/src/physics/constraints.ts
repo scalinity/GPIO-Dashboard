@@ -7,41 +7,38 @@ import type { Body } from './body'
  * Bending as the length of the discrete curvature vector C = |a - 2b + c|, which is linear in the
  * turning angle (a skip-one distance constraint is quadratic in it, and nearly free for gentle
  * bends). With segment length s the bending energy is (EI / s) theta^2 / 2 for k = EI / s^3.
+ * Every constraint's gradient is q/|q| on a and c and -2q/|q| on b, so its multiplier step
+ * -|q| / (sum w |grad|^2 + alpha / h^2) turns into a displacement along q itself: no square root
+ * and no division is needed once cInv = -1 / (w_a + 4 w_b + w_c + alpha / h^2) is known.
  */
-export function solveCurvature(x: Float64Array, w: Float64Array, b: Body, invH2: number) {
-  const { cA, cB, cC, cAlpha } = b
+export function solveCurvature(x: Float64Array, w: Float64Array, b: Body) {
+  const { cA, cB, cC, cInv } = b
   const n = cA.length
   // One symmetric sweep (forward, then back): a one-way sweep carries a directional bias that
   // bends the wire's shape and keeps piles creeping; alternating the direction per substep did too.
   for (let s = 0; s < 2 * n; s++) {
     const k = s < n ? s : 2 * n - 1 - s
-    const a = cA[k]!,
-      m = cB[k]!,
-      c = cC[k]!
-    const wa = w[a]!,
-      wm = w[m]!,
-      wc = w[c]!
-    const a3 = a * 3,
-      m3 = m * 3,
-      c3 = c * 3
+    const f = cInv[k]!
+    if (f === 0) continue
+    const a3 = cA[k]! * 3,
+      m3 = cB[k]! * 3,
+      c3 = cC[k]! * 3
     const qx = x[a3]! - 2 * x[m3]! + x[c3]!,
       qy = x[a3 + 1]! - 2 * x[m3 + 1]! + x[c3 + 1]!,
       qz = x[a3 + 2]! - 2 * x[m3 + 2]! + x[c3 + 2]!
-    const q = Math.sqrt(qx * qx + qy * qy + qz * qz)
-    if (q < 1e-9) continue
-    const denom = wa + 4 * wm + wc
-    if (denom === 0) continue
-    // grad_a = grad_c = q/|q|, grad_b = -2 q/|q|
-    const f = -1 / (denom + cAlpha[k]! * invH2)
-    x[a3] = x[a3]! + wa * f * qx
-    x[a3 + 1] = x[a3 + 1]! + wa * f * qy
-    x[a3 + 2] = x[a3 + 2]! + wa * f * qz
-    x[m3] = x[m3]! - 2 * wm * f * qx
-    x[m3 + 1] = x[m3 + 1]! - 2 * wm * f * qy
-    x[m3 + 2] = x[m3 + 2]! - 2 * wm * f * qz
-    x[c3] = x[c3]! + wc * f * qx
-    x[c3 + 1] = x[c3 + 1]! + wc * f * qy
-    x[c3 + 2] = x[c3 + 2]! + wc * f * qz
+    if (qx * qx + qy * qy + qz * qz < 1e-18) continue
+    const wa = w[cA[k]!]! * f,
+      wm = 2 * w[cB[k]!]! * f,
+      wc = w[cC[k]!]! * f
+    x[a3] = x[a3]! + wa * qx
+    x[a3 + 1] = x[a3 + 1]! + wa * qy
+    x[a3 + 2] = x[a3 + 2]! + wa * qz
+    x[m3] = x[m3]! - wm * qx
+    x[m3 + 1] = x[m3 + 1]! - wm * qy
+    x[m3 + 2] = x[m3 + 2]! - wm * qz
+    x[c3] = x[c3]! + wc * qx
+    x[c3 + 1] = x[c3 + 1]! + wc * qy
+    x[c3 + 2] = x[c3 + 2]! + wc * qz
   }
 }
 
@@ -98,7 +95,14 @@ export function solveGoals(
   }
 }
 
-let chainBuf = new Float64Array(7 * 128)
+// Work arrays of the chain solver, grown to the longest chain seen.
+let nx = new Float64Array(256)
+let ny = new Float64Array(256)
+let nz = new Float64Array(256)
+let diag = new Float64Array(256)
+let rhs = new Float64Array(256)
+let up = new Float64Array(256)
+let lo = new Float64Array(256)
 
 /**
  * Stretch constraints along a chain (constraint k joins dI[k] and dJ[k] = dI[k+1]), all rigid,
@@ -111,15 +115,16 @@ export function solveChain(x: Float64Array, w: Float64Array, b: Body) {
   const { dI, dJ, dRest } = b
   const m = dI.length
   if (m === 0) return
-  if (chainBuf.length < 7 * m) chainBuf = new Float64Array(7 * m * 2)
-  const cap = chainBuf.length / 7
-  const nx = chainBuf.subarray(0, cap)
-  const ny = chainBuf.subarray(cap, 2 * cap)
-  const nz = chainBuf.subarray(2 * cap, 3 * cap)
-  const diag = chainBuf.subarray(3 * cap, 4 * cap)
-  const rhs = chainBuf.subarray(4 * cap, 5 * cap)
-  const up = chainBuf.subarray(5 * cap, 6 * cap)
-  const lo = chainBuf.subarray(6 * cap, 7 * cap)
+  if (nx.length < m) {
+    const size = 2 * m
+    nx = new Float64Array(size)
+    ny = new Float64Array(size)
+    nz = new Float64Array(size)
+    diag = new Float64Array(size)
+    rhs = new Float64Array(size)
+    up = new Float64Array(size)
+    lo = new Float64Array(size)
+  }
   for (let k = 0; k < m; k++) {
     const i3 = dI[k]! * 3,
       j3 = dJ[k]! * 3
@@ -131,48 +136,55 @@ export function solveChain(x: Float64Array, w: Float64Array, b: Body) {
       nx[k] = ny[k] = nz[k] = 0
       rhs[k] = 0
     } else {
-      nx[k] = dx / d
-      ny[k] = dy / d
-      nz[k] = dz / d
+      const inv = 1 / d
+      nx[k] = dx * inv
+      ny[k] = dy * inv
+      nz[k] = dz * inv
       rhs[k] = dRest[k]! - d
     }
     const dg = w[dI[k]!]! + w[dJ[k]!]!
     // A touch of compliance: a chain pulled exactly straight has more constraints than freedoms.
     diag[k] = dg > 1e-12 ? dg * (1 + 1e-6) : 1
   }
-  // Forward elimination: lo holds the eliminated super-diagonal, rhs the reduced right side.
+  // Forward elimination. Constraints k-1 and k share particle dJ[k-1] = dI[k], so the coupling
+  // between them, off, is computed once; up holds the eliminated super-diagonal and lo the
+  // reduced right side.
+  let off = 0
   for (let k = 0; k < m; k++) {
     let dg = diag[k]!
     let r = rhs[k]!
     if (k > 0) {
-      const off = -w[dI[k]!]! * (nx[k - 1]! * nx[k]! + ny[k - 1]! * ny[k]! + nz[k - 1]! * nz[k]!)
       dg -= off * up[k - 1]!
       r -= off * lo[k - 1]!
       if (dg < 1e-6 * diag[k]!) dg = 1e-6 * diag[k]!
     }
+    const rdg = 1 / dg
     if (k < m - 1) {
-      const next = -w[dJ[k]!]! * (nx[k]! * nx[k + 1]! + ny[k]! * ny[k + 1]! + nz[k]! * nz[k + 1]!)
-      up[k] = next / dg
+      off = -w[dJ[k]!]! * (nx[k]! * nx[k + 1]! + ny[k]! * ny[k + 1]! + nz[k]! * nz[k + 1]!)
+      up[k] = off * rdg
     }
-    lo[k] = r / dg
+    lo[k] = r * rdg
   }
-  // Back substitution into rhs.
-  rhs[m - 1] = lo[m - 1]!
-  for (let k = m - 2; k >= 0; k--) rhs[k] = lo[k]! - up[k]! * rhs[k + 1]!
-  for (let k = 0; k < m; k++) {
-    const l = rhs[k]!
+  // Back substitution, applying each multiplier as it is found.
+  let next = 0
+  for (let k = m - 1; k >= 0; k--) {
+    const l = lo[k]! - up[k]! * next
+    next = l
     const i = dI[k]!,
       j = dJ[k]!
     const wi = w[i]! * l,
       wj = w[j]! * l
     const i3 = i * 3,
       j3 = j * 3
-    x[i3] = x[i3]! + wi * nx[k]!
-    x[i3 + 1] = x[i3 + 1]! + wi * ny[k]!
-    x[i3 + 2] = x[i3 + 2]! + wi * nz[k]!
-    x[j3] = x[j3]! - wj * nx[k]!
-    x[j3 + 1] = x[j3 + 1]! - wj * ny[k]!
-    x[j3 + 2] = x[j3 + 2]! - wj * nz[k]!
+    const kx = nx[k]!,
+      ky = ny[k]!,
+      kz = nz[k]!
+    x[i3] = x[i3]! + wi * kx
+    x[i3 + 1] = x[i3 + 1]! + wi * ky
+    x[i3 + 2] = x[i3 + 2]! + wi * kz
+    x[j3] = x[j3]! - wj * kx
+    x[j3 + 1] = x[j3 + 1]! - wj * ky
+    x[j3 + 2] = x[j3 + 2]! - wj * kz
   }
 }
 
