@@ -51,7 +51,7 @@ def stem_pin(n):
     return ((n - 1) // 2 * P, (n - 1) % 2 * ROW)
 
 
-# --- Shape (mm). tboard.json gives the outline, header and holes; ADR-A2-1 records the rest. ------
+# --- Shape (mm). tboard.json gives the outline, header and holes; ADR-0037 records the rest. ------
 SPACER_H = 2.5  # a 0.1" header's body
 PIN = 0.64
 PIN_BELOW = 6.0  # the stem's pins below the spacers' underside (z = 0)
@@ -186,7 +186,7 @@ OUTLINE = rounded([
     (STEM['xMax'], STEM['yMax']), (STEM['xMin'], STEM['yMax']), (BAR['xMax'], BAR['yMax']), (BAR['xMin'], BAR['yMax']),
 ], CORNER)
 
-# --- The traces, routed by one rule (ADR-A2-1: stylised, not copied from the photos) ------------------
+# --- The traces, routed by one rule (ADR-0037: stylised, not copied from the photos) ------------------
 # Header pin n goes to stem pin n. On the underside each leaves its pad (the key-side row's pads step
 # half a pitch to pass between the inner row's), runs toward the stem, and fans in parallel at 70
 # degrees from the stem's axis, so none cross, into its own lane between the two pin rows. The lanes

@@ -910,7 +910,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** Opening a tutorial and building on it waits for "Fork to my projects". The
   e2e tests stand in for the native commands with an in-memory `window.api.projects`.
 
-## ADR-A2-1 T-board model: shape values beyond tboard.json, and the box header's pin 1
+## ADR-0037 T-board model: shape values beyond tboard.json, and the box header's pin 1
 
 - **Context.**
   - `tboard.json` fixes the outline, the header's size and place, the mounting holes and the
@@ -956,7 +956,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     change together.
   - The silkscreen's font is Blender's built-in one, not the photos' typeface.
 
-## ADR-A2-2 IDC socket: a 3M 891 body seated on the header's rim, cable and bump on the key wall
+## ADR-0038 IDC socket: a 3M 891 body seated on the header's rim, cable and bump on the key wall
 
 - **Context.**
   - SPEC 6.4 names the 3M 891 series (TS-0449-L) as the body reference, and the Farnell listing
@@ -977,7 +977,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     ending under the slot. The sheet's 1.5 mm centrebump is read as the bump's size, not
     matched; the rib is rounded. The cable leaves on the bump's side, as photo 3's lower socket.
   - That wall is -x, so seated on the T-board's `socket` the bump meets the key slot and the
-    cable runs away from the stem. Pin 1 is the row beside the bump (ADR-A2-1), at +y;
+    cable runs away from the stem. Pin 1 is the row beside the bump (ADR-0037), at +y;
     `cable-a` is at +y, conductor 1's edge.
   - The socket's origin goes on the rim: its body rests on the shroud and is not inserted into
     it. The shroud's cavity (6.4 wide) is narrower than the socket (9.0), so the two do not
@@ -987,7 +987,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   bench distance. If the studio wants the socket inserted, it needs a deeper contract (the
   seating depth, and a shroud cavity that fits) and a new header.
 
-## ADR-A2-3 Ribbon: two baked textures, a raised-cosine ridge, a lossless lookup
+## ADR-0039 Ribbon: two baked textures, a raised-cosine ridge, a lossless lookup
 
 - **Context.** SPEC 10.4 has Blender bake the ribbon's cross-section: a tileable normal map of
   the 40 conductor ridges and a 40-texel colour lookup. `ribbon.json` gives the width, pitch,
@@ -1009,7 +1009,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** The studio samples the lookup with nearest filtering. The 0.15 mm ridge is a
   tunable constant in `ribbon.py`; changing it changes the ridge map's bytes, not its size.
 
-## ADR-A2-4 Dupont ends: housing detail as geometry, AO only
+## ADR-0040 Dupont ends: housing detail as geometry, AO only
 
 - **Context.** `dupont.json` gives the housing's 2.54 x 2.54 x 12.0 mm, the 0.64 mm pin with 5.5 mm
   exposed, and the 1.0 mm wire. The housings are instanced at the ends of every lead, so they
@@ -1027,7 +1027,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** About 170 triangles and 55 KB each. The male's pin is one piece with the
   housing in the mesh, so the studio cannot hide them separately.
 
-## ADR-A2-5 Textures-only assets, and the controller checks beside verify.ts
+## ADR-0041 Textures-only assets, and the controller checks beside verify.ts
 
 - **Context.** The ribbon is two textures and no mesh, so `build.ts`'s GLB path does not fit it.
   `verifyAsset` branches two ways, on breadboard or Pi, and is outside this change.

@@ -203,12 +203,12 @@ The IDC socket's origin goes on `socket`, with no rotation. The PCB's two faces 
 as each reads from outside with the header up: u across +y and v down +x on the top, u mirrored on
 the underside. The silkscreen labels come from the pin table and are baked into `mask-top`'s
 colour. The header's key slot is in its -x wall. Its pin 1 is the +y end of the key-side row
-(x = centerXMm - pitch / 2), which holds the odd pins (ADR-A2-1).
+(x = centerXMm - pitch / 2), which holds the odd pins (ADR-0037).
 
 **idc-socket.glb** (`ribbon.json`; 3M 891 series, 2 x 20, for 1.27 mm cable). Origin at the centre
 of the mating face, which faces -z: the socket plugs down onto upward pins, its body above. x runs
 across the two rows (contacts at x = -1.27 and +1.27), y along them. It is modelled seated on the
-rim, not inserted into the shroud (ADR-A2-2).
+rim, not inserted into the shroud (ADR-0038).
 
 | Node         | What it is                                                                      |
 | ------------ | ------------------------------------------------------------------------------- |

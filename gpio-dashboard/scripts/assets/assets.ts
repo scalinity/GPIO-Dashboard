@@ -129,7 +129,7 @@ export const ASSETS: Asset[] = [
     script: 'ribbon.py',
     args: {
       ribbon: RIBBON,
-      // The standard sequence's sRGB colours, read off photos 1 and 3's rainbow ribbon (ADR-A2-3).
+      // The standard sequence's sRGB colours, read off photos 1 and 3's rainbow ribbon (ADR-0039).
       colors:
         'brown=6b3a1d,red=d81e1e,orange=f07a12,yellow=f2d21a,green=1fa84a,blue=1f59d6,violet=7a2fc4,grey=9a9a9e,white=eeeeea,black=1c1c1f'
     },

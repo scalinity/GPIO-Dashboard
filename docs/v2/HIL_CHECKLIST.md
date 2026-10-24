@@ -13,8 +13,13 @@ says what to do, what to expect, and which part of the app it confirms. Record r
   tutorial uses.
 - [ ] **A male Dupont seats in column c beside the T-board.** Push a male lead into c6. It
   should seat fully with the T-board in place. Confirms the edge-column lean allowance.
-- [ ] **Header pin-1 end of the T-board.** Note which end of the T-board's header the ribbon's
-  red stripe sits at. The photo-based model assumes the end nearest row 1 (ADR-0004).
+- [ ] **Header pin-1 end of the T-board.** With the ribbon plugged in, note which end of the
+  T-board's box header the brown conductor (conductor 1) sits at. The model reads photo 5 as
+  pin 1 at the column-h end of the row beside the key slot (ADR-0037); if the brown edge is at
+  the column-d end instead, `tboard.py`, `idc.py` and their checks change together.
+- [ ] **How far the IDC socket sits in the box header.** Note whether the socket's body goes
+  down inside the shroud, and how much of it stays above the rim. The model rests it on the
+  rim (ADR-0038).
 
 ## Pi agent and monitor
 
