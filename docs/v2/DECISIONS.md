@@ -2735,7 +2735,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - The streams are hand-written to the documented event shapes; the first live run (HIL
     checklist) confirms them against the API.
 
-## ADR-E9-1 The evals run the app's own TypeScript in Node through Vite's module runner
+## ADR-0100 The evals run the app's own TypeScript in Node through Vite's module runner
 
 - **Context.**
   - SPEC 18 wants the assistant evals to run the real loop against a context made of the real
@@ -2758,7 +2758,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     and `allowImportingTsExtensions` lets the two files Node loads itself (`cli.ts`, `proxyTest.ts`)
     import `key.ts` with its extension.
 
-## ADR-E9-2 A live run is kept as the API's side of the conversation, scrubbed, and replayed
+## ADR-0101 A live run is kept as the API's side of the conversation, scrubbed, and replayed
 
 - **Context.**
   - Mock mode has to replay a live run with no key and no network, and the repository is public.
@@ -2785,7 +2785,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - A change that makes a recorded tool call fail (a renamed argument, a stricter validation) shows
     up as a changed score in `replay.test.ts`.
 
-## ADR-E9-3 The key is read by the process that uses it, and live runs use the app's client
+## ADR-0102 The key is read by the process that uses it, and live runs use the app's client
 
 - **Context.**
   - SPEC 3.3 lets exactly two kinds of process use the key: the live evals and the ignored Rust
@@ -2805,7 +2805,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - The two live paths differ from the app in transport only (Node `fetch` instead of the Rust
     proxy). The proxy's own path is the one the Rust test covers.
 
-## ADR-E9-4 How a run is scored
+## ADR-0103 How a run is scored
 
 - **Context.**
   - SPEC 18 scores each prompt on zero ERC errors, passing sim assertions, inventory respected,
@@ -2833,7 +2833,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.**
   - A failed check is a finding about one run, not a harness error: the report names which.
 
-## ADR-E9-5 The evals measure the shipped core, fallbacks included
+## ADR-0104 The evals measure the shipped core, fallbacks included
 
 - **Context.**
   - The first live request of every session is refused ("The compiled grammar is too large"), and

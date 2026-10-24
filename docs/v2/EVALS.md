@@ -5,8 +5,8 @@ the real Anthropic API through the real `@anthropic-ai/sdk` client (1.3.0), and 
 by the app's own `CircuitStore`. Each finished run is scored from its final document and its
 transcript. Every run is recorded, scrubbed, and replayed by Vitest with no key and no network.
 
-Everything is in `gpio-dashboard/scripts/assistant-evals/`. The decisions behind it are ADR-E9-1 to
-ADR-E9-5 in DECISIONS.md.
+Everything is in `gpio-dashboard/scripts/assistant-evals/`. The decisions behind it are ADR-0100 to
+ADR-0104 in DECISIONS.md.
 
 ## Running it
 
@@ -18,12 +18,12 @@ ADR-E9-5 in DECISIONS.md.
 | `npx vitest run scripts/assistant-evals` | The replay test and the harness's own tests. |
 
 Without a key, `evals:live` says so and replays instead. The key is read only by the process that
-uses it (SPEC 3.3, ADR-E9-3).
+uses it (SPEC 3.3, ADR-0102).
 
 ## The harness
 
 - **A Node program, not a mock.** `cli.ts` starts Vite's module runner so the app's TypeScript loads
-  unchanged (ADR-E9-1). `NodeContext` implements `AssistantContext` over:
+  unchanged (ADR-0100). `NodeContext` implements `AssistantContext` over:
   - the real `CircuitStore` (with its `ConnectivityEngine`), `validateDoc`, ERC, `SimSession` and
     `simChecks`;
   - Pyodide with the app's Python shims, for `write_code`'s compile check **and** for
@@ -45,7 +45,7 @@ uses it (SPEC 3.3, ADR-E9-3).
 - **Fixtures** (`fixtures/<prompt>.json`) hold, for each request the SDK made, the JSON body it sent
   and the status and SSE text it got back. No header is ever read. Opaque tokens (`signature`,
   `encrypted_content`, `encrypted_index`) are replaced by `scrubbed`. A test fails on `sk-ant`, on
-  an `authorization` or `x-api-key` key, and on any unscrubbed token (ADR-E9-2).
+  an `authorization` or `x-api-key` key, and on any unscrubbed token (ADR-0101).
 - **Transcripts** (`transcripts/<prompt>.json`) are the same runs readable: each turn's tool calls
   with their input and result, the assistant's words, the questions asked, the final code and the
   scores. They hold no header and no key.
