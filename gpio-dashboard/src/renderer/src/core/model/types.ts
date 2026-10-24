@@ -250,17 +250,21 @@ export interface PartDef {
 
 // --- Edits (SPEC 5): every change to a document is one of these ---
 
+// `index` on the Add ops puts an item back where it was, so undo restores an identical
+// document (SPEC 12.8); without it, the item is appended.
 export type Op =
-  | { type: 'AddBoard'; board: BoardInstance }
+  | { type: 'AddBoard'; board: BoardInstance; index?: number }
   | { type: 'RemoveBoard'; id: string }
   | { type: 'MoveBoard'; id: string; transform: Transform2D }
   | { type: 'SetControllerPlacement'; controller: ControllerInstance }
-  | { type: 'AddPart'; part: PartInstance }
+  | { type: 'AddPart'; part: PartInstance; index?: number }
   | { type: 'MovePart'; id: string; placement: PartInstance['placement'] }
   | { type: 'RemovePart'; id: string }
+  /** Replaces the part's props as a whole. */
   | { type: 'SetPartProps'; id: string; props: Record<string, unknown> }
-  | { type: 'AddWire'; wire: Wire }
+  | { type: 'AddWire'; wire: Wire; index?: number }
   | { type: 'MoveWireEnd'; id: string; end: 'a' | 'b'; to: Endpoint }
+  /** Sets the given fields; a field given as undefined is removed. */
   | { type: 'SetWireProps'; id: string; props: Partial<Omit<Wire, 'id' | 'a' | 'b'>> }
   | { type: 'RemoveWire'; id: string }
   | { type: 'SetCode'; code: CircuitDoc['code'] }
