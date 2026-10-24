@@ -212,5 +212,6 @@ GLB runtime contract (fixed in both lane briefs): `public/models/<name>.glb`, me
 | A1 assets | Opus subagent, worktree | 7.1 pipeline (sources, step-to-glb, Blender scripts, gltf-transform, manifests, colliders, `assets:build/check`, `--rebuild` SSIM) + bb-830, bb-400, pi5; ADRs as `ADR-A1-<n>` | running |
 | B1 studio | Opus subagent, worktree | 7.3 WebGPURenderer via R3F, stage, IBL, post (GTAO, bloom, TRAA, DoF off), on-demand loop + frame counter; app-wide CircuitStore; GLB loading; hole picking/strip+net hover; camera presets; Playwright e2e; Tauri-window check; ADRs as `ADR-B1-<n>` | running |
 | P physics core | Sonnet subagent, worktree | M8 8.1–8.3 pure TS XPBD in `physics/` with headless tests; merged only after M7 exits (milestone order) | running |
+| M9 assistant core | Sonnet subagent, worktree | 9.1–9.2: client, loop (every stop_reason, caching, server tools, 60-call cap), zod tools (strict, eager), AssistantContext + test double, deterministic placer/connect in core, fuzz + contract tests, system-prompt.md; ADRs as `ADR-M9-<n>`; merged after M8 | running |
 
 Next after A1/B1: T-board, IDC, ribbon maps, Dupont housings, part families (follow A1's pattern); 7.4 drag-place/Properties/Labels; 7.5 overlays, LED glow, animated parts, Board Sense overlay; 7.6 drawer + projects gallery; 7.7 LOOKDEV.md.
