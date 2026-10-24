@@ -219,7 +219,10 @@ mod tests {
 
     #[test]
     fn command_lists_agree() {
-        let handler: BTreeSet<String> = include_str!("main.rs")
+        let main_rs = include_str!("main.rs");
+        let start = main_rs.find("generate_handler![").unwrap();
+        let handler_block = &main_rs[start..start + main_rs[start..].find(']').unwrap()];
+        let handler: BTreeSet<String> = handler_block
             .split("commands::")
             .skip(1)
             .map(|s| {

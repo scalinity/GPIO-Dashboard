@@ -215,3 +215,19 @@ decision and consequences. Numbering is stable; superseded records say so.
   "no official source" premise no longer holds for Raspberry Pi 5, and the code follows
   the official document. The leakage (≤ 3 µA) bounds how long an isolated net holds its
   precharge in the pair test (SPEC 14.5).
+
+## ADR-0010 The proxy also forwards `anthropic-workspace-id`
+
+- **Context.** SPEC 12.1 lists the request headers the proxy forwards: `anthropic-version`,
+  `anthropic-beta` and `content-type`. The API overview
+  (https://platform.claude.com/docs/en/api/overview, read 2026-10-23) lists
+  `anthropic-workspace-id` as "Required with an API key that isn't scoped to a workspace",
+  passed by the caller when the key needs it. `Authorization: Bearer <key>` is the primary
+  credential, and `x-api-key` the legacy fallback.
+- **Decision.** Forward `anthropic-workspace-id` too. It is not a secret, and the
+  assistant (M9) sets it from a setting when one is configured. Authorization stays
+  Bearer, as SPEC 12.1 says.
+- **Consequences.** A key that isn't scoped to a workspace can still be used. The live
+  proxy test (`live_count_tokens_through_the_real_proxy_path`, run 2026-10-23 with the key
+  loaded into that test process only) returned 200 with `input_tokens`. So Bearer works
+  for this key, and this key doesn't need the header.

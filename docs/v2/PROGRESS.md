@@ -58,9 +58,9 @@ Environment facts a fresh session needs:
 | 1.2 key commands | done | `settings_set/has/clear_anthropic_key`; unit `no_anthropic_key_command_returns_the_key` |
 | 1.3 projects.rs | done | Authored by a Sonnet subagent and reviewed; 21 tests; commands list/read/write/delete/export/import (dialogs from Rust) |
 | 1.4 ssh_i2c_scan | done | i2c.rs parser (16 tests, Sonnet subagent, reviewed); live `an_i2c_scan_without_i2c_tools_reports_why` |
-| 1.5 bridge + native/ | partial | api.js `projects`, `ssh.i2cScan`, `anthropic.{setKey,hasKey,clearKey}`; native/{bridge,projects,ssh}.ts + tests. `anthropic.request` waits for 1.1 |
-| 1.1 anthropic.rs | in progress | Sonnet subagent in an isolated worktree; review + wiring pending. Docs check (platform.claude.com/docs/en/api/overview, 2026-10-23): `Authorization: Bearer` is primary; `anthropic-workspace-id` is required for keys not scoped to a workspace, so it must be forwarded too |
-| 1.9 live proxy test | todo | |
+| 1.5 bridge + native/ | done | api.js `projects`, `ssh.i2cScan`, `anthropic.{request,abort,setKey,hasKey,clearKey}` (Channel injected for tests); native/{bridge,projects,ssh,anthropic}.ts; `nativeAnthropicFetch` (8 Vitest cases: streaming, head-before-body, 4xx passthrough, errors before/after the head, abort, cancel, null-body statuses) |
+| 1.1 anthropic.rs | done | Authored by a Sonnet subagent (19 tests; its own mutation check: 15/15 caught); production code reviewed line by line. `anthropic-workspace-id` added to the forwarded headers (ADR-0010). Commands `anthropic_request` (Channel: JSON head/end/error, raw chunks) and `anthropic_abort`; `proxy_events_become_json_messages_and_raw_chunks` |
+| 1.9 live proxy test | done | `live_count_tokens_through_the_real_proxy_path`, key loaded from the main .env into that cargo process only → 1 passed (HTTP 200, numeric input_tokens). Output filtered for `sk-ant`; nothing printed |
 
 Suite at fc780d9/991ac40: cargo test 65 pass / 19 ignored; live-tests 19/19; node 6/6; Vitest 29/29; lint 0 errors; typecheck ok.
 

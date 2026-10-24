@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod agent;
+mod anthropic;
 mod commands;
 mod i2c;
 #[cfg(test)]
@@ -25,7 +26,10 @@ use std::{
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder};
 
-use crate::{projects::Projects, settings::Settings, ssh::Ssh, ws::Ws};
+use crate::{
+    anthropic::Anthropic, commands::KeychainKey, projects::Projects, settings::Settings, ssh::Ssh,
+    ws::Ws,
+};
 
 /// Creates the main window. Production loads the frontend from the loopback server, which
 /// WKWebView needs for SharedArrayBuffer (ADR-0008); dev loads `devUrl`. Either way the window
@@ -90,6 +94,7 @@ fn main() {
             app.manage(Ssh::new(emit.clone(), config_dir.join("known_hosts")));
             app.manage(Ws::new(emit));
             app.manage(Settings::load(config_dir));
+            app.manage(Anthropic::new(Arc::new(KeychainKey)));
             app.manage(Projects::new(app.path().app_data_dir()?.join("projects")));
             create_main_window(app)?;
             Ok(())
@@ -122,6 +127,8 @@ fn main() {
             commands::settings_set_anthropic_key,
             commands::settings_has_anthropic_key,
             commands::settings_clear_anthropic_key,
+            commands::anthropic_request,
+            commands::anthropic_abort,
             commands::projects_list,
             commands::projects_read,
             commands::projects_write,

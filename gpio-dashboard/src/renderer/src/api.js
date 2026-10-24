@@ -1,10 +1,10 @@
 // Exposes the `window.api` bridge the renderer uses, backed by Tauri commands
 // (src-tauri/src/commands.rs) and events. Skipped outside Tauri, so the UI can
 // still be previewed in a plain browser with `npm run web:dev`.
-import { invoke } from '@tauri-apps/api/core'
+import { Channel, invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 
-export function createApi({ invoke, listen }) {
+export function createApi({ invoke, listen, Channel }) {
   // `listen` is async, but callers expect a synchronous unsubscribe function. Events that
   // arrive before the real unlisten completes are dropped.
   const on = (event, callback) => {
@@ -87,6 +87,12 @@ export function createApi({ invoke, listen }) {
 
     // The key goes to the Keychain through Rust; no command ever returns it.
     anthropic: {
+      // Streams one API request through the Rust proxy, which adds the key. `onMessage`
+      // receives { status, headers }, then ArrayBuffer body chunks, then { end: true } or
+      // { error: { code, message } }.
+      request: (req, onMessage) =>
+        invoke('anthropic_request', { req, channel: new Channel(onMessage) }),
+      abort: (id) => invoke('anthropic_abort', { id }),
       setKey: (value) => structured('settings_set_anthropic_key', { value }),
       hasKey: () => invoke('settings_has_anthropic_key'),
       clearKey: () => structured('settings_clear_anthropic_key')
@@ -130,6 +136,6 @@ function installExternalLinkHandler(invoke) {
 }
 
 if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__) {
-  window.api = createApi({ invoke, listen })
+  window.api = createApi({ invoke, listen, Channel })
   installExternalLinkHandler(invoke)
 }

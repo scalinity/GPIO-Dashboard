@@ -137,3 +137,30 @@ test('calls map to the command names and argument keys the backend expects', asy
     ['projects_import', undefined]
   ])
 })
+
+test('an Anthropic request streams through a channel to the proxy command', async () => {
+  const calls = []
+  class FakeChannel {
+    constructor(onmessage) {
+      this.onmessage = onmessage
+    }
+  }
+  const api = createApi({
+    invoke: async (command, args) => {
+      calls.push([command, args])
+      if (command === 'anthropic_request') args.channel.onmessage({ end: true })
+      return null
+    },
+    listen: async () => () => {},
+    Channel: FakeChannel
+  })
+  const messages = []
+  const req = { id: 'r1', method: 'POST', path: '/v1/messages', headers: [], body: '{}' }
+  await api.anthropic.request(req, (m) => messages.push(m))
+  await api.anthropic.abort('r1')
+  assert.equal(calls[0][0], 'anthropic_request')
+  assert.deepEqual(calls[0][1].req, req)
+  assert.ok(calls[0][1].channel instanceof FakeChannel)
+  assert.deepEqual(messages, [{ end: true }])
+  assert.deepEqual(calls[1], ['anthropic_abort', { id: 'r1' }])
+})

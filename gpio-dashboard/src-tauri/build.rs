@@ -31,6 +31,8 @@ const COMMANDS: &[&str] = &[
     "settings_set_anthropic_key",
     "settings_has_anthropic_key",
     "settings_clear_anthropic_key",
+    "anthropic_request",
+    "anthropic_abort",
     "projects_list",
     "projects_read",
     "projects_write",

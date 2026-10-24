@@ -7,11 +7,16 @@ use std::time::Duration;
 
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tauri::{AppHandle, Manager, State};
+use tauri::{
+    ipc::{Channel, InvokeResponseBody},
+    AppHandle, Manager, State,
+};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::{
-    agent, i2c,
+    agent,
+    anthropic::{Anthropic, KeyProvider, ProxyEvent, ProxyRequest},
+    i2c,
     projects::{self, Projects},
     settings::{self, Settings},
     ssh::{Auth, Ssh, Target},
@@ -449,6 +454,49 @@ fn has_anthropic_key(read: impl Fn(&str) -> Result<String, String>) -> bool {
     read(settings::ANTHROPIC_KEY).is_ok_and(|key| !key.is_empty())
 }
 
+/// The app's key provider for the proxy: the Keychain entry, read per request.
+pub struct KeychainKey;
+
+impl KeyProvider for KeychainKey {
+    fn key(&self) -> Result<String, String> {
+        settings::get_secret(settings::ANTHROPIC_KEY)
+    }
+}
+
+// --- Anthropic API proxy (the key is added in Rust; SPEC 4.2, 12.1) ---
+
+/// Streams one API request. The channel receives, in order: `{ status, headers }`, the body
+/// as raw byte chunks (ArrayBuffers in JavaScript), then `{ end: true }` or
+/// `{ error: { code, message } }`.
+#[tauri::command]
+pub async fn anthropic_request(
+    anthropic: State<'_, Anthropic>,
+    req: ProxyRequest,
+    channel: Channel<InvokeResponseBody>,
+) -> CommandResult {
+    anthropic
+        .request(req, |event| channel.send(proxy_message(event)).is_ok())
+        .await;
+    Ok(Value::Null)
+}
+
+#[tauri::command]
+pub fn anthropic_abort(anthropic: State<'_, Anthropic>, id: String) -> bool {
+    anthropic.abort(&id)
+}
+
+fn proxy_message(event: ProxyEvent) -> InvokeResponseBody {
+    let json = match event {
+        ProxyEvent::Chunk(bytes) => return InvokeResponseBody::Raw(bytes),
+        ProxyEvent::Head { status, headers } => json!({ "status": status, "headers": headers }),
+        ProxyEvent::End => json!({ "end": true }),
+        ProxyEvent::Error { code, message } => {
+            json!({ "error": { "code": code, "message": message } })
+        }
+    };
+    InvokeResponseBody::Json(json.to_string())
+}
+
 // --- Projects ---
 
 fn result_json(result: Result<Value, String>) -> Value {
@@ -630,6 +678,33 @@ mod tests {
         // settings_get never serves it: it is neither allowlisted nor the password entry.
         assert!(!SETTINGS_ALLOWLIST.contains(&settings::ANTHROPIC_KEY));
         assert_ne!(settings::ANTHROPIC_KEY, settings::PASSWORD_KEY);
+    }
+
+    #[test]
+    fn proxy_events_become_json_messages_and_raw_chunks() {
+        let json = |event| match proxy_message(event) {
+            InvokeResponseBody::Json(text) => serde_json::from_str::<Value>(&text).unwrap(),
+            InvokeResponseBody::Raw(_) => panic!("expected JSON"),
+        };
+        assert_eq!(
+            json(ProxyEvent::Head {
+                status: 200,
+                headers: vec![("request-id".into(), "req_1".into())]
+            }),
+            json!({ "status": 200, "headers": [["request-id", "req_1"]] })
+        );
+        assert_eq!(json(ProxyEvent::End), json!({ "end": true }));
+        assert_eq!(
+            json(ProxyEvent::Error {
+                code: "aborted".into(),
+                message: "Request aborted".into()
+            }),
+            json!({ "error": { "code": "aborted", "message": "Request aborted" } })
+        );
+        match proxy_message(ProxyEvent::Chunk(b"data: x\n".to_vec())) {
+            InvokeResponseBody::Raw(bytes) => assert_eq!(bytes, b"data: x\n"),
+            InvokeResponseBody::Json(_) => panic!("chunks travel as raw bytes"),
+        }
     }
 
     #[test]

@@ -3,12 +3,30 @@
 export type Failure = { success: false; error: string }
 export type Canceled = { canceled: true }
 
+/** One request for the Rust proxy (src-tauri/src/anthropic.rs). */
+export interface ProxyRequest {
+  id: string
+  method: string
+  path: string
+  headers: [string, string][]
+  body?: string
+}
+
+/** What the proxy sends back over the channel, in order. */
+export type ProxyMessage =
+  | { status: number; headers: [string, string][] }
+  | ArrayBuffer
+  | { end: true }
+  | { error: { code: string; message: string } }
+
 /** The `window.api` namespaces the wrappers use, as api.js builds them. */
 export interface Bridge {
   ssh: {
     i2cScan(bus: number): Promise<{ success: true; devices: unknown[] } | Failure>
   }
   anthropic: {
+    request(req: ProxyRequest, onMessage: (message: ProxyMessage) => void): Promise<unknown>
+    abort(id: string): Promise<boolean>
     setKey(value: string): Promise<{ success: true } | Failure>
     hasKey(): Promise<boolean>
     clearKey(): Promise<{ success: true } | Failure>

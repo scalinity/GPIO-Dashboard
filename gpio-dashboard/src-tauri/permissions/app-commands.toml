@@ -31,6 +31,8 @@ permissions = [
   "allow-settings-set-anthropic-key",
   "allow-settings-has-anthropic-key",
   "allow-settings-clear-anthropic-key",
+  "allow-anthropic-request",
+  "allow-anthropic-abort",
   "allow-projects-list",
   "allow-projects-read",
   "allow-projects-write",

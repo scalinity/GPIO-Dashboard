@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-anthropic-abort"
+description = "Enables the anthropic_abort command without any pre-configured scope."
+commands.allow = ["anthropic_abort"]
+
+[[permission]]
+identifier = "deny-anthropic-abort"
+description = "Denies the anthropic_abort command without any pre-configured scope."
+commands.deny = ["anthropic_abort"]
