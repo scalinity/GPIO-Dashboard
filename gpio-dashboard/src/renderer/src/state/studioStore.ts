@@ -5,6 +5,7 @@
 import { create } from 'zustand'
 import type { Ghost } from '../assistant/context'
 import type { CircuitDoc, Op } from '../core/model/types'
+import { useBuild } from './buildStore'
 import { circuit } from './circuit'
 import { isTemplate } from './projectStore'
 
@@ -70,10 +71,20 @@ export const useStudio = create<StudioState>(() => ({
   cue: null
 }))
 
+export const BUILDING_MESSAGE = 'Leave Build Mode to change the circuit.'
+
+/** What a name, a program and its notes change; the steps Build Mode plays do not depend on them. */
+const OUTSIDE_THE_BUILD = new Set<Op['type']>(['SetCode', 'SetMeta'])
+
 /** One user edit as one transaction. Returns whether it was committed. */
 export function edit(label: string, ops: Op[]): boolean {
   if (isTemplate()) {
     useStudio.setState({ notice: 'Tutorials are read-only templates.' })
+    return false
+  }
+  // Build Mode draws the circuit as built so far, so a gesture on the bench would act unseen.
+  if (useBuild.getState().on && ops.some((op) => !OUTSIDE_THE_BUILD.has(op.type))) {
+    useStudio.setState({ notice: BUILDING_MESSAGE })
     return false
   }
   const result = circuit.dispatch({ author: 'user', label, ops })
