@@ -290,13 +290,15 @@ M11 lane merged (7890f4d…f6ac615; ADR-0120…0126): `useLive` (telemetry throu
 
 M11 exit suite (2026-10-24, at fbae85e): `cargo test` 94 passed / 20 ignored; `live-tests.sh` 19/19; `npm test` node 7/7 + Vitest 2321 passed / 2 skipped (FULL_PROBE opt-in); lint 0 errors; typecheck clean; e2e 101 passed / 2 skipped (real-Pi flows, PI_HOST unset); evals replay matches; `assets:check` passed; build .app and .dmg. Exit criteria: the automated HIL flows pass against the mocks (no Pi reachable); HIL_CHECKLIST.md lists everything that needs the user's hands or the Pi (Hardware twin section, checkpoints on the bench, Board Sense fixtures 1–8, Tauri-window checks).
 
-## M12 Polish and acceptance — in progress (2026-10-24)
+## M12 Polish and acceptance — done (2026-10-24)
 
 | Lane | Model | Scope | Status |
 |------|-------|-------|--------|
-| M12 perf | Sonnet, worktree (base fbae85e) | main-thread levers from ADR-0082: per-frame buffer churn, shadow casters (leads/small parts), render bundle for statics, bloom off when nothing glows; interleaved measurements on the three heaviest tutorials (headless WebGPU if the Mac session stays locked); HIL note for the Tauri fps check; ADR-F2-n | running |
+| M12 perf | Sonnet, worktree | frame budget | **merged** (ADR-0127…0131): a board drag rebuilt every part's lead tubes per pointer move (GPU buffers/frame 75→0); tubes kept through rigid moves; leads and pieces <4 mm out of the shadow map; bloom drawn only while something passes its threshold; strip index shared across a drag; render bundle tried and dropped (three 0.186 throws). Headless WebGPU (session locked): frame + handler 8.4→4.5 ms (four-digit), 6.1→4.2, 6.9→3.2; 60 fps unthrottled; 52.6–57.3 fps with the main thread slowed 2×. Tauri-window fps after M12 not measured: HIL_CHECKLIST 'Studio frame rate in the app window' |
 | M12 docs | Sonnet, worktree | README + ARCHITECTURE | **merged** (211c4a5…3eb7227 equivalents): README rewritten via the `readme` skill (two accuracy passes; every number sourced), `docs/ARCHITECTURE.md` with a Mermaid diagram (renders) and an ADR index; AUDIT D16 Fixed, README rows updated. Its finding fixed by me in 80f8595: `ws.rs` dropped repeat sweeps while the reconciler needs a repeat to believe a change, so on a real Pi a change would stay 'settling' (mock had no filter) — every sweep now forwarded. README rows about 60 fps and M8 figures to refresh after the perf lane |
 
 | Final report | Sonnet, worktree (base 20b9ab8) | draft `docs/v2/FINAL_REPORT.md` from repo evidence, every number re-run | **merged** (926 lines; 11 Met / 7 Partly met / 0 Not met before M12 fills; 11 `[[INTEGRATOR…]]` placeholders for item 4/D16, 9, 16, README/ARCHITECTURE). Follow-ups done by me: EVALS.md '28 tutorials' → 26; `e2e/labels.spec.ts` (acceptance 8's Labels had no automated test) |
 
-Then (integrator): final acceptance run on the quietest machine available, `docs/v2/FINAL_REPORT.md` with evidence per SPEC 20 item, push, PR to main (not merged).
+Final acceptance run (2026-10-24 17:17 EDT, at 21d1081): `cargo test` 94 passed / 20 ignored; `live-tests.sh` 19/19; `npm test` node 7/7 + Vitest 2321 passed / 2 skipped; pi-agent 58 OK; lint 0 errors; typecheck clean; e2e 102 passed / 3 skipped (FRAME_RATE opt-in, two real-Pi flows); evals replay as recorded; `assets:check -- --rebuild` passed (every geometry hash exact, SSIM 1.0000, 556 checks); `npm run build` .app and .dmg (19.45 MiB).
+
+`docs/v2/FINAL_REPORT.md` finished (ac057fb): SPEC 20 — 13 Met, 5 Partly met (9 Tauri-window 60 fps, 10 and 12 real Pi, 15 look-dev gaps, 16 README findings guarded by review), 0 Not met; 131 ADRs. README rows for the frame rate updated (04fca8b). PR to main opened, not merged.
