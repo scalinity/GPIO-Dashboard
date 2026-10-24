@@ -626,39 +626,64 @@ export class CableWorld {
     const bhi = b.hi
     blo.fill(Infinity)
     bhi.fill(-Infinity)
-    const put = (o: number, i: number, j: number, k: number) => {
+    // Rod segments: the box of two particles (and, swept, of where they are expected to be).
+    for (let k = 0; k < b.segI.length; k++) {
+      const i3 = 3 * b.segI[k]!,
+        j3 = 3 * b.segJ[k]!
+      const o = 6 * (b.segStart + k)
       for (let a = 0; a < 3; a++) {
-        const p = x[3 * i + a]!,
-          q = x[3 * j + a]!,
-          r = x[3 * k + a]!
+        let lo = x[i3 + a]!
+        let hi = lo
+        const q = x[j3 + a]!
+        if (q < lo) lo = q
+        else if (q > hi) hi = q
+        if (swept) {
+          const pe = xe[i3 + a]!,
+            qe = xe[j3 + a]!
+          if (pe < lo) lo = pe
+          else if (pe > hi) hi = pe
+          if (qe < lo) lo = qe
+          else if (qe > hi) hi = qe
+        }
+        lo -= pad
+        hi += pad
+        box[o + a] = lo
+        box[o + 3 + a] = hi
+        if (lo < blo[a]!) blo[a] = lo
+        if (hi > bhi[a]!) bhi[a] = hi
+      }
+    }
+    // Ribbon triangles: three particles.
+    for (let k = 0; k < b.triA.length; k++) {
+      const i3 = 3 * b.triA[k]!,
+        j3 = 3 * b.triB[k]!,
+        l3 = 3 * b.triC[k]!
+      const o = 6 * (this.segCount + b.triStart + k)
+      for (let a = 0; a < 3; a++) {
+        const p = x[i3 + a]!,
+          q = x[j3 + a]!,
+          r = x[l3 + a]!
         let lo = Math.min(p, q, r)
         let hi = Math.max(p, q, r)
         if (swept) {
-          const pe = xe[3 * i + a]!,
-            qe = xe[3 * j + a]!,
-            re = xe[3 * k + a]!
-          lo = Math.min(lo, pe, qe, re)
-          hi = Math.max(hi, pe, qe, re)
+          lo = Math.min(lo, xe[i3 + a]!, xe[j3 + a]!, xe[l3 + a]!)
+          hi = Math.max(hi, xe[i3 + a]!, xe[j3 + a]!, xe[l3 + a]!)
         }
-        box[o + a] = lo - pad
-        box[o + 3 + a] = hi + pad
-        if (lo - pad < blo[a]!) blo[a] = lo - pad
-        if (hi + pad > bhi[a]!) bhi[a] = hi + pad
+        lo -= pad
+        hi += pad
+        box[o + a] = lo
+        box[o + 3 + a] = hi
+        if (lo < blo[a]!) blo[a] = lo
+        if (hi > bhi[a]!) bhi[a] = hi
       }
-    }
-    for (let k = 0; k < b.segI.length; k++) {
-      put(6 * (b.segStart + k), b.segI[k]!, b.segJ[k]!, b.segJ[k]!)
-    }
-    for (let k = 0; k < b.triA.length; k++) {
-      put(6 * (this.segCount + b.triStart + k), b.triA[k]!, b.triB[k]!, b.triC[k]!)
     }
   }
 
   /** Sets each end frame's pose for the frame, and the clamped particles' end positions. */
   private refreshEndFrames(b: Body) {
-    for (const e of [0, 1] as const) {
-      b.endMoving[e] = !samePose(b.pose0[e], b.pose1[e])
-      posedAt(b.pose1[e], b.pose1[e], 1, b.apos[e], b.amat[e])
+    for (let e = 0; e < 2; e++) {
+      b.endMoving[e] = !samePose(b.pose0[e]!, b.pose1[e]!)
+      posedAt(b.pose1[e]!, b.pose1[e]!, 1, b.apos[e]!, b.amat[e]!)
     }
   }
 
@@ -1079,8 +1104,8 @@ export class CableWorld {
       posedAt(c.f0, c.f1, t, c.p, c.R)
     }
     for (const b of awake) {
-      for (const e of [0, 1] as const) {
-        if (b.endMoving[e]) posedAt(b.pose0[e], b.pose1[e], t, b.apos[e], b.amat[e])
+      for (let e = 0; e < 2; e++) {
+        if (b.endMoving[e]) posedAt(b.pose0[e]!, b.pose1[e]!, t, b.apos[e]!, b.amat[e]!)
       }
       const end = b.first + b.n
       for (let i = b.first; i < end; i++) {

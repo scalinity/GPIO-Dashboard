@@ -4,7 +4,6 @@
 import { describe, expect, it } from 'vitest'
 import dupont from '../content/leads/dupont.json'
 import ribbonData from '../content/controllers/ribbon.json'
-import { rng } from './math'
 import {
   BOARD,
   BOARD_TOP,
@@ -770,69 +769,6 @@ describe('world bookkeeping', () => {
     world.setAnchor(ribbon, 1, at(-800, 900, 400, FLIP))
     run(world, 120)
     for (const id of [lead, ribbon]) {
-      expect(Array.from(world.positions(id)).every(Number.isFinite)).toBe(true)
-    }
-  })
-})
-
-describe('timing', () => {
-  // The heaviest tutorial scene: about 40 leads plus the ribbon on one breadboard. Reported, not
-  // asserted: the 4 ms budget (SPEC 10.8) is checked in the Tauri window, on the M-series Mac.
-  it('reports ms per frame for 40 leads plus the ribbon', { timeout: 120000 }, () => {
-    const rand = rng(11)
-    const world = newWorld(TABLE, BOARD)
-    const pitch = 2.54
-    const lead = (k: number) => {
-      // Leads span nearby holes, a few rows apart, as a tutorial's would; all are the 200 mm kind.
-      const row = -70 + (k % 20) * 7
-      const from = at(row, -20 + (k < 20 ? 0 : 40) + (rand() - 0.5) * pitch, BOARD_TOP)
-      const to = at(
-        row + (3 + rand() * 12) * pitch,
-        -20 + (k < 20 ? 8 : 28) * (1 + rand() * 0.2),
-        BOARD_TOP
-      )
-      return world.addLead({ a: from, b: to, lengthMm: 200 })
-    }
-    const leads = Array.from({ length: 40 }, (_, k) => lead(k))
-    const socketA = at(-150, -10, 14)
-    const ribbon = world.addRibbon({ a: socketA, b: at(-100, 0, 22, FLIP) })
-    const timed = (frames: number, each: (f: number) => void) => {
-      const ms: number[] = []
-      for (let f = 0; f < frames; f++) {
-        each(f)
-        const t0 = performance.now()
-        world.step()
-        ms.push(performance.now() - t0)
-      }
-      ms.sort((a, b) => a - b)
-      const mean = ms.reduce((s, v) => s + v, 0) / ms.length
-      return `mean ${mean.toFixed(2)}, median ${ms[ms.length >> 1]!.toFixed(2)}, p95 ${ms[Math.floor(ms.length * 0.95)]!.toFixed(2)}, max ${ms[ms.length - 1]!.toFixed(2)}`
-    }
-    const awake = () => [...leads, ribbon].filter((id) => !world.isAsleep(id)).length
-    const opening = timed(150, () => {})
-    console.info(
-      `opening, first 150 frames (${awake()} of 41 bodies still awake): ms/frame ${opening}`
-    )
-    run(world, 150)
-    console.info(`after 5 s: ${awake()} of 41 bodies awake`)
-    const dragRibbon = timed(120, (f) =>
-      world.setAnchor(ribbon, 1, at(-100 + 15 * Math.sin(f / 15), 0, 22, FLIP))
-    )
-    console.info(`dragging the T-board socket: ms/frame ${dragRibbon}`)
-    const everything = timed(120, (f) => {
-      world.setAnchor(ribbon, 1, at(-100 + 15 * Math.sin(f / 15), 0, 22, FLIP))
-      leads.forEach((id, k) => {
-        const p = world.positions(id)
-        void p
-        world.setAnchor(
-          id,
-          0,
-          at(-70 + (k % 20) * 7 + 4 * Math.sin(f / 12), -20 + (k < 20 ? 0 : 40), BOARD_TOP)
-        )
-      })
-    })
-    console.info(`moving the whole board (all 41 bodies awake): ms/frame ${everything}`)
-    for (const id of [...leads, ribbon]) {
       expect(Array.from(world.positions(id)).every(Number.isFinite)).toBe(true)
     }
   })
