@@ -1,0 +1,186 @@
+{
+  "id": "ic-74hc595",
+  "name": "74HC595 8-bit shift register (DIP-16)",
+  "category": "ic",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "QB",
+      "role": "logic-out",
+      "electricalType": "output",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "QC",
+      "role": "logic-out",
+      "electricalType": "output",
+      "offsetPitch": [1, 0]
+    },
+    {
+      "id": "3",
+      "label": "QD",
+      "role": "logic-out",
+      "electricalType": "output",
+      "offsetPitch": [2, 0]
+    },
+    {
+      "id": "4",
+      "label": "QE",
+      "role": "logic-out",
+      "electricalType": "output",
+      "offsetPitch": [3, 0]
+    },
+    {
+      "id": "5",
+      "label": "QF",
+      "role": "logic-out",
+      "electricalType": "output",
+      "offsetPitch": [4, 0]
+    },
+    {
+      "id": "6",
+      "label": "QG",
+      "role": "logic-out",
+      "electricalType": "output",
+      "offsetPitch": [5, 0]
+    },
+    {
+      "id": "7",
+      "label": "QH",
+      "role": "logic-out",
+      "electricalType": "output",
+      "offsetPitch": [6, 0]
+    },
+    {
+      "id": "8",
+      "label": "GND",
+      "role": "ground",
+      "electricalType": "power-in",
+      "offsetPitch": [7, 0]
+    },
+    {
+      "id": "9",
+      "label": "QH'",
+      "role": "logic-out",
+      "electricalType": "output",
+      "offsetPitch": [7, 3]
+    },
+    {
+      "id": "10",
+      "label": "SRCLR",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [6, 3]
+    },
+    {
+      "id": "11",
+      "label": "SRCLK",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [5, 3]
+    },
+    {
+      "id": "12",
+      "label": "RCLK",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [4, 3]
+    },
+    {
+      "id": "13",
+      "label": "OE",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [3, 3]
+    },
+    {
+      "id": "14",
+      "label": "SER",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [2, 3]
+    },
+    {
+      "id": "15",
+      "label": "QA",
+      "role": "logic-out",
+      "electricalType": "output",
+      "offsetPitch": [1, 3]
+    },
+    {
+      "id": "16",
+      "label": "VCC",
+      "role": "power",
+      "electricalType": "power-in",
+      "offsetPitch": [0, 3]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": {
+    "kind": "rigid",
+    "straddleTrench": true
+  },
+  "sim": {
+    "model": "shift-register-595",
+    "params": {
+      "vccMinV": 2,
+      "vccMaxV": 6,
+      "vccAbsMaxV": 7,
+      "thresholdVccV": 4.5,
+      "vihMinV": 3.15,
+      "vilMaxV": 1.35,
+      "vihMinV_vcc2V": 1.5,
+      "vilMaxV_vcc2V": 0.5,
+      "vihMinV_vcc6V": 4.2,
+      "vilMaxV_vcc6V": 1.8,
+      "iiMaxUa": 1,
+      "outputTestVccV": 4.5,
+      "iohMa": 6,
+      "iolMa": 6,
+      "vohMinV": 3.84,
+      "volMaxV": 0.33,
+      "qhPrimeIohMa": 4,
+      "qhPrimeIolMa": 4,
+      "ioAbsMaxMa": 35,
+      "vccGndAbsMaxMa": 70,
+      "iccMaxUa": 80,
+      "fmaxHz": 25000000,
+      "tpdNs": 17,
+      "tpdMaxNs": 37,
+      "twMinNs": 20,
+      "tsuSerMinNs": 25,
+      "tsuSrclkToRclkMinNs": 19,
+      "thSerMinNs": 0,
+      "oeActiveLow": true,
+      "srclrActiveLow": true
+    }
+  },
+  "properties": {},
+  "bodyMm": [19.31, 6.35, 5.08],
+  "geometry": {
+    "family": "dip",
+    "params": {
+      "pinCount": 16,
+      "bodyLengthMm": 19.31,
+      "bodyWidthMm": 6.35,
+      "bodyHeightMm": 5.08,
+      "pitchMm": 2.54,
+      "rowSpacingMm": 7.62,
+      "leadWidthMinMm": 0.38,
+      "leadWidthMaxMm": 0.53,
+      "leadLengthMinMm": 3.18,
+      "standoffMinMm": 0.51
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://www.ti.com/lit/ds/symlink/sn74hc595.pdf",
+      "https://www.ti.com/lit/ml/mpdi002c/mpdi002c.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.1.4%207-segment%20Display.html"
+    ],
+    "notes": "Pin numbers and names: TI SN54HC595/SN74HC595 datasheet SCLS041J, section 5, the 16-pin SOIC/PDIP/SO/CDIP/SSOP/TSSOP top view and Table 5-1 (page 3). VCC is pin 16 in that top view; Table 5-1 prints its DIP column as a dash and repeats pin 14 for SRCLK in the LCCC column, both table slips, so the package diagram governs. SRCLR and OE are active low (overbars in the datasheet; labels here are plain text). Supply, thresholds, drive and absolute maximums: section 6.1 and 6.3 (page 4) and 6.5 (page 5), SN74HC595 columns over -40 to 85 C. VIH and VIL are given only at VCC = 2, 4.5 and 6 V, so vihMinV and vilMaxV carry the 4.5 V row (thresholdVccV) and the 2 V and 6 V rows are separate keys; the datasheet gives no value at 3.3 V, the supply the SunFounder wiring uses, so any 3.3 V threshold is an interpolation and not a datasheet number. Output levels: VOH >= 3.84 V at IOH = -6 mA and VOL <= 0.33 V at IOL = 6 mA for QA-QH at VCC = 4.5 V; QH' is rated 4 mA at the same VCC. Timing at VCC = 4.5 V: fclock 25 MHz max and pulse width, set-up and hold (section 6.6, page 6); tpd 17 ns typical and 37 ns max for RCLK to QA-QH with 50 pF (section 6.7, page 8). Function table: section 8.4 (page 12). Body length and width (19.31 x 6.35 mm) are the SN74HC595N nominal figures in the Device Information table (page 1). This datasheet revision carries no PDIP (N) drawing, so height (5.08 mm max), 2.54 mm pitch, 7.62 mm row spacing and lead dimensions come from TI drawing MPDI002C (N R-PDIP-T**, 4040049/E). Kit status: the component-list image shows 74HC595 x2, and projects 1.1.3 and 1.1.4 use it. SunFounder names the pins differently (DS = SER, SH_CP = SRCLK, ST_CP = RCLK, MR = SRCLR, CE = OE, Q0-Q7 = QA-QH, Q7' = QH'); the TI names are used here, and SunFounder's schematic pin numbers agree with the TI pin numbers. The kit chip's manufacturer was not read, so other makers' 74HC595 datasheets (Nexperia, ST) were not compared against this one."
+  }
+}

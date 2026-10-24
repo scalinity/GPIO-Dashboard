@@ -1,0 +1,127 @@
+{
+  "id": "seven-segment-ca",
+  "name": "7-segment display, common anode (0.56 in, 1 digit)",
+  "category": "display",
+  "kitTags": ["not in kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "e",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "d",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0]
+    },
+    {
+      "id": "3",
+      "label": "COM",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [2, 0]
+    },
+    {
+      "id": "4",
+      "label": "c",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [3, 0]
+    },
+    {
+      "id": "5",
+      "label": "dp",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [4, 0]
+    },
+    {
+      "id": "6",
+      "label": "b",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [4, 6]
+    },
+    {
+      "id": "7",
+      "label": "a",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [3, 6]
+    },
+    {
+      "id": "8",
+      "label": "COM",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [2, 6]
+    },
+    {
+      "id": "9",
+      "label": "f",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [1, 6]
+    },
+    {
+      "id": "10",
+      "label": "g",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [0, 6]
+    }
+  ],
+  "internalConnections": [["3", "8"]],
+  "footprint": {
+    "kind": "rigid",
+    "straddleTrench": true
+  },
+  "sim": {
+    "model": "seven-segment",
+    "params": {
+      "commonType": "anode",
+      "ledCount": 8,
+      "digitCount": 1,
+      "vfTypV": 1.9,
+      "vfMaxV": 2.3,
+      "ifTestMa": 10,
+      "ifMaxMa": 30,
+      "ifPeakMa": 160,
+      "peakDutyPct": 10,
+      "peakPulseMs": 0.1,
+      "vrMaxV": 5
+    }
+  },
+  "properties": {},
+  "bodyMm": [12.7, 19.05, 8],
+  "geometry": {
+    "family": "seven-segment",
+    "params": {
+      "pinCount": 10,
+      "digitCount": 1,
+      "bodyLengthMm": 12.7,
+      "bodyWidthMm": 19.05,
+      "bodyHeightMm": 8,
+      "digitHeightMm": 14.22,
+      "segmentWidthMm": 1.5,
+      "slantDeg": 8,
+      "decimalPoint": "right",
+      "pitchMm": 2.54,
+      "rowSpacingMm": 15.24,
+      "leadDiaMm": 0.5,
+      "leadLengthMm": 4
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://www.kingbrightusa.com/images/catalog/SPEC/SA56-11EWA.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.1.4%207-segment%20Display.html"
+    ],
+    "notes": "Pinout, dimensions and ratings: Kingbright SA56-11EWA (0.56 in single digit, common anode, right-hand decimal; spec DSAP8372 rev V.1A), page 1 package drawing and internal circuit (segments a=7, b=6, c=4, d=2, e=1, f=9, g=10, DP=5, common anode on pins 3 and 8) and page 2 ratings (VF 1.9 V typical and 2.3 V maximum at 10 mA, DC IF 30 mA, peak IF 160 mA at 1/10 duty, VR 5 V). It has the same package drawing and pin numbers as the common-cathode SC56-11EWA, with every LED reversed. The two common pins (3 and 8) are one node. Not in the SunFounder kit: project 1.1.4 states the kit display is common cathode. VF and current ratings are for Kingbright's high-efficiency-red chip; other colors differ."
+  }
+}

@@ -1,0 +1,198 @@
+{
+  "id": "bar-graph-10",
+  "name": "10-segment LED bar graph (20-pin)",
+  "category": "display",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "A1",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "A2",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0]
+    },
+    {
+      "id": "3",
+      "label": "A3",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [2, 0]
+    },
+    {
+      "id": "4",
+      "label": "A4",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [3, 0]
+    },
+    {
+      "id": "5",
+      "label": "A5",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [4, 0]
+    },
+    {
+      "id": "6",
+      "label": "A6",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [5, 0]
+    },
+    {
+      "id": "7",
+      "label": "A7",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [6, 0]
+    },
+    {
+      "id": "8",
+      "label": "A8",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [7, 0]
+    },
+    {
+      "id": "9",
+      "label": "A9",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [8, 0]
+    },
+    {
+      "id": "10",
+      "label": "A10",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [9, 0]
+    },
+    {
+      "id": "11",
+      "label": "K10",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [9, 3]
+    },
+    {
+      "id": "12",
+      "label": "K9",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [8, 3]
+    },
+    {
+      "id": "13",
+      "label": "K8",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [7, 3]
+    },
+    {
+      "id": "14",
+      "label": "K7",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [6, 3]
+    },
+    {
+      "id": "15",
+      "label": "K6",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [5, 3]
+    },
+    {
+      "id": "16",
+      "label": "K5",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [4, 3]
+    },
+    {
+      "id": "17",
+      "label": "K4",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [3, 3]
+    },
+    {
+      "id": "18",
+      "label": "K3",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [2, 3]
+    },
+    {
+      "id": "19",
+      "label": "K2",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [1, 3]
+    },
+    {
+      "id": "20",
+      "label": "K1",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [0, 3]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": {
+    "kind": "rigid",
+    "straddleTrench": true
+  },
+  "sim": {
+    "model": "bar-graph-10",
+    "params": {
+      "segmentCount": 10,
+      "commonType": "none",
+      "independentSegments": true,
+      "vfTypV": 1.9,
+      "vfMaxV": 2.3,
+      "ifTestMa": 10,
+      "ifMaxMa": 30,
+      "ifPeakMa": 160,
+      "peakDutyPct": 10,
+      "peakPulseMs": 0.1,
+      "vrMaxV": 5
+    }
+  },
+  "properties": {},
+  "bodyMm": [25.4, 10.16, 8],
+  "geometry": {
+    "family": "bar-graph",
+    "params": {
+      "pinCount": 20,
+      "segmentCount": 10,
+      "bodyLengthMm": 25.4,
+      "bodyWidthMm": 10.16,
+      "bodyHeightMm": 8,
+      "windowLengthMm": 24.64,
+      "segmentWidthMm": 1.78,
+      "segmentHeightMm": 5.08,
+      "segmentPitchMm": 2.54,
+      "pitchMm": 2.54,
+      "rowSpacingMm": 7.5,
+      "leadDiaMm": 0.5,
+      "leadLengthMm": 4
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://www.kingbrightusa.com/images/catalog/spec/DC10EWA.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.3.3%20LED%20Bar%20Graph.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/_images/led_bar_sche.png",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "Pin map and package: Kingbright DC10EWA 10 segment bar graph array (spec DSAD1426 rev V.10A), page 1 package drawing and internal circuit: ten independent LEDs, LED n between pin n (anode, pins 1 to 10 along one row, anode mark at pin 1) and pin 21 - n (cathode, pins 11 to 20 along the other row; LED 1 is pins 1 and 20, LED 10 is pins 10 and 11). The datasheet gives pin numbers only, so the labels A1 to A10 (pins 1 to 10) and K10 to K1 (pins 11 to 20) are named for this file. Numbering is counter-clockwise from pin 1 at the bottom left of the top view (pins 1 to 10 along the bottom, 11 to 20 back along the top). Body 25.4 x 10.16 mm, about 8 mm high with leads 4 +/- 0.5 mm long and 0.5 mm in diameter, 2.54 mm pin pitch, rows 7.5 mm apart (the recommended PCB layout; 3 breadboard pitches is 7.62 mm). Segment window 24.64 mm long (9 x 2.54 + 1.78), segments 1.78 x 5.08 mm. Ratings (page 2): VF 1.9 V typical and 2.3 V maximum at 10 mA, DC IF 30 mA, peak IF 160 mA at 1/10 duty and 0.1 ms, VR 5 V; these are the DC10EWA high-efficiency-red chip. Kit status: the component-list image shows \"LED Bar Graph x1\", and the photo on SunFounder's page 1.3.3 shows the body marked 2510SR-1 (the schematic image led_bar_sche.png numbers its pins 1 to 10 on one side and 11 to 20 on the other, with the anode end of each LED on pins 1 to 10). No datasheet for the 2510SR-1 marking was found, so its dimensions, VF and ratings are unverified; the Kingbright part is the pin-compatible datasheet. SunFounder's code turns a segment on by driving its GPIO low and its comments call this \"common anode\"; that describes the wiring (the GPIOs sit on the cathode side), since the ten LEDs share no pin. The page maps segment 1 to 10 to GPIO17, 18, 27, 22, 23, 24, 25, SDA1, SCL1, SPICE0 and does not say which physical LED each is."
+  }
+}

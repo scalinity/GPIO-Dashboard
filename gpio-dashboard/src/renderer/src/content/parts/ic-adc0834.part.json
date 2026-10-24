@@ -1,0 +1,169 @@
+{
+  "id": "ic-adc0834",
+  "name": "ADC0834 4-channel 8-bit serial ADC (DIP-14)",
+  "category": "ic",
+  "kitTags": ["not in kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "V+",
+      "role": "power",
+      "electricalType": "power-in",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "CS",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [1, 0]
+    },
+    {
+      "id": "3",
+      "label": "CH0",
+      "role": "analog-in",
+      "electricalType": "input",
+      "offsetPitch": [2, 0]
+    },
+    {
+      "id": "4",
+      "label": "CH1",
+      "role": "analog-in",
+      "electricalType": "input",
+      "offsetPitch": [3, 0]
+    },
+    {
+      "id": "5",
+      "label": "CH2",
+      "role": "analog-in",
+      "electricalType": "input",
+      "offsetPitch": [4, 0]
+    },
+    {
+      "id": "6",
+      "label": "CH3",
+      "role": "analog-in",
+      "electricalType": "input",
+      "offsetPitch": [5, 0]
+    },
+    {
+      "id": "7",
+      "label": "DGND",
+      "role": "ground",
+      "electricalType": "power-in",
+      "offsetPitch": [6, 0]
+    },
+    {
+      "id": "8",
+      "label": "AGND",
+      "role": "ground",
+      "electricalType": "power-in",
+      "offsetPitch": [6, 3]
+    },
+    {
+      "id": "9",
+      "label": "VREF",
+      "role": "analog-in",
+      "electricalType": "input",
+      "offsetPitch": [5, 3]
+    },
+    {
+      "id": "10",
+      "label": "DO",
+      "role": "logic-out",
+      "electricalType": "output",
+      "offsetPitch": [4, 3]
+    },
+    {
+      "id": "11",
+      "label": "SARS",
+      "role": "logic-out",
+      "electricalType": "output",
+      "offsetPitch": [3, 3]
+    },
+    {
+      "id": "12",
+      "label": "CLK",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [2, 3]
+    },
+    {
+      "id": "13",
+      "label": "DI",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [1, 3]
+    },
+    {
+      "id": "14",
+      "label": "VCC",
+      "role": "power",
+      "electricalType": "power-in",
+      "offsetPitch": [0, 3]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": {
+    "kind": "rigid",
+    "straddleTrench": true
+  },
+  "sim": {
+    "model": "adc0834",
+    "params": {
+      "channelCount": 4,
+      "resolutionBits": 8,
+      "vccMinV": 4.5,
+      "vccMaxV": 6.3,
+      "vccAbsMaxV": 6.5,
+      "vihMinV": 2,
+      "vilMaxV": 0.8,
+      "iinMaxUa": 1,
+      "vohMinV": 2.4,
+      "iohMa": 0.36,
+      "volMaxV": 0.4,
+      "iolMa": 1.6,
+      "isourceMinMa": 7.5,
+      "isinkMinMa": 9,
+      "iccMaxMa": 2.5,
+      "fclkMinHz": 10000,
+      "fclkMaxHz": 400000,
+      "clockDutyMinPct": 40,
+      "clockDutyMaxPct": 60,
+      "conversionClocks": 8,
+      "tSetupMinNs": 250,
+      "tHoldMinNs": 90,
+      "tpdMsbFirstMaxNs": 1500,
+      "tpdLsbFirstMaxNs": 600,
+      "totalUnadjustedErrorLsb": 1,
+      "vrefRinMinKohm": 1.3,
+      "vrefRinTypKohm": 3.5,
+      "vrefRinMaxKohm": 5.9
+    }
+  },
+  "properties": {},
+  "bodyMm": [19.31, 6.35, 5.08],
+  "geometry": {
+    "family": "dip",
+    "params": {
+      "pinCount": 14,
+      "bodyLengthMm": 19.31,
+      "bodyWidthMm": 6.35,
+      "bodyHeightMm": 5.08,
+      "pitchMm": 2.54,
+      "rowSpacingMm": 7.62,
+      "leadWidthMinMm": 0.38,
+      "leadWidthMaxMm": 0.53,
+      "leadLengthMinMm": 3.18,
+      "standoffMinMm": 0.51
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://www.ti.com/lit/ds/symlink/adc0834-n.pdf",
+      "https://www.ti.com/lit/ml/mpdi002c/mpdi002c.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "Pin numbers and names: TI ADC0831-N/0832-N/0834-N/0838-N datasheet SNAS531B, Figure 3 (ADC0834-N 4-channel MUX SOIC/PDIP top view, page 2). Pin 1 is V+ (the shunt-regulator supply input), not CS; CS is pin 2. The datasheet states \"COM internally connected to A GND\" for this part, so there is no COM pin. DGND (7) and AGND (8) are separate pins, and nothing in the datasheet says they are tied inside the package, so no internal connection is modeled. The datasheet's test conditions use VCC = V+ = VREF = 5 V. Limits: operating supply 4.5 to 6.3 V and absolute maximum 6.5 V (page 3); logic levels, output levels, source and sink current and supply current for the ADC0834BCN/CCN column (page 5: VIH 2.0 V at VCC = 5.25 V, VIL 0.8 V at 4.75 V, VOH 2.4 V at -360 uA, VOL 0.4 V at 1.6 mA, ISOURCE 7.5 mA and ISINK 9 mA tested minimums, ICC 2.5 mA max); clock 10 kHz tested minimum and 400 kHz design maximum, 40 to 60 % duty, 8 clocks per conversion, set-up 250 ns, hold 90 ns, tpd 1500 ns MSB first and 600 ns LSB first with 100 pF (page 6); total unadjusted error +/-1 LSB for the CCN grade and +/-1/2 LSB for BCN; VREF input resistance 1.3 to 5.9 kohm (page 4). TI lists ADC0834CCN/NOPB (the PDIP) as Obsolete and only the SOIC as Active (package option addendum), so the DIP-14 is a legacy part. Not in the SunFounder kit: the kit's component-list image shows an ADS7830 module and no ADC0834. This datasheet carries no PDIP drawing; the 14-pin body (length 18.92 to 19.69 mm, width 6.10 to 6.60 mm, taken at their midpoints), 5.08 mm max height, 7.62 mm row spacing and lead sizes come from TI drawing MPDI002C (N R-PDIP-T**, 4040049/E, 14-pin column). The serial protocol (MUX address after the start bit, SARS, DO) is Figure 20 and the function description in the same datasheet; the behavior model is not described in this file."
+  }
+}
