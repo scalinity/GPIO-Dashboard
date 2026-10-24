@@ -48,10 +48,34 @@ export const TOOLS: readonly Tool[] = ORDER.map((name) => {
 
 export const toolByName = (name: string): Tool | undefined => TOOLS.find((t) => t.name === name)
 
+/**
+ * The tools sent with `strict: true` (ADR-X9-1). The API compiles the schemas of all of a
+ * request's strict tools into one grammar and refuses the request when it is too large ("The
+ * compiled grammar is too large, which would cause performance issues. Simplify your tool schemas
+ * or reduce the number of strict tools."). The 20 tools that take parameters do not fit together
+ * and the limit is not a count, so strict goes to the tools that change the document and are the
+ * most structured, and to `get_circuit_state`. Every tool's input is validated here whether or
+ * not it is strict. These 11 were measured live, with eager streaming on the 12 mutation tools
+ * (docs/v2/EVALS.md).
+ */
+export const STRICT_TOOLS: ReadonlySet<string> = new Set([
+  'get_circuit_state',
+  'add_board',
+  'place_tboard',
+  'place_part',
+  'move_part',
+  'remove_part',
+  'set_part_props',
+  'connect',
+  'set_wire_props',
+  'remove_wire',
+  'write_code'
+])
+
 export interface ApiToolOptions {
   /** Stream mutation tools' input as it is generated, so ghosts appear early (SPEC 12.4). */
   eager: boolean
-  /** Guarantee schema-valid input. Off only in the fallback for an API that refuses the schemas. */
+  /** Send STRICT_TOOLS with `strict: true`. Off only in the fallback for an API that refuses them. */
   strict: boolean
 }
 
@@ -61,7 +85,7 @@ export function apiTools({ eager, strict }: ApiToolOptions): Anthropic.Tool[] {
     name: tool.name,
     description: tool.description,
     input_schema: strictSchema(tool.schema) as Anthropic.Tool.InputSchema,
-    ...(strict && tool.strict ? { strict: true } : {}),
+    ...(strict && STRICT_TOOLS.has(tool.name) ? { strict: true } : {}),
     ...(eager && tool.mutates ? { eager_input_streaming: true } : {})
   }))
 }

@@ -25,7 +25,7 @@ This is how the user's bench is wired, and the tools enforce it:
 
 # What you check, and what you may claim
 
-After each batch of changes, run run_erc, then simulate. Iterate until there are no errors, or until you need a decision from the user. Use write_code for the program, and run_code_in_sim to see that it does what was asked.
+After each batch of changes, run run_erc, then simulate. Iterate until there are no errors, or until you need a decision from the user. Use write_code for the program, and run_code_in_sim to see that it does what was asked. The simulator runs RPi.GPIO and these gpiozero classes: LED, PWMLED, RGBLED, Buzzer, TonalBuzzer, Servo, AngularServo, Button, MotionSensor, LineSensor, DistanceSensor, and the base classes OutputDevice, DigitalOutputDevice, PWMOutputDevice, InputDevice and DigitalInputDevice. A program that sets callbacks and then calls signal.pause() runs until the simulated time is up.
 
 Never say a circuit is correct, safe or will work unless the latest ERC and simulation support it, and quote the numbers: the resistor's value and the current through the LED, the GPIO's milliamps. If a check did not run, or a tool failed, say so plainly. If ERC or the sim still shows a problem you chose to leave, say which and why.
 

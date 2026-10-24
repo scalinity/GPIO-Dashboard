@@ -3,7 +3,7 @@
 // the same input at runtime (SPEC 12.4).
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { apiTools, TOOLS } from '.'
+import { apiTools, STRICT_TOOLS, TOOLS } from '.'
 import { conforms, VALID_INPUT } from '../testing/samples'
 import { complexity, strictSchema, subsetProblems, type JsonSchema } from './jsonSchema'
 
@@ -79,9 +79,29 @@ describe.each(TOOLS.map((t) => [t.name, t] as const))('%s', (name, tool) => {
 describe('what is sent to the API', () => {
   const sent = apiTools({ eager: true, strict: true })
 
-  it('makes every tool with parameters strict, and only the two empty ones not', () => {
-    const notStrict = sent.filter((t) => !t.strict).map((t) => t.name)
-    expect(notStrict).toEqual(['run_erc', 'read_board_sense'])
+  // The API refuses a request whose strict schemas compile to too large a grammar, and 20
+  // strict tools are too many (ADR-X9-1). The grammar's size is only known live; this pins the set
+  // that was accepted there with eager streaming on the 12 mutation tools (docs/v2/EVALS.md).
+  it('makes strict exactly the 11 tools measured to fit the API’s grammar budget', () => {
+    expect(sent.filter((t) => t.strict).map((t) => t.name)).toEqual([
+      'get_circuit_state',
+      'add_board',
+      'place_tboard',
+      'place_part',
+      'move_part',
+      'remove_part',
+      'set_part_props',
+      'connect',
+      'set_wire_props',
+      'remove_wire',
+      'write_code'
+    ])
+    expect(STRICT_TOOLS.size).toBe(11)
+  })
+
+  it('makes strict only tools that take parameters, and closes every schema', () => {
+    for (const name of STRICT_TOOLS)
+      expect(TOOLS.find((t) => t.name === name)?.strict, name).toBe(true)
     for (const t of sent) expect(t.input_schema.additionalProperties).toBe(false)
   })
 
@@ -110,6 +130,17 @@ describe('what is sent to the API', () => {
       'write_code',
       'annotate_build_steps'
     ])
+  })
+
+  it('sets strict and eager independently, for the fallback steps', () => {
+    const names = (list: ReturnType<typeof apiTools>, flag: 'strict' | 'eager_input_streaming') =>
+      list.filter((t) => t[flag]).length
+    // Step 1: no strict, eager kept.
+    const noStrict = apiTools({ eager: true, strict: false })
+    expect([names(noStrict, 'strict'), names(noStrict, 'eager_input_streaming')]).toEqual([0, 12])
+    // The case where the API names eager streaming: strict kept.
+    const noEager = apiTools({ eager: false, strict: true })
+    expect([names(noEager, 'strict'), names(noEager, 'eager_input_streaming')]).toEqual([11, 0])
   })
 
   it('drops both flags in the plain-tools form', () => {

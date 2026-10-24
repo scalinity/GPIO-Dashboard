@@ -95,6 +95,21 @@ export interface TurnOptions {
   effort?: Effort
 }
 
+const toolNameOf = (tool: Anthropic.ToolUnion) => (tool as { name?: string }).name ?? ''
+
+/** What the API said was wrong: the message inside its error body, else the SDK's own text. */
+function apiMessage(e: { message: string; error?: unknown }): string {
+  const body = e.error as { error?: { message?: unknown } } | undefined
+  return typeof body?.error?.message === 'string' ? body.error.message : e.message
+}
+
+/** The web tools a 400 says this organization does not have ("Web search is not enabled…"). */
+function refusedWebTools(detail: string): string[] {
+  return ['web_search', 'web_fetch'].filter((name) =>
+    new RegExp(`${name.replace('_', '[ _]?')} is not enabled`, 'i').test(detail)
+  )
+}
+
 const plainResult = (id: string, message: unknown): Anthropic.ToolResultBlockParam => ({
   type: 'tool_result',
   tool_use_id: id,
@@ -136,13 +151,18 @@ export class AssistantSession {
   private readonly ctx: AssistantContext
   private readonly maxTokens: number
   private readonly cap: number
-  private readonly eager: boolean
   private readonly newTurnId: () => string
   private readonly system: Anthropic.TextBlockParam[]
   private readonly web: boolean
   private tools: Anthropic.ToolUnion[]
-  /** 0: strict and eager tools; 1: strict without eager (SPEC 12.4); 2: plain tools. */
-  private fallback: 0 | 1 | 2 = 0
+  /**
+   * What the first request may fall back from (ADR-X9-1): strict tools and eager input streaming
+   * both start on, and are dropped one at a time, strict first, if the API refuses the request.
+   */
+  private strict = true
+  private eager: boolean
+  /** Web tools the API refused for this account; dropped from the first request (ADR-X9-2). */
+  private readonly webOff = new Set<string>()
   private readonly revisions = new RevisionMemory()
   private readonly previews = new Set(TOOLS.filter((t) => t.preview).map((t) => t.name))
   private turns = 0
@@ -177,24 +197,59 @@ export class AssistantSession {
 
   private buildTools(): Anthropic.ToolUnion[] {
     return [
-      ...apiTools({ eager: this.eager && this.fallback === 0, strict: this.fallback < 2 }),
-      ...(this.web ? webTools() : [])
+      ...apiTools({ eager: this.eager, strict: this.strict }),
+      ...(this.web ? webTools().filter((t) => !this.webOff.has(toolNameOf(t))) : [])
     ]
   }
 
   /**
-   * An API that refuses the strict or eager tool schemas (they are not checkable offline) would
-   * leave the assistant unusable. On the first request only, before any thinking block exists to
-   * invalidate, retry without eager streaming, keeping strict (SPEC 12.4); if that is refused too,
-   * retry with plain tools. Runtime validation does not depend on either.
+   * The tools the API refused, which would leave the assistant unusable, answered on the first
+   * request only: before any thinking block exists to bind the tools, the request is sent again
+   * without what the API named, and the user is told why. Strict schemas and eager streaming are
+   * not checkable offline (ADR-X9-1), and the account may not have web search (ADR-X9-2). Runtime
+   * validation does not depend on any of them. Returns false when there is nothing left to drop.
    */
-  private canFallBack(e: unknown): boolean {
-    return (
-      this.fallback < 2 &&
-      e instanceof Anthropic.BadRequestError &&
-      /strict|eager|too complex|schema/i.test(e.message) &&
-      !this.messages.some((m) => m.role === 'assistant')
-    )
+  private dropRefused(e: unknown, emit: (event: AssistantEvent) => void): boolean {
+    if (!(e instanceof Anthropic.BadRequestError)) return false
+    if (this.messages.some((m) => m.role === 'assistant')) return false
+    const detail = apiMessage(e)
+
+    const web = this.web ? refusedWebTools(detail).filter((name) => !this.webOff.has(name)) : []
+    if (web.length) {
+      for (const name of web) this.webOff.add(name)
+      this.tools = this.buildTools()
+      emit({
+        type: 'notice',
+        code: 'web-tools-refused',
+        message: `The API refused ${web.map((n) => n.replace('_', ' ')).join(' and ')} (“${detail}”), so this conversation runs without ${web.length > 1 ? 'them' : 'it'}. The “Web search and fetch, for datasheets” setting turns the web tools off for new conversations.`
+      })
+      return true
+    }
+
+    if (!/strict|eager|grammar|too complex|schema/i.test(detail)) return false
+    // A message that names eager streaming drops it; any other tool refusal drops strict first.
+    const eagerNamed = /eager|input.stream/i.test(detail) && this.eager
+    if (this.strict && !eagerNamed) {
+      this.strict = false
+      this.tools = this.buildTools()
+      emit({
+        type: 'notice',
+        code: 'strict-refused',
+        message: `The API refused the strict tool schemas (“${detail}”), so tools run without them. Their input is still checked in the app.`
+      })
+      return true
+    }
+    if (this.eager) {
+      this.eager = false
+      this.tools = this.buildTools()
+      emit({
+        type: 'notice',
+        code: 'eager-refused',
+        message: `The API refused eager tool input streaming (“${detail}”), so tool input arrives only once it is complete and previews appear later.`
+      })
+      return true
+    }
+    return false
   }
 
   async runTurn(userText: string, options: TurnOptions = {}): Promise<TurnResult> {
@@ -322,19 +377,7 @@ export class AssistantSession {
         )
       } catch (e) {
         if (signal.aborted) return finish('aborted')
-        if (this.canFallBack(e)) {
-          this.fallback += 1
-          this.tools = this.buildTools()
-          emit({
-            type: 'notice',
-            code: 'plain-tools',
-            message:
-              this.fallback === 1
-                ? 'The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.'
-                : 'The API refused the strict tool schemas, so tools run without them. Input is still validated here.'
-          })
-          continue
-        }
+        if (this.dropRefused(e, emit)) continue
         const code = e instanceof Anthropic.APIError ? String(e.status ?? e.name) : 'stream'
         const text = e instanceof Error ? e.message : String(e)
         emit({ type: 'error', code, message: text })

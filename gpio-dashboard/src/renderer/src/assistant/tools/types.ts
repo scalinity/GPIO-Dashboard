@@ -42,7 +42,7 @@ export interface Tool {
   schema: z.ZodType
   /** Changes the document or the part library, so its input streams eagerly (SPEC 12.4). */
   mutates: boolean
-  /** Has parameters, so its schema is strict. The API allows 20 strict tools per request. */
+  /** Has parameters, so its schema can be strict. Which tools are sent strict: STRICT_TOOLS. */
   strict: boolean
   /** Partial inputs are worth parsing while they stream (chips, ghosts). */
   preview: boolean

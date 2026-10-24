@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type Anthropic from '@anthropic-ai/sdk'
 import { AssistantSession, type AssistantEvent, type SessionOptions } from './loop'
+import { STRICT_TOOLS, TOOLS } from './tools'
 import { FakeContext } from './testing/fakeContext'
 import { THINKING_TOOL_STREAM, WEB_SEARCH_STREAM } from './testing/fixtures'
 import {
@@ -28,6 +29,7 @@ function setup(script: Scripted[], options: Partial<SessionOptions> = {}, bytesP
   return { ctx, session, requests: served.requests, log, run }
 }
 
+const order = (name: string) => TOOLS.findIndex((t) => t.name === name)
 const end = (...blocks: Reply['blocks']): Reply => ({ blocks, stop: 'end_turn' })
 const tools = (...blocks: Reply['blocks']): Reply => ({ blocks, stop: 'tool_use' })
 
@@ -69,7 +71,7 @@ describe('the request', () => {
     expect(body.messages).toEqual([{ role: 'user', content: 'hi' }])
   })
 
-  it('declares 22 strict client tools plus the web tools, called directly', async () => {
+  it('declares 22 client tools plus the web tools, called directly', async () => {
     const t = setup([end(text('ok'))])
     await t.run('hi')
     const list = t.requests[0]!.body.tools as Record<string, unknown>[]
@@ -664,37 +666,160 @@ describe('abort', () => {
   })
 })
 
-describe('plain tools fallback', () => {
-  const tooComplex = () =>
-    jsonError(400, 'invalid_request_error', 'tools: Schema is too complex for compilation.')
+describe('a first request the API refuses', () => {
+  const refusal = (message: string) => jsonError(400, 'invalid_request_error', message)
+  const grammar = () =>
+    refusal(
+      'The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.'
+    )
+  const eagerNamed = () =>
+    refusal('tools.3.custom: eager_input_streaming is not supported for this tool.')
+  const noSearch = () => refusal('Web search is not enabled for this organization')
 
-  it('first drops eager streaming and keeps strict (SPEC 12.4)', async () => {
-    const t = setup([tooComplex(), end(text('Working.'))])
-    const result = await t.run('hi')
-    expect(result.reason).toBe('end_turn')
-    const [first, second] = t.requests.map((r) => r.body.tools as Record<string, unknown>[])
-    expect(first!.some((x) => x.strict === true)).toBe(true)
-    expect(first!.some((x) => x.eager_input_streaming === true)).toBe(true)
-    expect(second!.some((x) => x.strict === true)).toBe(true)
-    expect(second!.some((x) => 'eager_input_streaming' in x)).toBe(false)
-    expect(t.log.some((e) => e.type === 'notice' && e.code === 'plain-tools')).toBe(true)
+  type Sent = Record<string, unknown>[]
+  const client = (list: Sent) => list.filter((x) => !('type' in x))
+  const strictNames = (list: Sent) =>
+    client(list)
+      .filter((x) => x.strict === true)
+      .map((x) => x.name)
+  const eagerCount = (list: Sent) => client(list).filter((x) => x.eager_input_streaming).length
+  const notices = (log: AssistantEvent[]) =>
+    log.filter((e) => e.type === 'notice') as Extract<AssistantEvent, { type: 'notice' }>[]
+
+  it('is sent with the 11 strict tools and eager streaming on the 12 mutation tools', async () => {
+    const t = setup([end(text('ok'))])
+    await t.run('hi')
+    const first = t.requests[0]!.body.tools as Sent
+    expect(strictNames(first)).toEqual([...STRICT_TOOLS].sort((a, b) => order(a) - order(b)))
+    expect(strictNames(first)).toHaveLength(11)
+    expect(eagerCount(first)).toBe(12)
+    expect(t.requests).toHaveLength(1)
+    expect(notices(t.log)).toEqual([])
   })
 
-  it('drops strict only when the API refuses the strict schemas too', async () => {
-    const t = setup([tooComplex(), tooComplex(), end(text('Working.'))])
+  it('step 1 drops the strict schemas, keeps eager streaming, and names the grammar error', async () => {
+    const t = setup([grammar(), end(text('Working.'))])
     const result = await t.run('hi')
     expect(result.reason).toBe('end_turn')
-    const third = t.requests[2]!.body.tools as Record<string, unknown>[]
+    const [, second] = t.requests.map((r) => r.body.tools as Sent)
+    expect(strictNames(second!)).toEqual([])
+    expect(eagerCount(second!)).toBe(12)
+    const [notice] = notices(t.log)
+    expect(notice).toMatchObject({ code: 'strict-refused' })
+    expect(notice!.message).toContain('refused the strict tool schemas')
+    expect(notice!.message).toContain('The compiled grammar is too large')
+    expect(notices(t.log)).toHaveLength(1)
+  })
+
+  it('step 2 drops eager streaming as well when plain tools with eager are refused', async () => {
+    const t = setup([grammar(), eagerNamed(), end(text('Working.'))])
+    const result = await t.run('hi')
+    expect(result.reason).toBe('end_turn')
+    expect(t.requests).toHaveLength(3)
+    const third = t.requests[2]!.body.tools as Sent
     expect(third.some((x) => 'strict' in x || 'eager_input_streaming' in x)).toBe(false)
+    const [first, second] = notices(t.log)
+    expect(first).toMatchObject({ code: 'strict-refused' })
+    expect(second).toMatchObject({ code: 'eager-refused' })
+    expect(second!.message).toContain('refused eager tool input streaming')
+    expect(second!.message).toContain('eager_input_streaming is not supported')
+  })
+
+  it('drops eager streaming first, keeping strict, when the API names it', async () => {
+    const t = setup([eagerNamed(), end(text('Working.'))])
+    await t.run('hi')
+    const second = t.requests[1]!.body.tools as Sent
+    expect(strictNames(second)).toHaveLength(11)
+    expect(eagerCount(second)).toBe(0)
+    expect(notices(t.log)[0]).toMatchObject({ code: 'eager-refused' })
+  })
+
+  it('ends the turn with the API’s error when nothing is left to drop', async () => {
+    const t = setup([grammar(), grammar(), grammar()])
+    const result = await t.run('hi')
+    expect(result.reason).toBe('error')
+    expect(result.error?.message).toContain('compiled grammar is too large')
     expect(t.requests).toHaveLength(3)
   })
 
   it('does not retry once a thinking block could be bound to the tools', async () => {
-    const t = setup([end(text('first')), tooComplex()])
+    const t = setup([end(text('first')), grammar()])
     await t.run('one')
     const result = await t.run('two')
     expect(result.reason).toBe('error')
     expect(t.requests).toHaveLength(2)
+  })
+
+  it('does not retry a 400 that is about something else', async () => {
+    const t = setup([refusal('messages: roles must alternate')])
+    const result = await t.run('hi')
+    expect(result.reason).toBe('error')
+    expect(t.requests).toHaveLength(1)
+  })
+
+  describe('and the account has no web search', () => {
+    it('is sent again without web search, with a notice, and the turn goes on', async () => {
+      const t = setup([noSearch(), end(text('No datasheet lookup, but here is the wiring.'))])
+      const result = await t.run('read temperature from a BMP280')
+      expect(result.reason).toBe('end_turn')
+      const [first, second] = t.requests.map((r) => r.body.tools as Sent)
+      expect(first!.map((x) => x.name)).toContain('web_search')
+      expect(second!.map((x) => x.name)).not.toContain('web_search')
+      // Web fetch was not refused, and a URL the user pastes can still be read.
+      expect(second!.map((x) => x.name)).toContain('web_fetch')
+      expect(strictNames(second!)).toHaveLength(11)
+      expect(notices(t.log)).toHaveLength(1)
+      expect(notices(t.log)[0]).toMatchObject({ code: 'web-tools-refused' })
+      expect(notices(t.log)[0]!.message).toContain(
+        'Web search is not enabled for this organization'
+      )
+      expect(notices(t.log)[0]!.message).toContain('Web search and fetch, for datasheets')
+    })
+
+    it('keeps the tools byte-identical for the rest of the conversation', async () => {
+      const t = setup([noSearch(), end(text('a')), end(text('b'))])
+      await t.run('one')
+      await t.run('two')
+      expect(JSON.stringify(t.requests[2]!.body.tools)).toBe(
+        JSON.stringify(t.requests[1]!.body.tools)
+      )
+    })
+
+    it('can follow a strict refusal, and the other way round', async () => {
+      const a = setup([grammar(), noSearch(), end(text('ok'))])
+      expect((await a.run('hi')).reason).toBe('end_turn')
+      expect(notices(a.log).map((n) => n.code)).toEqual(['strict-refused', 'web-tools-refused'])
+      const b = setup([noSearch(), grammar(), end(text('ok'))])
+      expect((await b.run('hi')).reason).toBe('end_turn')
+      expect(notices(b.log).map((n) => n.code)).toEqual(['web-tools-refused', 'strict-refused'])
+      expect(b.requests).toHaveLength(3)
+    })
+
+    it('drops web fetch too when it is the one refused, and not twice', async () => {
+      const noFetch = refusal('Web fetch is not enabled for this organization')
+      const t = setup([noSearch(), noFetch, end(text('ok'))])
+      expect((await t.run('hi')).reason).toBe('end_turn')
+      const last = t.requests.at(-1)!.body.tools as Sent
+      expect(last.some((x) => 'type' in x)).toBe(false)
+      const again = setup([noSearch(), noSearch()])
+      expect((await again.run('hi')).reason).toBe('error')
+      expect(again.requests).toHaveLength(2)
+    })
+
+    it('does not retry later in the conversation', async () => {
+      const t = setup([end(text('first')), noSearch()])
+      await t.run('one')
+      const result = await t.run('two')
+      expect(result.reason).toBe('error')
+      expect(result.error?.message).toContain('Web search is not enabled')
+      expect(t.requests).toHaveLength(2)
+    })
+
+    it('does nothing for a conversation that has the web tools off', async () => {
+      const t = setup([noSearch()], { webTools: false })
+      expect((await t.run('hi')).reason).toBe('error')
+      expect(t.requests).toHaveLength(1)
+    })
   })
 })
 
