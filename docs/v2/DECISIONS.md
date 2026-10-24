@@ -2734,3 +2734,123 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.**
   - The streams are hand-written to the documented event shapes; the first live run (HIL
     checklist) confirms them against the API.
+
+## ADR-E9-1 The evals run the app's own TypeScript in Node through Vite's module runner
+
+- **Context.**
+  - SPEC 18 wants the assistant evals to run the real loop against a context made of the real
+    `CircuitStore`, ERC, `SimSession` and Pyodide. Those modules import `?raw` files and use
+    `import.meta.glob` (the part library, the tutorials, the Python shims, the system prompt), which
+    only a bundler resolves. Node's own type stripping loads none of it.
+- **Decision.**
+  - `scripts/assistant-evals/cli.ts` is a plain Node script. It starts a Vite server in middleware
+    mode with no config file and no plugins, and imports `main.ts` through
+    `createServerModuleRunner`, so every `@renderer/...` import loads as it does in the app and in
+    Vitest. Nothing in `R/` is copied, patched or aliased to a stand-in.
+  - Vitest imports the same modules, so `replay.test.ts` runs the replay in the test run with no
+    second code path.
+  - Pyodide is given its folder as `indexURL`: it works out its own folder from a stack trace, and
+    the runner's source-map support rewrites that trace to a path in Pyodide's sources.
+- **Consequences.**
+  - The harness depends on Vite 7's module-runner API (`createServerModuleRunner`), which is
+    exported but newer than the rest of Vite's server API.
+  - `tsconfig.json` includes `scripts/assistant-evals`, so `npm run typecheck` covers the harness,
+    and `allowImportingTsExtensions` lets the two files Node loads itself (`cli.ts`, `proxyTest.ts`)
+    import `key.ts` with its extension.
+
+## ADR-E9-2 A live run is kept as the API's side of the conversation, scrubbed, and replayed
+
+- **Context.**
+  - Mock mode has to replay a live run with no key and no network, and the repository is public.
+- **Decision.**
+  - `recordFetch` wraps the fetch under the SDK client and keeps, for each request the SDK makes,
+    the JSON body it sent and the status and body that came back (the SSE text). It never reads a
+    header, so the Authorization header cannot reach a fixture. A refused or retried request is
+    kept like any other, so a replay goes through the same fallbacks.
+  - Before a fixture is written, every `signature`, `encrypted_content` and `encrypted_index` value
+    is replaced by `scrubbed`: they are opaque tokens bound to an account, and replay never sends
+    them anywhere. Writing a file that holds anything shaped like `sk-ant-...`, or the key itself,
+    is refused, and a test scans every fixture.
+  - A fixture stores each request's `messages` as what was added since the request before (the
+    history only grows, ADR-M9-5) and its `system` and `tools` only when they changed. Replay
+    rebuilds the full request bodies and serves the responses in order.
+  - Replay does not require the requests it sends to equal the recorded ones: the tool results the
+    model saw come from today's code, so a change to a tool's wording would otherwise fail every
+    fixture. It counts the requests that differ and reports the count. What replay does require is
+    that every check scores as it did live and that no recorded response is left over.
+  - `npm run evals -- --rescore` records today's scores as the expected ones, for when the scoring
+    code changes on purpose.
+- **Consequences.**
+  - A fixture is a record of one model run; `npm run evals:live` replaces it.
+  - A change that makes a recorded tool call fail (a renamed argument, a stricter validation) shows
+    up as a changed score in `replay.test.ts`.
+
+## ADR-E9-3 The key is read by the process that uses it, and live runs use the app's client
+
+- **Context.**
+  - SPEC 3.3 lets exactly two kinds of process use the key: the live evals and the ignored Rust
+    proxy test. Neither may print it, copy `.env`, or put it in the Keychain or in the environment
+    of any other process.
+- **Decision.**
+  - `key.ts` finds the main checkout's `.env` from `git rev-parse --git-common-dir` (so a worktree
+    finds it), reads `ANTHROPIC_API_KEY`, and returns a function. The key is not put in
+    `process.env`. `cli.ts` reads it only for `--live`; replay never opens the file.
+  - Live runs build the client with the app's own `createClient`, so the SDK holds a placeholder
+    key, and a fetch replaces the SDK's bearer with the real key, as `anthropic_request` does in
+    the app. Output goes through `redact`, and files through `assertNoSecret`.
+  - `npm run evals:proxy` builds the Rust test binary with no key anywhere, then starts that one
+    binary with the key in its environment and runs
+    `live_count_tokens_through_the_real_proxy_path`.
+- **Consequences.**
+  - The two live paths differ from the app in transport only (Node `fetch` instead of the Rust
+    proxy). The proxy's own path is the one the Rust test covers.
+
+## ADR-E9-4 How a run is scored
+
+- **Context.**
+  - SPEC 18 scores each prompt on zero ERC errors, passing sim assertions, inventory respected,
+    code pins matching the netlist, and turns and tokens.
+- **Decision.**
+  - Every score reads the final document and the transcript, never the model's claims. The checks
+    every run gets: each turn ends `end_turn`; zero ERC errors; the wiring convention; inventory;
+    the code compiles (Pyodide) and its pins are the pins with something wired to them, in both
+    directions; no claim to have run anything on hardware; every ghost cleared; and, for a prompt
+    that builds, undo restores the starting document (compared with strict deep equality).
+  - The wiring convention check is `validateDoc` (genders, holes, placement), plus: a hole-to-hole
+    lead is male-male; no part leg sits in a T-board strip; every Pi net a part uses is reached by
+    a lead that has an end in that net's T-board strip. The shipped tutorials are its test.
+  - Each prompt adds behaviour checks that run the project: the simulator with the GPIOs and part
+    inputs a user would set, and the project's own program in the simulator's Pyodide against the
+    circuit, with scripted input changes. The ECHO check follows resistors from ECHO to a GPIO and
+    from that GPIO to GND, and simulates a measurement to see that no GPIO net passes 3.6 V.
+  - A program run for a score has `signal.pause()` wait in virtual time. The app's Pyodide returns
+    from it at once, so an event-driven program ends at t = 0 and would be marked wrong for the
+    shim's gap. The model's own `run_code_in_sim` is not changed, so it sees what the app would
+    give it.
+  - A program is stopped where the simulator's clock reaches the requested seconds, by raising from
+    the next shim call. Pyodide's interrupt arrives 0 to 2 s of virtual time late, and not the
+    same each run, which made the model's tool results differ between a live run and its replay.
+- **Consequences.**
+  - A failed check is a finding about one run, not a harness error: the report names which.
+
+## ADR-E9-5 The evals measure the shipped core, fallbacks included
+
+- **Context.**
+  - The first live request of every session is refused ("The compiled grammar is too large"), and
+    the loop falls back twice before a request is accepted. The organization's web search is also
+    refused at times (docs/v2/EVALS.md).
+- **Decision.**
+  - The evals run `AssistantSession` as it is, so each recorded run shows the fallback the app takes
+    today. They do not patch the tool list in transit to make the first request pass.
+  - Only the datasheet prompt turns the web tools on. When a run of it ends on "Web search is not
+    enabled for this organization", the harness runs it again (up to twelve times, pausing longer
+    each time; a refused request costs nothing), because the loop has no answer to that error. Under
+    `--search`, a request that carries the tool and is refused that way is also sent again,
+    unchanged, up to fifteen times, below the tape, and the fixture says how often. If the saved
+    live checks show web fetch but not web search, or under `--no-search`, the harness removes
+    `web_search` from the tool list in transit, after the recording, and the fixture says so.
+    The recorded datasheet run is the second kind: web search was refused throughout.
+- **Consequences.**
+  - The recorded runs have no eager streaming and no strict tools. They measure the model with the
+    plain tools, not the ghosts: whether a preview appears before a tool's input completes is a
+    property of the app's window, which a headless run cannot see.
