@@ -44,7 +44,7 @@ const SKIN = 0.75
 const HASH_CELL = 8
 /** Linear velocity damping, 1/s: cable internal friction and air drag. */
 const DAMPING = 2
-/** A body that has slowed below SLOW_SPEED (mm/s), or is being settled, is damped harder. */
+/** A body that has slowed below SLOW_SPEED (mm/s) is damped harder, so it comes to rest. */
 const SLOW_DAMPING = 60
 const SLOW_SPEED = 40
 const MAX_SPEED = 3000
@@ -53,6 +53,16 @@ const MAX_SWEEP = 30
 /** An island sleeps when every particle stays below this speed (mm/s) for this many frames. */
 const SLEEP_SPEED = 0.5
 const SLEEP_FRAMES = 30
+/** An awake body that is expected to travel less than this in a frame does not wake sleepers, mm. */
+const WAKE_MOVE = SLEEP_SPEED * FRAME_DT
+/**
+ * Speed is measured over this many frames: a particle's net travel across the window divided by
+ * the window's length. A settled pile of cables can ring by a few microns in a cycle of two to
+ * five frames (a contact engaging and releasing); frame to frame that reads as a few mm/s and
+ * keeps the island awake for ever, over a window it cancels and reads as no motion at all, while
+ * a real creep (a drift) still shows at the same 0.5 mm/s.
+ */
+const SLEEP_WINDOW = 10
 /** Route hints pull softly: about 0.4 mm of give under a whole lead's weight. */
 const HINT_ALPHA = 1e-4
 const MAX_HINTS = 3
@@ -163,7 +173,9 @@ export class CableWorld {
   private colliders: Collider[] = []
   private nextId = 1
   private nextGroup = 1
-  private settling = false
+  /** Frames stepped, and each particle's position in the last SLEEP_WINDOW frames (a ring). */
+  private tick = 0
+  private readonly ring: Float64Array
   /** Per-phase milliseconds of the last frame, when `profile` is on. */
   private readonly frameMs: Float64Array | null
   private clock = 0
@@ -197,6 +209,7 @@ export class CableWorld {
     this.xf = new Float64Array(3 * this.cap)
     this.w = new Float64Array(this.cap)
     this.render = new Float32Array(3 * this.cap)
+    this.ring = new Float64Array(SLEEP_WINDOW * 3 * this.cap)
     this.pool = { x: this.x, xp: this.xp, w: this.w }
     this.frameMs = options.profile ? new Float64Array(PHASES.length) : null
   }
@@ -377,6 +390,7 @@ export class CableWorld {
       pose1: [pa, pb],
       asleep: false,
       quiet: 0,
+      age: 0,
       group: 0,
       island: 0,
       taut: false,
@@ -422,6 +436,7 @@ export class CableWorld {
       shiftBody(b, -n)
       b.index = k
     }
+    for (const b of this.bodies) b.age = 0
     this.primDirty = true
     this.wakeInside(bounds)
   }
@@ -484,11 +499,13 @@ export class CableWorld {
     b.quiet = 0
     if (!b.asleep) return
     b.speed = Infinity
+    b.age = 0
     const group = b.group
     for (const o of this.bodies) {
       if (o.asleep && o.group === group) {
         o.asleep = false
         o.quiet = 0
+        o.age = 0
         o.speed = Infinity
       }
     }
@@ -554,7 +571,7 @@ export class CableWorld {
       this.collectPairs(awake)
       this.lap(PAIRS)
       for (const b of awake) {
-        const c = this.settling || b.speed < SLOW_SPEED ? SLOW_DAMPING : DAMPING
+        const c = b.speed < SLOW_SPEED ? SLOW_DAMPING : DAMPING
         b.damp = 1 / (1 + c * h)
       }
       for (let k = 1; k <= n; k++) this.substep(awake, moving, k / n, h)
@@ -564,17 +581,16 @@ export class CableWorld {
   }
 
   /**
-   * Steps until every island sleeps or `maxFrames` have run, with extra damping so a project
-   * opened from a design-curve guess comes to rest quickly. Returns the frames run.
+   * Steps until every island sleeps or `maxFrames` have run, so a project opened from a
+   * design-curve guess is shown at rest. Returns the frames run. It is the same stepping as
+   * `step`, so the result does not depend on whether a scene was settled or simply run.
    */
   settle(maxFrames = 240): number {
-    this.settling = true
     let frames = 0
     while (frames < maxFrames && !this.allAsleep()) {
       this.step()
       frames++
     }
-    this.settling = false
     return frames
   }
 
@@ -700,12 +716,17 @@ export class CableWorld {
     })
   }
 
-  /** A sleeping body that an awake one touches wakes with its island (so awake grows). */
+  /**
+   * A sleeping body that a moving awake one comes near wakes with its island (so awake grows). A
+   * body that is awake but not moving wakes nobody: islands that are close without touching would
+   * otherwise wake each other in turn for ever, and neither would sleep.
+   */
   private wakeTouching(awake: Body[]) {
     if (this.bodies.every((b) => !b.asleep)) return
     const { hash, box, primBody, segCount } = this
     for (let qi = 0; qi < awake.length; qi++) {
       const b = awake[qi]!
+      if (b.move <= WAKE_MOVE) continue
       const near = this.bodies.some(
         (o) =>
           o.asleep &&
@@ -738,8 +759,9 @@ export class CableWorld {
             if (m.asleep && m.group === other.group) {
               m.asleep = false
               m.quiet = 0
+              m.age = 0
               m.speed = Infinity
-              m.move = FALL
+              m.move = 0
               this.xe.set(this.x.subarray(3 * m.first, 3 * (m.first + m.n)), 3 * m.first)
               awake.push(m)
             }
@@ -1216,8 +1238,9 @@ export class CableWorld {
       c.lo.set(tmpBounds.subarray(0, 3))
       c.hi.set(tmpBounds.subarray(3))
     }
-    const { x, xf, w } = this
-    const still = (SLEEP_SPEED * FRAME_DT) ** 2
+    const { x, xf, w, ring } = this
+    const slot = (this.tick++ % SLEEP_WINDOW) * 3 * this.cap
+    const windowStill = (SLEEP_SPEED * SLEEP_WINDOW * FRAME_DT) ** 2
     for (const b of awake) {
       b.pose0 = [b.pose1[0], b.pose1[1]]
       b.endMoving[0] = b.endMoving[1] = false
@@ -1240,7 +1263,22 @@ export class CableWorld {
         this.v.fill(0, 3 * b.first, 3 * end)
         worst = 0
       }
-      b.quiet = worst < still ? b.quiet + 1 : 0
+      // Net travel over the window, once the body has been awake that long.
+      let drift = Infinity
+      if (b.age >= SLEEP_WINDOW) {
+        drift = 0
+        for (let i = b.first; i < end; i++) {
+          if (w[i]! === 0) continue
+          const i3 = 3 * i
+          const dx = x[i3]! - ring[slot + i3]!,
+            dy = x[i3 + 1]! - ring[slot + i3 + 1]!,
+            dz = x[i3 + 2]! - ring[slot + i3 + 2]!
+          drift = Math.max(drift, dx * dx + dy * dy + dz * dz)
+        }
+      }
+      ring.set(x.subarray(3 * b.first, 3 * end), slot + 3 * b.first)
+      b.age++
+      b.quiet = drift < windowStill ? b.quiet + 1 : 0
       b.speed = Math.sqrt(worst) / FRAME_DT
     }
     if (awake.length > 0) this.updateIslands(awake)

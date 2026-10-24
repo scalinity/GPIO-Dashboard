@@ -84,6 +84,8 @@ export interface Body extends Constraints {
   asleep: boolean
   /** Consecutive frames spent below the sleep speed. */
   quiet: number
+  /** Frames awake since it last woke (its window of positions is valid from SLEEP_WINDOW on). */
+  age: number
   /** Sleeping bodies of one island share a group and wake together. */
   group: number
   /** Label of the island the body was last in: the smallest body id of its contact component. */

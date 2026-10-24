@@ -121,9 +121,12 @@ const TRIANGLES = [
 ] as const
 
 /**
- * Strip between rows A and B of a ribbon against a box. A record is [rowA, rowB, qA, qB, columns,
- * collider]: the first grid particle of each row, the rows' centre particles, and the collider's
- * index. `r` is half the sheet's thickness.
+ * Strip between rows A and B of a ribbon against a box. `rowA` and `rowB` are the rows' first grid
+ * particles, `qa` and `qb` their centre particles, and `r` is half the sheet's thickness.
+ *
+ * Along the separating axis a triangle clears the box exactly when each of its corners does, so
+ * each row is carried clear by the depth of its own deepest corner and no more. (Moving both rows
+ * by the triangle's deepest corner lifted a row that was resting on the surface: it hopped.)
  */
 export function contactStrip(
   pool: Pool,
@@ -135,33 +138,29 @@ export function contactStrip(
   cols: number,
   r: number
 ) {
-  const { x, xp, w } = pool
+  const { x, w } = pool
   const wa = w[qa]!,
     wb = w[qb]!
-  const wsum = wa + wb
-  if (wsum <= 0) return
+  if (wa + wb <= 0) return
   corner[0] = rowA
   corner[1] = rowA + cols - 1
   corner[2] = rowB
   corner[3] = rowB + cols - 1
   const { p, R } = c
-  for (let k = 0; k < 4; k++) {
-    const i3 = corner[k]! * 3
-    const dx = x[i3]! - p[0]!,
-      dy = x[i3 + 1]! - p[1]!,
-      dz = x[i3 + 2]! - p[2]!
-    local[3 * k] = R[0]! * dx + R[3]! * dy + R[6]! * dz
-    local[3 * k + 1] = R[1]! * dx + R[4]! * dy + R[7]! * dz
-    local[3 * k + 2] = R[2]! * dx + R[5]! * dy + R[8]! * dz
-  }
   const hx = c.hx + r,
     hy = c.hy + r,
     hz = c.hz + r
-  // How far each row travels for one unit of the strip's own travel: the rows share the work by
-  // their inverse masses, and a clamped row shares none.
-  const ka = (2 * wa) / wsum,
-    kb = (2 * wb) / wsum
   for (let t = 0; t < 2; t++) {
+    // The corners again for each triangle: the first one's push has moved them.
+    for (let k = 0; k < 4; k++) {
+      const i3 = corner[k]! * 3
+      const dx = x[i3]! - p[0]!,
+        dy = x[i3 + 1]! - p[1]!,
+        dz = x[i3 + 2]! - p[2]!
+      local[3 * k] = R[0]! * dx + R[3]! * dy + R[6]! * dz
+      local[3 * k + 1] = R[1]! * dx + R[4]! * dy + R[7]! * dz
+      local[3 * k + 2] = R[2]! * dx + R[5]! * dy + R[8]! * dz
+    }
     const v = TRIANGLES[t]!
     for (let k = 0; k < 3; k++) {
       tri[3 * k] = local[3 * v[k]!]!
@@ -169,33 +168,50 @@ export function contactStrip(
       tri[3 * k + 2] = local[3 * v[k]! + 2]!
     }
     if (!triangleBox(tri, hx, hy, hz)) continue
-    const push = Math.min(bestDepth, MAX_PUSH)
+    const rho = hx * Math.abs(bestX) + hy * Math.abs(bestY) + hz * Math.abs(bestZ)
+    // The deepest corner of each row along the way out.
+    let depthA = 0,
+      depthB = 0
+    for (let k = 0; k < 3; k++) {
+      const depth = rho - (tri[3 * k]! * bestX + tri[3 * k + 1]! * bestY + tri[3 * k + 2]! * bestZ)
+      if (v[k]! < 2) depthA = Math.max(depthA, depth)
+      else depthB = Math.max(depthB, depth)
+    }
     const nx = R[0]! * bestX + R[1]! * bestY + R[2]! * bestZ
     const ny = R[3]! * bestX + R[4]! * bestY + R[5]! * bestZ
     const nz = R[6]! * bestX + R[7]! * bestY + R[8]! * bestZ
-    shift(x, rowA, qa, cols, ka * push * nx, ka * push * ny, ka * push * nz)
-    shift(x, rowB, qb, cols, kb * push * nx, kb * push * ny, kb * push * nz)
-    // Friction: the strip's mean motion this substep, relative to the collider under it.
-    const q3a = qa * 3,
-      q3b = qb * 3
-    const cx = 0.5 * (x[q3a]! + x[q3b]!),
-      cy = 0.5 * (x[q3a + 1]! + x[q3b + 1]!),
-      cz = 0.5 * (x[q3a + 2]! + x[q3b + 2]!)
-    colliderMotion(c, cx, cy, cz)
-    let rx = 0.5 * (x[q3a]! - xp[q3a]! + x[q3b]! - xp[q3b]!) - contactMotion[0]!,
-      ry = 0.5 * (x[q3a + 1]! - xp[q3a + 1]! + x[q3b + 1]! - xp[q3b + 1]!) - contactMotion[1]!,
-      rz = 0.5 * (x[q3a + 2]! - xp[q3a + 2]! + x[q3b + 2]! - xp[q3b + 2]!) - contactMotion[2]!
-    const rn = rx * nx + ry * ny + rz * nz
-    rx -= rn * nx
-    ry -= rn * ny
-    rz -= rn * nz
-    const tn = Math.sqrt(rx * rx + ry * ry + rz * rz)
-    if (tn < 1e-12) continue
-    const s = tn < MU_STATIC * push ? 1 : Math.min(1, (MU_KINETIC * push) / tn)
-    const f = -s
-    shift(x, rowA, qa, cols, ka * f * rx, ka * f * ry, ka * f * rz)
-    shift(x, rowB, qb, cols, kb * f * rx, kb * f * ry, kb * f * rz)
+    if (wa > 0 && depthA > 0) carry(pool, c, rowA, qa, cols, Math.min(depthA, MAX_PUSH), nx, ny, nz)
+    if (wb > 0 && depthB > 0) carry(pool, c, rowB, qb, cols, Math.min(depthB, MAX_PUSH), nx, ny, nz)
   }
+}
+
+/** Carries a row `push` along the unit normal, then cancels its sliding on the collider (friction). */
+function carry(
+  pool: Pool,
+  c: Collider,
+  row: number,
+  q: number,
+  cols: number,
+  push: number,
+  nx: number,
+  ny: number,
+  nz: number
+) {
+  const { x, xp } = pool
+  shift(x, row, q, cols, push * nx, push * ny, push * nz)
+  const q3 = q * 3
+  colliderMotion(c, x[q3]!, x[q3 + 1]!, x[q3 + 2]!)
+  let rx = x[q3]! - xp[q3]! - contactMotion[0]!,
+    ry = x[q3 + 1]! - xp[q3 + 1]! - contactMotion[1]!,
+    rz = x[q3 + 2]! - xp[q3 + 2]! - contactMotion[2]!
+  const rn = rx * nx + ry * ny + rz * nz
+  rx -= rn * nx
+  ry -= rn * ny
+  rz -= rn * nz
+  const tn = Math.sqrt(rx * rx + ry * ry + rz * rz)
+  if (tn < 1e-12) return
+  const s = tn < MU_STATIC * push ? 1 : Math.min(1, (MU_KINETIC * push) / tn)
+  shift(x, row, q, cols, -s * rx, -s * ry, -s * rz)
 }
 
 /** Translates a whole row: its grid particles and its centre. */

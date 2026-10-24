@@ -3,6 +3,7 @@
 // solver bug cannot hide in the measurement.
 import dupont from '../content/leads/dupont.json'
 import ribbonData from '../content/controllers/ribbon.json'
+import { rng } from './math'
 import { closestPointTriangle, closestSegSeg } from './shapes'
 import type { BodyId, Pose, Quat, Vec3 } from './types'
 import { CableWorld } from './world'
@@ -174,4 +175,41 @@ export function rodIntoRibbon(world: CableWorld, rod: BodyId, ribbon: BodyId): n
     }
   }
   return worst
+}
+
+/**
+ * The dense pile: 40 leads across one breadboard, each between two holes of the 2.54 mm grid (no
+ * two leads share a hole), whose runs cross and stack, plus the ribbon from the Pi's side. The
+ * leads are 165 mm of wire (a 200 mm male-male lead) unless `wireMm` says otherwise. `seed`
+ * picks the layout.
+ */
+export function densePile(seed: number, wireMm = 165, options: { substeps?: number } = {}) {
+  const world = new CableWorld({ seed, ...options })
+  for (const b of [TABLE, BOARD]) world.addCollider(boxShape(b), at(...b.c))
+  const rand = rng(seed * 7919)
+  const pitch = 2.54
+  const used = new Set<string>()
+  const hole = (x: number, y: number): [number, number] => {
+    let gx = Math.round(x / pitch)
+    const gy = Math.round(y / pitch)
+    while (used.has(`${gx},${gy}`)) gx++
+    used.add(`${gx},${gy}`)
+    return [gx * pitch, gy * pitch]
+  }
+  const leads: BodyId[] = []
+  const ends: [Pose, Pose][] = []
+  for (let k = 0; k < 40; k++) {
+    const row = -70 + (k % 20) * 7
+    const [ax, ay] = hole(row, -20 + (k < 20 ? 0 : 40) + (rand() - 0.5) * pitch)
+    const tx = row + (3 + rand() * 12) * pitch
+    const ty = -20 + (k < 20 ? 8 : 28) * (1 + rand() * 0.2)
+    const [bx, by] = hole(tx, ty)
+    const a = at(ax, ay, BOARD_TOP)
+    const b = at(bx, by, BOARD_TOP)
+    ends.push([a, b])
+    leads.push(world.addLead({ a, b, wireMm }))
+  }
+  const socket = at(-100, 0, 22, FLIP)
+  const ribbon = world.addRibbon({ a: at(-150, -10, 14), b: socket })
+  return { world, leads, ends, ribbon, socket, bodies: [...leads, ribbon] }
 }

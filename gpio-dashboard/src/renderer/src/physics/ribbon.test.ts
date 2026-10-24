@@ -5,8 +5,9 @@
 import { describe, expect, it } from 'vitest'
 import ribbonData from '../content/controllers/ribbon.json'
 import { rng } from './math'
+import { turnWidthAxis } from './ribbon'
 import { exit, triangleBox } from './strips'
-import { BOARD, BOARD_TOP, FLIP, TABLE, at, newWorld, run, sdBox } from './testkit'
+import { BOARD, BOARD_TOP, FLIP, TABLE, at, dist, newWorld, run, sdBox } from './testkit'
 import type { Box } from './testkit'
 import type { BodyId, Vec3 } from './types'
 import type { CableWorld } from './world'
@@ -110,6 +111,90 @@ describe('ribbon strips', () => {
     const depth = sheetIntoBox(world, id, housing)
     console.info(`housing raised through a settled ribbon: ${depth.toFixed(3)} mm into it`)
     expect(depth).toBeLessThanOrEqual(0.5)
+  })
+})
+
+describe('ribbon strips, any column count', () => {
+  it('a 7 mm box fits between 9, 7 and 5 columns of particles and the sheet still clears it', () => {
+    // The Pi's micro-HDMI housing (OBJ5053 in pi5.colliders.json) is 7.19 mm wide, 8.5 long and
+    // 4.44 tall: narrower than the 8.5 mm between 7 columns, and the ribbon crosses it between rows.
+    for (const columns of [9, 7, 5]) {
+      for (const [hx, hy] of [
+        [4.2, 2.5],
+        [-12.7, 31.3],
+        [0, -21.6]
+      ] as const) {
+        const box: Box = { c: [hx, hy, 2.22], h: [3.6, 4.25, 2.22] }
+        const world = newWorld(TABLE)
+        world.addCollider({ kind: 'box', halfExtents: box.h }, at(...box.c))
+        const id = world.addRibbon({ a: at(0, -70, 12), b: at(0, 70, 12, FLIP), columns })
+        run(world, 400)
+        const depth = sheetIntoBox(world, id, box)
+        const table = sheetIntoBox(world, id, TABLE)
+        expect(depth).toBeLessThanOrEqual(0.5)
+        expect(table).toBeLessThanOrEqual(0.5)
+      }
+    }
+  })
+})
+
+describe('ribbon row direction', () => {
+  const unit = (v: Vec3): Vec3 => {
+    const l = Math.hypot(...v)
+    return [v[0] / l, v[1] / l, v[2] / l]
+  }
+
+  it('turns between the sockets, whatever their width axes', () => {
+    const out = new Float64Array(3)
+    const a: Vec3 = [1, 0, 0]
+    for (const b of [
+      unit([1, 0.2, 0]),
+      [0, 1, 0],
+      unit([-1, 0.01, 0]),
+      [-1, 0, 0],
+      [1, 0, 0]
+    ] as Vec3[]) {
+      for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+        turnWidthAxis(a, b, t, [0, 1, 0], out)
+        // Always a unit vector: a straight blend of opposite axes shrinks to nothing at t = 0.5.
+        expect(Math.hypot(out[0]!, out[1]!, out[2]!)).toBeCloseTo(1, 9)
+      }
+      turnWidthAxis(a, b, 0, [0, 1, 0], out)
+      expect(dist(out, a)).toBeLessThan(1e-9)
+      turnWidthAxis(a, b, 1, [0, 1, 0], out)
+      expect(dist(out, b)).toBeLessThan(1e-9)
+    }
+    // Exactly opposite: a half turn about the cable's direction, so the middle is square to both.
+    turnWidthAxis(a, [-1, 0, 0], 0.5, [0, 1, 0], out)
+    expect(Math.abs(out[0]!)).toBeLessThan(1e-9)
+    expect(Math.abs(out[1]!)).toBeLessThan(1e-9)
+    expect(Math.abs(out[2]!)).toBeCloseTo(1, 9)
+  })
+
+  it('a ribbon whose sockets have opposite width axes keeps its rows whole', () => {
+    // The far socket is turned half a turn about the vertical: its width axis is the near one's
+    // reverse. The sheet takes a half twist; the rows must not shrink where the two blend.
+    for (const far of [
+      [0, 0, 1, 0],
+      [0, 0, Math.sin(Math.PI / 2 - 0.01), Math.cos(Math.PI / 2 - 0.01)]
+    ] as const) {
+      const world = newWorld(TABLE)
+      const id = world.addRibbon({ a: at(0, 0, 20), b: at(0, 120, 20, far) })
+      run(world, 250)
+      const { rows, columns } = world.info(id)
+      const P = world.positions(id)
+      expect(Array.from(P).every(Number.isFinite)).toBe(true)
+      for (let r = 0; r < rows; r++) {
+        const first = r * columns * 3
+        const last = (r * columns + columns - 1) * 3
+        const width = Math.hypot(
+          P[last]! - P[first]!,
+          P[last + 1]! - P[first + 1]!,
+          P[last + 2]! - P[first + 2]!
+        )
+        expect(width).toBeCloseTo(ribbonData.widthMm, 3)
+      }
+    }
   })
 })
 

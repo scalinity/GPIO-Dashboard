@@ -28,6 +28,73 @@ export function gatherRows(x: Float64Array, b: Body) {
 }
 
 /**
+ * The row direction a fraction t of the way from unit vector a (the first socket's width axis) to
+ * unit vector b (the second's): a turn about a x b through t of the angle between them. A straight
+ * blend of the two vectors would shrink to nothing where they point opposite ways, and the rows
+ * with it. When they are exactly opposite the turn is about `hint` (the cable's own direction),
+ * so the sheet takes a half twist along its length rather than collapsing.
+ */
+export function turnWidthAxis(
+  a: ArrayLike<number>,
+  b: ArrayLike<number>,
+  t: number,
+  hint: ArrayLike<number>,
+  out: Float64Array
+) {
+  let kx = a[1]! * b[2]! - a[2]! * b[1]!,
+    ky = a[2]! * b[0]! - a[0]! * b[2]!,
+    kz = a[0]! * b[1]! - a[1]! * b[0]!
+  const s = Math.hypot(kx, ky, kz)
+  const d = a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!
+  if (s < 1e-9) {
+    if (d > 0) {
+      out[0] = a[0]!
+      out[1] = a[1]!
+      out[2] = a[2]!
+      return
+    }
+    // Opposite: turn about the hint with a's component removed (any perpendicular if there is none).
+    const h = hint[0]! * a[0]! + hint[1]! * a[1]! + hint[2]! * a[2]!
+    kx = hint[0]! - h * a[0]!
+    ky = hint[1]! - h * a[1]!
+    kz = hint[2]! - h * a[2]!
+    let kl = Math.hypot(kx, ky, kz)
+    if (kl < 1e-9) {
+      // a is along the hint: take the axis least aligned with a, crossed with a.
+      const ax = Math.abs(a[0]!) < 0.9 ? 1 : 0
+      kx = ax
+      ky = 1 - ax
+      kz = 0
+      const e = kx * a[0]! + ky * a[1]! + kz * a[2]!
+      kx -= e * a[0]!
+      ky -= e * a[1]!
+      kz -= e * a[2]!
+      kl = Math.hypot(kx, ky, kz)
+    }
+    kx /= kl
+    ky /= kl
+    kz /= kl
+  } else {
+    kx /= s
+    ky /= s
+    kz /= s
+  }
+  // Rodrigues: a turned about k (k is perpendicular to a) through t of the angle to b.
+  const phi = t * Math.atan2(s, d)
+  const c = Math.cos(phi),
+    sn = Math.sin(phi)
+  out[0] = a[0]! * c + (ky * a[2]! - kz * a[1]!) * sn
+  out[1] = a[1]! * c + (kz * a[0]! - kx * a[2]!) * sn
+  out[2] = a[2]! * c + (kx * a[1]! - ky * a[0]!) * sn
+}
+
+const wa = new Float64Array(3)
+const wb = new Float64Array(3)
+const hint = new Float64Array(3)
+const mid = new Float64Array(3)
+const row = new Float64Array(3)
+
+/**
  * Keeps the centre chain in the plane between the end frames (so the ribbon cannot curve
  * sideways), then lays the free rows out from it.
  */
@@ -40,13 +107,19 @@ export function layRows(x: Float64Array, b: Body) {
   // Row directions come from the end frames' width axes (column 0 of each rotation).
   const ma = b.amat[0],
     mb = b.amat[1]
-  let ux = ma[0]! + mb[0]!,
-    uy = ma[3]! + mb[3]!,
-    uz = ma[6]! + mb[6]!
-  const ul = Math.hypot(ux, uy, uz) || 1
-  ux /= ul
-  uy /= ul
-  uz /= ul
+  wa[0] = ma[0]!
+  wa[1] = ma[3]!
+  wa[2] = ma[6]!
+  wb[0] = mb[0]!
+  wb[1] = mb[3]!
+  wb[2] = mb[6]!
+  hint[0] = x[qb]! - x[qa]!
+  hint[1] = x[qb + 1]! - x[qa + 1]!
+  hint[2] = x[qb + 2]! - x[qa + 2]!
+  turnWidthAxis(wa, wb, 0.5, hint, mid)
+  const ux = mid[0]!,
+    uy = mid[1]!,
+    uz = mid[2]!
   // Sideways offset between the clamped rows is shared out evenly along the span.
   const lb =
     (x[qb]! - x[qa]!) * ux + (x[qb + 1]! - x[qa + 1]!) * uy + (x[qb + 2]! - x[qa + 2]!) * uz
@@ -60,19 +133,16 @@ export function layRows(x: Float64Array, b: Body) {
     x[q + 1] = x[q + 1]! + d * uy
     x[q + 2] = x[q + 2]! + d * uz
     // Row direction: the end directions blended along the ribbon.
-    let ex = (1 - t) * ma[0]! + t * mb[0]!
-    let ey = (1 - t) * ma[3]! + t * mb[3]!
-    let ez = (1 - t) * ma[6]! + t * mb[6]!
-    const el = Math.hypot(ex, ey, ez) || 1
-    ex /= el
-    ey /= el
-    ez /= el
-    const row = b.first + r * C
+    turnWidthAxis(wa, wb, t, hint, row)
+    const ex = row[0]!,
+      ey = row[1]!,
+      ez = row[2]!
+    const rowStart = b.first + r * C
     for (let c = 0; c < C; c++) {
       const s = rig.lateral[c]!
-      x[3 * (row + c)] = x[q]! + s * ex
-      x[3 * (row + c) + 1] = x[q + 1]! + s * ey
-      x[3 * (row + c) + 2] = x[q + 2]! + s * ez
+      x[3 * (rowStart + c)] = x[q]! + s * ex
+      x[3 * (rowStart + c) + 1] = x[q + 1]! + s * ey
+      x[3 * (rowStart + c) + 2] = x[q + 2]! + s * ez
     }
   }
 }

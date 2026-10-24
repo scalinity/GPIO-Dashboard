@@ -2,6 +2,7 @@
 import dupont from '../content/leads/dupont.json'
 import ribbonData from '../content/controllers/ribbon.json'
 import { quatToMat, toLocal, toWorld } from './math'
+import { turnWidthAxis } from './ribbon'
 import type { Spec } from './body'
 import type { JumperDef, LeadDef, Pose, RibbonDef } from './types'
 
@@ -15,7 +16,7 @@ export const MATERIAL = {
   leadGramsPerMm: 0.002,
   jumperGramsPerMm: 0.004,
   ribbonGramsPerMm: 0.04,
-  leadEI: 3e4,
+  leadEI: Number((globalThis as any).process?.env?.EI ?? 3e4),
   /** The first joint above a housing is stiffer: the wire leaves its strain relief straight. */
   housingBendFactor: 0.2,
   ribbonEI: 1.5e7,
@@ -406,6 +407,8 @@ export function buildRibbon(def: RibbonDef, rand: () => number): Spec {
         )
   const xa = col(A.mat, 0)
   const xb = col(B.mat, 0)
+  const chord: V3 = [fb[0]! - fa[0]!, fb[1]! - fa[1]!, fb[2]! - fa[2]!]
+  const dir = new Float64Array(3)
   const p = new Float64Array(3)
   for (let r = 0; r < rows; r++) {
     if (r <= innerA) toWorld(A.pos, A.mat, 0, r * sp, 0, p, 0)
@@ -422,13 +425,10 @@ export function buildRibbon(def: RibbonDef, rand: () => number): Spec {
       } else {
         const k = r - innerA
         const u = k / span
-        let ex = (1 - u) * xa[0] + u * xb[0]
-        let ey = (1 - u) * xa[1] + u * xb[1]
-        let ez = (1 - u) * xa[2] + u * xb[2]
-        const el = Math.hypot(ex, ey, ez) || 1
-        ex /= el
-        ey /= el
-        ez /= el
+        turnWidthAxis(xa, xb, u, chord, dir)
+        const ex = dir[0]!,
+          ey = dir[1]!,
+          ez = dir[2]!
         p[0] = centre[3 * k]! + lx * ex + (rand() - 0.5) * JITTER_MM
         p[1] = centre[3 * k + 1]! + lx * ey + (rand() - 0.5) * JITTER_MM
         p[2] = centre[3 * k + 2]! + lx * ez + (rand() - 0.5) * JITTER_MM
