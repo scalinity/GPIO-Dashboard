@@ -3,6 +3,7 @@
 // `run_code_in_sim`, which uses the simulator's Pyodide.
 import { z } from 'zod'
 import { codePins } from '../../core/code/pins'
+import { propProblem } from '../../core/defs/parts'
 import { erc, type Issue } from '../../core/erc/erc'
 import { holeKey } from '../../core/geometry/breadboard'
 import type { CircuitDoc } from '../../core/model/types'
@@ -60,7 +61,11 @@ const stimulusInput = z
         z
           .object({
             part: z.string(),
-            key: z.string().describe('A property of the part: pressed, distanceCm, lux, celsius…'),
+            key: z
+              .string()
+              .describe(
+                'An input the part declares: pressed (tact switch, joystick), tilted, wiper (0 to 100), lux, temperatureC, humidityPct, distanceCm, motion, x and y.'
+              ),
             value: z.union([z.string(), z.number(), z.boolean()])
           })
           .strict()
@@ -144,8 +149,11 @@ export const simulate = defineTool({
     for (const input of stimulus.inputs) {
       const part = doc.parts.find((p) => p.id === input.part)
       if (!part) return failure('NO_SUCH_PART', `No part ${input.part}`)
-      if (!(input.key in defs(part.defId).properties))
-        return failure('NO_SUCH_INPUT', `${input.part} has no input ${input.key}`)
+      const def = defs(part.defId)
+      // The part's declared properties are its inputs (ADR-0093), with the same value rules.
+      const problem = propProblem(def, input.key, input.value)
+      if (problem)
+        return failure(input.key in def.properties ? 'BAD_INPUT' : 'NO_SUCH_INPUT', problem)
       requests.push({ type: 'input', part: input.part, key: input.key, value: input.value })
     }
     if (mode === 'transient') requests.push({ type: 'advance', t: durationMs / 1000 })

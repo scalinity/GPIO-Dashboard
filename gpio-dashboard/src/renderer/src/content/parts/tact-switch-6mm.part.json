@@ -54,6 +54,11 @@
       "label": "Mode",
       "options": ["momentary", "retain"],
       "default": "momentary"
+    },
+    "pressed": {
+      "type": "boolean",
+      "label": "Pressed (held down, contacts closed)",
+      "default": false
     }
   },
   "bodyMm": [6, 6, 4.3],

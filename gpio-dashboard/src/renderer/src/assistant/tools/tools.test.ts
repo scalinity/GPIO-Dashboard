@@ -587,6 +587,42 @@ describe('run_erc and simulate', () => {
       expect((await call(ctx, 'simulate', input)).text).toMatch(expected)
   })
 
+  it('simulate presses a tact switch by its `pressed` input and says what else it accepts', async () => {
+    const ctx = new FakeContext()
+    await place(ctx, 'tact-switch-6mm', 'bb1:40e')
+    await place(ctx, 'resistor', 'bb1:50b', { span: 4 })
+    const wire = (from: object, to: object) => call(ctx, 'connect', { from, to })
+    await wire({ net: '3V3' }, { partPin: { ref: 'SW1', pin: '1' } })
+    await wire({ partPin: { ref: 'SW1', pin: '3' } }, { net: 'GPIO18' })
+    await wire({ net: 'GPIO18' }, { partPin: { ref: 'R1', pin: '1' } })
+    await wire({ partPin: { ref: 'R1', pin: '2' } }, { net: 'GND' })
+    const gpio18 = async (value: boolean) =>
+      (
+        (
+          await call(ctx, 'simulate', {
+            mode: 'op',
+            durationMs: 0,
+            stimulus: { gpio: [], inputs: [{ part: 'SW1', key: 'pressed', value }] }
+          })
+        ).json as { nets: Record<string, number> }
+      ).nets.GPIO18
+    expect(await gpio18(true)).toBeGreaterThan(3)
+    expect(await gpio18(false)).toBeLessThan(0.1)
+
+    const refused = (key: string, value: unknown) =>
+      call(ctx, 'simulate', {
+        mode: 'op',
+        durationMs: 0,
+        stimulus: { gpio: [], inputs: [{ part: 'SW1', key, value }] }
+      })
+    expect((await refused('closed', true)).text).toMatch(
+      /NO_SUCH_INPUT.*its properties are mode, pressed/
+    )
+    expect((await refused('pressed', 'yes')).text).toMatch(
+      /BAD_INPUT.*pressed must be true or false/
+    )
+  })
+
   it('simulate reports a pin driven past its limit', async () => {
     const ctx = new FakeContext()
     await led(ctx, 10)
