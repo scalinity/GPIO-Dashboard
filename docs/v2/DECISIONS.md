@@ -1478,3 +1478,110 @@ decision and consequences. Numbering is stable; superseded records say so.
   - Dashes: 5 mm apart, 4 mm/s per mA, at most 80 mm/s, none below 10 uA; a ramp whose sharp edge
     leads, so the direction reads in a still picture.
 - **Consequences.** A later look-dev pass can retune them without touching the plumbing.
+
+## ADR-L-1 The IDC socket plugs 5.08 mm into the box header, whose cavity is sized to its body
+
+- **Context.**
+  - ADR-0038 rested a 9.0 mm wide socket on the shroud's rim, because the shroud's cavity (6.4 mm)
+    was narrower. Photos 1 and 3 show the real socket plugged down into the shroud, its cover and
+    strain relief above it.
+  - The 3M 891 sheet (TS-0449-L, sheet 2; its page rendered to an image and read, with its text
+    layer as a check) gives for 40 contacts: the body's bottom view .240 in (6.10 mm) wide; B = 2.03
+    in (51.6 mm), the body's length; A = 2.18 in (55.4 mm), the cover with its latch ears; the
+    preassembled side view's .200 in (5.08 mm) step below the cover and .14 in (3.6 mm) cover
+    plate; and an assembled height of .42 in (10.7 mm). ADR-0038 had the width at 9.0 and the
+    length at 21 pitches (53.34, a pitch of margin beyond the end contacts); the width was a guess and
+    the length the cover's, not the body's.
+- **Decision.** Values in mm, in `idc.py` and `tboard.py`.
+  - The socket's lower body is 6.10 x 51.6. The cover keeps its 7.1 mm body and 3.6 mm plate (10.7
+    in all) and gains two latch ears, 1.9 long, flush with the body's width, from 5.08 mm above the
+    mating face up to the cover's top: 55.4 over all. The socket stands in a header with its mating
+    face 5.08 mm below the rim and its ears on the shroud's end walls.
+  - The shroud's end walls go from 1.9 to 2.95, so its cavity is 6.40 x 52.60 (it was 6.40 x
+    54.70): 0.15 clear either side of the body, 0.5 at each end, the ears overlapping each end wall
+    by 1.4. The long walls, the key slot (6.5 wide, 4.5 deep) and the pins are as before. Photo 6's
+    end wall, with its window, is thicker than the long walls.
+  - The polarization bump is 6.0 wide and 1.2 out of the wall, from 0.8 to 5.5 above the face, so it
+    stands in the key slot above the slot's floor (0.58 above the face when seated; the bump's foot
+    is 0.22 higher). It ends under the cable.
+  - The cable leaves the -x wall (x = -3.05) at z = 6.3, its underside 0.75 above the rim's
+    5.08, through a slot 50.9 long (the cable's 50.8, because the body is only 51.6). It was at
+    x = -4.5, z = 6.0.
+  - The 40 contact openings are 6.0 deep, not 2.2: the Pi's header posts stand 6.0 mm over its
+    base, and the T-board's pins, which end 2.0 below the rim, enter 3.08 mm of a seated socket;
+    neither pokes through the body's solid.
+  - The `socket` empty moves from the rim (z = 15.3) to the seating plane (10.22), so the Studio's
+    placement is unchanged. At the Pi the face still rests on the header base's top.
+  - `assets:check` measures the socket's body, ears, seat and openings against the sheet's values
+    (`IDC_3M` in `controllers.ts`), the cable's clearance of the rim, the `socket` empty, and the fit:
+    cavity, ears, mating face above the floor, bump above the slot's floor, pins into the openings.
+- **Consequences.**
+  - Contract changes the Studio sees: `socket` at z = 10.22 (was 15.3), `cable-a` and `cable-b`
+    at (-3.05, +/-25.4, 6.3) (were (-4.5, ..., 6.0)), the body 6.10 wide and 55.4 long over all (was
+    9.0 by 53.34), the `strain-relief` collider from y = -27.7 to 27.7 and z = 5.08 up. The ribbon's
+    exit at the T-board is 4.8 mm lower in the scene and 1.45 mm nearer the socket's middle.
+  - `HIL_CHECKLIST.md` asks for the real seating depth; if it differs, `SOCKET_SEAT` and `PLUG`
+    change together.
+  - The socket's lower body at the Pi is narrower than before (6.1 against 9.0) and sits between the
+    header's two rows of pins with 1.78 mm of body either side of the contacts.
+
+## ADR-L-2 Tin dulls to a matt grey, the mask loses its glare, and the Pi's mask and USB shells match its photographs
+
+- **Context.**
+  - Photos 3, 5 and 6 show the T-board's pads and solder as a dull grey tin, and its mask as a
+    flat red. In the Studio the pads' cones were near-white points (luminance p99 238 of 255 in a
+    close view of the stem; 212 once dulled) and, at a low camera angle, the mask washed to salmon: the coat's
+    Fresnel reflected the studio HDRI over the whole face (a sample at the grazing angle read
+    213, 161, 160, against the top view's 215, 0, 1).
+  - Raspberry Pi's product brief shows a bright green board with silver USB shells. The STEP's
+    CAD colours are a dark green (`004311`) and, for the USB-A shells, yellow metal (`ffd43e`).
+- **Decision.** In `tboard.py` and `pi5.py`.
+  - Pads, plated holes, vias and solder cones take a tin of base colour (0.70, 0.70, 0.72) and
+    roughness 0.55 (was 0.84 / 0.86 and 0.25); the pins keep the nickel (0.84, 0.84, 0.86) at 0.30.
+    The cones are smooth-shaded: an eight-sided cone had facets, each a glint.
+  - The T-board's mask is roughness 0.9 with a clear coat of weight 0.06 and roughness 0.2 (was
+    0.5 with a full coat at 0.08). The top view's red is 215, 0, 1 (photo 3: 208, 10, 14) and the
+    underside's 184, 6, 2 (photo 5: 162, 1, 1).
+  - The spacers' yellow is (1.0, 0.76, 0.0) (was 0.98, 0.80, 0.05).
+  - The Pi's mask is `0f7a3b` with the same matt coat; its yellow-metal shells are `b8b8bc`.
+    The material names stay (`solder-mask`, `step-<STEP colour>`), so `pi5.glb`'s contract holds.
+- **Consequences.**
+  - The yellow spacers read paler than the photo (201, 160, 107 against 245, 203, 26): AgX
+    desaturates a bright yellow, and the grade of ADR-L-3 recovers only part of it.
+  - The Pi has none of the brief photograph's legends and logos: the no-graphics STEP carries none.
+  - These changes are materials and shading only: the T-board's geometry hash changes with ADR-L-1's
+    shroud walls and not with these, and the Pi's mesh is the same triangles.
+
+## ADR-L-3 The stage is neutral and lit from above; AgX is followed by a colour grade; bloom takes only what passes 2
+
+- **Context.**
+  - SPEC 10.1 and photos 1, 3 and 6 call for a neutral studio look with white boards, saturated
+    red and soft shadows. Measured in the Tauri window before the change, against the photos: the
+    T-board's mask read 188, 74, 64 (photo 3: 208, 10, 14), the underside's yellow spacers 178, 139,
+    98 (photo 5: 245, 203, 26), and the stage's greys carried a blue cast. AgX pulls a saturated
+    primary toward orange, and leaves the studio's whites a step below the photos'.
+  - The key light at (-260, 520, 340) put the shroud's shadow over the T-board's title.
+  - A key light's highlight on the board's metal rings and on the Pi's shields passed the bloom's
+    threshold of 1 and glowed, against SPEC 10.1's "bloom on lit LEDs".
+- **Decision.** In `Stage.tsx` and `renderer.ts`; AgX stays the tone mapping, and no grain,
+  aberration or lens dirt is added.
+  - Table `#505153` and sweep `#6a6b6d` (were `#4a4d53`, `#65686e`): neutral greys. The key moves
+    to (-120, 640, 220), 64 degrees up, with intensity 2.2 (was 3.0); its shadow settings are as
+    before. The HDRI, its intensity of 0.6, GTAO and TRAA are unchanged.
+  - The renderer's exposure is 1.7. The pipeline's own output transform is off, and the AgX
+    mapping and sRGB encoding are applied in the pipeline's last node, followed by a grade: each
+    pixel's distance below its brightest channel is stretched by `1 + 1.2 * smoothstep(0.1, 0.5,
+    chroma)`, which leaves greys and whites where they are and takes a red back toward red.
+    `GRADE` in `renderer.ts` holds the two numbers.
+  - Bloom's threshold is 2 (`BLOOM_THRESHOLD`; was 1), strength and radius as before.
+  - Result, in the same views: the T-board's top mask 215, 0, 1 (was 188, 74, 64; photo 208, 10,
+    14), the underside's mask 184, 6, 2 (photo 162, 1, 1) and spacers 201, 160, 107 (was 178, 139,
+    98; photo 245, 203, 26), the title box 205, 204, 202 and the breadboard 199, 199, 199 (photo
+    209, 213, 215), the stage's grey 125, 125, 127, and no glow on the metal rings.
+- **Consequences.**
+  - A lit LED's emission has to exceed 2 (linear) to bloom, as the PartHandle's comment says of 1.
+    The simulation's visuals (SPEC 11.5) must emit above that.
+  - The grade acts on the final image only, so a screenshot's colours, not the models' base
+    colours, are what the numbers above measure.
+  - The breadboard and the yellow spacers stay a little below the photos' brightness and
+    saturation (the photos are lit by a ring of lights; the Studio by one key and the HDRI).
