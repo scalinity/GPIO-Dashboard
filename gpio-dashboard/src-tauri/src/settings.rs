@@ -10,6 +10,8 @@ use serde_json::{json, Value};
 
 const KEYCHAIN_SERVICE: &str = "com.gpio-dashboard";
 pub const PASSWORD_KEY: &str = "connection.password";
+/// The Anthropic API key. Only Rust reads it (the proxy); no command returns it.
+pub const ANTHROPIC_KEY: &str = "anthropic.apiKey";
 
 pub struct Settings {
     path: PathBuf,

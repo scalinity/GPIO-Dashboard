@@ -384,6 +384,41 @@ pub async fn settings_get_all(settings: State<'_, Settings>) -> CommandResult {
     Ok(settings.all())
 }
 
+// --- Anthropic key (stored in the Keychain; commands report success or presence only) ---
+
+#[tauri::command]
+pub async fn settings_set_anthropic_key(value: String) -> CommandResult {
+    Ok(set_anthropic_key(&value, settings::set_secret))
+}
+
+#[tauri::command]
+pub async fn settings_has_anthropic_key() -> bool {
+    has_anthropic_key(settings::get_secret)
+}
+
+#[tauri::command]
+pub async fn settings_clear_anthropic_key() -> CommandResult {
+    Ok(match settings::set_secret(settings::ANTHROPIC_KEY, "") {
+        Ok(()) => json!({ "success": true }),
+        Err(e) => error_json(e),
+    })
+}
+
+fn set_anthropic_key(value: &str, store: impl Fn(&str, &str) -> Result<(), String>) -> Value {
+    let key = value.trim();
+    if key.is_empty() {
+        return error_json("Enter an API key".into());
+    }
+    match store(settings::ANTHROPIC_KEY, key) {
+        Ok(()) => json!({ "success": true }),
+        Err(e) => error_json(e),
+    }
+}
+
+fn has_anthropic_key(read: impl Fn(&str) -> Result<String, String>) -> bool {
+    read(settings::ANTHROPIC_KEY).is_ok_and(|key| !key.is_empty())
+}
+
 // --- System ---
 
 /// Opens an http(s) link in the system browser.
@@ -425,6 +460,33 @@ mod tests {
             run_time_limit(&json!(0.5)),
             Some(Duration::from_millis(500))
         );
+    }
+
+    #[test]
+    fn no_anthropic_key_command_returns_the_key() {
+        const KEY: &str = "sk-ant-test-6f1c2a9e-distinctive";
+        let stored = std::sync::Mutex::new(String::new());
+        let store = |name: &str, value: &str| {
+            assert_eq!(name, settings::ANTHROPIC_KEY);
+            *stored.lock().unwrap() = value.to_string();
+            Ok(())
+        };
+        let saved = set_anthropic_key(&format!("  {KEY}\n"), store);
+        assert_eq!(saved, json!({ "success": true }));
+        assert_eq!(*stored.lock().unwrap(), KEY, "stored trimmed");
+        assert!(!saved.to_string().contains(KEY));
+
+        let failing = set_anthropic_key(KEY, |_: &str, _: &str| Err("keychain locked".into()));
+        assert!(!failing.to_string().contains(KEY));
+        assert_eq!(set_anthropic_key("   ", store)["success"], false);
+
+        assert!(has_anthropic_key(|_: &str| Ok(KEY.to_string())));
+        assert!(!has_anthropic_key(|_: &str| Ok(String::new())));
+        assert!(!has_anthropic_key(|_: &str| Err(KEY.to_string())));
+
+        // settings_get never serves it: it is neither allowlisted nor the password entry.
+        assert!(!SETTINGS_ALLOWLIST.contains(&settings::ANTHROPIC_KEY));
+        assert_ne!(settings::ANTHROPIC_KEY, settings::PASSWORD_KEY);
     }
 
     #[test]

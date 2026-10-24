@@ -27,5 +27,8 @@ permissions = [
   "allow-settings-set",
   "allow-settings-set-password",
   "allow-settings-get-all",
+  "allow-settings-set-anthropic-key",
+  "allow-settings-has-anthropic-key",
+  "allow-settings-clear-anthropic-key",
   "allow-open-external",
 ]

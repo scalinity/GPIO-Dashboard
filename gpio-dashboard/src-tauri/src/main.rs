@@ -115,6 +115,9 @@ fn main() {
             commands::settings_set,
             commands::settings_set_password,
             commands::settings_get_all,
+            commands::settings_set_anthropic_key,
+            commands::settings_has_anthropic_key,
+            commands::settings_clear_anthropic_key,
             commands::open_external,
         ])
         .build(tauri::generate_context!())

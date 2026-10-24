@@ -27,6 +27,9 @@ const COMMANDS: &[&str] = &[
     "settings_set",
     "settings_set_password",
     "settings_get_all",
+    "settings_set_anthropic_key",
+    "settings_has_anthropic_key",
+    "settings_clear_anthropic_key",
     "open_external",
 ];
 
