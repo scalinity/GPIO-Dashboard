@@ -58,11 +58,11 @@ function Environment() {
 export default function Stage() {
   const [table] = useState(() => ({
     geometry: new BoxGeometry(TABLE.width, TABLE.thickness, TABLE.depth),
-    material: new MeshStandardNodeMaterial({ color: '#4a4d53', roughness: 0.9 })
+    material: new MeshStandardNodeMaterial({ color: '#505153', roughness: 0.9 })
   }))
   const [sweep] = useState(() => ({
     geometry: sweepGeometry(),
-    material: new MeshStandardNodeMaterial({ color: '#65686e', roughness: 1 })
+    material: new MeshStandardNodeMaterial({ color: '#6a6b6d', roughness: 1 })
   }))
   return (
     <>
@@ -75,9 +75,11 @@ export default function Stage() {
         receiveShadow
       />
       <mesh geometry={sweep.geometry} material={sweep.material} receiveShadow />
+      {/* The key stands 64 degrees up, a little in front: the T-board's shroud then leaves its title
+          out of its shadow. The neutral greys, the softer key and renderer.ts's grade are ADR-L-3. */}
       <directionalLight
-        position={[-260, 520, 340]}
-        intensity={3}
+        position={[-120, 640, 220]}
+        intensity={2.2}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-radius={4}
