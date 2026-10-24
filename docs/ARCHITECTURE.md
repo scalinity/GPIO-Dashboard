@@ -299,9 +299,9 @@ internal pulls. The agent measures; the app interprets.
    alternate function or another process owns are skipped; every line is released at the end of each
    sweep. The agent sends `sense_sweep` with raw levels, and `sense_event` for errors (ADR-0013, 0018,
    0019).
-5. **Back to the page.** `ws.rs` `forward` drops a sweep that repeats the last except for its
-   timestamp and emits `gpio:sense`; `api.js`, `native/sense.ts` and `senseStore.take` hand it to
-   `Reconciler.onSweep`.
+5. **Back to the page.** `ws.rs` `forward` emits every sweep as `gpio:sense`, repeats included,
+   because the reconciler believes a change only when the next sweep reads the same; `api.js`,
+   `native/sense.ts` and `senseStore.take` hand it to `Reconciler.onSweep`.
 6. **Interpret.** `core/sense` reads the levels as bias classes and pair readings, settles a net's
    state over two sweeps, compares it with the prediction, and emits events and divergences.
    Divergences are ranked by `rankCandidates` (`core/sense/candidates.ts`), which simulates
