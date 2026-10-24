@@ -190,8 +190,8 @@ Protocol (fixed; agent and app build to it): app → agent `sense_start {config:
 |------|--------|------------------|
 | 6.1 sense.py | in progress | Sonnet subagent ("sense-agent", worktree): sweeps, safety rules each with a fake-gpiod test, libgpiod v2 findings, agent.py routing, `AGENT_FILES` |
 | 6.2 transport | done | db7cdbe: `sense_start/stop/pause/resume` (pause waits ≤ 1 s for the ack, waiter registered before sending), `gpio:sense` (timestamp-only repeats dropped), `gpio:sense-event`; 4 new cargo tests (90 total) |
-| 6.3 run waits for sense_paused | todo | `state/runStore.ts`: when sensing is on, call `sense_pause`; no ack → refuse the run with the reason; resume after the run |
+| 6.3 run waits for sense_paused | done | `state/runStore.ts` + `state/senseStore.ts`: with sensing on, Run on Pi pauses it and refuses to start without the ack within 1 s, then resumes; `runStore.test.ts` covers both |
 | 6.4 reconciliation | done | c041f43 `core/sense/{sense,candidates,mockAgent}.ts`: states, settling over two sweeps, events, candidates ranked with ties. Tests on SPEC 18 fixtures 1, 3, 4, 5 (three faults, true cause in top 3), 6 (Blinking LED unobserved). Observability fixed: tied bias, or another GPIO following both up and down (ADR-0013) |
-| 6.5 Board tab + walkthrough | todo | Workbench Board tab: sensing toggle (UI handler only), skipped pins with reasons, per-net states, event log, divergences with candidates and holes, fixture-check walkthrough; mock e2e against `mockSweep` |
-| 6.6 presence spike | todo | ADR keep/drop; no hardware here, so the spike's measurement goes to HIL_CHECKLIST |
-| 6.7 HIL fixtures | todo | add SPEC 18 fixtures 1–7 with exact holes to HIL_CHECKLIST.md |
+| 6.5 Board tab + walkthrough | done | `panels/BoardPanel.tsx` (Workbench Board tab): toggle (Pi or simulated board), net states, skipped pins, events, likely causes (sim worker), fixture walkthrough with generated steps, "Use as the twin" and recorded results; checked in Chromium against the mock (fixture 3 → GPIO18 matched; empty board → unobserved). Headless build-step confirmation `core/sense/buildSteps.ts` (confirmed / waiting / diverged / not electrically verifiable) |
+| 6.6 presence spike | done (dropped) | ADR-0018: needs the Pi; not built; fixture 7 listed as not built |
+| 6.7 HIL fixtures | done | `HIL_CHECKLIST.md` fixtures 1–7; 1–4 holes generated and checked by `core/sense/hil.test.ts` |
