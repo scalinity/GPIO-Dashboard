@@ -58,7 +58,7 @@ export async function createRenderer({ canvas }: { canvas: EventTarget }): Promi
 type Output = Node<'vec4'>
 
 /**
- * The look-dev grade (ADR-L-3). AgX pulls saturated primaries toward grey (a pure red leaves it at
+ * The look-dev grade (ADR-0067). AgX pulls saturated primaries toward grey (a pure red leaves it at
  * about 214, 83, 65 and a yellow at 230, 185, 120; the reference photos' are 208, 10, 14 and
  * 245, 203, 26) and, lit by the studio, leaves the white boards a step darker than the photos'.
  * The exposure is lifted, and once AgX has tone mapped the image, each pixel's distance below its
@@ -71,7 +71,7 @@ export const GRADE = { exposure: 1.7, saturation: 1.2 }
 /**
  * Bloom takes only what is brighter than this in scene-linear light: a lit LED's emission, which
  * passes it, and not the key light's highlight on a board's metal rings or the Pi's shields, which
- * pass 1 (ADR-L-3).
+ * pass 1 (ADR-0067).
  */
 export const BLOOM_THRESHOLD = 2
 

@@ -32,7 +32,7 @@ export interface PartHandle {
   readonly names: string[]
   /** Base colour of everything called `name`; null restores the model's. */
   setColor(name: string, color: Color | null): void
-  /** Light emitted by everything called `name`, linear (bloom picks up what passes 1); null is off. */
+  /** Light emitted by everything called `name`, linear (bloom picks up what passes BLOOM_THRESHOLD); null is off. */
   setEmission(name: string, color: Color | null): void
   /**
    * A transform after node `name`'s own, in the node's frame in mm about its origin (a plunger's

@@ -35,7 +35,7 @@ with open(args.ribbon) as f:
     R = json.load(f)
 TEXTURE = [int(n) for n in args.texture.split('x')]
 
-# Shape (mm). The 3M 891 sheet (TS-0449-L, 40 contacts; ADR-L-1) gives the body's 6.10 width and
+# Shape (mm). The 3M 891 sheet (TS-0449-L, 40 contacts; ADR-0065) gives the body's 6.10 width and
 # 51.6 length (B), the cover's 55.4 with its end ears (A), the 5.08 (0.200 in) lower body below the
 # cover and the 10.7 assembled height; the rest reads like photo 3's sockets.
 PITCH = 2.54

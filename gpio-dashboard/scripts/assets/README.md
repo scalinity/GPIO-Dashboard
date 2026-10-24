@@ -59,7 +59,7 @@ Pi rests on (the model's lowest point, its underside parts); the PCB spans z 1.4
 Materials are `solder-mask` (the PCB, with a faint clear coat) and `step-<rrggbb>` for every other
 STEP colour (named by the STEP's sRGB colour; metal or plastic per `blender/pi5.py`). Two albedos
 differ from the STEP's, which `LOOK` in `pi5.py` lists: the mask is a bright green, and the yellow
-metal (the USB-A shells) is nickel, as in Raspberry Pi's photographs (ADR-L-2).
+metal (the USB-A shells) is nickel, as in Raspberry Pi's photographs (ADR-0066).
 
 The 40 header pins are not in the file. The STEP's pins stood on `pi5-board.json`'s grid (the
 build fails otherwise) as 0.64 mm square posts from z 0.886 to 11.326, that is 8.57 mm above the
@@ -204,7 +204,7 @@ stem pins reach down to z = -6.
 | `socket`  | empty in the header's middle, 5.08 mm below the rim: `(centerXMm, centerYMm, 10.22)`            |
 
 The IDC socket's origin goes on `socket`, with no rotation: its lower body then stands in the header's
-cavity (6.4 x 52.6 mm, floor 2.0 mm above the PCB) and its latch ears rest on the end walls (ADR-L-1). The PCB's two faces are mapped planar,
+cavity (6.4 x 52.6 mm, floor 2.0 mm above the PCB) and its latch ears rest on the end walls (ADR-0065). The PCB's two faces are mapped planar,
 as each reads from outside with the header up: u across +y and v down +x on the top, u mirrored on
 the underside. The silkscreen labels come from the pin table and are baked into `mask-top`'s
 colour. The header's key slot is in its -x wall. Its pin 1 is the +y end of the key-side row
@@ -214,7 +214,7 @@ colour. The header's key slot is in its -x wall. Its pin 1 is the +y end of the 
 the centre of the mating face, which faces -z: the socket plugs down onto upward pins, its body
 above. x runs across the two rows (contacts at x = -1.27 and +1.27), y along them. The lower body is
 6.10 x 51.6 mm and goes into a box header's cavity; the cover above it carries the latch ears, 55.4 mm
-over all, whose underside is 5.08 mm above the mating face (ADR-L-1). On a Pi the face rests on the
+over all, whose underside is 5.08 mm above the mating face (ADR-0065). On a Pi the face rests on the
 header's base.
 
 | Node         | What it is                                                                      |

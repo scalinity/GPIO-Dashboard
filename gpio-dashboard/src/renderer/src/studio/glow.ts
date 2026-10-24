@@ -1,15 +1,17 @@
 // Light from simulation state (SPEC 10.6, 11.5): each LED die's brightness, as a fraction of its
-// datasheet test current, becomes a linear emission on the model nodes that light with it. Bloom
-// is thresholded at 1 (ADR-0025), so a die at its test current blooms and a faint one only glows.
+// datasheet test current, becomes a linear emission on the model nodes that light with it. The
+// emission scales with the bloom threshold (ADR-0067), so a die at its test current blooms and a
+// faint one only glows.
 import { Color } from 'three/webgpu'
 import type { PartDef, PartInstance } from '../core/model/types'
 import type { Snapshot } from '../core/sim/session'
 import { dieEnds, dieHue } from './dies'
 import { LENS } from './parts'
+import { BLOOM_THRESHOLD } from './renderer'
 
 /** Emission strength for a brightness (current over test current): perceptual, and capped. */
 export const glowOf = (brightness: number): number =>
-  Math.min(Math.max(brightness, 0), 2) ** 0.6 * 4
+  Math.min(Math.max(brightness, 0), 2) ** 0.6 * 4 * BLOOM_THRESHOLD
 
 /** Below this strength a die counts as dark. */
 const DARK = 0.02

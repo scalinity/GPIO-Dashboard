@@ -29,7 +29,7 @@ import { COINCIDENCE_MM, type Finding } from './verify'
 const CONTROLLER_KINDS: Asset['kind'][] = ['tboard', 'idc', 'ribbon', 'dupont']
 
 /**
- * The 3M 891-series socket, 40 contacts, from the sheet's drawings (TS-0449-L sheet 2, ADR-L-1),
+ * The 3M 891-series socket, 40 contacts, from the sheet's drawings (TS-0449-L sheet 2, ADR-0065),
  * and where it seats in the T-board's box header. `tboard` and `idc` are each checked against it.
  */
 export const IDC_3M = {

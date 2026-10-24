@@ -60,7 +60,7 @@ HDR_TAIL_BELOW = 1.2  # the box header's pin tails below the PCB
 HOLE_D, PAD_D, MOUNT_PAD_D, VIA_D = 1.0, 1.6764, 4.1, 0.7  # drill and pad: Adafruit T-Cobbler Plus; the mounting ring: photo 5
 PAD_Z = 0.03  # pads stand this far proud of the mask
 TRACE_W, TRACE_RELIEF = 0.2, 0.05
-WALL = (1.2, 2.95)  # shroud walls: the long ones, and the ends; the cavity (6.4 x 52.6) takes the socket's 6.10 x 51.6 plug (ADR-L-1)
+WALL = (1.2, 2.95)  # shroud walls: the long ones, and the ends; the cavity (6.4 x 52.6) takes the socket's 6.10 x 51.6 plug (ADR-0065)
 SOCKET_SEAT = 5.08  # the socket's mating face sits this far below the rim (idc.py's PLUG: its ears rest on the end walls)
 BASE = 2.0  # shroud floor
 KEY = (6.5, 4.5)  # key slot in the long wall at -x: (width, depth from the rim)
@@ -92,7 +92,7 @@ WHITE = materials.srgb(0.93, 0.93, 0.9)
 INK = materials.srgb(0.04, 0.04, 0.05)
 GREY = materials.srgb(0.62, 0.64, 0.67)
 TIN = materials.srgb(0.84, 0.84, 0.86)  # the pins' nickel
-SOLDER = materials.srgb(0.70, 0.70, 0.72)  # pads and solder cones: tin that has dulled, as the photos show (ADR-L-2)
+SOLDER = materials.srgb(0.70, 0.70, 0.72)  # pads and solder cones: tin that has dulled, as the photos show (ADR-0066)
 YELLOW = materials.srgb(1.0, 0.76, 0.0)
 FR4 = materials.srgb(0.82, 0.74, 0.52)
 
@@ -252,7 +252,7 @@ def pcb_face(z, top):
 
 
 # Soldermask is a semi-gloss: the studio's bright HDRI, reflected off a smoother mask, washes the red
-# to pink at a low camera angle, so the base is nearly matt and the coat a faint sheen (ADR-L-2).
+# to pink at a low camera angle, so the base is nearly matt and the coat a faint sheen (ADR-0066).
 mask_top = materials.principled('mask-top', RED, Roughness=0.9, Coat_Weight=0.06, Coat_Roughness=0.2)
 mask_bottom = materials.principled('mask-bottom', RED, Roughness=0.9, Coat_Weight=0.06, Coat_Roughness=0.2)
 fr4 = materials.principled('fr4', FR4, Roughness=0.7)

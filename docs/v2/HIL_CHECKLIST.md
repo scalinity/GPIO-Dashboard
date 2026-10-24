@@ -20,7 +20,7 @@ says what to do, what to expect, and which part of the app it confirms. Record r
 - [ ] **How far the IDC socket sits in the box header.** Measure how far the socket's lower
   body goes down inside the shroud, and whether its latch ears rest on the shroud's end walls.
   The model seats the lower body 5.08 mm below the rim (the 3M 891 sheet's 0.200 in step) with
-  its ears on the end walls (ADR-L-1); if the real socket sits deeper or shallower, change
+  its ears on the end walls (ADR-0065); if the real socket sits deeper or shallower, change
   `SOCKET_SEAT` in `tboard.py` and `PLUG` in `idc.py` together.
 
 ## Pi agent and monitor

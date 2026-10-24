@@ -13,8 +13,8 @@ Photo numbers follow `docs/v2/reference/IMAGES.md`. The Tauri-window screenshots
 own renders and live in `docs/v2/lookdev/`. To check an item, read the screenshot and the photo
 with vision at an approximately matched camera, fix whatever differs, and record the date.
 
-Look-dev pass of 2026-10-24 (task 7.7): the fixes are ADR-L-1 (the socket plugs into the shroud),
-ADR-L-2 (tin, mask and the Pi's colours) and ADR-L-3 (the stage, the grade, bloom). The captures are
+Look-dev pass of 2026-10-24 (task 7.7): the fixes are ADR-0065 (the socket plugs into the shroud),
+ADR-0066 (tin, mask and the Pi's colours) and ADR-0067 (the stage, the grade, bloom). The captures are
 the Tauri window's own, 900 px wide, with the dev overlay hidden. `pi-top.png` (the Pi against the
 product brief's photograph) and `bench-iso.png` (the whole default bench) are in `lookdev/` too.
 Colours quoted are sRGB means over a patch of the capture, against the same patch of the photo.
@@ -38,8 +38,8 @@ Colours quoted are sRGB means over a patch of the capture, against the same patc
 | T1 | Label text and order | With the header at the top, the left column reads 3V3, SDA1, SCL1, GPIO4, GND, GPIO17, GPIO27, GPIO22, 3V3, SPIMOSI, SPIMISO, SPISCLK, GND, ID_SD, GPIO5, GPIO6, GPIO13, GPIO19, GPIO26, GND and the right column 5V0, 5V0, GND, TXD0, RXD0, GPIO18, GND, GPIO23, GPIO24, GND, GPIO25, SPICE0, SPICE1, ID_SC, GND, GPIO12, GND, GPIO16, GPIO20, GPIO21, generated from `tboard.json` | pass 2026-10-24: both columns read in the order listed, from `tboard.json` |
 | T2 | Label placement | White sans-serif text sits inboard of each pin column (left column's labels right of its pads, right column's left of its pads), upright with the header at the top | pass 2026-10-24 |
 | T3 | Title | "GPIO Extension Board" in dark text on a white box across the top bar, just below the box header | pass 2026-10-24 |
-| T4 | Solder mask | Saturated red with a clearcoat highlight; traces read as slightly raised, darker-red lines | pass 2026-10-24: the top is 215, 0, 1 (photo 3: 208, 10, 14). The coat is a faint sheen on purpose: a full one washed the mask to salmon at low angles (ADR-L-2). Top-face traces are as faint as in photo 3 |
-| T5 | Pads and mounting holes | Round tinned (silver) pads; two large plated mounting holes with silver rings at the stem end | pass 2026-10-24: the solder cones were over-bright and are now a dull tin (ADR-L-2) |
+| T4 | Solder mask | Saturated red with a clearcoat highlight; traces read as slightly raised, darker-red lines | pass 2026-10-24: the top is 215, 0, 1 (photo 3: 208, 10, 14). The coat is a faint sheen on purpose: a full one washed the mask to salmon at low angles (ADR-0066). Top-face traces are as faint as in photo 3 |
+| T5 | Pads and mounting holes | Round tinned (silver) pads; two large plated mounting holes with silver rings at the stem end | pass 2026-10-24: the solder cones were over-bright and are now a dull tin (ADR-0066) |
 | T6 | Board edge | Thin cream FR-4 edge visible where the board is cut | pass 2026-10-24 |
 | T7 | Box header | Light-grey matte shroud with the 2×20 pins inside; the key slot centred in the long wall on the side away from the stem | pass 2026-10-24 |
 | T8 | Proportions | Top bar about 59 mm across and stem about 60 mm long (photo 4's callouts; `tboard.json` outline); the header spans most of the bar | pass 2026-10-24: the outline is `tboard.json`'s calibrated 57.7 mm bar and 58.1 mm of stem past it (the callouts' 59 and 60 are nominal, ADR-0004); the shroud's 58.5 mm overhangs the bar by 0.4 mm each side, as the data has it |
@@ -48,7 +48,7 @@ Colours quoted are sRGB means over a patch of the capture, against the same patc
 
 | # | Check | Pass when | Status |
 |---|-------|-----------|--------|
-| U1 | Pin strips | Two 1×20 male strips in bright yellow plastic spacers run the stem, 6 pitches (15.24 mm) apart | pass 2026-10-24: strips 6 pitches apart; the yellow reads paler than the photo (201, 160, 107 against 245, 203, 26), which AgX does to a bright yellow (ADR-L-2) |
+| U1 | Pin strips | Two 1×20 male strips in bright yellow plastic spacers run the stem, 6 pitches (15.24 mm) apart | pass 2026-10-24: strips 6 pitches apart; the yellow reads paler than the photo (201, 160, 107 against 245, 203, 26), which AgX does to a bright yellow (ADR-0066) |
 | U2 | Pin-1 pad | The 2×20 footprint's square pad is at the corner photo 5 shows (top left, header end up, seen from below) | pass 2026-10-24: the square pad is the top left, in the row away from the stem |
 | U3 | Traces | Traces fan from the header pads down the stem between the strips, under red mask | pass 2026-10-24: stylised, one rule routes all 40 (ADR-0037) |
 | U4 | Male pins | Square tinned pins stand below the spacers by about the length photo 6 shows | pass 2026-10-24: 6.0 mm below the spacers (photo 6: 5.5 to 5.8) |
@@ -59,7 +59,7 @@ Colours quoted are sRGB means over a patch of the capture, against the same patc
 |---|-------|-----------|--------|
 | R1 | Colour order | Brown, red, orange, yellow, green, blue, violet, grey, white, black, four times over; conductor 1 is brown (`ribbon.json`) | pass 2026-10-24: read in the render, and by `assets:check` |
 | R2 | Pin-1 edge | The brown conductor is on the socket's pin-1 side (by its triangle), and at the Pi it is on the edge away from the USB and Ethernet ports (SPEC 2.2, 6.4) | pass 2026-10-24 at the T-board in the render (the brown edge is by the socket's pin-1 triangle); at the Pi the edge away from the Ethernet and USB ports follows from ADR-0049's placement and was not re-read in a capture; the real cable is HIL (`HIL_CHECKLIST.md`) |
-| R3 | Sockets | Grey like the box header, with the strain-relief bar over the cable, the polarization bump, and the pin-1 triangle | pass 2026-10-24: grey, strain-relief bar, pin-1 triangle. The polarization bump now stands in the shroud's key slot (ADR-L-1), so a seated socket hides it |
+| R3 | Sockets | Grey like the box header, with the strain-relief bar over the cable, the polarization bump, and the pin-1 triangle | pass 2026-10-24: grey, strain-relief bar, pin-1 triangle. The polarization bump now stands in the shroud's key slot (ADR-0065), so a seated socket hides it |
 | R4 | Surface and drape | Slightly glossy PVC with visible conductor ridges; 50.8 mm wide; bends only out of its plane, as a broad smooth sheet | surface and width pass 2026-10-24; the drape part is M8 (physics replaces the design curve, ADR-0050) |
 
 ### Breadboard, top-down (photos 1 and 3)
@@ -86,12 +86,12 @@ Colours quoted are sRGB means over a patch of the capture, against the same patc
 
 | # | Check | Pass when | Status |
 |---|-------|-----------|--------|
-| P1 | Materials | Per-colour materials from the STEP read like the product brief's photo at a similar angle: solder mask with clearcoat, metal shields and connectors, plastic ports | pass 2026-10-24: the mask is the brief's bright green, the USB-A shells silver, the connectors metal and plastic (ADR-L-2); the brief's legends and logos are not in the no-graphics STEP |
+| P1 | Materials | Per-colour materials from the STEP read like the product brief's photo at a similar angle: solder mask with clearcoat, metal shields and connectors, plastic ports | pass 2026-10-24: the mask is the brief's bright green, the USB-A shells silver, the connectors metal and plastic (ADR-0066); the brief's legends and logos are not in the no-graphics STEP |
 | P2 | Header | The 40 instanced header pins sit at the drawing's coordinates; none of the STEP's own pins show | pass 2026-10-24: 40 gold posts on the drawing's grid, none of the STEP's own |
 
 ### Stage
 
 | # | Check | Pass when | Status |
 |---|-------|-----------|--------|
-| S1 | Lighting | Neutral studio light from the CC0 HDRI plus one key light with soft shadows; AO visible in holes and under parts; AgX tone mapping | pass 2026-10-24: neutral greys, one softer key with its soft shadow, AO in the holes and under the parts, AgX then a colour grade (ADR-L-3) |
-| S2 | No gimmicks | No film grain, chromatic aberration or lens dirt; bloom only on lit LEDs | pass 2026-10-24: nothing added; bloom takes only what passes 2, so the metal rings and shields no longer glow (ADR-L-3) |
+| S1 | Lighting | Neutral studio light from the CC0 HDRI plus one key light with soft shadows; AO visible in holes and under parts; AgX tone mapping | pass 2026-10-24: neutral greys, one softer key with its soft shadow, AO in the holes and under the parts, AgX then a colour grade (ADR-0067) |
+| S2 | No gimmicks | No film grain, chromatic aberration or lens dirt; bloom only on lit LEDs | pass 2026-10-24: nothing added; bloom takes only what passes 2, so the metal rings and shields no longer glow (ADR-0067) |

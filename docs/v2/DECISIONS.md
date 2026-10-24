@@ -1479,7 +1479,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     leads, so the direction reads in a still picture.
 - **Consequences.** A later look-dev pass can retune them without touching the plumbing.
 
-## ADR-L-1 The IDC socket plugs 5.08 mm into the box header, whose cavity is sized to its body
+## ADR-0065 The IDC socket plugs 5.08 mm into the box header, whose cavity is sized to its body
 
 - **Context.**
   - ADR-0038 rested a 9.0 mm wide socket on the shroud's rim, because the shroud's cavity (6.4 mm)
@@ -1525,7 +1525,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - The socket's lower body at the Pi is narrower than before (6.1 against 9.0) and sits between the
     header's two rows of pins with 1.78 mm of body either side of the contacts.
 
-## ADR-L-2 Tin dulls to a matt grey, the mask loses its glare, and the Pi's mask and USB shells match its photographs
+## ADR-0066 Tin dulls to a matt grey, the mask loses its glare, and the Pi's mask and USB shells match its photographs
 
 - **Context.**
   - Photos 3, 5 and 6 show the T-board's pads and solder as a dull grey tin, and its mask as a
@@ -1547,12 +1547,12 @@ decision and consequences. Numbering is stable; superseded records say so.
     The material names stay (`solder-mask`, `step-<STEP colour>`), so `pi5.glb`'s contract holds.
 - **Consequences.**
   - The yellow spacers read paler than the photo (201, 160, 107 against 245, 203, 26): AgX
-    desaturates a bright yellow, and the grade of ADR-L-3 recovers only part of it.
+    desaturates a bright yellow, and the grade of ADR-0067 recovers only part of it.
   - The Pi has none of the brief photograph's legends and logos: the no-graphics STEP carries none.
-  - These changes are materials and shading only: the T-board's geometry hash changes with ADR-L-1's
+  - These changes are materials and shading only: the T-board's geometry hash changes with ADR-0065's
     shroud walls and not with these, and the Pi's mesh is the same triangles.
 
-## ADR-L-3 The stage is neutral and lit from above; AgX is followed by a colour grade; bloom takes only what passes 2
+## ADR-0067 The stage is neutral and lit from above; AgX is followed by a colour grade; bloom takes only what passes 2
 
 - **Context.**
   - SPEC 10.1 and photos 1, 3 and 6 call for a neutral studio look with white boards, saturated

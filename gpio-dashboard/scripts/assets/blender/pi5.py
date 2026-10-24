@@ -47,7 +47,7 @@ SMOOTH_ANGLE = math.radians(30)
 METALS = {'9a9a9a': 0.35, '7f7f7f': 0.4, '6b7682': 0.35, 'dadada': 0.3, 'ffd43e': 0.25, 'deb87a': 0.3}
 SOLDER_MASK = '004311'
 PLASTIC_ROUGHNESS = 0.5
-# Where the STEP's colour is not the board's look (ADR-L-2): its CAD green is the dark end of the
+# Where the STEP's colour is not the board's look (ADR-0066): its CAD green is the dark end of the
 # mask, where the official photos' board is a bright green, and its yellow metal is the USB-A
 # shells, which are nickel. The material keeps the STEP colour's name; only its albedo differs.
 LOOK = {'004311': '0f7a3b', 'ffd43e': 'b8b8bc'}

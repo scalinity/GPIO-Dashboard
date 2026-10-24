@@ -76,7 +76,7 @@ export default function Stage() {
       />
       <mesh geometry={sweep.geometry} material={sweep.material} receiveShadow />
       {/* The key stands 64 degrees up, a little in front: the T-board's shroud then leaves its title
-          out of its shadow. The neutral greys, the softer key and renderer.ts's grade are ADR-L-3. */}
+          out of its shadow. The neutral greys, the softer key and renderer.ts's grade are ADR-0067. */}
       <directionalLight
         position={[-120, 640, 220]}
         intensity={2.2}
