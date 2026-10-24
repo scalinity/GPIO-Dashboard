@@ -33,10 +33,11 @@ export function checkPartDef(def: PartDef): string[] {
       seen.add(key)
     }
     if (footprint.straddleTrench) {
-      const across = new Set(def.pins.map((p) => p.offsetPitch[1]))
-      if (across.size !== 2 || !across.has(0) || !across.has(3)) {
+      // 0.3" packages (DIPs) span e/f; 0.6" ones (displays) span b/f, c/g, d/h or e/i.
+      const across = [...new Set(def.pins.map((p) => p.offsetPitch[1]))].sort((m, n) => m - n)
+      if (across.length !== 2 || across[0] !== 0 || (across[1] !== 3 && across[1] !== 6)) {
         problems.push(
-          'a part that straddles the trench has its pin rows 3 pitches apart, at 0 and 3'
+          'a part that straddles the trench has two pin rows, at 0 and 3 (0.3") or 0 and 6 (0.6")'
         )
       }
     }
