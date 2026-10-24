@@ -7,26 +7,17 @@
  "turns": [
   {
    "user": "Wire a button on GPIO27 with a pull-up, so that pressing it toggles an LED on GPIO17.",
-   "assistant": "I've built the button and LED circuit and written the toggle code. The wiring checker (ERC) reports no errors or warnings, but **I couldn't simulate a button press**. The simulator has no \"pressed\" setting for this button.\n\n**What I built**\n- **Button SW1** sits across the centre gap at rows 24 and 26. Row 24 connects to **GPIO27**, and row 26 connects to **GND**.\n- **Pull-up R1 (10 kΩ)** runs from row 24 to row 30, and row 30 is wired to **3V3**.\n- **LED:** **GPIO17** → **R2 (220 Ω)**, rows 40 to 44 → red LED D1 (anode in row 44, cathode in row 46) → **GND**.\n\n**How it works**\n- **The button:** R1 holds GPIO27 at 3.3 V while the button is up, and the simulation shows exactly 3.3 V there. Pressing it connects GPIO27 to GND, so the pin goes low. While you hold it down, R1 draws only 3.3 V ÷ 10 kΩ = 0.33 mA.\n- **The code** watches for that high-to-low change and flips the LED each time. It ignores any further changes for 200 ms, because the button's contacts bounce and would otherwise toggle the LED several times per press. The code also turns on the Pi's built-in pull-up as a backup in case R1 gets knocked out.\n- **Why 220 Ω:** (3.3 V − ~2.0 V for a red LED) ÷ 220 Ω ≈ 6 mA. The simulation gives **5.49 mA** with the LED on (it measures 1.21 V across R2). That's comfortably under the Pi's 16 mA limit per pin.\n\n**What the checks covered**\n- The code passed the syntax check, and its pins match the wiring: GPIO17 is an output, GPIO27 an input with a pull-up.\n- I ran the code in the simulator for 5 seconds. It started cleanly and printed its prompt. Since no one could press the button there, I haven't seen it actually toggle.\n- I couldn't take a picture of the layout (there's no 3D view in this session), so I checked it from the hole list instead.\n\n**What to check on the bench**\n1. **Button orientation:** legs 1 and 2 are always connected, and so are legs 3 and 4. If the LED toggles nonstop or never responds, turn the button 90°.\n2. **LED direction:** the long leg (anode) goes in row 44, and the short leg (cathode, flat side of the rim) goes in row 46.\n3. **R1 goes to 3V3, not 5V.** The red lead runs from the T-board's 3V3 row (row 9) to row 30. GPIOs can't handle 5 V.\n4. **Ribbon cable:** the stripe (often brown) marks pin 1 (3V3). It should match pin 1 on the T-board.\n\nWhen you press the button, the LED should switch on or off and the program should print \"LED on\" or \"LED off\". Press Ctrl+C to quit.",
+   "assistant": "Now the leads: GPIO27 to the button/pull-up node, 3V3 to the top of R1, GND to the other side of the button and to the LED cathode, GPIO17 to R2.Wiring checks out: GPIO27 sits at 3.3 V when the button is released and 0 V when it's pressed. The LED path draws 5.49 mA. Now the code:I've wired a button on GPIO27 with a 10 kΩ pull-up and an LED on GPIO17, and written the toggle program. The electrical check shows no errors or warnings.\n\n**What I built**\n- **Button (SW1):** sits across the centre gap at rows 24 and 26. Row 24 goes to GPIO27 (yellow lead) and row 26 goes to GND (black lead).\n- **Pull-up (R1, 10 kΩ):** runs from 24j to 28j. A red lead joins row 28 to 3V3.\n- **LED path:** a green lead runs from GPIO17 to R2 (220 Ω, 34a to 38a), then the red LED (D1) runs from 38c to 40c. A black lead takes the LED's cathode at row 40 to GND.\n\n**How it works**\n- **Button:** the pull-up keeps GPIO27 at 3.3 V until you press the button, which pulls it to 0 V. The simulator shows exactly that, with only 0.33 mA through R1 while the button is held.\n- **Why 220 Ω:** (3.3 V − ~2.0 V red LED) / 220 Ω ≈ 5.9 mA. The simulator gives 5.49 mA, well under the 16 mA pin limit.\n- **Code (gpiozero):** each press calls `led.toggle()`. `bounce_time=0.05` ignores the contact chatter, so one press is one toggle. The Pi's internal pull-up is also on. That's harmless next to the 10 kΩ, and it means the pin is still pulled up if R1 comes loose.\n- **Code checks:** the code matches the wiring. A 5 s simulated run started cleanly and turned the LED off at Ctrl+C. That run can't press the button, though, so the toggle itself was only checked by the circuit simulation and code review, not by running the program.\n- **Not checked:** I couldn't take a picture of the layout because there's no 3D view in this session, so the layout hasn't been checked by eye.\n\n**What to check on the bench**\n- **LED direction:** the LED's longer leg (anode, +) goes in row 38, next to the resistor. The shorter leg, on the flat side of the rim, goes in row 40.\n- **Button direction:** the button must straddle the centre gap so that its switching sides land in rows 24 and 26. If the LED stays on or never changes, turn the button 90°.\n- **Ribbon cable:** check it's the right way round. The brown wire (pin 1) should be at row 1 of the T-board.",
    "end": "end_turn",
-   "notices": [
-    {
-     "code": "plain-tools",
-     "message": "The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict."
-    },
-    {
-     "code": "plain-tools",
-     "message": "The API refused the strict tool schemas, so tools run without them. Input is still validated here."
-    }
-   ],
+   "notices": [],
    "usage": {
-    "inputTokens": 26,
-    "outputTokens": 5220,
-    "cacheWriteTokens": 11386,
-    "cacheReadTokens": 222395,
+    "inputTokens": 24,
+    "outputTokens": 4338,
+    "cacheWriteTokens": 8704,
+    "cacheReadTokens": 200226,
     "webSearches": 0,
-    "requests": 12,
-    "costUsd": 0.20591299999999998
+    "requests": 11,
+    "costUsd": 0.1704212
    },
    "toolCalls": [
     {
@@ -43,7 +34,7 @@
       "query": "tact switch"
      },
      "ok": true,
-     "result": "[{\"id\":\"tact-switch-6mm\",\"name\":\"6 mm tactile switch (4-pin)\",\"category\":\"switch\",\"inInventory\":true,\"tags\":[\"kit\"],\"footprint\":{\"kind\":\"rigid\",\"straddleTrench\":true},\"pins\":[{\"id\":\"1\",\"label\":\"Terminal 1\",\"role\":\"switch\"},{\"id\":\"2\",\"label\":\"Terminal 2\",\"role\":\"switch\"},{\"id\":\"3\",\"label\":\"Terminal 3\",\"role\":\"switch\"},{\"id\":\"4\",\"label\":\"Terminal 4\",\"role\":\"switch\"}],\"properties\":{\"mode\":{\"type\":\"enum\",\"label\":\"Mode\",\"options\":[\"momentary\",\"retain\"],\"default\":\"momentary\"}},\"sim\":\"tact-switch\",\"datasheet\":\"https://omronfs.omron.com/en_US/ecb/products/pdf/en-b3f.pdf\"}]"
+     "result": "[{\"id\":\"tact-switch-6mm\",\"name\":\"6 mm tactile switch (4-pin)\",\"category\":\"switch\",\"inInventory\":true,\"tags\":[\"kit\"],\"footprint\":{\"kind\":\"rigid\",\"straddleTrench\":true},\"pins\":[{\"id\":\"1\",\"label\":\"Terminal 1\",\"role\":\"switch\"},{\"id\":\"2\",\"label\":\"Terminal 2\",\"role\":\"switch\"},{\"id\":\"3\",\"label\":\"Terminal 3\",\"role\":\"switch\"},{\"id\":\"4\",\"label\":\"Terminal 4\",\"role\":\"switch\"}],\"properties\":{\"mode\":{\"type\":\"enum\",\"label\":\"Mode\",\"options\":[\"momentary\",\"retain\"],\"default\":\"momentary\"},\"pressed\":{\"type\":\"boolean\",\"label\":\"Pressed (held down, contacts closed)\",\"default\":false}},\"sim\":\"tact-switch\",\"datasheet\":\"https://omronfs.omron.com/en_US/ecb/products/pdf/en-b3f.pdf\"}]"
     },
     {
      "tool": "place_part",
@@ -62,7 +53,7 @@
      "tool": "place_part",
      "input": {
       "defId": "resistor",
-      "at": "bb1:24a",
+      "at": "bb1:24j",
       "orientation": 0,
       "props": [
        {
@@ -71,17 +62,17 @@
        }
       ],
       "ref": "R1",
-      "span": 6
+      "span": 4
      },
      "ok": true,
-     "result": "{\"ref\":\"R1\",\"pins\":{\"1\":{\"hole\":\"bb1:24a\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:24b\",\"bb1:24c\",\"bb1:24d\"]},\"2\":{\"hole\":\"bb1:30a\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:30b\",\"bb1:30c\",\"bb1:30d\",\"bb1:30e\"]}},\"warnings\":[\"R1.1 shares its strip with SW1.1, so it joins their net\"]}",
+     "result": "{\"ref\":\"R1\",\"pins\":{\"1\":{\"hole\":\"bb1:24j\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:24i\",\"bb1:24h\",\"bb1:24g\"]},\"2\":{\"hole\":\"bb1:28j\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:28i\",\"bb1:28h\",\"bb1:28g\",\"bb1:28f\"]}},\"warnings\":[\"R1.1 shares its strip with SW1.2, so it joins their net\"]}",
      "committed": 1
     },
     {
      "tool": "place_part",
      "input": {
       "defId": "resistor",
-      "at": "bb1:40c",
+      "at": "bb1:34a",
       "orientation": 0,
       "props": [
        {
@@ -93,14 +84,14 @@
       "span": 4
      },
      "ok": true,
-     "result": "{\"ref\":\"R2\",\"pins\":{\"1\":{\"hole\":\"bb1:40c\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:40a\",\"bb1:40b\",\"bb1:40d\",\"bb1:40e\"]},\"2\":{\"hole\":\"bb1:44c\",\"net\":\"N4\",\"freeInStrip\":[\"bb1:44a\",\"bb1:44b\",\"bb1:44d\",\"bb1:44e\"]}}}",
+     "result": "{\"ref\":\"R2\",\"pins\":{\"1\":{\"hole\":\"bb1:34a\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:34b\",\"bb1:34c\",\"bb1:34d\",\"bb1:34e\"]},\"2\":{\"hole\":\"bb1:38a\",\"net\":\"N4\",\"freeInStrip\":[\"bb1:38b\",\"bb1:38c\",\"bb1:38d\",\"bb1:38e\"]}}}",
      "committed": 1
     },
     {
      "tool": "place_part",
      "input": {
       "defId": "led",
-      "at": "bb1:44d",
+      "at": "bb1:38c",
       "orientation": 0,
       "props": [
        {
@@ -112,7 +103,7 @@
       "span": 2
      },
      "ok": true,
-     "result": "{\"ref\":\"D1\",\"pins\":{\"A\":{\"hole\":\"bb1:44d\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:44a\",\"bb1:44b\",\"bb1:44e\"]},\"K\":{\"hole\":\"bb1:46d\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:46a\",\"bb1:46b\",\"bb1:46c\",\"bb1:46e\"]}},\"warnings\":[\"D1.A shares its strip with R2.2, so it joins their net\"]}",
+     "result": "{\"ref\":\"D1\",\"pins\":{\"A\":{\"hole\":\"bb1:38c\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:38b\",\"bb1:38d\",\"bb1:38e\"]},\"K\":{\"hole\":\"bb1:40c\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:40a\",\"bb1:40b\",\"bb1:40d\",\"bb1:40e\"]}},\"warnings\":[\"D1.A shares its strip with R2.2, so it joins their net\"]}",
      "committed": 1
     },
     {
@@ -122,11 +113,15 @@
        "net": "GPIO27"
       },
       "to": {
-       "hole": "bb1:24b"
-      }
+       "partPin": {
+        "ref": "SW1",
+        "pin": "1"
+       }
+      },
+      "color": "yellow"
      },
      "ok": true,
-     "result": "{\"wire\":{\"id\":\"W1\",\"kind\":\"dupont-mm\",\"color\":\"yellow\",\"lengthMm\":200,\"a\":\"bb1:7a\",\"b\":\"bb1:24b\"},\"net\":\"GPIO27\"}",
+     "result": "{\"wire\":{\"id\":\"W1\",\"kind\":\"dupont-mm\",\"color\":\"yellow\",\"lengthMm\":200,\"a\":\"bb1:7a\",\"b\":\"bb1:24a\"},\"net\":\"GPIO27\"}",
      "committed": 1
     },
     {
@@ -136,11 +131,14 @@
        "net": "3V3"
       },
       "to": {
-       "hole": "bb1:30b"
+       "partPin": {
+        "ref": "R1",
+        "pin": "2"
+       }
       }
      },
      "ok": true,
-     "result": "{\"wire\":{\"id\":\"W2\",\"kind\":\"dupont-mm\",\"color\":\"red\",\"lengthMm\":200,\"a\":\"bb1:9a\",\"b\":\"bb1:30b\"},\"net\":\"3V3\"}",
+     "result": "{\"wire\":{\"id\":\"W2\",\"kind\":\"dupont-mm\",\"color\":\"red\",\"lengthMm\":200,\"a\":\"bb1:9a\",\"b\":\"bb1:28i\"},\"net\":\"3V3\"}",
      "committed": 1
     },
     {
@@ -150,7 +148,10 @@
        "net": "GND"
       },
       "to": {
-       "hole": "bb1:26a"
+       "partPin": {
+        "ref": "SW1",
+        "pin": "3"
+       }
       }
      },
      "ok": true,
@@ -164,11 +165,15 @@
        "net": "GPIO17"
       },
       "to": {
-       "hole": "bb1:40a"
-      }
+       "partPin": {
+        "ref": "R2",
+        "pin": "1"
+       }
+      },
+      "color": "green"
      },
      "ok": true,
-     "result": "{\"wire\":{\"id\":\"W4\",\"kind\":\"dupont-mm\",\"color\":\"blue\",\"lengthMm\":200,\"a\":\"bb1:6a\",\"b\":\"bb1:40a\"},\"net\":\"GPIO17\"}",
+     "result": "{\"wire\":{\"id\":\"W4\",\"kind\":\"dupont-mm\",\"color\":\"green\",\"lengthMm\":200,\"a\":\"bb1:6a\",\"b\":\"bb1:34b\"},\"net\":\"GPIO17\"}",
      "committed": 1
     },
     {
@@ -178,11 +183,14 @@
        "net": "GND"
       },
       "to": {
-       "hole": "bb1:46a"
+       "partPin": {
+        "ref": "D1",
+        "pin": "K"
+       }
       }
      },
      "ok": true,
-     "result": "{\"wire\":{\"id\":\"W5\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:20b\",\"b\":\"bb1:46a\"},\"net\":\"GND\"}",
+     "result": "{\"wire\":{\"id\":\"W5\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:20b\",\"b\":\"bb1:40a\"},\"net\":\"GND\"}",
      "committed": 1
     },
     {
@@ -214,8 +222,8 @@
        ]
       }
      },
-     "ok": false,
-     "result": "{\"NO_SUCH_INPUT\":\"SW1 has no input pressed\"}"
+     "ok": true,
+     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":3.069,\"GPIO18\":0,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":0,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":3.3,\"N1\":1.86},\"leds\":[{\"die\":\"D1.D\",\"mA\":5.494,\"brightness\":0.549}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":3.069,\"mA\":5.494},{\"pin\":\"GPIO18\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":3.3,\"mA\":0}],\"rails\":{\"3V3_mA\":0,\"5V_mA\":0},\"resistors\":[{\"ref\":\"R1\",\"ohms\":10000,\"volts\":0,\"mA\":0,\"mW\":0},{\"ref\":\"R2\",\"ohms\":220,\"volt"
     },
     {
      "tool": "simulate",
@@ -240,72 +248,26 @@
        ]
       }
      },
-     "ok": false,
-     "result": "{\"NO_SUCH_INPUT\":\"SW1 has no input pressed\"}"
-    },
-    {
-     "tool": "get_circuit_state",
-     "input": {
-      "detail": "full"
-     },
      "ok": true,
-     "result": "Revision 9: 1 board(s), 4 part(s), 5 wire(s). ERC: 0 error(s), 2 warning(s).\n{\"revision\":9,\"boards\":[{\"id\":\"bb1\",\"def\":\"bb-830\",\"rows\":63,\"freeRows\":[[25,25],[27,29],[31,39],[41,43],[45,45],[47,63]],\"freeRailHoles\":{\"top+\":50,\"top-\":50,\"bottom+\":50,\"bottom-\":50}}],\"tboard\":{\"board\":\"bb1\",\"pin1Row\":1,\"colPair\":\"d/h\",\"orientation\":\"header-toward-row-0\",\"pins\":{\"1\":\"bb1:1d 3V3\",\"2\":\"bb1:1h 5V\",\"3\":\"bb1:2d GPIO2\",\"4\":\"bb1:2h 5V\",\"5\":\"bb1:3d GPIO3\",\"6\":\"bb1:3h GND\",\"7\":\"bb1:4d GPIO4\",\"8\":\"bb1:4h GPIO14\",\"9\":\"bb1:5d GND\",\"10\":\"bb1:5h GPIO15\",\"11\":\"bb1:6d GPIO17\",\"12\":\"bb1:6h GPIO18\",\"13\":\"bb1:7d GPIO27\",\"14\":\"bb1:7h GND\",\"15\":\"bb1:8d GPIO22\",\"16\":\"bb1:8h GPIO23\",\"17\":\"bb1:9d 3V3\",\"18\":\"bb1:9h GPIO24\",\"19\":\"bb1:10d GPIO10\",\"20\":\"bb1:10h GND\",\"21\":\"bb1:11d GPIO9\",\"22\":\"bb1:11h GPIO25\",\"23\":\"bb1:12d GPIO11\",\"24\":\"bb1:12h GPIO8\",\"25\":\"bb1:13d GND\",\"26\":\"bb1:13h GPIO7\",\"27\":\"bb1:14d GPIO0\",\"28\":\"bb1:14h GPIO1\",\"29\":\"bb1:15d GPIO5\",\"30\":\"bb1:15h GND\",\"31\":\"bb1:16d GPIO6\",\"32\":\"bb1:16h GPIO12\",\"33\":\"bb1:17d GPIO13\",\"34\":\"bb1:17h GND\",\"35\":\"bb1:18d GPIO19\",\"36\":\"bb1:18h GPIO16\",\"37\":\"bb1:19d GPIO26\",\"38\":\"bb1:19h GPIO20\",\"39\":\"bb1:20d GND\",\"40\":\"bb1:20h GPIO21\"}},\"parts\":[{\"ref\":\"SW1\",\"def\":\"tact-switch-6mm\",\"props\":{\"mode\":\"momentary\"},\"pins\":{\"1\":\"bb1:24e GPIO27\",\"2\":\"bb1:24f GPIO27\",\"3\":\"bb1:26e GND\",\"4\":\"bb1:26f GND\"}},{\"ref\":\"R1\",\"def\":\"resistor\",\"props\":{\"resistance\":10000,\"tolerance\":\"5%\"},\"pins\":{\"1\":\"bb1:24a GPIO27\",\"2\":\"bb1:30a 3V3\"}},{\"ref\":\"R2\",\"def\":\"resistor\",\"props\":{\"resist"
-    },
-    {
-     "tool": "simulate",
-     "input": {
-      "mode": "op",
-      "durationMs": 0,
-      "stimulus": {
-       "gpio": [
-        {
-         "pin": 17,
-         "level": "high",
-         "freqHz": 0,
-         "duty": 0
-        }
-       ],
-       "inputs": []
-      }
-     },
-     "ok": true,
-     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":3.069,\"GPIO18\":0,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":0,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":3.3,\"N1\":1.86},\"leds\":[{\"die\":\"D1.D\",\"mA\":5.494,\"brightness\":0.549}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":3.069,\"mA\":5.494},{\"pin\":\"GPIO18\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":3.3,\"mA\":0}],\"rails\":{\"3V3_mA\":0,\"5V_mA\":0},\"resistors\":[{\"ref\":\"R1\",\"ohms\":10000,\"volts\":0,\"mA\":0,\"mW\":0},{\"ref\":\"R2\",\"ohms\":220,\"volt"
-    },
-    {
-     "tool": "simulate",
-     "input": {
-      "mode": "op",
-      "durationMs": 0,
-      "stimulus": {
-       "gpio": [
-        {
-         "pin": 17,
-         "level": "low",
-         "freqHz": 0,
-         "duty": 0
-        }
-       ],
-       "inputs": [
-        {
-         "part": "SW1",
-         "key": "closed",
-         "value": true
-        }
-       ]
-      }
-     },
-     "ok": false,
-     "result": "{\"NO_SUCH_INPUT\":\"SW1 has no input closed\"}"
+     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":0,\"GPIO18\":0,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":0,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":0,\"N1\":0},\"leds\":[{\"die\":\"D1.D\",\"mA\":0,\"brightness\":0}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO18\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":0,\"mA\":0}],\"rails\":{\"3V3_mA\":0.33,\"5V_mA\":0},\"resistors\":[{\"ref\":\"R1\",\"ohms\":10000,\"volts\":-3.3,\"mA\":-0.33,\"mW\":1.089},{\"ref\":\"R2\",\"ohms\":220,\"volts\":0,\"mA\":0,\""
     },
     {
      "tool": "write_code",
      "input": {
-      "library": "RPi.GPIO",
-      "source": "import RPi.GPIO as GPIO\nimport time\n\nBUTTON = 27   # to GND when pressed, 10k pull-up R1 to 3V3\nLED = 17      # through 220 ohm R2 to the LED anode\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(LED, GPIO.OUT, initial=GPIO.LOW)\n# R1 is the real pull-up; the internal one is a backup if R1 is ever pulled out\nGPIO.setup(BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)\n\nled_on = False\n\ndef toggle(channel):\n    global led_on\n    led_on = not led_on\n    GPIO.output(LED, led_on)\n    print(\"LED\", \"on\" if led_on else \"off\")\n\n# Pressed = high-to-low edge; 200 ms bouncetime ignores contact bounce\nGPIO.add_event_detect(BUTTON, GPIO.FALLING, callback=toggle, bouncetime=200)\n\nprint(\"Press the button to toggle the LED. Ctrl+C to quit.\")\ntry:\n    while True:\n        time.sleep(1)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.cleanup()\n"
+      "library": "gpiozero",
+      "source": "from gpiozero import LED, Button\nfrom signal import pause\n\nled = LED(17)\n# The external 10k pulls GPIO27 up to 3.3 V; the internal pull-up is on too (harmless, in parallel).\n# Pressed = pin pulled to GND = active. bounce_time ignores contact chatter.\nbutton = Button(27, pull_up=True, bounce_time=0.05)\n\ndef on_press():\n    led.toggle()\n    print(\"LED on\" if led.is_lit else \"LED off\")\n\nbutton.when_pressed = on_press\n\nprint(\"Press the button to toggle the LED. Ctrl+C to quit.\")\ntry:\n    pause()\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    led.off()\n"
      },
      "ok": true,
      "result": "{\"syntax\":\"ok\",\"gpioUsed\":[{\"gpio\":17,\"mode\":\"out\"},{\"gpio\":27,\"mode\":\"in\",\"pull\":\"up\"}],\"unresolved\":[],\"crossCheck\":\"matches the wiring\"}",
      "committed": 1
+    },
+    {
+     "tool": "run_code_in_sim",
+     "input": {
+      "seconds": 5
+     },
+     "ok": true,
+     "result": "{\"stdout\":\"Press the button to toggle the LED. Ctrl+C to quit.\",\"error\":null,\"events\":[\"5.000 GPIO17 low\"],\"eventCount\":1}"
     },
     {
      "tool": "run_erc",
@@ -314,56 +276,60 @@
      "result": "{\"errors\":0,\"warnings\":0,\"info\":0,\"issues\":[]}"
     },
     {
-     "tool": "run_code_in_sim",
-     "input": {
-      "seconds": 5
-     },
-     "ok": true,
-     "result": "{\"stdout\":\"Press the button to toggle the LED. Ctrl+C to quit.\",\"error\":null,\"events\":[],\"eventCount\":0}"
-    },
-    {
-     "tool": "annotate_build_steps",
-     "input": {
-      "annotations": [
-       {
-        "step": "SW1",
-        "why": "The button straddles the trench; legs 1/2 (row 24) are always joined, legs 3/4 (row 26) are always joined, and pressing connects the two rows.",
-        "mistake": "Rotating the button 90° so the always-joined legs sit in different rows, which makes it look permanently pressed."
-       },
-       {
-        "step": "R1",
-        "why": "10 kΩ from the GPIO27 row to 3V3 holds the input at a firm 3.3 V when the button is released.",
-        "mistake": "Putting the pull-up to 5V – the Pi's GPIOs are not 5 V tolerant."
-       },
-       {
-        "step": "R2",
-        "why": "Limits the LED current to about 5.5 mA, well under the Pi's 16 mA per-pin limit.",
-        "mistake": "Leaving the resistor out and driving the LED straight from the pin."
-       },
-       {
-        "step": "D1",
-        "why": "The anode (long leg) goes in row 44 next to R2, the cathode (short leg, flat side) in row 46 to GND.",
-        "mistake": "Fitting it backwards – it then simply never lights."
-       }
-      ]
-     },
-     "ok": true,
-     "result": "{\"annotated\":4}",
-     "committed": 1
-    },
-    {
      "tool": "capture_view",
      "input": {
       "preset": "top"
      },
      "ok": false,
      "result": "{\"INTERNAL_ERROR\":\"capture_view is not available in this session: there is no 3D stage here (headless evaluation). Check the layout from the hole positions and nets that get_circuit_state returns.\"}"
+    },
+    {
+     "tool": "highlight",
+     "input": {
+      "refs": [
+       "SW1",
+       "R1"
+      ],
+      "note": "R1 (10 kΩ) holds GPIO27 at 3.3 V. Pressing SW1 ties row 24 to row 26 (GND), which pulls the pin low."
+     },
+     "ok": true,
+     "result": "ok"
     }
    ],
-   "transactions": 11
+   "transactions": 10
   }
  ],
  "questions": [],
+ "partialInputs": {
+  "place_part": {
+   "snapshots": 36,
+   "ghosts": 21
+  },
+  "connect": {
+   "snapshots": 40,
+   "ghosts": 12
+  }
+ },
+ "simulatedInputs": [
+  {
+   "part": "SW1",
+   "key": "pressed",
+   "value": false
+  },
+  {
+   "part": "SW1",
+   "key": "pressed",
+   "value": true
+  }
+ ],
+ "codeRuns": [
+  {
+   "seconds": 5,
+   "endedAt": 5.000019999999938,
+   "events": 1,
+   "error": null
+  }
+ ],
  "custom": [],
  "final": {
   "parts": [
@@ -373,7 +339,7 @@
    "D1 led"
   ],
   "wires": 5,
-  "code": "import RPi.GPIO as GPIO\nimport time\n\nBUTTON = 27   # to GND when pressed, 10k pull-up R1 to 3V3\nLED = 17      # through 220 ohm R2 to the LED anode\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(LED, GPIO.OUT, initial=GPIO.LOW)\n# R1 is the real pull-up; the internal one is a backup if R1 is ever pulled out\nGPIO.setup(BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)\n\nled_on = False\n\ndef toggle(channel):\n    global led_on\n    led_on = not led_on\n    GPIO.output(LED, led_on)\n    print(\"LED\", \"on\" if led_on else \"off\")\n\n# Pressed = high-to-low edge; 200 ms bouncetime ignores contact bounce\nGPIO.add_event_detect(BUTTON, GPIO.FALLING, callback=toggle, bouncetime=200)\n\nprint(\"Press the button to toggle the LED. Ctrl+C to quit.\")\ntry:\n    while True:\n        time.sleep(1)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.cleanup()\n"
+  "code": "from gpiozero import LED, Button\nfrom signal import pause\n\nled = LED(17)\n# The external 10k pulls GPIO27 up to 3.3 V; the internal pull-up is on too (harmless, in parallel).\n# Pressed = pin pulled to GND = active. bounce_time ignores contact chatter.\nbutton = Button(27, pull_up=True, bounce_time=0.05)\n\ndef on_press():\n    led.toggle()\n    print(\"LED on\" if led.is_lit else \"LED off\")\n\nbutton.when_pressed = on_press\n\nprint(\"Press the button to toggle the LED. Ctrl+C to quit.\")\ntry:\n    pause()\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    led.off()\n"
  },
  "checks": [
   {
@@ -452,7 +418,7 @@
    "id": "sim.program",
    "label": "Pressing the button changes GPIO17 in the program",
    "pass": true,
-   "detail": "1 change(s) of GPIO17 after the press"
+   "detail": "2 change(s) of GPIO17 after the press"
   },
   {
    "id": "one-turn",
@@ -464,7 +430,7 @@
    "id": "undo.all",
    "label": "Undo all restores the starting document exactly",
    "pass": true,
-   "detail": "11 of 11 transactions undone"
+   "detail": "10 of 10 transactions undone"
   }
  ]
 }

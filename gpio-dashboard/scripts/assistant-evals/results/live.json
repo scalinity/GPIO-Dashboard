@@ -1,7 +1,7 @@
 {
  "date": "2026-10-24",
  "model": "claude-opus-5-5",
- "spentUsd": 2.746219,
+ "spentUsd": 2.2947318,
  "prompts": [
   {
    "id": "blink-led",
@@ -90,25 +90,70 @@
      "id": "undo.all",
      "label": "Undo all restores the starting document exactly",
      "pass": true,
-     "detail": "6 of 6 transactions undone"
+     "detail": "5 of 5 transactions undone"
     }
    ],
    "model": "claude-opus-5-5",
    "effort": "high",
    "turns": 1,
-   "requests": 9,
-   "toolCalls": 13,
-   "inputTokens": 20,
-   "outputTokens": 2535,
-   "cacheWriteTokens": 4399,
-   "cacheReadTokens": 139943,
+   "requests": 8,
+   "toolCalls": 11,
+   "inputTokens": 18,
+   "outputTokens": 2150,
+   "cacheWriteTokens": 3795,
+   "cacheReadTokens": 124163,
    "webSearches": 0,
-   "costUsd": 0.10076360000000001,
-   "seconds": 28,
-   "notices": [
-    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
-    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
-   ]
+   "costUsd": 0.08687960000000002,
+   "seconds": 23,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "place_part": {
+     "calls": 2,
+     "deltas": 20
+    },
+    "connect": {
+     "calls": 2,
+     "deltas": 18
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 34
+    },
+    "run_erc": {
+     "calls": 1,
+     "deltas": 1
+    },
+    "simulate": {
+     "calls": 1,
+     "deltas": 18
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 23
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 18,
+     "ghosts": 11
+    },
+    "connect": {
+     "snapshots": 16,
+     "ghosts": 7
+    }
+   }
   },
   {
    "id": "button-toggles-led",
@@ -191,7 +236,7 @@
      "id": "sim.program",
      "label": "Pressing the button changes GPIO17 in the program",
      "pass": true,
-     "detail": "1 change(s) of GPIO17 after the press"
+     "detail": "2 change(s) of GPIO17 after the press"
     },
     {
      "id": "one-turn",
@@ -203,25 +248,74 @@
      "id": "undo.all",
      "label": "Undo all restores the starting document exactly",
      "pass": true,
-     "detail": "11 of 11 transactions undone"
+     "detail": "10 of 10 transactions undone"
     }
    ],
    "model": "claude-opus-5-5",
    "effort": "high",
    "turns": 1,
-   "requests": 12,
-   "toolCalls": 22,
-   "inputTokens": 26,
-   "outputTokens": 5220,
-   "cacheWriteTokens": 11386,
-   "cacheReadTokens": 222395,
+   "requests": 11,
+   "toolCalls": 19,
+   "inputTokens": 24,
+   "outputTokens": 4338,
+   "cacheWriteTokens": 8704,
+   "cacheReadTokens": 200226,
    "webSearches": 0,
-   "costUsd": 0.20591299999999998,
-   "seconds": 52,
-   "notices": [
-    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
-    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
-   ]
+   "costUsd": 0.1704212,
+   "seconds": 44,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "search_parts": {
+     "calls": 1,
+     "deltas": 5
+    },
+    "place_part": {
+     "calls": 4,
+     "deltas": 40
+    },
+    "connect": {
+     "calls": 5,
+     "deltas": 45
+    },
+    "run_erc": {
+     "calls": 2,
+     "deltas": 2
+    },
+    "simulate": {
+     "calls": 2,
+     "deltas": 48
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 47
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 20
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 36,
+     "ghosts": 21
+    },
+    "connect": {
+     "snapshots": 40,
+     "ghosts": 12
+    }
+   }
   },
   {
    "id": "parking-sensor",
@@ -280,7 +374,7 @@
      "id": "parts",
      "label": "An HC-SR04, a passive buzzer and 3 LEDs",
      "pass": true,
-     "detail": "resistor, led, resistor, led, resistor, led, pn2222, resistor, passive-buzzer, resistor, resistor, hc-sr04"
+     "detail": "resistor, led, resistor, led, resistor, led, resistor, resistor, pn2222, hc-sr04, resistor, passive-buzzer, diode-1n4007"
     },
     {
      "id": "echo.protected",
@@ -310,25 +404,94 @@
      "id": "undo.all",
      "label": "Undo all restores the starting document exactly",
      "pass": true,
-     "detail": "33 of 33 transactions undone"
+     "detail": "36 of 36 transactions undone"
     }
    ],
    "model": "claude-opus-5-5",
    "effort": "high",
    "turns": 1,
-   "requests": 20,
-   "toolCalls": 48,
-   "inputTokens": 42,
-   "outputTokens": 13437,
-   "cacheWriteTokens": 25429,
-   "cacheReadTokens": 531843,
+   "requests": 19,
+   "toolCalls": 49,
+   "inputTokens": 40,
+   "outputTokens": 11615,
+   "cacheWriteTokens": 20801,
+   "cacheReadTokens": 484922,
    "webSearches": 0,
-   "costUsd": 0.5024215999999999,
-   "seconds": 132,
-   "notices": [
-    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
-    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
-   ]
+   "costUsd": 0.4334494,
+   "seconds": 118,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "search_parts": {
+     "calls": 4,
+     "deltas": 18
+    },
+    "ask_user": {
+     "calls": 1,
+     "deltas": 27
+    },
+    "place_part": {
+     "calls": 13,
+     "deltas": 135
+    },
+    "move_part": {
+     "calls": 2,
+     "deltas": 14
+    },
+    "connect": {
+     "calls": 18,
+     "deltas": 168
+    },
+    "run_erc": {
+     "calls": 3,
+     "deltas": 3
+    },
+    "simulate": {
+     "calls": 1,
+     "deltas": 50
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 102
+    },
+    "set_part_props": {
+     "calls": 1,
+     "deltas": 7
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 18
+    },
+    "annotate_build_steps": {
+     "calls": 1,
+     "deltas": 77
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 122,
+     "ghosts": 70
+    },
+    "move_part": {
+     "snapshots": 12,
+     "ghosts": 0
+    },
+    "connect": {
+     "snapshots": 150,
+     "ghosts": 48
+    }
+   }
   },
   {
    "id": "parking-sensor-direct",
@@ -387,7 +550,7 @@
      "id": "parts",
      "label": "An HC-SR04, a passive buzzer and 3 LEDs",
      "pass": true,
-     "detail": "hc-sr04, resistor, resistor, pn2222, resistor, passive-buzzer, resistor, resistor, resistor, led, led, led, diode-1n4007"
+     "detail": "hc-sr04, resistor, resistor, resistor, resistor, resistor, pn2222, led, led, led, resistor, passive-buzzer, diode-1n4007"
     },
     {
      "id": "echo.protected",
@@ -423,25 +586,82 @@
      "id": "undo.all",
      "label": "Undo all restores the starting document exactly",
      "pass": true,
-     "detail": "37 of 37 transactions undone"
+     "detail": "34 of 34 transactions undone"
     }
    ],
    "model": "claude-opus-5-5",
    "effort": "high",
    "turns": 1,
-   "requests": 28,
-   "toolCalls": 53,
-   "inputTokens": 58,
-   "outputTokens": 12785,
-   "cacheWriteTokens": 25272,
-   "cacheReadTokens": 698663,
+   "requests": 19,
+   "toolCalls": 48,
+   "inputTokens": 40,
+   "outputTokens": 11936,
+   "cacheWriteTokens": 25186,
+   "cacheReadTokens": 463790,
    "webSearches": 0,
-   "costUsd": 0.5220246,
-   "seconds": 136,
-   "notices": [
-    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
-    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
-   ]
+   "costUsd": 0.457568,
+   "seconds": 122,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "search_parts": {
+     "calls": 5,
+     "deltas": 21
+    },
+    "place_part": {
+     "calls": 13,
+     "deltas": 129
+    },
+    "connect": {
+     "calls": 17,
+     "deltas": 126
+    },
+    "run_erc": {
+     "calls": 3,
+     "deltas": 3
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 18
+    },
+    "remove_wire": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "write_code": {
+     "calls": 2,
+     "deltas": 269
+    },
+    "simulate": {
+     "calls": 2,
+     "deltas": 83
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "annotate_build_steps": {
+     "calls": 1,
+     "deltas": 74
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 116,
+     "ghosts": 69
+    },
+    "connect": {
+     "snapshots": 109,
+     "ghosts": 37
+    }
+   }
   },
   {
    "id": "undo-all",
@@ -506,7 +726,7 @@
      "id": "sim.program",
      "label": "GPIO17 and GPIO27 blink in opposition",
      "pass": true,
-     "detail": "9 opposite, 10 equal pin states"
+     "detail": "9 opposite, 8 equal pin states"
     },
     {
      "id": "led.count",
@@ -530,19 +750,64 @@
    "model": "claude-opus-5-5",
    "effort": "high",
    "turns": 2,
-   "requests": 15,
+   "requests": 16,
    "toolCalls": 22,
-   "inputTokens": 34,
-   "outputTokens": 3971,
-   "cacheWriteTokens": 8839,
-   "cacheReadTokens": 262382,
+   "inputTokens": 36,
+   "outputTokens": 3806,
+   "cacheWriteTokens": 8161,
+   "cacheReadTokens": 282810,
    "webSearches": 0,
-   "costUsd": 0.17622740000000003,
-   "seconds": 43,
-   "notices": [
-    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
-    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
-   ]
+   "costUsd": 0.173631,
+   "seconds": 46,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 2,
+     "deltas": 8
+    },
+    "place_part": {
+     "calls": 4,
+     "deltas": 44
+    },
+    "connect": {
+     "calls": 4,
+     "deltas": 32
+    },
+    "run_erc": {
+     "calls": 3,
+     "deltas": 3
+    },
+    "simulate": {
+     "calls": 2,
+     "deltas": 43
+    },
+    "write_code": {
+     "calls": 2,
+     "deltas": 49
+    },
+    "run_code_in_sim": {
+     "calls": 2,
+     "deltas": 6
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 2,
+     "deltas": 34
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 40,
+     "ghosts": 21
+    },
+    "connect": {
+     "snapshots": 28,
+     "ghosts": 11
+    }
+   }
   },
   {
    "id": "second-button-speed",
@@ -625,25 +890,66 @@
      "id": "undo.all",
      "label": "Undo all restores the starting document exactly",
      "pass": true,
-     "detail": "8 of 8 transactions undone"
+     "detail": "4 of 4 transactions undone"
     }
    ],
    "model": "claude-opus-5-5",
    "effort": "high",
    "turns": 1,
-   "requests": 12,
-   "toolCalls": 17,
-   "inputTokens": 26,
-   "outputTokens": 5478,
-   "cacheWriteTokens": 11064,
-   "cacheReadTokens": 240776,
+   "requests": 7,
+   "toolCalls": 9,
+   "inputTokens": 16,
+   "outputTokens": 2748,
+   "cacheWriteTokens": 7241,
+   "cacheReadTokens": 124048,
    "webSearches": 0,
-   "costUsd": 0.21313919999999997,
-   "seconds": 66,
-   "notices": [
-    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
-    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
-   ]
+   "costUsd": 0.1160386,
+   "seconds": 36,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "place_part": {
+     "calls": 1,
+     "deltas": 9
+    },
+    "connect": {
+     "calls": 2,
+     "deltas": 17
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 92
+    },
+    "run_erc": {
+     "calls": 1,
+     "deltas": 1
+    },
+    "simulate": {
+     "calls": 1,
+     "deltas": 24
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 8,
+     "ghosts": 4
+    },
+    "connect": {
+     "snapshots": 15,
+     "ghosts": 6
+    }
+   }
   },
   {
    "id": "rgb-led",
@@ -708,7 +1014,7 @@
      "id": "sim.dies",
      "label": "Each GPIO lights its own colour, 1-16 mA",
      "pass": true,
-     "detail": "GPIO17 D1.R 5.3 mA; GPIO27 D1.G 2.2 mA; GPIO22 D1.B 2.2 mA"
+     "detail": "GPIO17 LED1.R 5.3 mA; GPIO27 LED1.G 2.2 mA; GPIO22 LED1.B 2.2 mA"
     },
     {
      "id": "sim.program",
@@ -726,25 +1032,78 @@
      "id": "undo.all",
      "label": "Undo all restores the starting document exactly",
      "pass": true,
-     "detail": "17 of 17 transactions undone"
+     "detail": "11 of 11 transactions undone"
     }
    ],
    "model": "claude-opus-5-5",
    "effort": "high",
    "turns": 1,
-   "requests": 19,
-   "toolCalls": 32,
-   "inputTokens": 40,
-   "outputTokens": 8168,
-   "cacheWriteTokens": 17120,
-   "cacheReadTokens": 397346,
+   "requests": 11,
+   "toolCalls": 20,
+   "inputTokens": 24,
+   "outputTokens": 4333,
+   "cacheWriteTokens": 9945,
+   "cacheReadTokens": 199885,
    "webSearches": 0,
-   "costUsd": 0.32858919999999997,
-   "seconds": 95,
-   "notices": [
-    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
-    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
-   ]
+   "costUsd": 0.17645799999999998,
+   "seconds": 49,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "search_parts": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "place_part": {
+     "calls": 4,
+     "deltas": 40
+    },
+    "connect": {
+     "calls": 4,
+     "deltas": 37
+    },
+    "run_erc": {
+     "calls": 2,
+     "deltas": 2
+    },
+    "simulate": {
+     "calls": 2,
+     "deltas": 62
+    },
+    "set_part_props": {
+     "calls": 2,
+     "deltas": 13
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 34
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 20
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 36,
+     "ghosts": 18
+    },
+    "connect": {
+     "snapshots": 33,
+     "ghosts": 11
+    }
+   }
   },
   {
    "id": "buzzer-driver",
@@ -839,25 +1198,86 @@
      "id": "undo.all",
      "label": "Undo all restores the starting document exactly",
      "pass": true,
-     "detail": "9 of 9 transactions undone"
+     "detail": "11 of 11 transactions undone"
     }
    ],
    "model": "claude-opus-5-5",
    "effort": "high",
    "turns": 1,
-   "requests": 11,
-   "toolCalls": 19,
-   "inputTokens": 24,
-   "outputTokens": 4106,
-   "cacheWriteTokens": 8053,
-   "cacheReadTokens": 193643,
+   "requests": 13,
+   "toolCalls": 22,
+   "inputTokens": 28,
+   "outputTokens": 4185,
+   "cacheWriteTokens": 9530,
+   "cacheReadTokens": 236202,
    "webSearches": 0,
-   "costUsd": 0.1612096,
-   "seconds": 40,
-   "notices": [
-    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
-    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
-   ]
+   "costUsd": 0.17870240000000004,
+   "seconds": 47,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "search_parts": {
+     "calls": 2,
+     "deltas": 9
+    },
+    "place_part": {
+     "calls": 3,
+     "deltas": 30
+    },
+    "connect": {
+     "calls": 5,
+     "deltas": 45
+    },
+    "run_erc": {
+     "calls": 2,
+     "deltas": 2
+    },
+    "simulate": {
+     "calls": 3,
+     "deltas": 54
+    },
+    "move_part": {
+     "calls": 1,
+     "deltas": 6
+    },
+    "remove_wire": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 38
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 16
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 27,
+     "ghosts": 10
+    },
+    "connect": {
+     "snapshots": 40,
+     "ghosts": 13
+    },
+    "move_part": {
+     "snapshots": 5,
+     "ghosts": 0
+    }
+   }
   },
   {
    "id": "pot-adc",
@@ -922,7 +1342,7 @@
      "id": "sim.reads",
      "label": "The first value printed follows the wiper (at 25% and at 75%)",
      "pass": true,
-     "detail": "wiper 25%: want ~64 (or 191 wired the other way), printed 191; wiper 75%: want ~191 (or 64 wired the other way), printed 63"
+     "detail": "wiper 25%: want ~64 (or 191 wired the other way), printed 63; wiper 75%: want ~191 (or 64 wired the other way), printed 191"
     },
     {
      "id": "i2c",
@@ -940,25 +1360,74 @@
      "id": "undo.all",
      "label": "Undo all restores the starting document exactly",
      "pass": true,
-     "detail": "12 of 12 transactions undone"
+     "detail": "10 of 10 transactions undone"
     }
    ],
    "model": "claude-opus-5-5",
    "effort": "high",
    "turns": 1,
-   "requests": 8,
+   "requests": 9,
    "toolCalls": 19,
-   "inputTokens": 18,
-   "outputTokens": 4766,
-   "cacheWriteTokens": 7881,
-   "cacheReadTokens": 138221,
+   "inputTokens": 20,
+   "outputTokens": 3677,
+   "cacheWriteTokens": 7152,
+   "cacheReadTokens": 161034,
    "webSearches": 0,
-   "costUsd": 0.1624412,
-   "seconds": 45,
-   "notices": [
-    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
-    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
-   ]
+   "costUsd": 0.1415868,
+   "seconds": 52,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "search_parts": {
+     "calls": 2,
+     "deltas": 9
+    },
+    "place_part": {
+     "calls": 2,
+     "deltas": 17
+    },
+    "connect": {
+     "calls": 7,
+     "deltas": 62
+    },
+    "run_erc": {
+     "calls": 2,
+     "deltas": 2
+    },
+    "simulate": {
+     "calls": 1,
+     "deltas": 17
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 98
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 18
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 15,
+     "ghosts": 9
+    },
+    "connect": {
+     "snapshots": 55,
+     "ghosts": 20
+    }
+   }
   },
   {
    "id": "debug-board-sense",
@@ -1044,16 +1513,28 @@
    "requests": 3,
    "toolCalls": 3,
    "inputTokens": 8,
-   "outputTokens": 1536,
-   "cacheWriteTokens": 3744,
-   "cacheReadTokens": 45034,
+   "outputTokens": 1682,
+   "cacheWriteTokens": 3922,
+   "cacheReadTokens": 45658,
    "webSearches": 0,
-   "costUsd": 0.058478800000000004,
-   "seconds": 22,
-   "notices": [
-    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
-    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
-   ]
+   "costUsd": 0.0624136,
+   "seconds": 23,
+   "notices": [],
+   "inputDeltas": {
+    "read_board_sense": {
+     "calls": 1,
+     "deltas": 1
+    },
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 29
+    }
+   },
+   "partialInputs": {}
   },
   {
    "id": "explain-no-change",
@@ -1125,18 +1606,30 @@
    "effort": "medium",
    "turns": 1,
    "requests": 4,
-   "toolCalls": 4,
+   "toolCalls": 3,
    "inputTokens": 10,
-   "outputTokens": 1074,
-   "cacheWriteTokens": 5004,
-   "cacheReadTokens": 61511,
+   "outputTokens": 1073,
+   "cacheWriteTokens": 2229,
+   "cacheReadTokens": 59594,
    "webSearches": 0,
-   "costUsd": 0.0588422,
+   "costUsd": 0.0445638,
    "seconds": 15,
-   "notices": [
-    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
-    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
-   ]
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "simulate": {
+     "calls": 1,
+     "deltas": 18
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 19
+    }
+   },
+   "partialInputs": {}
   },
   {
    "id": "bmp280-datasheet",
@@ -1225,25 +1718,76 @@
      "id": "undo.all",
      "label": "Undo all restores the starting document exactly",
      "pass": true,
-     "detail": "10 of 10 transactions undone"
+     "detail": "9 of 9 transactions undone"
     }
    ],
    "model": "claude-opus-5-5",
    "effort": "high",
    "turns": 1,
-   "requests": 10,
-   "toolCalls": 17,
-   "inputTokens": 179,
-   "outputTokens": 5561,
-   "cacheWriteTokens": 21751,
-   "cacheReadTokens": 177388,
+   "requests": 9,
+   "toolCalls": 16,
+   "inputTokens": 244,
+   "outputTokens": 5280,
+   "cacheWriteTokens": 22847,
+   "cacheReadTokens": 161042,
    "webSearches": 0,
-   "costUsd": 0.2561686,
-   "seconds": 80,
+   "costUsd": 0.2530194,
+   "seconds": 79,
    "notices": [
-    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
-    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
-   ]
+    "web-tools-refused: The API refused web search (“Web search is not enabled for this organization”), so this conversation runs without it. The “Web search and fetch, for datasheets” setting turns the web tools off for new conversations."
+   ],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "search_parts": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "ask_user": {
+     "calls": 1,
+     "deltas": 33
+    },
+    "define_custom_part": {
+     "calls": 1,
+     "deltas": 44
+    },
+    "place_part": {
+     "calls": 1,
+     "deltas": 11
+    },
+    "connect": {
+     "calls": 6,
+     "deltas": 54
+    },
+    "run_erc": {
+     "calls": 2,
+     "deltas": 2
+    },
+    "simulate": {
+     "calls": 1,
+     "deltas": 12
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 166
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 10,
+     "ghosts": 5
+    },
+    "connect": {
+     "snapshots": 48,
+     "ghosts": 17
+    }
+   }
   }
  ]
 }

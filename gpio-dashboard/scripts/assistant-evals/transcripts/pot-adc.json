@@ -7,26 +7,17 @@
  "turns": [
   {
    "user": "Read the potentiometer through the ADS7830 module over I2C, and print its value every half second.",
-   "assistant": "I've wired the potentiometer to the ADS7830 module and written a program that prints its reading every half second. ERC shows 0 errors and 0 warnings. The simulation and a code run both behaved as expected. There was no 3D view in this session, so I couldn't check the layout by eye.\n\n**What I built**\n- **ADS7830 (U1):** it's off the breadboard and connected with male-female leads:\n  - VCC goes to **3V3**, GND to **GND**.\n  - SDA goes to **GPIO2**, SCL to **GPIO3**. These are the Pi's I2C pins.\n- **Potentiometer (RV1):** it sits in rows 24–28.\n  - Pin 1 (row 24) goes to 3V3 and pin 3 (row 28) to GND.\n  - The middle pin, the wiper (row 26), goes to **A0** on the module.\n\n**How it works**\n- The pot divides 3.3 V, so the wiper sits somewhere between 0 and 3.3 V. The ADS7830 turns that into a number from 0 to 255 and sends it over I2C.\n- I powered the module from **3V3, not 5V**, on purpose. Its I2C pull-up resistors connect to its VCC, and GPIO2/GPIO3 can't take 5 V.\n- The code sends a command byte to address 0x48: single-ended input, channel 0, internal reference off. It reads back one byte, which it prints as a raw value, volts and percent.\n- **Sim results:**\n  - With the wiper at 25%, A0 measured **2.475 V**, so turning the knob toward pin 1 raises the reading.\n  - With the wiper centred, the program printed `Pot: 127 / 255  1.64 V  49.8 %` every 0.5 s for 3 s.\n  - The circuit draws 0.39 mA from 3V3.\n- Ctrl+C stops the loop cleanly.\n\n**What to check on the bench**\n1. Turn on I2C: `sudo raspi-config` → Interface Options → I2C. Install the library with `pip install smbus2`.\n2. Run `i2cdetect -y 1`; you should see **48**. If you see nothing, SDA and SCL are probably swapped, or VCC/GND aren't connected. If you see a different address, change `ADDRESS` in the code.\n3. The wiper is the **middle** pin of the pot. If the reading goes the wrong way when you turn the knob, swap the 3V3 and GND leads on the two outer pins.\n4. Find pin 1 on the T-board: on the ribbon cable, the wire with the odd colour (often brown or red) is pin 1 (3V3). Check it lines up with row 1 before you power on.",
+   "assistant": "I built the circuit and wrote the program. ERC passes with 0 errors and 0 warnings. In the simulator, with the knob at 50%, the program printed `A0: 127 (1.64 V)` every 0.5 s. I couldn't take a picture of the layout (no 3D view in this session), so I checked it from the hole positions instead.\n\n**What I built**\n- **Potentiometer (RV1)** on bb1:\n  - Row 24 (one outer leg) goes to GND.\n  - Row 26 (centre leg) goes to the ADS7830's A0 pin with the yellow lead.\n  - Row 28 (other outer leg) goes to 3V3.\n- **ADS7830 module (U1)**, wired with male-female leads:\n  - VCC goes to 3V3 and GND to GND.\n  - SDA goes to GPIO2 (blue lead) and SCL to GPIO3 (green lead).\n\n**How it works**\n- The pot divides 3.3 V. Its centre leg gives a voltage from 0 to 3.3 V depending on where the knob is.\n- The ADS7830 turns that voltage into a number from 0 to 255 and sends it to the Pi over I2C, at the address 0x48.\n- I powered the module from **3V3 rather than 5V** for two reasons:\n  - The Pi's SDA and SCL pins are 3.3 V only, and a 5 V module could pull them above that.\n  - The pot's full range then matches the converter's full scale (255 ≈ 3.3 V).\n- GPIO2 and GPIO3 already have pull-up resistors on the Pi's board, so you don't need to add any.\n- The program sends the command byte 0x84, which reads channel 0 on its own. It reads one byte, converts it to volts and prints both every half second. Ctrl+C stops it cleanly.\n\n**What to check on the bench**\n1. **Turn on I2C first:** run `sudo raspi-config`, then Interface Options → I2C. Then `i2cdetect -y 1` should show **48**. If it doesn't, check the SDA and SCL leads. They may be swapped, or one may not be pushed fully into row 2 or row 3.\n2. **Install the library** the program uses: `pip install smbus2`.\n3. **Pot legs:** only the centre leg must go to A0. The two outer legs can go either way round; swapping them just reverses which direction counts up.\n4. **Ribbon cable:** the brown wire (pin 1) must line up with the T-board's 3V3 corner. If it's on backwards, every net is in the wrong place.",
    "end": "end_turn",
-   "notices": [
-    {
-     "code": "plain-tools",
-     "message": "The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict."
-    },
-    {
-     "code": "plain-tools",
-     "message": "The API refused the strict tool schemas, so tools run without them. Input is still validated here."
-    }
-   ],
+   "notices": [],
    "usage": {
-    "inputTokens": 18,
-    "outputTokens": 4766,
-    "cacheWriteTokens": 7881,
-    "cacheReadTokens": 138221,
+    "inputTokens": 20,
+    "outputTokens": 3677,
+    "cacheWriteTokens": 7152,
+    "cacheReadTokens": 161034,
     "webSearches": 0,
-    "requests": 8,
-    "costUsd": 0.1624412
+    "requests": 9,
+    "costUsd": 0.1415868
    },
    "toolCalls": [
     {
@@ -84,25 +75,8 @@
      "input": {
       "from": {
        "partPin": {
-        "ref": "U1",
-        "pin": "VCC"
-       }
-      },
-      "to": {
-       "net": "3V3"
-      }
-     },
-     "ok": true,
-     "result": "{\"wire\":{\"id\":\"W1\",\"kind\":\"dupont-mf\",\"color\":\"red\",\"lengthMm\":200,\"a\":\"U1.VCC\",\"b\":\"bb1:9a\"},\"net\":\"3V3\"}",
-     "committed": 1
-    },
-    {
-     "tool": "connect",
-     "input": {
-      "from": {
-       "partPin": {
-        "ref": "U1",
-        "pin": "GND"
+        "ref": "RV1",
+        "pin": "1"
        }
       },
       "to": {
@@ -110,60 +84,7 @@
       }
      },
      "ok": true,
-     "result": "{\"wire\":{\"id\":\"W2\",\"kind\":\"dupont-mf\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"U1.GND\",\"b\":\"bb1:10j\"},\"net\":\"GND\"}",
-     "committed": 1
-    },
-    {
-     "tool": "connect",
-     "input": {
-      "from": {
-       "partPin": {
-        "ref": "U1",
-        "pin": "SDA"
-       }
-      },
-      "to": {
-       "net": "GPIO2"
-      },
-      "color": "blue"
-     },
-     "ok": true,
-     "result": "{\"wire\":{\"id\":\"W3\",\"kind\":\"dupont-mf\",\"color\":\"blue\",\"lengthMm\":200,\"a\":\"U1.SDA\",\"b\":\"bb1:2a\"},\"net\":\"GPIO2\"}",
-     "committed": 1
-    },
-    {
-     "tool": "connect",
-     "input": {
-      "from": {
-       "partPin": {
-        "ref": "U1",
-        "pin": "SCL"
-       }
-      },
-      "to": {
-       "net": "GPIO3"
-      },
-      "color": "yellow"
-     },
-     "ok": true,
-     "result": "{\"wire\":{\"id\":\"W4\",\"kind\":\"dupont-mf\",\"color\":\"yellow\",\"lengthMm\":200,\"a\":\"U1.SCL\",\"b\":\"bb1:3a\"},\"net\":\"GPIO3\"}",
-     "committed": 1
-    },
-    {
-     "tool": "connect",
-     "input": {
-      "from": {
-       "partPin": {
-        "ref": "RV1",
-        "pin": "1"
-       }
-      },
-      "to": {
-       "net": "3V3"
-      }
-     },
-     "ok": true,
-     "result": "{\"wire\":{\"id\":\"W5\",\"kind\":\"dupont-mm\",\"color\":\"red\",\"lengthMm\":200,\"a\":\"bb1:24a\",\"b\":\"bb1:9b\"},\"net\":\"3V3\"}",
+     "result": "{\"wire\":{\"id\":\"W1\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:24a\",\"b\":\"bb1:20a\"},\"net\":\"GND\"}",
      "committed": 1
     },
     {
@@ -176,11 +97,11 @@
        }
       },
       "to": {
-       "net": "GND"
+       "net": "3V3"
       }
      },
      "ok": true,
-     "result": "{\"wire\":{\"id\":\"W6\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:28a\",\"b\":\"bb1:20a\"},\"net\":\"GND\"}",
+     "result": "{\"wire\":{\"id\":\"W2\",\"kind\":\"dupont-mm\",\"color\":\"red\",\"lengthMm\":200,\"a\":\"bb1:28a\",\"b\":\"bb1:9a\"},\"net\":\"3V3\"}",
      "committed": 1
     },
     {
@@ -198,37 +119,87 @@
         "pin": "A0"
        }
       },
+      "color": "yellow"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W3\",\"kind\":\"dupont-mf\",\"color\":\"yellow\",\"lengthMm\":200,\"a\":\"bb1:26d\",\"b\":\"U1.A0\"},\"net\":\"N1\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "VCC"
+       }
+      },
+      "to": {
+       "net": "3V3"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W4\",\"kind\":\"dupont-mf\",\"color\":\"red\",\"lengthMm\":200,\"a\":\"U1.VCC\",\"b\":\"bb1:9b\"},\"net\":\"3V3\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "GND"
+       }
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W5\",\"kind\":\"dupont-mf\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"U1.GND\",\"b\":\"bb1:10j\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "SDA"
+       }
+      },
+      "to": {
+       "net": "GPIO2"
+      },
+      "color": "blue"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W6\",\"kind\":\"dupont-mf\",\"color\":\"blue\",\"lengthMm\":200,\"a\":\"U1.SDA\",\"b\":\"bb1:2a\"},\"net\":\"GPIO2\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "SCL"
+       }
+      },
+      "to": {
+       "net": "GPIO3"
+      },
       "color": "green"
      },
      "ok": true,
-     "result": "{\"wire\":{\"id\":\"W7\",\"kind\":\"dupont-mf\",\"color\":\"green\",\"lengthMm\":200,\"a\":\"bb1:26d\",\"b\":\"U1.A0\"},\"net\":\"N1\"}",
-     "committed": 1
-    },
-    {
-     "tool": "write_code",
-     "input": {
-      "library": "RPi.GPIO",
-      "source": "#!/usr/bin/env python3\n\"\"\"Read a 10k potentiometer on ADS7830 channel A0 over I2C, print every 0.5 s.\n\nWiring: ADS7830 SDA -> GPIO2, SCL -> GPIO3, VCC -> 3V3, GND -> GND.\nPot ends to 3V3 and GND, wiper to A0.\nEnable I2C first: sudo raspi-config -> Interface Options -> I2C.\nCheck the address with: i2cdetect -y 1  (ADS7830 default is 0x48)\n\"\"\"\nimport time\nimport smbus2\n\nI2C_BUS = 1\nADDRESS = 0x48\nVREF = 3.3\n\n\ndef read_ads7830(bus, channel):\n    \"\"\"Single-ended read of channel 0..7, returns 0..255.\"\"\"\n    # Command byte: SD=1 (single-ended), C2..C0 = channel select (odd/even\n    # interleaved per the datasheet), PD1..PD0 = 01 (internal ref off, ADC on).\n    command = 0x84 | (((channel << 2) | (channel >> 1)) & 0x07) << 4\n    return bus.read_byte_data(ADDRESS, command)\n\n\ndef main():\n    bus = smbus2.SMBus(I2C_BUS)\n    try:\n        while True:\n            value = read_ads7830(bus, 0)\n            volts = value * VREF / 255\n            print(f\"Pot: {value:3d} / 255   {volts:.2f} V   {value * 100 / 255:5.1f} %\")\n            time.sleep(0.5)\n    except KeyboardInterrupt:\n        print(\"\\nStopped.\")\n    finally:\n        bus.close()\n\n\nif __name__ == \"__main__\":\n    main()\n"
-     },
-     "ok": true,
-     "result": "{\"syntax\":\"ok\",\"gpioUsed\":[{\"gpio\":2,\"mode\":\"i2c\"},{\"gpio\":3,\"mode\":\"i2c\"}],\"unresolved\":[],\"crossCheck\":\"matches the wiring\"}",
-     "committed": 1
-    },
-    {
-     "tool": "write_code",
-     "input": {
-      "library": "RPi.GPIO",
-      "source": "#!/usr/bin/env python3\n\"\"\"Read a 10k potentiometer on ADS7830 channel A0 over I2C, print every 0.5 s.\n\nWiring: ADS7830 SDA -> GPIO2, SCL -> GPIO3, VCC -> 3V3, GND -> GND.\nPot ends to 3V3 and GND, wiper to A0.\nEnable I2C first: sudo raspi-config -> Interface Options -> I2C.\nCheck the address with: i2cdetect -y 1  (ADS7830 default is 0x48)\n\"\"\"\nimport time\nimport smbus2\n\nI2C_BUS = 1\nADDRESS = 0x48\nVREF = 3.3\n\n\ndef read_ads7830(bus, channel):\n    \"\"\"Single-ended read of channel 0..7, returns 0..255.\"\"\"\n    # Command byte: bit7 SD=1 (single-ended), bits6-4 = channel select\n    # (datasheet order CH0,2,4,6 = 000..011, CH1,3,5,7 = 100..111),\n    # bits3-2 PD = 01 (internal reference off, ADC on).\n    select = ((channel << 2) | (channel >> 1)) & 0x07\n    command = 0x84 | (select << 4)\n    return bus.read_byte_data(ADDRESS, command)\n\n\ndef main():\n    bus = smbus2.SMBus(I2C_BUS)\n    try:\n        while True:\n            value = read_ads7830(bus, 0)\n            volts = value * VREF / 255\n            print(f\"Pot: {value:3d} / 255   {volts:.2f} V   {value * 100 / 255:5.1f} %\")\n            time.sleep(0.5)\n    except KeyboardInterrupt:\n        print(\"\\nStopped.\")\n    finally:\n        bus.close()\n\n\nif __name__ == \"__main__\":\n    main()\n"
-     },
-     "ok": true,
-     "result": "{\"syntax\":\"ok\",\"gpioUsed\":[{\"gpio\":2,\"mode\":\"i2c\"},{\"gpio\":3,\"mode\":\"i2c\"}],\"unresolved\":[],\"crossCheck\":\"matches the wiring\"}",
+     "result": "{\"wire\":{\"id\":\"W7\",\"kind\":\"dupont-mf\",\"color\":\"green\",\"lengthMm\":200,\"a\":\"U1.SCL\",\"b\":\"bb1:3a\"},\"net\":\"GPIO3\"}",
      "committed": 1
     },
     {
      "tool": "run_erc",
      "input": {},
      "ok": true,
-     "result": "{\"errors\":0,\"warnings\":0,\"info\":0,\"issues\":[]}"
+     "result": "{\"errors\":0,\"warnings\":2,\"info\":0,\"issues\":[{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO2\"],\"message\":\"GPIO2 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO2 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO3\"],\"message\":\"GPIO3 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO3 in the code, or move the lead to the pin the code uses.\"}]}"
     },
     {
      "tool": "simulate",
@@ -241,21 +212,37 @@
         {
          "part": "RV1",
          "key": "wiper",
-         "value": 25
+         "value": 50
         }
        ]
       }
      },
      "ok": true,
-     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":0,\"GPIO18\":0,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":0,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":0,\"N1\":2.475,\"N2\":0,\"N3\":0,\"N4\":0,\"N5\":0,\"N6\":0,\"N7\":0,\"N8\":0},\"leds\":[],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO18\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":0,\"mA\":0}],\"rails\":{\"3V3_mA\":0.39,\"5V_mA\":0},\"resistors\":[],\"parts\":{\"U1\":{\"powered\":true,\"address\":72,\"command\":null}},\"errors\":0,\"warnings\":0"
+     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":0,\"GPIO18\":0,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":0,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":0,\"N1\":1.65,\"N2\":0,\"N3\":0,\"N4\":0,\"N5\":0,\"N6\":0,\"N7\":0,\"N8\":0},\"leds\":[],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO18\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":0,\"mA\":0}],\"rails\":{\"3V3_mA\":0.39,\"5V_mA\":0},\"resistors\":[],\"parts\":{\"U1\":{\"powered\":true,\"address\":72,\"command\":null}},\"errors\":0,\"warnings\":2,"
+    },
+    {
+     "tool": "write_code",
+     "input": {
+      "library": "RPi.GPIO",
+      "source": "#!/usr/bin/env python3\n\"\"\"Read a 10k potentiometer on ADS7830 channel A0 over I2C and print it every 0.5 s.\n\nWiring: ADS7830 SDA -> GPIO2 (SDA1), SCL -> GPIO3 (SCL1), VCC -> 3V3, GND -> GND.\nEnable I2C first: sudo raspi-config -> Interface Options -> I2C.\nCheck the module answers at 0x48 with: i2cdetect -y 1\n\"\"\"\nimport time\nfrom smbus2 import SMBus\n\nI2C_BUS = 1          # GPIO2/GPIO3 are I2C bus 1 on the Pi\nADDRESS = 0x48       # ADS7830 default address (A0-A2 tied low on the module)\nVREF = 3.3           # module powered from 3V3, so full scale is 3.3 V\n\n\ndef read_channel(bus, ch):\n    \"\"\"Single-ended read of channel 0-7. Returns 0-255.\"\"\"\n    # Command byte: SD=1 (single-ended), channel select bits, PD=01 (ref off, ADC on)\n    cmd = 0x84 | ((((ch << 2) | (ch >> 1)) & 0x07) << 4)\n    return bus.read_byte_data(ADDRESS, cmd)\n\n\ndef main():\n    with SMBus(I2C_BUS) as bus:\n        try:\n            while True:\n                value = read_channel(bus, 0)\n                volts = value / 255 * VREF\n                print(f\"A0: {value:3d}  ({volts:.2f} V)\")\n                time.sleep(0.5)\n        except KeyboardInterrupt:\n            print(\"\\nStopped.\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
+     },
+     "ok": true,
+     "result": "{\"syntax\":\"ok\",\"gpioUsed\":[{\"gpio\":2,\"mode\":\"i2c\"},{\"gpio\":3,\"mode\":\"i2c\"}],\"unresolved\":[],\"crossCheck\":\"matches the wiring\"}",
+     "committed": 1
     },
     {
      "tool": "run_code_in_sim",
      "input": {
-      "seconds": 3
+      "seconds": 2.2
      },
      "ok": true,
-     "result": "{\"stdout\":\"Pot: 127 / 255   1.64 V    49.8 %\\nPot: 127 / 255   1.64 V    49.8 %\\nPot: 127 / 255   1.64 V    49.8 %\\nPot: 127 / 255   1.64 V    49.8 %\\nPot: 127 / 255   1.64 V    49.8 %\\nPot: 127 / 255   1.64 V    49.8 %\",\"error\":null,\"events\":[],\"eventCount\":0}"
+     "result": "{\"stdout\":\"A0: 127  (1.64 V)\\nA0: 127  (1.64 V)\\nA0: 127  (1.64 V)\\nA0: 127  (1.64 V)\\nA0: 127  (1.64 V)\",\"error\":null,\"events\":[],\"eventCount\":0}"
+    },
+    {
+     "tool": "run_erc",
+     "input": {},
+     "ok": true,
+     "result": "{\"errors\":0,\"warnings\":0,\"info\":0,\"issues\":[]}"
     },
     {
      "tool": "capture_view",
@@ -266,35 +253,47 @@
      "result": "{\"INTERNAL_ERROR\":\"capture_view is not available in this session: there is no 3D stage here (headless evaluation). Check the layout from the hole positions and nets that get_circuit_state returns.\"}"
     },
     {
-     "tool": "annotate_build_steps",
+     "tool": "highlight",
      "input": {
-      "annotations": [
-       {
-        "step": "W1",
-        "why": "Powering the ADS7830 from 3V3 keeps its I2C pull-ups at 3.3 V, so SDA and SCL never put 5 V on the Pi's GPIOs.",
-        "mistake": "Putting VCC on 5V: the module's pull-ups would then pull GPIO2/GPIO3 to 5 V."
-       },
-       {
-        "step": "W3",
-        "why": "GPIO2 is the Pi's I2C data line (SDA1).",
-        "mistake": "Swapping SDA and SCL: i2cdetect then shows nothing at 0x48."
-       },
-       {
-        "step": "W7",
-        "why": "The wiper is the pot's centre pin. It gives 0 to 3.3 V, and A0 measures it.",
-        "mistake": "Wiring an end pin to A0 instead of the centre pin: the reading never changes."
-       }
-      ]
+      "refs": [
+       "RV1",
+       "W3"
+      ],
+      "note": "Centre leg (wiper, row 26) → ADS7830 A0. Outer legs: row 24 → GND, row 28 → 3V3."
      },
      "ok": true,
-     "result": "{\"annotated\":3}",
-     "committed": 1
+     "result": "ok"
     }
    ],
-   "transactions": 12
+   "transactions": 10
   }
  ],
  "questions": [],
+ "partialInputs": {
+  "place_part": {
+   "snapshots": 15,
+   "ghosts": 9
+  },
+  "connect": {
+   "snapshots": 55,
+   "ghosts": 20
+  }
+ },
+ "simulatedInputs": [
+  {
+   "part": "RV1",
+   "key": "wiper",
+   "value": 50
+  }
+ ],
+ "codeRuns": [
+  {
+   "seconds": 2.2,
+   "endedAt": 2.50005,
+   "events": 0,
+   "error": null
+  }
+ ],
  "custom": [],
  "final": {
   "parts": [
@@ -302,7 +301,7 @@
    "RV1 potentiometer-10k"
   ],
   "wires": 7,
-  "code": "#!/usr/bin/env python3\n\"\"\"Read a 10k potentiometer on ADS7830 channel A0 over I2C, print every 0.5 s.\n\nWiring: ADS7830 SDA -> GPIO2, SCL -> GPIO3, VCC -> 3V3, GND -> GND.\nPot ends to 3V3 and GND, wiper to A0.\nEnable I2C first: sudo raspi-config -> Interface Options -> I2C.\nCheck the address with: i2cdetect -y 1  (ADS7830 default is 0x48)\n\"\"\"\nimport time\nimport smbus2\n\nI2C_BUS = 1\nADDRESS = 0x48\nVREF = 3.3\n\n\ndef read_ads7830(bus, channel):\n    \"\"\"Single-ended read of channel 0..7, returns 0..255.\"\"\"\n    # Command byte: bit7 SD=1 (single-ended), bits6-4 = channel select\n    # (datasheet order CH0,2,4,6 = 000..011, CH1,3,5,7 = 100..111),\n    # bits3-2 PD = 01 (internal reference off, ADC on).\n    select = ((channel << 2) | (channel >> 1)) & 0x07\n    command = 0x84 | (select << 4)\n    return bus.read_byte_data(ADDRESS, command)\n\n\ndef main():\n    bus = smbus2.SMBus(I2C_BUS)\n    try:\n        while True:\n            value = read_ads7830(bus, 0)\n            volts = value * VREF / 255\n            print(f\"Pot: {value:3d} / 255   {volts:.2f} V   {value * 100 / 255:5.1f} %\")\n            time.sleep(0.5)\n    except KeyboardInterrupt:\n        print(\"\\nStopped.\")\n    finally:\n        bus.close()\n\n\nif __name__ == \"__main__\":\n    main()\n"
+  "code": "#!/usr/bin/env python3\n\"\"\"Read a 10k potentiometer on ADS7830 channel A0 over I2C and print it every 0.5 s.\n\nWiring: ADS7830 SDA -> GPIO2 (SDA1), SCL -> GPIO3 (SCL1), VCC -> 3V3, GND -> GND.\nEnable I2C first: sudo raspi-config -> Interface Options -> I2C.\nCheck the module answers at 0x48 with: i2cdetect -y 1\n\"\"\"\nimport time\nfrom smbus2 import SMBus\n\nI2C_BUS = 1          # GPIO2/GPIO3 are I2C bus 1 on the Pi\nADDRESS = 0x48       # ADS7830 default address (A0-A2 tied low on the module)\nVREF = 3.3           # module powered from 3V3, so full scale is 3.3 V\n\n\ndef read_channel(bus, ch):\n    \"\"\"Single-ended read of channel 0-7. Returns 0-255.\"\"\"\n    # Command byte: SD=1 (single-ended), channel select bits, PD=01 (ref off, ADC on)\n    cmd = 0x84 | ((((ch << 2) | (ch >> 1)) & 0x07) << 4)\n    return bus.read_byte_data(ADDRESS, cmd)\n\n\ndef main():\n    with SMBus(I2C_BUS) as bus:\n        try:\n            while True:\n                value = read_channel(bus, 0)\n                volts = value / 255 * VREF\n                print(f\"A0: {value:3d}  ({volts:.2f} V)\")\n                time.sleep(0.5)\n        except KeyboardInterrupt:\n            print(\"\\nStopped.\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
  },
  "checks": [
   {
@@ -363,7 +362,7 @@
    "id": "sim.reads",
    "label": "The first value printed follows the wiper (at 25% and at 75%)",
    "pass": true,
-   "detail": "wiper 25%: want ~64 (or 191 wired the other way), printed 191; wiper 75%: want ~191 (or 64 wired the other way), printed 63"
+   "detail": "wiper 25%: want ~64 (or 191 wired the other way), printed 63; wiper 75%: want ~191 (or 64 wired the other way), printed 191"
   },
   {
    "id": "i2c",
@@ -381,7 +380,7 @@
    "id": "undo.all",
    "label": "Undo all restores the starting document exactly",
    "pass": true,
-   "detail": "12 of 12 transactions undone"
+   "detail": "10 of 10 transactions undone"
   }
  ]
 }

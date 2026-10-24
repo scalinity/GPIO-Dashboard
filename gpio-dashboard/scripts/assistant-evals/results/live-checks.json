@@ -5,67 +5,35 @@
   "search": false,
   "fetch": true
  },
- "spentUsd": 1.3654271999999996,
+ "spentUsd": 0.6138368,
  "checks": [
   {
    "id": "strict-eager",
    "question": "Is the strict-plus-eager tool set accepted?",
-   "answer": false,
-   "summary": "No. Requests: #1: 400, 20 strict, 12 eager; #2: 400, 20 strict, 0 eager; #3: 200, 0 strict, 0 eager; #4: 200, 0 strict, 0 eager. First refusal, exactly: invalid_request_error: The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools. Fallback notices: plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict. | plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here..",
+   "answer": true,
+   "summary": "Yes: the first request (11 strict tools, 12 with eager_input_streaming) returned 200 and no fallback ran.",
    "rows": [
     {
      "n": 1,
-     "status": 400,
-     "strict": 20,
-     "eager": 12,
-     "client": 22,
-     "server": 0,
-     "topLevelCacheControl": true,
-     "error": "invalid_request_error: The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.",
-     "inputTokens": 0,
-     "outputTokens": 0,
-     "cacheWriteTokens": 0,
-     "cacheReadTokens": 0,
-     "stop": null,
-     "seconds": 0.42
-    },
-    {
-     "n": 2,
-     "status": 400,
-     "strict": 20,
-     "eager": 0,
-     "client": 22,
-     "server": 0,
-     "topLevelCacheControl": true,
-     "error": "invalid_request_error: The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.",
-     "inputTokens": 0,
-     "outputTokens": 0,
-     "cacheWriteTokens": 0,
-     "cacheReadTokens": 0,
-     "stop": null,
-     "seconds": 0.217
-    },
-    {
-     "n": 3,
      "status": 200,
-     "strict": 0,
-     "eager": 0,
+     "strict": 11,
+     "eager": 12,
      "client": 22,
      "server": 0,
      "topLevelCacheControl": true,
      "error": null,
      "inputTokens": 4,
      "outputTokens": 4,
-     "cacheWriteTokens": 14006,
-     "cacheReadTokens": 0,
+     "cacheWriteTokens": 83,
+     "cacheReadTokens": 14133,
      "stop": "end_turn",
-     "seconds": 2.182
+     "seconds": 3.049
     },
     {
-     "n": 4,
+     "n": 2,
      "status": 200,
-     "strict": 0,
-     "eager": 0,
+     "strict": 11,
+     "eager": 12,
      "client": 22,
      "server": 0,
      "topLevelCacheControl": true,
@@ -73,72 +41,40 @@
      "inputTokens": 4,
      "outputTokens": 3,
      "cacheWriteTokens": 16,
-     "cacheReadTokens": 14006,
+     "cacheReadTokens": 14216,
      "stop": "end_turn",
-     "seconds": 2.39
+     "seconds": 1.132
     }
    ],
-   "costUsd": 0.07308319999999999
+   "costUsd": 0.006336800000000001
   },
   {
-   "id": "strict-20",
-   "question": "Does the 20-strict-tool request compile?",
-   "answer": false,
-   "summary": "No. Requests: #1: 400, 20 strict, 12 eager; #2: 400, 20 strict, 0 eager; #3: 200, 0 strict, 0 eager; #4: 200, 0 strict, 0 eager. Exactly: invalid_request_error: The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.",
+   "id": "strict-set",
+   "question": "Does the first request, with 11 strict tools and eager streaming, compile?",
+   "answer": true,
+   "summary": "Yes: request 1 carried 11 strict tools and 12 with eager_input_streaming and returned 200.",
    "rows": [
     {
      "n": 1,
-     "status": 400,
-     "strict": 20,
-     "eager": 12,
-     "client": 22,
-     "server": 0,
-     "topLevelCacheControl": true,
-     "error": "invalid_request_error: The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.",
-     "inputTokens": 0,
-     "outputTokens": 0,
-     "cacheWriteTokens": 0,
-     "cacheReadTokens": 0,
-     "stop": null,
-     "seconds": 0.42
-    },
-    {
-     "n": 2,
-     "status": 400,
-     "strict": 20,
-     "eager": 0,
-     "client": 22,
-     "server": 0,
-     "topLevelCacheControl": true,
-     "error": "invalid_request_error: The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.",
-     "inputTokens": 0,
-     "outputTokens": 0,
-     "cacheWriteTokens": 0,
-     "cacheReadTokens": 0,
-     "stop": null,
-     "seconds": 0.217
-    },
-    {
-     "n": 3,
      "status": 200,
-     "strict": 0,
-     "eager": 0,
+     "strict": 11,
+     "eager": 12,
      "client": 22,
      "server": 0,
      "topLevelCacheControl": true,
      "error": null,
      "inputTokens": 4,
      "outputTokens": 4,
-     "cacheWriteTokens": 14006,
-     "cacheReadTokens": 0,
+     "cacheWriteTokens": 83,
+     "cacheReadTokens": 14133,
      "stop": "end_turn",
-     "seconds": 2.182
+     "seconds": 3.049
     },
     {
-     "n": 4,
+     "n": 2,
      "status": 200,
-     "strict": 0,
-     "eager": 0,
+     "strict": 11,
+     "eager": 12,
      "client": 22,
      "server": 0,
      "topLevelCacheControl": true,
@@ -146,9 +82,9 @@
      "inputTokens": 4,
      "outputTokens": 3,
      "cacheWriteTokens": 16,
-     "cacheReadTokens": 14006,
+     "cacheReadTokens": 14216,
      "stop": "end_turn",
-     "seconds": 2.39
+     "seconds": 1.132
     }
    ],
    "costUsd": 0
@@ -161,57 +97,25 @@
    "rows": [
     {
      "n": 1,
-     "status": 400,
-     "strict": 20,
-     "eager": 12,
-     "client": 22,
-     "server": 0,
-     "topLevelCacheControl": true,
-     "error": "invalid_request_error: The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.",
-     "inputTokens": 0,
-     "outputTokens": 0,
-     "cacheWriteTokens": 0,
-     "cacheReadTokens": 0,
-     "stop": null,
-     "seconds": 0.42
-    },
-    {
-     "n": 2,
-     "status": 400,
-     "strict": 20,
-     "eager": 0,
-     "client": 22,
-     "server": 0,
-     "topLevelCacheControl": true,
-     "error": "invalid_request_error: The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.",
-     "inputTokens": 0,
-     "outputTokens": 0,
-     "cacheWriteTokens": 0,
-     "cacheReadTokens": 0,
-     "stop": null,
-     "seconds": 0.217
-    },
-    {
-     "n": 3,
      "status": 200,
-     "strict": 0,
-     "eager": 0,
+     "strict": 11,
+     "eager": 12,
      "client": 22,
      "server": 0,
      "topLevelCacheControl": true,
      "error": null,
      "inputTokens": 4,
      "outputTokens": 4,
-     "cacheWriteTokens": 14006,
-     "cacheReadTokens": 0,
+     "cacheWriteTokens": 83,
+     "cacheReadTokens": 14133,
      "stop": "end_turn",
-     "seconds": 2.182
+     "seconds": 3.049
     },
     {
-     "n": 4,
+     "n": 2,
      "status": 200,
-     "strict": 0,
-     "eager": 0,
+     "strict": 11,
+     "eager": 12,
      "client": 22,
      "server": 0,
      "topLevelCacheControl": true,
@@ -219,9 +123,9 @@
      "inputTokens": 4,
      "outputTokens": 3,
      "cacheWriteTokens": 16,
-     "cacheReadTokens": 14006,
+     "cacheReadTokens": 14216,
      "stop": "end_turn",
-     "seconds": 2.39
+     "seconds": 1.132
     }
    ],
    "costUsd": 0
@@ -230,61 +134,29 @@
    "id": "cache-reads",
    "question": "Do cache reads appear on a later request?",
    "answer": true,
-   "summary": "Request 2 read 14006 tokens from the cache (request 1 wrote 14006 and read 0; its prefix was about 14010 tokens). Request 2 wrote 16 and billed 4 uncached input tokens.",
+   "summary": "Request 2 read 14216 tokens from the cache (request 1 wrote 83 and read 14133; its prefix was about 87 tokens). Request 2 wrote 16 and billed 4 uncached input tokens.",
    "rows": [
     {
      "n": 1,
-     "status": 400,
-     "strict": 20,
-     "eager": 12,
-     "client": 22,
-     "server": 0,
-     "topLevelCacheControl": true,
-     "error": "invalid_request_error: The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.",
-     "inputTokens": 0,
-     "outputTokens": 0,
-     "cacheWriteTokens": 0,
-     "cacheReadTokens": 0,
-     "stop": null,
-     "seconds": 0.42
-    },
-    {
-     "n": 2,
-     "status": 400,
-     "strict": 20,
-     "eager": 0,
-     "client": 22,
-     "server": 0,
-     "topLevelCacheControl": true,
-     "error": "invalid_request_error: The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.",
-     "inputTokens": 0,
-     "outputTokens": 0,
-     "cacheWriteTokens": 0,
-     "cacheReadTokens": 0,
-     "stop": null,
-     "seconds": 0.217
-    },
-    {
-     "n": 3,
      "status": 200,
-     "strict": 0,
-     "eager": 0,
+     "strict": 11,
+     "eager": 12,
      "client": 22,
      "server": 0,
      "topLevelCacheControl": true,
      "error": null,
      "inputTokens": 4,
      "outputTokens": 4,
-     "cacheWriteTokens": 14006,
-     "cacheReadTokens": 0,
+     "cacheWriteTokens": 83,
+     "cacheReadTokens": 14133,
      "stop": "end_turn",
-     "seconds": 2.182
+     "seconds": 3.049
     },
     {
-     "n": 4,
+     "n": 2,
      "status": 200,
-     "strict": 0,
-     "eager": 0,
+     "strict": 11,
+     "eager": 12,
      "client": 22,
      "server": 0,
      "topLevelCacheControl": true,
@@ -292,9 +164,9 @@
      "inputTokens": 4,
      "outputTokens": 3,
      "cacheWriteTokens": 16,
-     "cacheReadTokens": 14006,
+     "cacheReadTokens": 14216,
      "stop": "end_turn",
-     "seconds": 2.39
+     "seconds": 1.132
     }
    ],
    "costUsd": 0
@@ -305,7 +177,7 @@
    "answer": true,
    "summary": "Yes: 22 plain tools, 12 with eager_input_streaming, returned 200.",
    "rows": [],
-   "costUsd": 0.034612
+   "costUsd": 0.034768
   },
   {
    "id": "strict-alone",
@@ -313,23 +185,23 @@
    "answer": true,
    "summary": "Yes: all 20 compile alone.",
    "rows": [],
-   "costUsd": 0
+   "costUsd": 0.05799200000000001
   },
   {
-   "id": "strict-budget",
-   "question": "How many strict tools fit in one request (the app's tool order, the strict tools alone in each probe)?",
+   "id": "strict-all",
+   "question": "Does the whole request compile with all 20 parameterised tools strict?",
    "answer": false,
-   "summary": "13 of 20, each added to the ones before if it still compiles: get_circuit_state, search_parts, define_custom_part, add_board, place_tboard, place_part, move_part, remove_part, set_part_props, set_wire_props, remove_wire, write_code, run_code_in_sim. Left plain: connect, simulate, capture_view, focus, highlight, annotate_build_steps, ask_user. The full 22-tool request with strict on those 13 and eager on the 12 mutation tools returned 200; the same without eager returned 200.",
+   "summary": "No. Exactly: invalid_request_error: The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.",
    "rows": [],
    "costUsd": 0
   },
   {
-   "id": "strict-budget-by-value",
-   "question": "How many strict tools fit in one request (mutation tools first, the whole tool list in each probe)?",
+   "id": "strict-room",
+   "question": "Is there room beyond the 11 strict tools the app sends?",
    "answer": false,
-   "summary": "11 of 20, each added to the ones before if it still compiles: connect, place_part, place_tboard, move_part, set_part_props, set_wire_props, remove_part, remove_wire, add_board, write_code, get_circuit_state. Left plain: define_custom_part, annotate_build_steps, search_parts, simulate, run_code_in_sim, capture_view, focus, highlight, ask_user. The full 22-tool request with strict on those 11 and eager on the 12 mutation tools returned 200; the same without eager returned 200.",
+   "summary": "The app's set (get_circuit_state, add_board, place_tboard, place_part, move_part, remove_part, set_part_props, connect, set_wire_props, remove_wire, write_code) with eager streaming on the 12 mutation tools returned 200. Added one at a time to the whole request, none of the other tools fit.",
    "rows": [],
-   "costUsd": 0.7777199999999996
+   "costUsd": 0.034768
   },
   {
    "id": "web-tools-enabled",
@@ -355,14 +227,14 @@
      "topLevelCacheControl": false,
      "error": null,
      "inputTokens": 112756,
-     "outputTokens": 183,
+     "outputTokens": 181,
      "cacheWriteTokens": 0,
      "cacheReadTokens": 0,
      "stop": "end_turn",
-     "seconds": 1.122
+     "seconds": 1.157
     }
    ],
-   "costUsd": 0.454684
+   "costUsd": 0.454644
   }
  ]
 }

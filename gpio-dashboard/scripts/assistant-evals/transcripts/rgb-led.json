@@ -7,26 +7,17 @@
  "turns": [
   {
    "user": "Make the RGB LED cycle through red, green and blue, on GPIO17, GPIO27 and GPIO22.",
-   "assistant": "Now the code:I've built the circuit and written the code. ERC shows 0 errors and 0 warnings, and the code check says it matches the wiring.\n\n**What you built**\n- **LED:** the kit's common-cathode RGB LED (D1) sits in column b, rows 40–43: red in 40, cathode in 41, green in 42, blue in 43.\n- **Resistors:** each colour has its own resistor across the centre gap, from column e to column f.\n  - R1 is 220 Ω, red, in row 40.\n  - R2 is 100 Ω, green, in row 42.\n  - R3 is 100 Ω, blue, in row 43.\n- **Leads:**\n  - GPIO17 goes to 40j, GPIO27 to 42j, GPIO22 to 43j.\n  - GND runs from 41a to row 20.\n\n**How it works**\nThe three colours share one negative leg (the cathode), which goes to ground. Each colour turns on when its GPIO goes HIGH. The program lights red, then green, then blue, one second each, and keeps cycling. Ctrl+C stops it and turns all three off. In the code test, GPIO17, GPIO27 and GPIO22 each went high for 1.000 s in turn.\n\n**Why the resistor values differ**\n- **Red:** (3.3 − 2.0 V) / 220 Ω ≈ 5.9 mA. The simulation gave **5.3 mA** on GPIO17.\n- **Green and blue:** these need about 3.0 V to light, so a 3.3 V pin has only about 0.3 V left for the resistor. With 220 Ω they got only 1.3 mA and would look dim. At 100 Ω the simulation gives **2.2 mA** each. A smaller resistor gains very little, because the problem is the 3.3 V supply, not the resistor. So expect green and blue to look a bit dimmer than red.\n- Only one colour is on at a time, so the most any pin carries is 5.3 mA. That's well under the 16 mA per-pin limit.\n\n**What to check on the bench**\n- **LED direction:** the **longest leg is the common cathode** and goes in row 41, the one with the GND lead. The single leg on its own side of it is red (row 40). Green and blue are the two on the other side (rows 42, 43).\n- **Resistors:** make sure each one really crosses the centre gap (e to f). If both ends sit in the same half-row, it does nothing.\n- **100 Ω resistors:** if your kit has no 100 Ω, 220 Ω works too. Green and blue will just be dimmer.\n- **Ribbon:** the stripe on the ribbon cable goes to pin 1, at the 3V3 end of the T-board, on both the Pi and the T-board.\n\nI couldn't take a picture of the layout to check it by eye: this session has no 3D view. I checked the positions from the hole list instead.",
+   "assistant": "I've built the RGB LED cycle on the bench twin, and the program steps red → green → blue, one second each.\n\n**What I built**\n- I used the common-cathode RGB LED from your kit (LED1) in rows 40–43, columns c: red leg in row 40, the long common leg in row 41, green in 42, blue in 43.\n- Each colour leg has its own resistor bridging the centre gap: R1 is 220 Ω for red, R2 and R3 are 100 Ω for green and blue.\n- The leads run GPIO17 to 40j (red), GPIO27 to 42j (green), GPIO22 to 43j (blue), and row 41 to GND.\n\n**How it works**\n- A GPIO going high pushes current through its resistor into one colour. All three colours share the cathode, which goes to GND.\n- **Why the resistors aren't all the same:** red drops about 2.0 V, so 220 Ω gives (3.3 − 2.0) / 220 ≈ 5.9 mA. Green and blue drop about 3.0 V, which leaves only about 0.3 V across the resistor. With 220 Ω they only got 1.3 mA in the sim, which is quite dim, so I changed them to 100 Ω.\n- Simulated currents with each pin high: red 5.3 mA, green 2.2 mA, blue 2.2 mA. That's well under the 16 mA per-pin limit, and about 9.7 mA total even with all three on. On 3.3 V, green and blue will still look a little dimmer than red.\n- The program uses gpiozero's `RGBLED` and sets `led.color` to (1,0,0), (0,1,0), then (0,0,1) in a loop. Ctrl+C turns the LED off and exits cleanly.\n\n**Checks:** ERC shows 0 errors and 0 warnings, and the code matches the wiring. Running the code in the sim for 6 s gave red, green, blue twice, switching once a second. I couldn't take a picture of the layout because there's no 3D view in this session, so I checked it from the hole positions instead.\n\n**What to check on the bench**\n- **Which way the LED goes in:** the longest leg is the common cathode and goes in row 41. The red leg sits next to it, in row 40. I've highlighted this in the view. If you see the wrong colours, the LED is probably in back to front.\n- **Resistor values:** 220 Ω is red-red-brown, and 100 Ω is brown-black-brown.\n- **Ribbon cable:** the brown wire (pin 1) should line up with 3V3 on the T-board.",
    "end": "end_turn",
-   "notices": [
-    {
-     "code": "plain-tools",
-     "message": "The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict."
-    },
-    {
-     "code": "plain-tools",
-     "message": "The API refused the strict tool schemas, so tools run without them. Input is still validated here."
-    }
-   ],
+   "notices": [],
    "usage": {
-    "inputTokens": 40,
-    "outputTokens": 8168,
-    "cacheWriteTokens": 17120,
-    "cacheReadTokens": 397346,
+    "inputTokens": 24,
+    "outputTokens": 4333,
+    "cacheWriteTokens": 9945,
+    "cacheReadTokens": 199885,
     "webSearches": 0,
-    "requests": 19,
-    "costUsd": 0.32858919999999997
+    "requests": 11,
+    "costUsd": 0.17645799999999998
    },
    "toolCalls": [
     {
@@ -49,20 +40,20 @@
      "tool": "place_part",
      "input": {
       "defId": "rgb-led-cc",
-      "at": "bb1:40e",
+      "at": "bb1:40c",
       "orientation": 0,
       "props": [],
-      "ref": "D1"
+      "ref": "LED1"
      },
      "ok": true,
-     "result": "{\"ref\":\"D1\",\"pins\":{\"R\":{\"hole\":\"bb1:40e\",\"net\":\"N4\",\"freeInStrip\":[\"bb1:40a\",\"bb1:40b\",\"bb1:40c\",\"bb1:40d\"]},\"K\":{\"hole\":\"bb1:41e\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:41a\",\"bb1:41b\",\"bb1:41c\",\"bb1:41d\"]},\"G\":{\"hole\":\"bb1:42e\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:42a\",\"bb1:42b\",\"bb1:42c\",\"bb1:42d\"]},\"B\":{\"hole\":\"bb1:43e\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:43a\",\"bb1:43b\",\"bb1:43c\",\"bb1:43d\"]}}}",
+     "result": "{\"ref\":\"LED1\",\"pins\":{\"R\":{\"hole\":\"bb1:40c\",\"net\":\"N4\",\"freeInStrip\":[\"bb1:40a\",\"bb1:40b\",\"bb1:40d\",\"bb1:40e\"]},\"K\":{\"hole\":\"bb1:41c\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:41a\",\"bb1:41b\",\"bb1:41d\",\"bb1:41e\"]},\"G\":{\"hole\":\"bb1:42c\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:42a\",\"bb1:42b\",\"bb1:42d\",\"bb1:42e\"]},\"B\":{\"hole\":\"bb1:43c\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:43a\",\"bb1:43b\",\"bb1:43d\",\"bb1:43e\"]}}}",
      "committed": 1
     },
     {
      "tool": "place_part",
      "input": {
       "defId": "resistor",
-      "at": "bb1:40c",
+      "at": "bb1:40e",
       "orientation": 90,
       "props": [
        {
@@ -72,101 +63,16 @@
       ],
       "ref": "R1"
      },
-     "ok": false,
-     "result": "{\"BAD_PLACEMENT\":\"pin across 3 pitches from column c has no hole\"}"
-    },
-    {
-     "tool": "place_part",
-     "input": {
-      "defId": "resistor",
-      "at": "bb1:40c",
-      "orientation": 90,
-      "props": [
-       {
-        "name": "resistance",
-        "value": 220
-       }
-      ],
-      "ref": "R1",
-      "span": 4
-     },
-     "ok": false,
-     "result": "{\"BAD_PLACEMENT\":\"pin across 4 pitches from column c has no hole\"}"
-    },
-    {
-     "tool": "place_part",
-     "input": {
-      "defId": "resistor",
-      "at": "bb1:40c",
-      "orientation": 270,
-      "props": [
-       {
-        "name": "resistance",
-        "value": 220
-       }
-      ],
-      "ref": "R1",
-      "span": 4
-     },
-     "ok": false,
-     "result": "{\"BAD_PLACEMENT\":\"pin back 4 pitches from column c has no hole\"}"
-    },
-    {
-     "tool": "place_part",
-     "input": {
-      "defId": "resistor",
-      "at": "bb1:40d",
-      "orientation": 90,
-      "props": [
-       {
-        "name": "resistance",
-        "value": 220
-       }
-      ],
-      "ref": "R1",
-      "span": 3
-     },
-     "ok": false,
-     "result": "{\"BAD_PLACEMENT\":\"pin across 3 pitches from column d has no hole\"}"
-    },
-    {
-     "tool": "place_part",
-     "input": {
-      "defId": "resistor",
-      "at": "auto",
-      "orientation": 0,
-      "props": [
-       {
-        "name": "resistance",
-        "value": 220
-       }
-      ],
-      "ref": "R1",
-      "near": "D1"
-     },
      "ok": true,
-     "result": "{\"ref\":\"R1\",\"pins\":{\"1\":{\"hole\":\"bb1:40i\",\"net\":\"N5\",\"freeInStrip\":[\"bb1:40j\",\"bb1:40h\",\"bb1:40g\",\"bb1:40f\"]},\"2\":{\"hole\":\"bb1:43i\",\"net\":\"N6\",\"freeInStrip\":[\"bb1:43j\",\"bb1:43h\",\"bb1:43g\",\"bb1:43f\"]}}}",
-     "committed": 1
-    },
-    {
-     "tool": "move_part",
-     "input": {
-      "ref": "R1",
-      "at": "bb1:40c",
-      "orientation": 90,
-      "span": 5
-     },
-     "ok": true,
-     "result": "{\"ref\":\"R1\",\"pins\":{\"1\":{\"hole\":\"bb1:40c\",\"net\":\"N4\",\"freeInStrip\":[\"bb1:40a\",\"bb1:40b\",\"bb1:40d\"]},\"2\":{\"hole\":\"bb1:40f\",\"net\":\"N5\",\"freeInStrip\":[\"bb1:40j\",\"bb1:40i\",\"bb1:40h\",\"bb1:40g\"]}},\"warnings\":[\"R1.1 shares its strip with D1.R, so it joins their net\"]}",
+     "result": "{\"ref\":\"R1\",\"pins\":{\"1\":{\"hole\":\"bb1:40e\",\"net\":\"N4\",\"freeInStrip\":[\"bb1:40a\",\"bb1:40b\",\"bb1:40d\"]},\"2\":{\"hole\":\"bb1:40f\",\"net\":\"N5\",\"freeInStrip\":[\"bb1:40j\",\"bb1:40i\",\"bb1:40h\",\"bb1:40g\"]}},\"warnings\":[\"R1.1 shares its strip with LED1.R, so it joins their net\"]}",
      "committed": 1
     },
     {
      "tool": "place_part",
      "input": {
       "defId": "resistor",
-      "at": "bb1:42c",
+      "at": "bb1:42e",
       "orientation": 90,
-      "span": 5,
       "props": [
        {
         "name": "resistance",
@@ -176,16 +82,15 @@
       "ref": "R2"
      },
      "ok": true,
-     "result": "{\"ref\":\"R2\",\"pins\":{\"1\":{\"hole\":\"bb1:42c\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:42a\",\"bb1:42b\",\"bb1:42d\"]},\"2\":{\"hole\":\"bb1:42f\",\"net\":\"N6\",\"freeInStrip\":[\"bb1:42j\",\"bb1:42i\",\"bb1:42h\",\"bb1:42g\"]}},\"warnings\":[\"R2.1 shares its strip with D1.G, so it joins their net\"]}",
+     "result": "{\"ref\":\"R2\",\"pins\":{\"1\":{\"hole\":\"bb1:42e\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:42a\",\"bb1:42b\",\"bb1:42d\"]},\"2\":{\"hole\":\"bb1:42f\",\"net\":\"N6\",\"freeInStrip\":[\"bb1:42j\",\"bb1:42i\",\"bb1:42h\",\"bb1:42g\"]}},\"warnings\":[\"R2.1 shares its strip with LED1.G, so it joins their net\"]}",
      "committed": 1
     },
     {
      "tool": "place_part",
      "input": {
       "defId": "resistor",
-      "at": "bb1:43c",
+      "at": "bb1:43e",
       "orientation": 90,
-      "span": 5,
       "props": [
        {
         "name": "resistance",
@@ -195,7 +100,7 @@
       "ref": "R3"
      },
      "ok": true,
-     "result": "{\"ref\":\"R3\",\"pins\":{\"1\":{\"hole\":\"bb1:43c\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:43a\",\"bb1:43b\",\"bb1:43d\"]},\"2\":{\"hole\":\"bb1:43f\",\"net\":\"N7\",\"freeInStrip\":[\"bb1:43j\",\"bb1:43i\",\"bb1:43h\",\"bb1:43g\"]}},\"warnings\":[\"R3.1 shares its strip with D1.B, so it joins their net\"]}",
+     "result": "{\"ref\":\"R3\",\"pins\":{\"1\":{\"hole\":\"bb1:43e\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:43a\",\"bb1:43b\",\"bb1:43d\"]},\"2\":{\"hole\":\"bb1:43f\",\"net\":\"N7\",\"freeInStrip\":[\"bb1:43j\",\"bb1:43i\",\"bb1:43h\",\"bb1:43g\"]}},\"warnings\":[\"R3.1 shares its strip with LED1.B, so it joins their net\"]}",
      "committed": 1
     },
     {
@@ -257,7 +162,7 @@
      "input": {
       "from": {
        "partPin": {
-        "ref": "D1",
+        "ref": "LED1",
         "pin": "K"
        }
       },
@@ -267,139 +172,6 @@
      },
      "ok": true,
      "result": "{\"wire\":{\"id\":\"W4\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:41a\",\"b\":\"bb1:20a\"},\"net\":\"GND\"}",
-     "committed": 1
-    },
-    {
-     "tool": "run_erc",
-     "input": {},
-     "ok": true,
-     "result": "{\"errors\":0,\"warnings\":4,\"info\":0,\"issues\":[{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO17\"],\"message\":\"GPIO17 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO17 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO22\"],\"message\":\"GPIO22 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO22 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO27\"],\"message\":\"GPIO27 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO27 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"PHYSICAL_COLLISION\",\"severity\":\"warning\",\"refs\":[\"D1\",\"R2\"],\"message\":\"D1 and R2 overlap by about 2.8 mm, so they cannot both sit straight on the board.\",\"fix\":\"Move R2 along the board, or leave an empty row between them.\"}]}"
-    },
-    {
-     "tool": "simulate",
-     "input": {
-      "mode": "op",
-      "durationMs": 0,
-      "stimulus": {
-       "gpio": [
-        {
-         "pin": 17,
-         "level": "high",
-         "freqHz": 0,
-         "duty": 0
-        },
-        {
-         "pin": 27,
-         "level": "high",
-         "freqHz": 0,
-         "duty": 0
-        },
-        {
-         "pin": 22,
-         "level": "high",
-         "freqHz": 0,
-         "duty": 0
-        }
-       ],
-       "inputs": []
-      }
-     },
-     "ok": true,
-     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":3.075,\"GPIO18\":0,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":3.244,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":3.244,\"N1\":2.952,\"N2\":2.952,\"N3\":1.902},\"leds\":[{\"die\":\"D1.R\",\"mA\":5.333,\"brightness\":0.267},{\"die\":\"D1.G\",\"mA\":1.327,\"brightness\":0.066},{\"die\":\"D1.B\",\"mA\":1.327,\"brightness\":0.066}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":3.075,\"mA\":5.333},{\"pin\":\"GPIO18\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":3.244,\"mA\":1.327},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":3.244,\"m"
-    },
-    {
-     "tool": "get_circuit_state",
-     "input": {
-      "detail": "summary"
-     },
-     "ok": true,
-     "result": "Revision 9: 1 board(s), 4 part(s), 4 wire(s). ERC: 0 error(s), 4 warning(s).\n{\"revision\":9,\"boards\":[{\"id\":\"bb1\",\"def\":\"bb-830\",\"rows\":63,\"freeRows\":[[24,39],[44,63]],\"freeRailHoles\":{\"top+\":50,\"top-\":50,\"bottom+\":50,\"bottom-\":50}}],\"tboard\":{\"board\":\"bb1\",\"pin1Row\":1,\"colPair\":\"d/h\",\"orientation\":\"header-toward-row-0\"},\"parts\":[{\"ref\":\"D1\",\"def\":\"rgb-led-cc\",\"pins\":{\"R\":\"bb1:40e N3\",\"K\":\"bb1:41e GND\",\"G\":\"bb1:42e N2\",\"B\":\"bb1:43e N1\"}},{\"ref\":\"R1\",\"def\":\"resistor\",\"pins\":{\"1\":\"bb1:40c N3\",\"2\":\"bb1:40f GPIO17\"}},{\"ref\":\"R2\",\"def\":\"resistor\",\"pins\":{\"1\":\"bb1:42c N2\",\"2\":\"bb1:42f GPIO27\"}},{\"ref\":\"R3\",\"def\":\"resistor\",\"pins\":{\"1\":\"bb1:43c N1\",\"2\":\"bb1:43f GPIO22\"}}],\"wires\":[{\"id\":\"W1\",\"kind\":\"dupont-mm\",\"lengthMm\":200,\"color\":\"red\",\"a\":\"bb1:6a\",\"b\":\"bb1:40j\"},{\"id\":\"W2\",\"kind\":\"dupont-mm\",\"lengthMm\":200,\"color\":\"green\",\"a\":\"bb1:7a\",\"b\":\"bb1:42j\"},{\"id\":\"W3\",\"kind\":\"dupont-mm\",\"lengthMm\":200,\"color\":\"blue\",\"a\":\"bb1:8a\",\"b\":\"bb1:43j\"},{\"id\":\"W4\",\"kind\":\"dupont-mm\",\"lengthMm\":200,\"color\":\"black\",\"a\":\"bb1:41a\",\"b\":\"bb1:20a\"}],\"nets\":[{\"net\":\"GND\",\"tboardHoles\":[\"bb1:3h\",\"bb1:5d\",\"bb1:7h\",\"bb1:10h\",\"bb1:13d\",\"bb1:15h\",\"bb1:17h\",\"bb1:20d\"],\"partPins\":[\"D1.K\"],\"wireEnds\":[\"W4.a\",\"W4.b\"]},{\"net\":\"GPIO17\",\"tboardHoles\":[\"bb1:6d\"],\"partPins\":[\"R1.2\"],\"wireEnds\":[\"W1.a\",\"W1.b\"]},{\"net\":\"GPIO22\",\"tboardHoles\":[\"bb1:8d\"],\"partPins\":[\"R3.2\"],\"wireEnds\":[\"W3.a\",\"W3.b\"]},{\"net\":\"GPIO27\",\"tboardHoles\":[\"bb1:7d\"],\"partPins\":[\"R2.2\"],\"wireEnds\":[\"W2.a\",\"W2.b\"]},{\"net\":\"N1\",\"tboardHoles\":[],\"part"
-    },
-    {
-     "tool": "move_part",
-     "input": {
-      "ref": "D1",
-      "at": "bb1:40b",
-      "orientation": 0
-     },
-     "ok": true,
-     "result": "{\"ref\":\"D1\",\"pins\":{\"R\":{\"hole\":\"bb1:40b\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:40a\",\"bb1:40d\",\"bb1:40e\"]},\"K\":{\"hole\":\"bb1:41b\",\"net\":\"GND\",\"freeInStrip\":[\"bb1:41c\",\"bb1:41d\",\"bb1:41e\"]},\"G\":{\"hole\":\"bb1:42b\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:42a\",\"bb1:42d\",\"bb1:42e\"]},\"B\":{\"hole\":\"bb1:43b\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:43a\",\"bb1:43d\",\"bb1:43e\"]}},\"warnings\":[\"D1.R shares its strip with R1.1, so it joins their net\",\"D1.K shares its strip with W4.a, so it joins their net\",\"D1.G shares its strip with R2.1, so it joins their net\",\"D1.B shares its strip with R3.1, so it joins their net\"],\"leadsLeftBehind\":[\"W4\"]}",
-     "committed": 1
-    },
-    {
-     "tool": "move_part",
-     "input": {
-      "ref": "R1",
-      "at": "bb1:40e",
-      "orientation": 90,
-      "span": 3
-     },
-     "ok": true,
-     "result": "{\"ref\":\"R1\",\"pins\":{\"1\":{\"hole\":\"bb1:40e\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:40a\",\"bb1:40c\",\"bb1:40d\"]},\"2\":{\"hole\":\"bb1:40f\",\"net\":\"GPIO17\",\"freeInStrip\":[\"bb1:40i\",\"bb1:40h\",\"bb1:40g\"]}},\"warnings\":[\"R1.1 shares its strip with D1.R, so it joins their net\",\"R1.2 shares its strip with W1.b, so it joins their net\"],\"leadsLeftBehind\":[\"W1\"]}",
-     "committed": 1
-    },
-    {
-     "tool": "move_part",
-     "input": {
-      "ref": "R2",
-      "at": "bb1:42e",
-      "orientation": 90,
-      "span": 3
-     },
-     "ok": true,
-     "result": "{\"ref\":\"R2\",\"pins\":{\"1\":{\"hole\":\"bb1:42e\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:42a\",\"bb1:42c\",\"bb1:42d\"]},\"2\":{\"hole\":\"bb1:42f\",\"net\":\"GPIO27\",\"freeInStrip\":[\"bb1:42i\",\"bb1:42h\",\"bb1:42g\"]}},\"warnings\":[\"R2.1 shares its strip with D1.G, so it joins their net\",\"R2.2 shares its strip with W2.b, so it joins their net\"],\"leadsLeftBehind\":[\"W2\"]}",
-     "committed": 1
-    },
-    {
-     "tool": "move_part",
-     "input": {
-      "ref": "R3",
-      "at": "bb1:43e",
-      "orientation": 90,
-      "span": 3
-     },
-     "ok": true,
-     "result": "{\"ref\":\"R3\",\"pins\":{\"1\":{\"hole\":\"bb1:43e\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:43a\",\"bb1:43c\",\"bb1:43d\"]},\"2\":{\"hole\":\"bb1:43f\",\"net\":\"GPIO22\",\"freeInStrip\":[\"bb1:43i\",\"bb1:43h\",\"bb1:43g\"]}},\"warnings\":[\"R3.1 shares its strip with D1.B, so it joins their net\",\"R3.2 shares its strip with W3.b, so it joins their net\"],\"leadsLeftBehind\":[\"W3\"]}",
-     "committed": 1
-    },
-    {
-     "tool": "set_part_props",
-     "input": {
-      "ref": "R2",
-      "props": [
-       {
-        "name": "resistance",
-        "value": 100
-       }
-      ]
-     },
-     "ok": true,
-     "result": "{\"ref\":\"R2\",\"props\":{\"resistance\":100,\"tolerance\":\"5%\"}}",
-     "committed": 1
-    },
-    {
-     "tool": "set_part_props",
-     "input": {
-      "ref": "R3",
-      "props": [
-       {
-        "name": "resistance",
-        "value": 100
-       }
-      ]
-     },
-     "ok": true,
-     "result": "{\"ref\":\"R3\",\"props\":{\"resistance\":100,\"tolerance\":\"5%\"}}",
-     "committed": 1
-    },
-    {
-     "tool": "write_code",
-     "input": {
-      "library": "RPi.GPIO",
-      "source": "import time\nimport RPi.GPIO as GPIO\n\n# BCM numbers: red, green, blue anodes (common-cathode LED, so HIGH = on)\nPINS = {\"red\": 17, \"green\": 27, \"blue\": 22}\nSTEP_S = 1.0  # seconds per colour\n\nGPIO.setmode(GPIO.BCM)\nfor pin in PINS.values():\n    GPIO.setup(pin, GPIO.OUT, initial=GPIO.LOW)\n\ntry:\n    while True:\n        for name, pin in PINS.items():\n            print(name)\n            GPIO.output(pin, GPIO.HIGH)\n            time.sleep(STEP_S)\n            GPIO.output(pin, GPIO.LOW)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.cleanup()\n"
-     },
-     "ok": true,
-     "result": "{\"syntax\":\"ok\",\"gpioUsed\":[],\"unresolved\":[{\"expression\":\"pin\",\"line\":10}],\"crossCheck\":[{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO17\"],\"message\":\"GPIO17 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO17 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO22\"],\"message\":\"GPIO22 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO22 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO27\"],\"message\":\"GPIO27 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO27 in the code, or move the lead to the pin the code uses.\"}]}",
      "committed": 1
     },
     {
@@ -438,31 +210,93 @@
       }
      },
      "ok": true,
-     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":3.075,\"GPIO18\":0,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":3.209,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":3.209,\"N1\":2.992,\"N2\":2.992,\"N3\":1.902},\"leds\":[{\"die\":\"D1.R\",\"mA\":5.333,\"brightness\":0.267},{\"die\":\"D1.G\",\"mA\":2.168,\"brightness\":0.108},{\"die\":\"D1.B\",\"mA\":2.168,\"brightness\":0.108}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":3.075,\"mA\":5.333},{\"pin\":\"GPIO18\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":3.209,\"mA\":2.168},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":3.209,\"m"
+     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":3.075,\"GPIO18\":0,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":3.244,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":3.244,\"N1\":2.952,\"N2\":2.952,\"N3\":1.902},\"leds\":[{\"die\":\"LED1.R\",\"mA\":5.333,\"brightness\":0.267},{\"die\":\"LED1.G\",\"mA\":1.327,\"brightness\":0.066},{\"die\":\"LED1.B\",\"mA\":1.327,\"brightness\":0.066}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":3.075,\"mA\":5.333},{\"pin\":\"GPIO18\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":3.244,\"mA\":1.327},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":3."
+    },
+    {
+     "tool": "set_part_props",
+     "input": {
+      "ref": "R2",
+      "props": [
+       {
+        "name": "resistance",
+        "value": 100
+       }
+      ]
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R2\",\"props\":{\"resistance\":100,\"tolerance\":\"5%\"}}",
+     "committed": 1
+    },
+    {
+     "tool": "set_part_props",
+     "input": {
+      "ref": "R3",
+      "props": [
+       {
+        "name": "resistance",
+        "value": 100
+       }
+      ]
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R3\",\"props\":{\"resistance\":100,\"tolerance\":\"5%\"}}",
+     "committed": 1
     },
     {
      "tool": "write_code",
      "input": {
-      "library": "RPi.GPIO",
-      "source": "import time\nimport RPi.GPIO as GPIO\n\n# BCM numbers. Common-cathode LED, so HIGH = colour on.\nRED = 17\nGREEN = 27\nBLUE = 22\nSTEP_S = 1.0  # seconds per colour\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(RED, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(GREEN, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(BLUE, GPIO.OUT, initial=GPIO.LOW)\n\nCOLOURS = [(\"red\", RED), (\"green\", GREEN), (\"blue\", BLUE)]\n\ntry:\n    while True:\n        for name, pin in COLOURS:\n            print(name)\n            GPIO.output(pin, GPIO.HIGH)\n            time.sleep(STEP_S)\n            GPIO.output(pin, GPIO.LOW)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.cleanup()\n"
+      "library": "gpiozero",
+      "source": "from gpiozero import RGBLED\nfrom time import sleep\n\n# Common-cathode RGB LED: red on GPIO17, green on GPIO27, blue on GPIO22\nled = RGBLED(red=17, green=27, blue=22, active_high=True)\n\ncolours = [\n    (\"red\",   (1, 0, 0)),\n    (\"green\", (0, 1, 0)),\n    (\"blue\",  (0, 0, 1)),\n]\n\ntry:\n    while True:\n        for name, rgb in colours:\n            print(name)\n            led.color = rgb\n            sleep(1)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    led.off()\n    led.close()\n"
      },
      "ok": true,
-     "result": "{\"syntax\":\"ok\",\"gpioUsed\":[{\"gpio\":17,\"mode\":\"out\"},{\"gpio\":27,\"mode\":\"out\"},{\"gpio\":22,\"mode\":\"out\"}],\"unresolved\":[],\"crossCheck\":\"matches the wiring\"}",
+     "result": "{\"syntax\":\"ok\",\"gpioUsed\":[{\"gpio\":17,\"mode\":\"pwm\"},{\"gpio\":27,\"mode\":\"pwm\"},{\"gpio\":22,\"mode\":\"pwm\"}],\"unresolved\":[],\"crossCheck\":\"matches the wiring\"}",
      "committed": 1
-    },
-    {
-     "tool": "run_code_in_sim",
-     "input": {
-      "seconds": 4
-     },
-     "ok": true,
-     "result": "{\"stdout\":\"red\\ngreen\\nblue\\nred\",\"error\":null,\"events\":[\"0.000 GPIO17 high\",\"1.000 GPIO17 low\",\"1.000 GPIO27 high\",\"2.000 GPIO27 low\",\"2.000 GPIO22 high\",\"3.000 GPIO22 low\",\"3.000 GPIO17 high\"],\"eventCount\":7}"
     },
     {
      "tool": "run_erc",
      "input": {},
      "ok": true,
      "result": "{\"errors\":0,\"warnings\":0,\"info\":0,\"issues\":[]}"
+    },
+    {
+     "tool": "simulate",
+     "input": {
+      "mode": "op",
+      "durationMs": 0,
+      "stimulus": {
+       "gpio": [
+        {
+         "pin": 17,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 27,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 22,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        }
+       ],
+       "inputs": []
+      }
+     },
+     "ok": true,
+     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":3.075,\"GPIO18\":0,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":3.209,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":3.209,\"N1\":2.992,\"N2\":2.992,\"N3\":1.902},\"leds\":[{\"die\":\"LED1.R\",\"mA\":5.333,\"brightness\":0.267},{\"die\":\"LED1.G\",\"mA\":2.168,\"brightness\":0.108},{\"die\":\"LED1.B\",\"mA\":2.168,\"brightness\":0.108}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":3.075,\"mA\":5.333},{\"pin\":\"GPIO18\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":3.209,\"mA\":2.168},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":3."
+    },
+    {
+     "tool": "run_code_in_sim",
+     "input": {
+      "seconds": 6
+     },
+     "ok": true,
+     "result": "{\"stdout\":\"red\\ngreen\\nblue\\nred\\ngreen\\nblue\",\"error\":null,\"events\":[\"0.000 GPIO17 pwm 100 Hz 0%\",\"0.000 GPIO27 pwm 100 Hz 0%\",\"0.000 GPIO22 pwm 100 Hz 0%\",\"0.000 GPIO17 pwm 100 Hz 0%\",\"0.000 GPIO27 pwm 100 Hz 0%\",\"0.000 GPIO22 pwm 100 Hz 0%\",\"0.000 GPIO17 pwm 100 Hz 100%\",\"0.000 GPIO27 pwm 100 Hz 0%\",\"0.000 GPIO22 pwm 100 Hz 0%\",\"1.000 GPIO17 pwm 100 Hz 0%\",\"1.000 GPIO27 pwm 100 Hz 100%\",\"1.000 GPIO22 pwm 100 Hz 0%\",\"2.000 GPIO17 pwm 100 Hz 0%\",\"2.000 GPIO27 pwm 100 Hz 0%\",\"2.000 GPIO22 pwm 100 Hz 100%\",\"3.000 GPIO17 pwm 100 Hz 100%\",\"3.000 GPIO27 pwm 100 Hz 0%\",\"3.000 GPIO22 pwm 100 Hz 0%\",\"4.000 GPIO17 pwm 100 Hz 0%\",\"4.000 GPIO27 pwm 100 Hz 100%\",\"4.000 GPIO22 pwm 100 Hz 0%\",\"5.000 GPIO17 pwm 100 Hz 0%\",\"5.000 GPIO27 pwm 100 Hz 0%\",\"5.000 GPIO22 pwm 100 Hz 100%\",\"6.000 GPIO17 pwm 100 Hz 0%\",\"6.000 GPIO27 pwm 100 Hz 0%\",\"6.000 GPIO22 pwm 100 Hz 0%\",\"6.000 GPIO17 pwm 100 Hz 0%\",\"6.000 GPIO27 pwm 100 Hz 0%\",\"6.000 GPIO22 pwm 100 Hz 0%\"],\"eventCount\":30}"
     },
     {
      "tool": "capture_view",
@@ -476,28 +310,47 @@
      "tool": "highlight",
      "input": {
       "refs": [
-       "D1"
+       "LED1"
       ],
-      "note": "Longest leg = common cathode → row 41 (GND). Red row 40, green row 42, blue row 43."
+      "note": "Longest leg = common cathode, goes in row 41 (to GND). Red leg is on the side next to it, in row 40."
      },
      "ok": true,
      "result": "ok"
     }
    ],
-   "transactions": 17
+   "transactions": 11
   }
  ],
  "questions": [],
+ "partialInputs": {
+  "place_part": {
+   "snapshots": 36,
+   "ghosts": 18
+  },
+  "connect": {
+   "snapshots": 33,
+   "ghosts": 11
+  }
+ },
+ "simulatedInputs": [],
+ "codeRuns": [
+  {
+   "seconds": 6,
+   "endedAt": 6.000164999999996,
+   "events": 30,
+   "error": null
+  }
+ ],
  "custom": [],
  "final": {
   "parts": [
-   "D1 rgb-led-cc",
+   "LED1 rgb-led-cc",
    "R1 resistor",
    "R2 resistor",
    "R3 resistor"
   ],
   "wires": 4,
-  "code": "import time\nimport RPi.GPIO as GPIO\n\n# BCM numbers. Common-cathode LED, so HIGH = colour on.\nRED = 17\nGREEN = 27\nBLUE = 22\nSTEP_S = 1.0  # seconds per colour\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(RED, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(GREEN, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(BLUE, GPIO.OUT, initial=GPIO.LOW)\n\nCOLOURS = [(\"red\", RED), (\"green\", GREEN), (\"blue\", BLUE)]\n\ntry:\n    while True:\n        for name, pin in COLOURS:\n            print(name)\n            GPIO.output(pin, GPIO.HIGH)\n            time.sleep(STEP_S)\n            GPIO.output(pin, GPIO.LOW)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.cleanup()\n"
+  "code": "from gpiozero import RGBLED\nfrom time import sleep\n\n# Common-cathode RGB LED: red on GPIO17, green on GPIO27, blue on GPIO22\nled = RGBLED(red=17, green=27, blue=22, active_high=True)\n\ncolours = [\n    (\"red\",   (1, 0, 0)),\n    (\"green\", (0, 1, 0)),\n    (\"blue\",  (0, 0, 1)),\n]\n\ntry:\n    while True:\n        for name, rgb in colours:\n            print(name)\n            led.color = rgb\n            sleep(1)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    led.off()\n    led.close()\n"
  },
  "checks": [
   {
@@ -558,7 +411,7 @@
    "id": "sim.dies",
    "label": "Each GPIO lights its own colour, 1-16 mA",
    "pass": true,
-   "detail": "GPIO17 D1.R 5.3 mA; GPIO27 D1.G 2.2 mA; GPIO22 D1.B 2.2 mA"
+   "detail": "GPIO17 LED1.R 5.3 mA; GPIO27 LED1.G 2.2 mA; GPIO22 LED1.B 2.2 mA"
   },
   {
    "id": "sim.program",
@@ -576,7 +429,7 @@
    "id": "undo.all",
    "label": "Undo all restores the starting document exactly",
    "pass": true,
-   "detail": "17 of 17 transactions undone"
+   "detail": "11 of 11 transactions undone"
   }
  ]
 }
