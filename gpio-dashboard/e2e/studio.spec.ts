@@ -124,6 +124,37 @@ test.describe('on the blink sample', () => {
     expect(shown.instances).toBe(5 + 2)
   })
 
+  test('draws the bench, its parts and every lead end in its hole', async ({ page }) => {
+    await waitUntilStill(page, 15_000)
+    const report = () => page.evaluate(() => (window as unknown as StudioWindow).__studio.report())
+    // The models arrive one by one; each arrival draws again.
+    await expect
+      .poll(async () => {
+        const r = await report()
+        return [r.tboards, r.sockets, r.ribbons, r.housings.male, Object.keys(r.copies).length]
+      })
+      .toEqual([1, 2, 1, 4, 2])
+    const r = await report()
+    expect(r.piPins).toBe(40)
+    expect(r.housings.female).toBe(0)
+    expect(r.copies).toEqual({ 'resistor.glb': 1, 'led-5mm.glb': 1 })
+    expect(r.parts).toEqual({ R1: { body: true, leads: 2 }, D1: { body: true, leads: 2 } })
+    // The ribbon has its real length (ribbon.json), well over the sockets' span.
+    expect(r.ribbonMm).toBeCloseTo(200, 0)
+    // Part leads end down their holes; each male Dupont pin stands its exposed length in.
+    expect(r.leadEnds.map((e) => e.id).sort()).toEqual(
+      ['D1.A', 'D1.K', 'R1.1', 'R1.2', 'W1.a', 'W1.b', 'W2.a', 'W2.b'].sort()
+    )
+    for (const end of r.leadEnds) {
+      expect(end.offAxisMm, end.id).toBeLessThanOrEqual(0.05)
+      expect(end.depthMm, end.id).toBeCloseTo(end.id.startsWith('W') ? 5.5 : 2, 2)
+    }
+    test.info().annotations.push({
+      type: 'lead ends',
+      description: `max off-axis ${Math.max(...r.leadEnds.map((e) => e.offAxisMm)).toExponential(2)} mm`
+    })
+  })
+
   test('a still scene renders no frames, after a camera move too', async ({ page }) => {
     const settled = await waitUntilStill(page, 15_000)
     await page.waitForTimeout(1000)

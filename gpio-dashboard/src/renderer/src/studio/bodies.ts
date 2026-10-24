@@ -12,7 +12,7 @@ import type { CircuitDoc, PartInstance, Transform2D, Vec2 } from '../core/model/
 import { ASSUMED_HEIGHTS_MM, toTable } from '../core/reach/reach'
 import type { Selection } from '../state/studioStore'
 import { PI_HEIGHT_MM } from './camera'
-import { toThree } from './coords'
+import { moduleModel, toThree } from './coords'
 
 const PITCH_MM = 2.54
 const up = new Vector3(0, 1, 0)
@@ -30,11 +30,14 @@ function box(t: Transform2D, r: Rect, z0: number, z1: number): Matrix4 {
 
 /**
  * A part's box: its body (bodyMm, along its leads or its rows) centred on its pins, grown to take
- * in every pin. On a board it stands on the board; an off-board module stands on the table.
+ * in every pin. On a board it stands on the board; an off-board module stands on the table, as its
+ * model is once that has loaded.
  */
 function partBox(doc: CircuitDoc, part: PartInstance): Matrix4 | null {
   const def = partDef(part.defId)
   const pose = part.placement.offboardPose
+  const model = pose && moduleModel(part.defId)
+  if (model) return box(pose, model.rect, 0, model.top)
   let frame: Transform2D
   let points: Vec2[]
   let z0: number

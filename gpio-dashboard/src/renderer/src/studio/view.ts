@@ -1,8 +1,8 @@
 // The Studio's imperative side: the camera and its damped orbit, hover picking and highlights, the
-// gestures that edit the document, and the frame loop. Pointer and key handlers act directly on
-// three objects and request a frame, so a hover shows on the very next frame (SPEC 11.3,
-// acceptance 8) without waiting on React. Edits go through the studio store's edit(), one
-// transaction each.
+// gestures that edit the document, the bench, parts and leads it draws, and the frame loop.
+// Pointer and key handlers act directly on three objects and request a frame, so a hover shows on
+// the very next frame (SPEC 11.3, acceptance 8) without waiting on React. Edits go through the
+// studio store's edit(), one transaction each.
 import {
   BoxGeometry,
   Color,
@@ -25,6 +25,7 @@ import type { CircuitDoc, Endpoint, Op } from '../core/model/types'
 import type { Problem } from '../core/ops/validate'
 import { circuit } from '../state/circuit'
 import { edit, type Selection, type Tool, useStudio } from '../state/studioStore'
+import { BenchLayer } from './bench'
 import { bodyBox, pickBody, pointsBox } from './bodies'
 import { CameraTween, type Preset, presetView } from './camera'
 import { endpointInScene, holeInScene } from './coords'
@@ -38,9 +39,11 @@ import {
   type Proposal,
   propose
 } from './gestures'
+import { Insertion, reseated } from './insertion'
 import { LabelLayer, labelsOf } from './labels'
-import { configureModels } from './loaders'
+import { configureModels, disposeModels, onArrival } from './loaders'
 import { type Marker, Markers } from './markers'
+import { type PartHandle, PartLayer } from './parts'
 import { hoverInfo, type HoverInfo, pickHole, pickModulePin } from './picking'
 import { holeFree, holeLegality, removePartOps, turned, turnedPart } from './placement'
 import { Post } from './renderer'
@@ -72,6 +75,22 @@ export interface HoverRecord {
   shownFrame: number | null
 }
 
+/** What the bench draws, counted and measured from the scene (tests). */
+export interface SceneReport {
+  piPins: number
+  tboards: number
+  sockets: number
+  ribbons: number
+  /** The ribbon's length along its middle, as drawn. */
+  ribbonMm: number | null
+  housings: { male: number; female: number }
+  /** Copies drawn per part file. */
+  copies: Record<string, number>
+  parts: Record<string, { body: boolean; leads: number }>
+  /** Every part lead's end and male Dupont pin in a hole: off its hole's axis, and how deep. */
+  leadEnds: { id: string; offAxisMm: number; depthMm: number }[]
+}
+
 /** A press on the canvas: what it selects as a click, and what it drags once it moves. */
 interface Press {
   x: number
@@ -98,6 +117,11 @@ export class StudioView {
   private readonly footprints = new Markers(this.layers, 0.1)
   private readonly ghostMarkers = new Markers(this.layers, 0.3)
   private readonly wires = new WireLayer(this.layers)
+  private readonly bench = new BenchLayer(this.layers)
+  private readonly parts = new PartLayer(this.layers, () => this.invalidate())
+  private readonly insertion = new Insertion()
+  /** The committed document last drawn: what a commit's insertion is measured against. */
+  private committed: CircuitDoc | null = null
   private readonly selectionBox = new LineSegments(
     new EdgesGeometry(new BoxGeometry(1, 1, 1)),
     new LineBasicNodeMaterial({ color: STRIP_COLOR })
@@ -151,6 +175,12 @@ export class StudioView {
     let moving = this.controls.update()
     if (this.tween.active) {
       this.tween.step(now, this.camera, this.controls.target)
+      moving = true
+    }
+    if (this.insertion.settle(now)) {
+      const lift = (key: string) => this.insertion.lift(key, now)
+      this.parts.animate(lift)
+      this.wires.animate(this.drawnDoc(), lift)
       moving = true
     }
     this.post.render()
@@ -222,6 +252,36 @@ export class StudioView {
     useStudio.setState({ tool })
   }
 
+  /** Per-copy controls for a placed part's model (SPEC 10.6); null while it has none drawn. */
+  part(id: string): PartHandle | null {
+    return this.parts.handle(id)
+  }
+
+  /** Tints one of the Pi's header pins by physical number (live Pi state); null restores it. */
+  piPin(physical: number, color: Color | null): void {
+    this.bench.setPiPin(physical, color)
+    this.invalidate()
+  }
+
+  /** What the bench draws, counted and measured from the scene (tests). */
+  report(): SceneReport {
+    const doc = this.drawnDoc()
+    return {
+      piPins: this.bench.piPins.count,
+      tboards: this.bench.tboard?.count ?? 0,
+      sockets: this.bench.sockets?.count ?? 0,
+      ribbons: this.bench.ribbon ? 1 : 0,
+      ribbonMm: this.bench.ribbonLength(),
+      housings: {
+        male: this.wires.housings.male?.count ?? 0,
+        female: this.wires.housings.female?.count ?? 0
+      },
+      copies: this.parts.copies(),
+      parts: Object.fromEntries(doc.parts.map((p) => [p.id, this.parts.drawn(p.id)])),
+      leadEnds: [...this.parts.leadEnds(), ...this.wires.maleTips()]
+    }
+  }
+
   /** Attaches input to the Studio's element; returns the detach. */
   attach(element: HTMLElement, tooltip: HTMLElement, labels: HTMLElement): () => void {
     this.tooltip = tooltip
@@ -268,7 +328,9 @@ export class StudioView {
           now.preview !== before.preview
         )
           this.draw()
-      })
+      }),
+      // A model, texture or the parts index arriving draws what was waiting on it.
+      onArrival(() => this.draw())
     ]
     window.addEventListener('keydown', onKey)
     window.addEventListener('pointermove', onGestureMove)
@@ -289,6 +351,11 @@ export class StudioView {
       this.controls.disconnect()
       this.tooltip = null
       this.labels = null
+      // GPU resources go with the Studio (SPEC 10.8); a later attach draws them again.
+      this.bench.dispose()
+      this.parts.dispose()
+      this.wires.dispose()
+      disposeModels()
     }
   }
 
@@ -507,11 +574,32 @@ export class StudioView {
     this.invalidate()
   }
 
-  /** Draws what the document holds (or the preview of a drag): leads, footprints, labels, selection. */
+  /** The document being drawn: the drag's preview, else the committed one. */
+  private drawnDoc(): CircuitDoc {
+    return useStudio.getState().preview ?? circuit.getSnapshot()
+  }
+
+  /**
+   * Draws what the document holds (or the preview of a drag): the bench, parts, leads, footprints,
+   * labels and selection. What a drag moves hovers above its holes; what a commit moved seats.
+   */
   private draw(): void {
     const { preview, selection, labels } = useStudio.getState()
-    const doc = preview ?? circuit.getSnapshot()
-    this.wires.update(doc)
+    const committed = circuit.getSnapshot()
+    const doc = preview ?? committed
+    const now = performance.now()
+    if (preview) this.insertion.hover(reseated(committed, preview))
+    else {
+      this.insertion.hover([])
+      if (this.committed && this.committed !== committed)
+        this.insertion.start(reseated(this.committed, committed), now)
+      this.committed = committed
+    }
+    const lift = (key: string) => this.insertion.lift(key, now)
+    this.bench.update(doc)
+    // Parts first: a module's model tells where its pins are, which its leads' ends need.
+    this.parts.update(doc, lift)
+    this.wires.update(doc, lift)
     const markers: Marker[] = []
     const tb = doc.controller.tboard
     const tbBoard = doc.boards.find((b) => b.id === tb.board)

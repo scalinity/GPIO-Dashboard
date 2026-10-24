@@ -1,9 +1,11 @@
 // Core frames (mm, z up) in the three.js scene (mm, y up): a core point (x, y, z) is three
 // (x, z, −y). A rotation about core z by θ is a rotation about three's y by the same θ.
-import { Vector3 } from 'three/webgpu'
+import { Matrix4, Quaternion, Vector3 } from 'three/webgpu'
 import { boardDef } from '../core/defs/boards'
+import type { Rect } from '../core/defs/controllers'
 import { partDef } from '../core/defs/parts'
 import { holePosition } from '../core/geometry/breadboard'
+import { tboardToBoard } from '../core/geometry/tboard'
 import type {
   BoardInstance,
   CircuitDoc,
@@ -14,6 +16,8 @@ import type {
   Vec2
 } from '../core/model/types'
 import { ASSUMED_HEIGHTS_MM, toTable } from '../core/reach/reach'
+
+const up = new Vector3(0, 1, 0)
 
 export function toThree([x, y]: Vec2, z: number, target = new Vector3()): Vector3 {
   return target.set(x, z, -y)
@@ -28,32 +32,107 @@ export function tablePose(
   return { position: [x, z, -y], rotation: [0, (transform.rotationDeg * Math.PI) / 180, 0] }
 }
 
+/** The same placement as a matrix: a model built in that local frame goes into the scene by it. */
+export function poseMatrix(transform: Transform2D, z: number): Matrix4 {
+  return new Matrix4().compose(
+    toThree(transform.position, z),
+    new Quaternion().setFromAxisAngle(up, (transform.rotationDeg * Math.PI) / 180),
+    new Vector3(1, 1, 1)
+  )
+}
+
+/** The T-board's frame (pin 1 at the origin, z = 0 on the board's top), or null off any board. */
+export function tboardPose(doc: CircuitDoc): Matrix4 | null {
+  const tb = doc.controller.tboard
+  const board = doc.boards.find((b) => b.id === tb.board)
+  if (!board) return null
+  const def = boardDef(board.defId)
+  const turn = tb.orientation === 'header-toward-last-row' ? 180 : 0
+  return poseMatrix(
+    {
+      position: toTable(board.transform, tboardToBoard(def, tb, [0, 0])),
+      rotationDeg: board.transform.rotationDeg + turn
+    },
+    def.body.heightMm
+  )
+}
+
 /** A hole's centre on its board's top surface, in the scene. */
 export function holeInScene(board: BoardInstance, hole: HoleRef, target = new Vector3()): Vector3 {
   const def = boardDef(board.defId)
   return toThree(toTable(board.transform, holePosition(def, hole)), def.body.heightMm, target)
 }
 
-/** Where an off-board module's connector pin is in the scene, or null if it isn't on the table. */
-export function modulePinInScene(part: PartInstance, pin: string): Vector3 | null {
-  const offset = partDef(part.defId).pins.find((p) => p.id === pin)?.offsetPitch
-  const pose = part.placement.offboardPose
-  if (!pose || !offset) return null
-  return toThree(toTable(pose, [offset[0] * 2.54, offset[1] * 2.54]), ASSUMED_HEIGHTS_MM.modulePin)
+/** An off-board module's pin, as its model has it: the tip relative to the first pin, and the axis. */
+export interface ModulePinFrame {
+  /** In the module's frame, three axes; x and z are measured from the first pin. */
+  at: Vector3
+  axis: Vector3
 }
 
-/** Where a lead end is: in a hole on a board, or on an off-board module's pin. */
+/** What an off-board module's model says about it, in its pose's frame (first pin at the origin). */
+export interface ModuleModel {
+  pins: Record<string, ModulePinFrame>
+  /** Its footprint in core x and y, and its height. */
+  rect: Rect
+  top: number
+}
+
+const modules = new Map<string, ModuleModel>()
+
+/** Records a module definition's model once it has loaded; until then its pins are assumed. */
+export function setModuleModel(defId: string, model: ModuleModel): void {
+  modules.set(defId, model)
+}
+
+export function moduleModel(defId: string): ModuleModel | undefined {
+  return modules.get(defId)
+}
+
+/** Where a module's pin is in its pose's frame: the model's tip, or the definition's layout. */
+function modulePinLocal(part: PartInstance, pin: string): ModulePinFrame | null {
+  const known = modules.get(part.defId)?.pins[pin]
+  if (known) return known
+  const offset = partDef(part.defId).pins.find((p) => p.id === pin)?.offsetPitch
+  if (!offset) return null
+  return {
+    at: toThree([offset[0] * 2.54, offset[1] * 2.54], ASSUMED_HEIGHTS_MM.modulePin),
+    axis: up
+  }
+}
+
+/** Where an off-board module's connector pin is in the scene, or null if it isn't on the table. */
+export function modulePinInScene(part: PartInstance, pin: string): Vector3 | null {
+  const pose = part.placement.offboardPose
+  const local = pose && modulePinLocal(part, pin)
+  return local ? local.at.clone().applyMatrix4(poseMatrix(pose, 0)) : null
+}
+
+/**
+ * Where a lead end mates, and the way a housing there points out (SPEC 6.5): straight up out of a
+ * hole, or along a module's pin or socket.
+ */
 export function endpointInScene(
   doc: CircuitDoc,
   end: Endpoint
-): { at: Vector3; turn: number } | null {
+): { at: Vector3; turn: number; axis: Vector3 } | null {
   if ('hole' in end) {
     const board = doc.boards.find((b) => b.id === end.hole.board)
     if (!board) return null
-    return { at: holeInScene(board, end.hole), turn: (board.transform.rotationDeg * Math.PI) / 180 }
+    return {
+      at: holeInScene(board, end.hole),
+      turn: (board.transform.rotationDeg * Math.PI) / 180,
+      axis: up.clone()
+    }
   }
   const part = doc.parts.find((p) => p.id === end.pin.part)
-  const at = part && modulePinInScene(part, end.pin.pin)
-  if (!at) return null
-  return { at, turn: (part.placement.offboardPose!.rotationDeg * Math.PI) / 180 }
+  const pose = part?.placement.offboardPose
+  const local = pose && modulePinLocal(part, end.pin.pin)
+  if (!local) return null
+  const turn = (pose.rotationDeg * Math.PI) / 180
+  return {
+    at: local.at.clone().applyMatrix4(poseMatrix(pose, 0)),
+    turn,
+    axis: local.axis.clone().applyAxisAngle(up, turn)
+  }
 }

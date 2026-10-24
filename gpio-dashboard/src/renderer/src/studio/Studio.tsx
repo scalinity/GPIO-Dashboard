@@ -1,6 +1,6 @@
 // The 3D stage (SPEC 10, 11.2): R3F with WebGPURenderer from its async factory, rendering on demand.
-// React owns what the document declares (the stage and the models); StudioView owns the camera,
-// hover, gestures, leads, footprints, labels and the frame loop.
+// React owns the stage and the boards' and Pi's models; StudioView owns the camera, hover,
+// gestures, the T-board, sockets, ribbon, parts, leads, footprints, labels and the frame loop.
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useCallback, useRef } from 'react'
 import { AgXToneMapping, type WebGPURenderer } from 'three/webgpu'
