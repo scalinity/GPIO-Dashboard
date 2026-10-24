@@ -1,4 +1,4 @@
-import { Cpu, Plug, CircuitBoard, BookOpen, Activity } from 'lucide-react'
+import { Cpu, Plug, CircuitBoard, BookOpen, Activity, FlaskConical } from 'lucide-react'
 import useUiStore from '../store/uiStore'
 import ConnectionStatus from './ConnectionStatus'
 
@@ -7,6 +7,7 @@ const TABS = [
   { id: 'pinout', label: 'Pinout', icon: Cpu },
   { id: 'breadboard', label: 'Breadboard', icon: CircuitBoard },
   { id: 'tutorials', label: 'Tutorials', icon: BookOpen },
+  { id: 'workbench', label: 'Workbench', icon: FlaskConical },
   { id: 'monitor', label: 'Monitor', icon: Activity }
 ]
 
