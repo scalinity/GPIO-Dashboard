@@ -2,6 +2,7 @@
 // the checks that keep model-supplied values inside what a part definition allows.
 import { z } from 'zod'
 import { parseHoleKey } from '../../core/geometry/breadboard'
+import { propProblem } from '../../core/defs/parts'
 import type { HoleRef, PartDef, SimModelId } from '../../core/model/types'
 
 /** A hole as text: "bb1:23e" (main area) or "bb1:top+.7" (rail). */
@@ -49,27 +50,8 @@ export function mergeProps(
 ): { props: Record<string, unknown> } | { error: string } {
   const props = { ...base }
   for (const { name, value } of given) {
-    const schema = def.properties[name]
-    if (!schema) {
-      const known = Object.keys(def.properties)
-      return {
-        error: `${def.id} has no property ${name}; ${known.length ? `its properties are ${known.join(', ')}` : 'it has none'}`
-      }
-    }
-    if (schema.type === 'number') {
-      if (typeof value !== 'number' || !Number.isFinite(value))
-        return { error: `${name} must be a number${schema.unit ? ` in ${schema.unit}` : ''}` }
-      if (
-        (schema.min !== undefined && value < schema.min) ||
-        (schema.max !== undefined && value > schema.max)
-      )
-        return { error: `${name} must be between ${schema.min ?? '-∞'} and ${schema.max ?? '∞'}` }
-    } else if (schema.type === 'enum') {
-      if (typeof value !== 'string' || !schema.options.includes(value))
-        return { error: `${name} must be one of ${schema.options.join(', ')}` }
-    } else if (typeof value !== 'boolean') {
-      return { error: `${name} must be true or false` }
-    }
+    const error = propProblem(def, name, value)
+    if (error) return { error }
     props[name] = value
   }
   return { props }

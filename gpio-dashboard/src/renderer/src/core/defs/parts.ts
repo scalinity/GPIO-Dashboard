@@ -59,6 +59,30 @@ export function checkPartDef(def: PartDef): string[] {
   return problems
 }
 
+/** Why `value` is not allowed for property `name` of `def`, or null when it is. */
+export function propProblem(def: PartDef, name: string, value: unknown): string | null {
+  const schema = def.properties[name]
+  if (!schema) {
+    const known = Object.keys(def.properties)
+    return `${def.id} has no property ${name}; ${known.length ? `its properties are ${known.join(', ')}` : 'it has none'}`
+  }
+  if (schema.type === 'number') {
+    if (typeof value !== 'number' || !Number.isFinite(value))
+      return `${name} must be a number${schema.unit ? ` in ${schema.unit}` : ''}`
+    if (
+      (schema.min !== undefined && value < schema.min) ||
+      (schema.max !== undefined && value > schema.max)
+    )
+      return `${name} must be between ${schema.min ?? '-∞'} and ${schema.max ?? '∞'}`
+  } else if (schema.type === 'enum') {
+    if (typeof value !== 'string' || !schema.options.includes(value))
+      return `${name} must be one of ${schema.options.join(', ')}`
+  } else if (typeof value !== 'boolean') {
+    return `${name} must be true or false`
+  }
+  return null
+}
+
 /** Parses and checks one definition, naming the file in any error. */
 export function loadPartDef(file: string, raw: unknown): PartDef {
   const parsed = PartDefSchema.safeParse(raw)

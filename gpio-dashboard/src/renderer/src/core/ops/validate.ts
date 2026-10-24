@@ -3,6 +3,7 @@
 // electrical problems in documents that are physically valid.
 import { boardDef, type BoardDef } from '../defs/boards'
 import { TBOARD, type TboardDef } from '../defs/controllers'
+import { propProblem } from '../defs/parts'
 import { columnPitches, holeKey, holePosition, isValidHole } from '../geometry/breadboard'
 import { tboardBlockedHoles, tboardPlacementProblems } from '../geometry/tboard'
 import type {
@@ -117,6 +118,10 @@ export function validateDoc(
       continue
     }
     partById.set(part.id, { part, def })
+    for (const [name, value] of Object.entries(part.props)) {
+      const problem = propProblem(def, name, value)
+      if (problem) add('BAD_PROP', `${part.id}: ${problem}`, [part.id])
+    }
     validatePart(part, def, boards, holeOk, add)
   }
 

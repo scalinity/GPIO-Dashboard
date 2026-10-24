@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { partDef } from '../defs/parts'
 import { TUTORIALS } from '../defs/tutorials'
 import type { CircuitDoc, HoleRef } from '../model/types'
+import type { PartDefs } from '../netlist/netlist'
 import type { EnvValue } from '../sim/behavior'
 import { BEHAVIORS } from '../sim/behaviors'
 import { Circuit } from '../sim/circuit'
@@ -116,9 +117,15 @@ describe('fixture 5: faults on fixture 3, with their candidate causes', () => {
     expect(r.netStates.get(18)).toMatchObject({ state: 'diverged', kind: 'wrong-level' })
     const pressedTwin = structuredClone(twin)
     pressedTwin.parts.find((p) => p.id === 'SW1')!.props = { mode: 'momentary', pressed: true }
+    // The sim reads a switch's state from its props, so for this document `pressed` is a property.
+    const pressable: PartDefs = (id) => {
+      const def = partDef(id)
+      const pressed = { type: 'boolean', label: 'Pressed', default: false } as const
+      return id === 'tact-switch-6mm' ? { ...def, properties: { ...def.properties, pressed } } : def
+    }
     const ranked = rankCandidates(
       pressedTwin,
-      partDef,
+      pressable,
       interpret(mockSweep(board, partDef, PINS)),
       PINS
     )
