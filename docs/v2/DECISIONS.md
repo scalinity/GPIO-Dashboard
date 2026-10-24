@@ -3122,3 +3122,105 @@ declare it.
   schema's `checkpoints`) that follows the step in hand, and the panel renders one under the step
   when it is set. It is `null` until M11, which fills it from the tutorial's
   `checkpoints[].afterStep` and runs the I2C scan, the press watch or the LED toggle (SPEC 14.4).
+
+## ADR-S-1 A step is confirmed by the pins its own change reads on, and its signatures are computed once
+
+- **Context.**
+  - `checkStep` counted a pin as changed when its whole row of the pair table differed. GPIO2 and
+    GPIO3 are observable on any board, through the Pi's 1.8 kΩ board pull-ups (ADR-0013), and always
+    match. A step that only changed how some other pin answers them (an LED path to 3V3, say) put
+    them in `changed` and was confirmed. On a full 26-pin probe 34 steps of the shipped tutorials
+    were confirmed, 24 of them on no evidence about the step, where SPEC 14.5 says an LED path is
+    never shown as verified. The core test passed because it probed three pins.
+  - It simulated the board before and after the step on every call: 0.15 to 0.5 s on most
+    tutorials, 3.1 s on four-digit-seven-segment, 6.8 s on led-dot-matrix, against a sweep every
+    250 ms. Build Mode (ADR-0112) worked round both with a copy of the rule and a worker.
+- **Decision.**
+  - `changedPins(before, after, pins)` is the rule: a pin counts when it is observable after the
+    step and its own bias reading changed, or its reading against another observable pin changed, in
+    either direction. A step that changes no such pin is "not electrically verifiable" and waits for
+    Done or a checkpoint.
+  - The check is two halves. `stepSignatures(doc, steps, index, pins, defs)` simulates the board
+    before and after the step once and returns `{ before, after, changed }`; `stepSignaturesOf` does
+    the same from two signatures a worker already computed. `judgeStep(signatures, measured)` compares
+    one sweep with them and does no simulation (0.1 to 0.5 ms on a full probe). `checkStep` is the
+    two in one call.
+  - `state/buildCheck.ts` is `judgeStep` on `stepSignaturesOf` and holds no rule of its own.
+    `StepChecker` (`state/buildSense.ts`) still asks its worker for one signature per step and pin
+    set and is otherwise as it was.
+  - The pins of a full probe are the finished document's probed GPIOs, which is what Board Sense
+    senses (`senseStore` probes `signature.probed` of the open document).
+- **Consequences.**
+  - On a full probe 10 of the 34 confirm and 24 read "not electrically verifiable". The 10 are the
+    pull-up or tie lead of the active buzzer, passive buzzer, Button, tilt switch, morse code and
+    ultrasonic tutorials (one each), and W30 to W33 of four-digit-seven-segment.
+  - ADR-0112's request of core is met, and the test it asked for, which pinned the difference
+    between the local rule and core's, is replaced by tests of core on the shipped tutorials
+    (ADR-S-4).
+  - Per-step cost for Build Mode is the signatures, once per step and pin set; judging is free.
+
+## ADR-S-2 A probe that cannot converge reports a board it knows nothing about
+
+- **Context.** `probeSignature` threw `ConvergenceError: gmin stepping stalled at 1e-12` on
+  four-digit-seven-segment steps 45 to 51 (W34, W21, W22, W25, W27, W29, W24). The bias and
+  precharge solves converge there. Two corners of the pair test's transient stall: GPIO5 driving
+  high at 37 kΩ with 10 pF, and at 86 kΩ with 100 pF. The trapezoidal rule rings in the LED network
+  and Newton does not reach its relative tolerance of 1e-6. A finer step helps only one of the two;
+  1e-4 relative with 0.1 µV on a node settles both in 9 ms.
+- **Decision.**
+  - Every solve in `probeSignature` runs at the default tolerances and, if Newton does not
+    converge, once more at `reltol` 1e-4 and `vntol` 1e-7. A reading is classified against 0.8 V and
+    2.0 V, so 0.1 mV on 1 V moves none across a threshold.
+  - If that stalls too, `probeSignature` returns an unsolved signature instead of throwing: the
+    probed and skipped pins as usual, every reading ambiguous, no net observable, and `unsolved`
+    holding the reason. Any other error still throws.
+  - `changedPins` finds nothing changed for a step with an unsolved board on either side, so
+    `judgeStep` says "not electrically verifiable": with one board unknown, what the step changed is
+    unknown. Build Mode's "Board Sense cannot check this step" remains for an error from its worker.
+  - `mockSweep` throws for an unsolved board. A pad always reads something, and a stand-in that
+    invented a reading would hide the board.
+- **Consequences.**
+  - All 56 boards of four-digit-seven-segment solve on the pins Board Sense probes there. Steps 45
+    to 51 read "not electrically verifiable", as 52 of its 56 steps do.
+  - Ranking candidate causes no longer aborts on a candidate that does not solve; it scores lowest.
+    The Board tab shows every net of an unsolvable twin as unobserved instead of failing.
+  - A board that stalls at both tolerances still has no readings. The test for that stubs the solve,
+    because no shipped board stalls any more.
+
+## ADR-S-3 `docUpTo` finds a step by its key
+
+- **Context.** `docUpTo` kept the parts and leads whose id was among the `refs` of steps 0 to the
+  index. Part ids and lead ids are unique only within their own lists (ADR-0092), so a part and a
+  lead with one id both appeared with either one's step.
+- **Decision.** It keeps a part when `stepKey('part', id)` is the key of one of those steps and a
+  lead when `stepKey('wire', id)` is. The signature is as it was, so the Studio and the e2e tests
+  call it unchanged. `refs` stays for tutorial checkpoints.
+- **Consequences.** The T-board step, whose key is `tboard`, adds nothing to the document, even to
+  a part named `tboard`.
+
+## ADR-S-4 The full-probe check of the shipped tutorials is split over four files, and two tutorials are opt-in
+
+- **Context.** SPEC 14.5 and 18 ask for the observability rule to hold on the tutorials, not on
+  three probed pins. That needs a signature of the board at every step of all 26 tutorials, 26
+  candidate GPIOs each: 411 steps. A signature costs 0.1 s to 3 s, in one file the set takes about
+  190 s of simulation (led-dot-matrix 80 s over 36 steps, four-digit-seven-segment 59 s over 56, the
+  other 24 about 61 s), and the rest of the suite runs in 7 s.
+- **Decision.**
+  - `core/sense/tutorialSteps.ts` runs one tutorial: the pins are the finished document's probed
+    GPIOs, as Board Sense probes them; one signature per step; and for every step, the signatures
+    are joined and judged.
+  - A step in `SEEN` must change an observable pin other than GPIO2 and GPIO3, confirm against the
+    mock agent's board as built, and read "waiting" against its board one step short. Every other
+    step must change nothing, and read "not electrically verifiable" against a board that agrees with
+    its prediction exactly. The 24 steps the old check confirmed on no evidence are also judged
+    against the mock agent's board as built. Every board must solve.
+  - Three test files take a third of the tutorials each by position (about 29 s together, run in
+    parallel). `buildStepsTutorialsHeavy.test.ts` takes led-dot-matrix and
+    four-digit-seven-segment and runs only with `FULL_PROBE=1` (about 150 s); otherwise vitest
+    reports it skipped.
+- **Consequences.**
+  - A new tutorial or a changed one is checked on a full probe with no list to extend, unless it has
+    a step Board Sense can see, which goes in `SEEN`.
+  - Neither opt-in tutorial has a step in `FORMERLY_CONFIRMED`. Four-digit-seven-segment's four
+    seen steps (W30 to W33) are checked only when `FULL_PROBE=1`; two of its boards that stalled
+    (steps 45 and 48) are solved on every run by `buildSteps.test.ts`.
