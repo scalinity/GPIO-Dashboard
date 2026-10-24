@@ -46,6 +46,10 @@ interface Flags {
   checksOnly: boolean
   /** Minutes to wait for the organization to accept web search before running; 0 for none. */
   waitForSearch: number
+  /** Assume web search is available, and send refused requests again. */
+  search: boolean
+  /** Take web search out of the request: only web fetch is offered. */
+  noSearch: boolean
   skipChecks: boolean
   rescore: boolean
   budgetUsd: number
@@ -63,6 +67,8 @@ function parseFlags(argv: string[]): Flags {
     only: value('only')?.split(',').filter(Boolean) ?? null,
     checksOnly: flag('checks-only'),
     waitForSearch: Number(value('wait-for-search') ?? 0),
+    search: flag('search'),
+    noSearch: flag('no-search'),
     skipChecks: flag('skip-checks'),
     rescore: flag('rescore'),
     budgetUsd: Number(value('budget') ?? 60),
@@ -332,25 +338,44 @@ function savedWeb(): Web | null {
   return (JSON.parse(readFileSync(LIVE_CHECKS_FILE, 'utf8')) as { web: Web }).web
 }
 
+/** How often a request is sent again when the organization refuses web search. */
+const SEARCH_RESENDS = 15
+
+/** What the organization says when it refuses web search. */
+const SEARCH_REFUSED = /Web search is not enabled for this organization/
+
 /**
  * The SDK's placeholder bearer, replaced by the real key as the Rust proxy does in the app. When
  * the organization has web fetch but not web search, the search tool is taken out in transit,
  * after the tape has recorded the request as the loop built it.
+ *
+ * The organization's web search is refused for some requests and not for others, seconds apart. A
+ * request carrying it that is refused that way is sent again, unchanged, as an HTTP proxy would;
+ * the loop and the tape see only the answer that stuck. `resent` counts the repeats.
  */
-function liveFetch(key: () => string, web: () => Web): typeof fetch {
-  return (input, init) => {
+function liveFetch(key: () => string, web: () => Web, resent: { count: number }): typeof fetch {
+  return async (input, init) => {
     const headers = new Headers(init?.headers)
     headers.delete('x-api-key')
     headers.set('authorization', `Bearer ${key()}`)
     let body = init?.body
-    if (typeof body === 'string' && web().fetch && !web().search) {
+    let carriesSearch = false
+    if (typeof body === 'string') {
       const request = JSON.parse(body) as { tools?: { name?: string }[] }
-      if (request.tools?.some((t) => t.name === 'web_search')) {
-        request.tools = request.tools.filter((t) => t.name !== 'web_search')
+      carriesSearch = !!request.tools?.some((t) => t.name === 'web_search')
+      if (carriesSearch && web().fetch && !web().search) {
+        request.tools = request.tools!.filter((t) => t.name !== 'web_search')
         body = JSON.stringify(request)
+        carriesSearch = false
       }
     }
-    return fetch(input, { ...init, headers, body })
+    for (let attempt = 1; ; attempt++) {
+      const response = await fetch(input, { ...init, headers, body })
+      if (!carriesSearch || response.status !== 400 || attempt >= SEARCH_RESENDS) return response
+      if (!SEARCH_REFUSED.test(await response.clone().text())) return response
+      resent.count += 1
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+    }
   }
 }
 
@@ -362,7 +387,9 @@ async function runLive(
 ): Promise<number> {
   const exact = key()
   let web: Web = savedWeb() ?? { search: true, fetch: true }
-  const live = liveFetch(key, () => web)
+  if (flags.noSearch) web = { search: false, fetch: true }
+  const resent = { count: 0 }
+  const live = liveFetch(key, () => web, resent)
   let spent = 0
   console.log(`Live mode: ${flags.model}, budget ${money(flags.budgetUsd)}.`)
 
@@ -371,14 +398,17 @@ async function runLive(
     web = found.web
     spent += found.spent
   }
-  if (flags.waitForSearch > 0) {
-    const open = await waitForSearch(live, flags.model, flags.waitForSearch)
+  if (flags.waitForSearch > 0 || flags.search) {
+    const open = flags.search ? true : await waitForSearch(live, flags.model, flags.waitForSearch)
     if (open) {
       web = { search: true, fetch: true }
       const check = await serverTools(live, flags.model, web)
       spent += check.costUsd
       console.log(`  ${check.answer ? 'YES' : 'NO'}  ${check.question}\n        ${check.summary}`)
       replaceSavedCheck(check, exact)
+    } else {
+      // Still refused: the datasheet prompt then runs with web fetch alone.
+      web = { ...web, search: false }
     }
   }
   if (flags.checksOnly) return 0
@@ -396,6 +426,7 @@ async function runLive(
     const seed = await seedFor(prompt, finished, python)
     const useWeb = prompt.webTools && (web.search || web.fetch)
     console.log(`  ${prompt.id}`)
+    resent.count = 0
     // This organization's web search comes and goes: a request that carries the tool is sometimes
     // refused with 400 "Web search is not enabled for this organization" (docs/v2/EVALS.md). The
     // loop has no answer to that, so a run it ended that way is made again. A refused request
@@ -447,12 +478,18 @@ async function runLive(
         recorded: easternDate(),
         sdk: '1.3.0',
         expected: expectedOf(checks),
-        notes:
-          useWeb && !web.search
+        notes: [
+          ...(useWeb && !web.search
             ? [
                 'web_search was removed from the tool list in transit: the organization has no web search'
               ]
-            : []
+            : []),
+          ...(resent.count
+            ? [
+                `The organization refused web search for ${resent.count} request(s), 400 "Web search is not enabled for this organization"; each was sent again unchanged until one was accepted, and the exchanges here are the accepted ones.`
+              ]
+            : [])
+        ]
       },
       tape.exchanges,
       exact

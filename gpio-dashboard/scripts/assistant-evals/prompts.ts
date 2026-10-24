@@ -777,10 +777,11 @@ export const PROMPTS: EvalPrompt[] = [
       const custom = run.final.customParts ?? []
       const def = custom[0]
       const web = run.calls.filter((c) => c.server)
+      const looked = web.filter((c) => c.ok)
       const cited = def?.provenance.sources.filter((s) => /^https:\/\//.test(s)) ?? []
       const used = def ? run.final.parts.some((p) => p.defId === def.id) : false
       const mixed =
-        run.turns.length > 0 && web.length > 0 && calls(run, 'define_custom_part').length > 0
+        run.turns.length > 0 && looked.length > 0 && calls(run, 'define_custom_part').length > 0
       return [
         check(
           'custom-part',
@@ -796,12 +797,12 @@ export const PROMPTS: EvalPrompt[] = [
         ),
         check(
           'web-tools',
-          'Looked the datasheet up with the web tools',
-          web.length > 0,
+          'Looked the datasheet up with the web tools (a call that returned)',
+          looked.length > 0,
           [...new Set(web.map((c) => `${c.name}${c.ok ? '' : ' (failed)'}`))].join(', ')
         ),
         check('i2c', 'The code uses I2C', codeDirections(run.final).i2c, ''),
-        check('mixed-turn', 'Mixed web and client tools in one run', mixed, '')
+        check('mixed-turn', 'Web and client tools both worked in one run', mixed, '')
       ]
     }
   }
