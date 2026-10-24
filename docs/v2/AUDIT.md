@@ -19,22 +19,29 @@ contradicts the kit) · *Cosmetic*. Unsafe findings are listed first.
 **Code and theory** in the rebuilt tutorials are written for this app (ADR-0016): they follow
 the kit's pins, polarity and behaviour, and copy no code or prose from the kit.
 
-## Findings
+## Unsafe for hardware
 
-| # | Item | Baseline | Correct | Source | Severity | Guarded by | Status |
-|---|------|----------|---------|--------|----------|------------|--------|
-| A1 | blinking-led placement | LED anode in row 23 column e, resistor in rows 22–23 | On the bench the T-board body covers columns d–h of rows 21–23 (`tboardBlockedHoles`), so 23e cannot take a lead. The rebuild uses rows 30–35 | SPEC 6.6; `content/controllers/tboard.json` (ADR-0004) | Doesn't work | placement check (`validateDoc`) | Fixed |
-| A2 | blinking-led circuit | GPIO17 → 220 Ω → LED → GND, active high | 3.3 V → 220 Ω → LED anode; cathode → GPIO17, active low | [Kit 1.1.1](https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.1.1%20Blinking_LED.html) | Misleading | sim: "GPIO17 LOW lights D1…", "GPIO17 HIGH turns D1 off" | Fixed |
-| A3 | blinking-led code | `GPIO.HIGH` turns the LED on; no initial level | With the kit's wiring LOW lights it; the pin starts HIGH (dark) | Kit 1.1.1 | Misleading | the same sim assertions; code/netlist pin check | Fixed |
-| A4 | blinking-led theory | "The longer leg … connects toward the GPIO pin"; "When GPIO17 outputs HIGH … lighting it up" | The anode goes to 3.3 V through the resistor and the cathode to GPIO17; LOW lights it. Values are templated from the doc | Kit 1.1.1 | Misleading | theory renders from the doc | Fixed |
+Every finding of that severity, gathered from the sections below once the audit is complete.
 
 ## Tutorials
 
-### Blinking LED (`blinking-led`, kit 1.1.1)
+Each section covers one rebuilt tutorial and the baseline tutorial it replaces (if any). Its
+findings are numbered `<tutorial id>-<n>`.
+
+<!-- section:blinking-led -->
+### Blinking LED (`blinking-led`, kit 1.1.1; baseline `blinking-led`)
 
 Sources: [kit 1.1.1](https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.1.1%20Blinking_LED.html),
 Kingbright WP7113ID (red 5 mm LED), Yageo CFR (resistor), Raspberry Pi GPIO documentation.
-Findings: A1–A4. Generated wiring table and build steps:
+
+| # | Item | Baseline | Correct | Source | Severity | Guarded by | Status |
+|---|------|----------|---------|--------|----------|------------|--------|
+| blinking-led-1 | placement | LED anode in row 23 column e, resistor in rows 22–23 | On the bench the T-board body covers columns d–h of rows 21–23 (`tboardBlockedHoles`), so 23e cannot take a lead. The rebuild uses rows 30–35 | SPEC 6.6; `content/controllers/tboard.json` (ADR-0004) | Doesn't work | placement check (`validateDoc`) | Fixed |
+| blinking-led-2 | circuit | GPIO17 → 220 Ω → LED → GND, active high | 3.3 V → 220 Ω → LED anode; cathode → GPIO17, active low | [Kit 1.1.1](https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.1.1%20Blinking_LED.html) | Misleading | sim: "GPIO17 LOW lights D1…", "GPIO17 HIGH turns D1 off" | Fixed |
+| blinking-led-3 | code | `GPIO.HIGH` turns the LED on; no initial level | With the kit's wiring LOW lights it; the pin starts HIGH (dark) | Kit 1.1.1 | Misleading | the same sim assertions; code/netlist pin check | Fixed |
+| blinking-led-4 | theory | "The longer leg … connects toward the GPIO pin"; "When GPIO17 outputs HIGH … lighting it up" | The anode goes to 3.3 V through the resistor and the cathode to GPIO17; LOW lights it. Values are templated from the doc | Kit 1.1.1 | Misleading | theory renders from the doc | Fixed |
+
+Generated wiring table and build steps:
 
 <!-- generated:blinking-led -->
 | Ref | Part | Pin | Hole | Net |
@@ -54,3 +61,4 @@ Findings: A1–A4. Generated wiring table and build steps:
 4. Use a red 20 cm male–male jumper (W1) from row 1 column a to row 30 column a.
 5. Use a yellow 20 cm male–male jumper (W2) from row 35 column a to row 6 column a.
 <!-- /generated:blinking-led -->
+<!-- /section:blinking-led -->
