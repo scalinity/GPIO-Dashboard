@@ -1834,3 +1834,183 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** A reopened project shows the lead within 1.4 mm of where it was left
   (three runs). On release the lead's slack takes that settled shape at once rather than
   staying where the drag left it.
+
+## ADR-P2-1 Contacts are solved in one canonical order, with the push on any particle capped
+
+- **Context.** ADR-0063 left a dense pile of 40 leads awake for more than 5 s, and ADR-0062
+  tried friction between cables to settle it, without success. The cause was the order. The
+  hash returned a segment's candidates in cell order, which changes whenever a padded box
+  crosses a cell, and Gauss-Seidel contacts give a different result in a different order, so a
+  pile that had nearly converged rang between two orderings, frame after frame. Freezing the
+  pair list after settling stopped the ringing; so did sorting each segment's candidates (the
+  same pile then slept in about 1.9 s). A second source, found by tracing one particle through
+  a substep, was a contact point near a clamped end: the contact's weight on the one free
+  particle was 0.012, so a 0.02 mm overlap moved it 1.7 mm and kicked the segment.
+- **Decision.**
+  - Each segment's kept candidates are inserted in ascending primitive number, and the awake
+    list stays in body order after a sleeper is woken. Cable-cable, cable-ribbon and surface
+    contacts then run in an order that depends on the numbers alone.
+  - A contact moves no particle more than twice the depth it is resolving (`MAX_SHARE`);
+    the rest clears over the next substeps.
+  - A body under 40 mm/s is damped at 60/s (was 14/s): it comes to rest instead of
+    hovering above the sleep speed.
+- **Consequences.**
+  - The pile slept in 80 of 80 layouts tried (40 leads of 165 mm and of 200 mm, each between
+    distinct holes) and in 40 of 40 whose housings overlap, as the old random timing layout's
+    do (two housings within 1 mm, which 2.54 mm housings cannot do).
+  - Hash order no longer matters, so the pair search may change without changing results.
+
+## ADR-P2-2 Sleep: speed over ten frames, sleepers woken only by moving bodies
+
+- **Context.** After ADR-P2-1 some piles still rang by microns: a 0.0126 mm cycle of three
+  frames, a 0.15 mm cycle of five in a stack where a taut lead is pressed on another against
+  the board (corrections of 0.2 to 0.35 mm a substep that cancel). Frame to frame that is 1 to
+  16 mm/s. The integrator also found, replaying the seven-segment tutorial, that an awake body
+  at rest woke every sleeper whose padded box it overlapped, so close islands woke each other
+  in turn and never slept together.
+- **Decision.**
+  - A body's speed for sleeping is the farthest any particle has travelled over the last 10
+    frames, divided by the window (`SLEEP_WINDOW`); it sleeps after 30 frames below 0.5 mm/s,
+    as before. A ring of positions holds the window. A ring cancels, and a drift is still
+    caught at the same 0.5 mm/s.
+  - `wakeTouching` wakes a sleeper only for an awake body expected to travel more than
+    0.5 mm/s over the frame (`move`), and a body woken that way is assumed at rest.
+  - `settle()` damps every body at the slow rate while it runs. Dropped freely, a lead can
+    fall to the far side of a ridge and rest in a different, equally valid shape, and a project
+    reopened that way looked up to 5 mm different from the one saved (e2e route-hint flow);
+    settled slowly it is within 1 mm.
+- **Consequences.**
+  - Every scene in sleep.test.ts sleeps within 2 s of its last anchor change (0.63 to 0.98 s;
+    the dense pile 0.87 to 1.18 s after a drag), and the step it sleeps on moves nothing by
+    more than 0.02 mm. From its design curves the pile takes 93 to 123 frames to sleep.
+  - A body drifting at under 0.5 mm/s over the whole window can sleep before it has reached
+    its equilibrium. The slow modes of a soft lead were the worry; none showed up.
+  - The wake rule follows the integrator's trace. The headless pairs tried (two leads 1.6 to
+    3.6 mm apart, parallel, diagonal, crossing) sleep with the old rule too, so the tests do not
+    reproduce the tutorial's failure; they hold the result.
+  - ADR-0063's numbers (45 frames for a lead alone, 85 from a design curve) hold; its 5 s pile
+    does not.
+
+## ADR-P2-3 Contact pairs carry their gap and the solvers skip what cannot touch
+
+- **Context.** SPEC 10.8 gives the physics 4 ms a frame for the heaviest scene. ADR-0062's
+  pair list held 3000 to 13000 cable pairs, of which 300 to 800 were within 0.1 mm, each read,
+  and tested with a closest-points routine, in all 12 substeps. Measured on this Mac in Node 26
+  (M5 Pro, machine busy: interleaved runs, range of three, mean / p95 ms over the frames that
+  did work), for 40 leads plus the ribbon:
+
+  | 165 mm of wire (a 200 mm lead as sold) | before | after |
+  |---|---|---|
+  | opening settle (offscreen) | 6.9 to 7.2 / 13.5 to 14.8 | 4.0 to 4.4 / 9.4 to 10.0 |
+  | dragging the ribbon's socket | 5.0 to 5.5 / 5.6 to 7.0 | 2.5 to 2.8 / 3.5 to 3.9 |
+  | moving the whole board | 8.2 to 8.7 / 9.0 to 10.8 | 3.4 to 4.0 / 3.7 to 4.5 |
+
+  | 200 mm of wire (the first measurement's scene) | before | after |
+  |---|---|---|
+  | opening settle | 8.0 to 8.4 / 14.1 to 16.2 | 4.7 to 5.1 / 10.7 to 11.2 |
+  | dragging the ribbon's socket | 6.6 to 7.0 / 7.5 to 8.8 | 3.8 to 3.9 / 4.6 |
+  | moving the whole board | 10.8 to 11.6 / 12.7 to 13.3 | 4.5 to 4.9 / 4.8 to 5.9 |
+
+  Phase means (mean / p95 ms) for the whole board at 165 mm, before to after: prepare 0.23 to
+  0.24, colliders 0.03 to 0.06, pair search 2.11 to 1.03, predict 0.20 to 0.18, chains
+  1.34 to 1.09, cable contacts 4.48 to 0.44, surface contacts 0.77 to 0.42, velocity 0.10 to
+  0.09, finish 0.07 to 0.05. `WorldOptions.profile` and `phaseTimes()` report them.
+- **Decision.**
+  - Every cable and surface record keeps the gap it had when the frame began. Each substep,
+    after the constraints, each body's farthest travel since the frame began plus 0.1 mm is
+    measured; a record whose gap exceeds its two bodies' sum cannot be touching and is
+    passed over (`measure`, `solveRodPairs`, `solveSurfaces`). Measuring before the contacts,
+    not predicting from the last substep, is what keeps this exact: the predicted bound
+    missed contacts and the pile stopped sleeping.
+  - Cable-cable contacts are one inlined kernel on typed records. A cable lying over a box
+    face (most surface contacts) takes a closed form instead of the piecewise segment-box
+    minimisation. The curvature constraint's multiplier is precomputed, so it needs no square
+    root or division. The chain solve shares one set of work arrays and applies each multiplier
+    as it is found. The hash scan stops at ids not above the query segment, and broad-phase
+    boxes are padded by half the skin each.
+  - A body that is awake keeps its measured speed when an anchor moves (it was reset to
+    "falling", which tripled its expected travel and so its pair list).
+- **Consequences.** The mean is about 4 ms or under for a socket drag and for moving the whole
+  board with the leads as sold (165 mm of wire); the opening settle, which runs offscreen,
+  is 4.0 to 4.4. With 200 mm of wire (35 mm more than any such lead has) the whole board is
+  4.5 to 4.9. The p95 of the board drag is 3.7 to 4.5. Not done: reusing a pair list across
+  frames (the drags move bodies about 0.5 mm a frame, so a list would be rebuilt every second
+  frame at best), fewer collision segments per lead (a 6 mm capsule would cut a bend of 10 mm
+  radius by 0.45 mm), 10 substeps (tests pass, but the sheet then sinks 1.1 mm into a plate
+  edge it is dragged over).
+
+## ADR-P2-4 The ribbon's sheet is tested against boxes a strip at a time
+
+- **Context.** ADR-0061's ribbon contacts act on grid particles, 5 mm apart along and 8.5 mm
+  across. The Pi's micro-HDMI housing (7.19 mm wide), a Dupont housing (2.54), a PCB edge
+  (1.6) fit between them: in the integrator's e2e flows the sheet sat 0.77 to 1.30 mm in the
+  Pi's `OBJ5053` after look-dev moved the IDC cable's exit, and 0.69 mm with 9 columns. A push
+  on one particle also moved its row's centre by 1/columns of it, because the rows are re-laid
+  from their centres every substep.
+- **Decision.**
+  - The sheet between two neighbouring rows is two triangles on the four corner particles
+    (the rows are straight). Each is tested against a box inflated by half the sheet's
+    thickness with a separating-axis test (three face normals, the triangle's plane, nine edge
+    pairs). On overlap each row is carried clear along the way out by the depth of its own
+    deepest corner and no more, every particle of the row together, and its sliding on the
+    collider is cancelled up to the Coulomb limit (`strips.ts`). Carrying both rows by the
+    triangle's deepest corner lifted a row that was resting on the surface: it hopped.
+    Capsule colliders keep the particle test.
+  - The row direction between the sockets turns about the axis between their width axes
+    (`turnWidthAxis`). The linear blend shrank to nothing, and the rows with it, where the axes
+    point opposite ways. An exact reversal turns about the cable's own direction.
+- **Consequences.** A housing placed off every row and column, a 1.6 mm plate edge under a
+  dragged socket, and a housing raised through a settled ribbon stay within 0.0 mm of the
+  box (1.1 to 1.2 mm with particles alone); a 7.19 mm box is cleared at 5, 7 and 9 columns,
+  and no integrator physics flow reports the ribbon inside a collider any more (the one that
+  still fails does so on a pointer offset, ADR-P2-5). The push is along the shallowest
+  separating axis, not necessarily the one a viewer would choose, for a collider that pierces
+  a strip's interior with no corner behind it.
+
+## ADR-P2-5 Bending stiffness: leads 2 N mm^2, ribbon 50, and why not more
+
+- **Context.** `leadEI` was 3e4 g mm^3/s^2 (0.03 N mm^2), two to three orders under a real
+  stranded 26-28 AWG jumper (copper strands and a soft PVC jacket: 1 to 25 N mm^2), and the
+  ribbon's 1.5e7 (15 N mm^2) an order or two under a 40-way cable (100 to 500). The
+  integrator saw leads whose slack drops off the board edge and a ribbon that curls down
+  onto the table.
+- **Decision.** `leadEI` = 2e6 and `ribbonEI` = 5e7. A lead of 2 N mm^2 holds itself up for
+  about 92 mm ((7.8 EI / weight per mm)^(1/3)). With the sleep fixes the pile sleeps better
+  stiffer: over 40 layouts at 165 mm and 40 at 200 mm the worst took 181 and 138 frames at
+  2e6, and 196 and 354 at 3e4. The ribbon stays below its real range because at 1.5e8 the
+  Studio's check that the ribbon measures its 200 mm along a row fails (199.5 mm: the polyline
+  bends hard at the clamps) and at 10 substeps it sinks into a plate edge.
+- **Consequences.**
+  - Above about 1e6 the lead's EI changes no shape: the bending constraint is then rigid in
+    effect, and one forward and one back sweep a substep carry its stiffness only so far along
+    55 particles, so the leads still lean out of their housings after about 17 mm and fall over
+    a board's edge. Tripling the substeps (36) lifts the stub to 24 mm, and so do two extra
+    sweeps of the six joints nearest each housing, for 44% more bending work, but sleeping
+    then slows (2.2 s for one scene) and eight scenes no longer rest on what they were built
+    around. Stiff arches need a direct solve of the bending constraints along the chain (as the
+    stretch constraints have, ADR-0060), not a bigger number. That is the next step, not done
+    here.
+  - Two scenes that assumed a floppy lead are rebased: a lead over a wall, and the wall removed,
+    use 90 mm of wire. After the wall is removed the middle ends within 0.1 mm of where an
+    identical lead with no wall rests.
+  - The e2e flow "dragging the module drags its leads" (physics.spec.ts) fails at every
+    `leadEI` above 3e4 tried (1e5, 3e5, 1e6, 2e6): the pointer goes to the module's pose plus
+    (8, 8, 8) mm, and with the leads' changed arch no anchor moves (the host sent none), which
+    fits the pointer now landing on a lead. It is a pointer offset in the test, not a solver
+    defect.
+
+## ADR-P2-6 A lead's length is the wire between its housings
+
+- **Context.** ADR-0042 settled that a lead's listing length (200 mm) runs tip to tip, and that
+  the wire between the housing exits is `wireLengthMm(length, kind)`: 165 mm for a male-male
+  lead. `LeadDef.lengthMm` took the wire length but carried the name of the listing's, and the
+  timing scene fed it 200.
+- **Decision.** `LeadDef` takes `wireMm`, documented as the figure `wireLengthMm` returns.
+  `lengthMm` stays as a second name for the same wire length, so a caller written against the
+  first version still works (the type allows one of the two). Rest length, over-span
+  relaxation and the taut flag all read it, so the flag follows reach.ts: a lead is taut when
+  the distance between its housing exits plus twice the minimum bend radius exceeds the wire.
+- **Consequences.** leads.test.ts holds a 200 mm male-male lead to 165 mm of wire (165.04 at
+  rest), the male-female and female-female figures to 170.5 and 176, and the taut flag to
+  reach.ts's rule at its threshold. `lengthMm: 200` would rest a lead at 200 mm of wire: the
+  physics host's `addLead` call should pass `wireMm: wireLengthMm(wire.lengthMm, wire.kind)`.
