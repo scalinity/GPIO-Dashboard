@@ -74,4 +74,39 @@ describe('ERC with library parts', () => {
     d.wires.push(wire('W1', at(9, 'j'), pin('M1', 'PWM')))
     expect(erc(d, partDef).filter((i) => i.severity === 'error')).toEqual([])
   })
+
+  it('warns when two 5 mm LEDs in neighbouring row pairs touch, and not with a row between', () => {
+    const leds = (secondRow: number) => {
+      const d = emptyDoc()
+      d.parts.push(
+        part('D1', 'led', { A: hole(40, 'a'), K: hole(41, 'a') }),
+        part('D2', 'led', { A: hole(secondRow, 'a'), K: hole(secondRow + 1, 'a') })
+      )
+      return d
+    }
+    expect(codes(leds(42), 'PHYSICAL_COLLISION')).toEqual(['PHYSICAL_COLLISION:warning'])
+    expect(codes(leds(44), 'PHYSICAL_COLLISION')).toEqual([])
+  })
+
+  it('lets resistors lie side by side in neighbouring columns, but not across a DIP body', () => {
+    const d = emptyDoc()
+    d.parts.push(
+      part('R1', 'resistor', { 1: hole(40, 'a'), 2: hole(44, 'a') }),
+      part('R2', 'resistor', { 1: hole(40, 'b'), 2: hole(44, 'b') })
+    )
+    expect(codes(d, 'PHYSICAL_COLLISION')).toEqual([])
+    const pins = Object.fromEntries(
+      partDef('ic-74hc595').pins.map((p) => {
+        const [x, y] = p.offsetPitch
+        return [p.id, hole(50 + x, y === 0 ? 'e' : 'f')]
+      })
+    )
+    d.parts.push(
+      part('U1', 'ic-74hc595', pins),
+      // Bridging the trench from d to g on one of the IC's rows passes under the package.
+      part('R3', 'resistor', { 1: hole(52, 'd'), 2: hole(52, 'g') })
+    )
+    const found = erc(d, partDef).filter((i) => i.code === 'PHYSICAL_COLLISION')
+    expect(found.map((i) => [i.severity, ...i.refs])).toEqual([['warning', 'U1', 'R3']])
+  })
 })

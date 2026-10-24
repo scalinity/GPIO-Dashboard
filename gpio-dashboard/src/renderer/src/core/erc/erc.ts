@@ -3,9 +3,9 @@
 // Rules that need simulated currents (PIN_OVERCURRENT, RAIL_BUDGET, and LED_NO_LIMIT's current
 // check) are added with the simulator (M3).
 import { codePins, type PinUse } from '../code/pins'
-import type { CircuitDoc, PartDef } from '../model/types'
+import type { CircuitDoc, PartDef, PartInstance, Vec2 } from '../model/types'
 import { boardDef } from '../defs/boards'
-import { holeKey, stripKey } from '../geometry/breadboard'
+import { holeKey, holePosition, stripKey } from '../geometry/breadboard'
 import type { Net, Netlist, PartDefs } from '../netlist/netlist'
 import { netlist as buildNetlist, occupancy } from '../netlist/netlist'
 import { leadReach, ribbonReach } from '../reach/reach'
@@ -70,6 +70,60 @@ const pinsWithModel = (ctx: Ctx, models: string[]) =>
     const def = ctx.defs(part.defId)
     return models.includes(def.sim.model) ? [{ part, def }] : []
   })
+
+/** Leads bend and LEDs splay, so bodies may touch this much before they count as colliding. */
+const COLLISION_TOLERANCE_MM = 0.3
+
+/** A body in plan view: its centre, a unit vector along the part's x axis, and half its size. */
+interface Outline {
+  part: string
+  board: string
+  c: Vec2
+  u: Vec2
+  half: Vec2
+}
+
+/**
+ * The body sits centred on its pins (for a part whose body overhangs to one side, such as the
+ * potentiometer, this is an approximation). bodyMm[0] runs along the pin-offset x axis: the lead
+ * direction for two-lead parts, the board's rows for rigid ones unless turned 90°.
+ */
+function outline(ctx: Ctx, part: PartInstance): Outline | null {
+  const def = ctx.defs(part.defId)
+  if (def.footprint.kind === 'offboard') return null
+  const holes = def.pins.map((p) => part.placement.pins[p.id] ?? null)
+  const board = holes[0]?.board
+  const instance = ctx.doc.boards.find((b) => b.id === board)
+  if (!instance || holes.some((h) => !h || h.board !== board)) return null
+  const points = holes.map((h) => holePosition(boardDef(instance.defId), h!))
+  const c: Vec2 = [
+    points.reduce((sum, p) => sum + p[0], 0) / points.length,
+    points.reduce((sum, p) => sum + p[1], 0) / points.length
+  ]
+  let u: Vec2 = [1, 0]
+  if (def.footprint.kind === 'flex-2lead') {
+    const [a, b] = points as [Vec2, Vec2]
+    const length = Math.hypot(b[0] - a[0], b[1] - a[1])
+    u = [(b[0] - a[0]) / length, (b[1] - a[1]) / length]
+  } else if (part.placement.rotationDeg === 90 || part.placement.rotationDeg === 270) {
+    u = [0, 1]
+  }
+  return { part: part.id, board: board!, c, u, half: [def.bodyMm[0] / 2, def.bodyMm[1] / 2] }
+}
+
+/** How far two outlines overlap along their least-overlapping axis (separating-axis test). */
+function overlapMm(a: Outline, b: Outline): number {
+  const radius = (o: Outline, axis: Vec2) =>
+    o.half[0] * Math.abs(o.u[0] * axis[0] + o.u[1] * axis[1]) +
+    o.half[1] * Math.abs(-o.u[1] * axis[0] + o.u[0] * axis[1])
+  const axes: Vec2[] = [a.u, [-a.u[1], a.u[0]], b.u, [-b.u[1], b.u[0]]]
+  return Math.min(
+    ...axes.map((axis) => {
+      const gap = Math.abs((b.c[0] - a.c[0]) * axis[0] + (b.c[1] - a.c[1]) * axis[1])
+      return radius(a, axis) + radius(b, axis) - gap
+    })
+  )
+}
 
 type Rule = (ctx: Ctx) => Issue[]
 
@@ -400,6 +454,25 @@ const RULES: Rule[] = [
         message: `The ribbon needs about ${Math.ceil(ribbon.requiredMm)} mm between its sockets but is ${ribbon.lengthMm} mm long.`,
         fix: 'Move the Pi closer to the breadboard.'
       })
+    }
+    return issues
+  },
+
+  function collision(ctx) {
+    const bodies = ctx.doc.parts.flatMap((part) => outline(ctx, part) ?? [])
+    const issues: Issue[] = []
+    for (const [i, a] of bodies.entries()) {
+      for (const b of bodies.slice(i + 1)) {
+        const depth = a.board === b.board ? overlapMm(a, b) : 0
+        if (depth <= COLLISION_TOLERANCE_MM) continue
+        issues.push({
+          code: 'PHYSICAL_COLLISION',
+          severity: 'warning',
+          refs: [a.part, b.part],
+          message: `${a.part} and ${b.part} overlap by about ${depth.toFixed(1)} mm, so they cannot both sit straight on the board.`,
+          fix: `Move ${b.part} along the board, or leave an empty row between them.`
+        })
+      }
     }
     return issues
   },
