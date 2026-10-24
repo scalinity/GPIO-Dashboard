@@ -184,8 +184,6 @@ fn is_gpio_state(raw: &str) -> bool {
 #[derive(Default)]
 struct Previous {
     gpio_state: Option<String>,
-    /// The last sweep without its timestamp: sweeps repeat while nothing on the board changes.
-    sweep: Option<Value>,
 }
 
 fn forward(emit: &Emit, raw: &str, previous: &mut Previous, sense_paused: &Notify) {
@@ -211,16 +209,9 @@ fn forward(emit: &Emit, raw: &str, previous: &mut Previous, sense_paused: &Notif
         Some("system_info") => emit("gpio:system-info", data),
         Some("output") => emit("agent:log", data),
         Some("agent_status") => emit("agent:status", data),
-        Some("sense_sweep") => {
-            let mut readings = data.clone();
-            if let Some(fields) = readings.as_object_mut() {
-                fields.remove("t");
-            }
-            if previous.sweep.as_ref() != Some(&readings) {
-                previous.sweep = Some(readings);
-                emit("gpio:sense", data);
-            }
-        }
+        // Every sweep goes through, repeats included: the app believes a change only when the
+        // next sweep reads the same (core/sense Reconciler), so a dropped repeat would hold it.
+        Some("sense_sweep") => emit("gpio:sense", data),
         Some("sense_event") => emit("gpio:sense-event", data),
         Some("sense_paused") => {
             sense_paused.notify_waiters();
@@ -242,7 +233,7 @@ mod tests {
     use crate::test_support::{capture, run, wait_for};
 
     #[test]
-    fn forwards_a_sweep_once_until_its_readings_change() {
+    fn forwards_every_sweep_including_repeats() {
         let (emit, events) = capture();
         let mut previous = Previous::default();
         let paused = Notify::new();
@@ -260,7 +251,10 @@ mod tests {
             .iter()
             .map(|(n, _)| n.clone())
             .collect();
-        assert_eq!(names, ["gpio:sense", "gpio:sense", "gpio:sense-event"]);
+        assert_eq!(
+            names,
+            ["gpio:sense", "gpio:sense", "gpio:sense", "gpio:sense-event"]
+        );
     }
 
     #[tokio::test]

@@ -690,10 +690,7 @@ mod tests {
             .unwrap();
         let transcript = json!({ "turns": [{ "user": "blink an LED on GPIO17" }] });
         projects.write_transcript("blinky", &transcript).unwrap();
-        assert_eq!(
-            file_names(&dir),
-            ["blinky.gpiob", "blinky.transcript.json"]
-        );
+        assert_eq!(file_names(&dir), ["blinky.gpiob", "blinky.transcript.json"]);
         let saved: Value =
             serde_json::from_str(&fs::read_to_string(dir.join("blinky.transcript.json")).unwrap())
                 .unwrap();
