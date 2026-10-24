@@ -21,6 +21,7 @@ export interface CodePins {
   unresolved: { expression: string; line: number }[]
 }
 
+/** Output devices whose first argument is their pin. */
 const GPIOZERO_OUT = [
   'LED',
   'PWMLED',
@@ -30,15 +31,51 @@ const GPIOZERO_OUT = [
   'DigitalOutputDevice',
   'PWMOutputDevice',
   'Servo',
-  'AngularServo',
-  'RGBLED'
+  'AngularServo'
 ]
 const GPIOZERO_IN = ['Button', 'DigitalInputDevice', 'MotionSensor', 'LineSensor', 'InputDevice']
+
+/** Every gpiozero class this reader knows, for the simulator's shim to match (workers/python). */
+export const GPIOZERO_CLASSES = [...GPIOZERO_OUT, ...GPIOZERO_IN, 'RGBLED', 'DistanceSensor']
 
 const boardToBcm = (physical: number) => PI_HEADER[physical - 1]?.bcm ?? null
 
 /** I2C bus 1, the header's bus: SDA on GPIO2 and SCL on GPIO3 (Raspberry Pi GPIO docs). */
 const I2C1 = [2, 3]
+
+/** The text between the parentheses of the first call of `name` on a line, or null. */
+function callArguments(text: string, name: string): string | null {
+  const open = new RegExp(`\\b${name}\\(`).exec(text)
+  if (!open) return null
+  let depth = 1
+  for (let i = open.index + open[0].length; i < text.length; i++) {
+    if (text[i] === '(') depth += 1
+    else if (text[i] === ')' && --depth === 0) return text.slice(open.index + open[0].length, i)
+  }
+  return null
+}
+
+/**
+ * The pin arguments of a gpiozero constructor call, by name: `echo=24` and a bare `24` in the
+ * place `names` gives it both count. Other keywords (`max_distance=2`) are skipped.
+ */
+function pinArguments(args: string, names: string[]): Record<string, string | undefined> {
+  const found: Record<string, string | undefined> = {}
+  let position = 0
+  let keywords = false
+  for (const arg of args.split(',')) {
+    const keyword = /^\s*(\w+)\s*=\s*(.+?)\s*$/.exec(arg)
+    if (keyword) {
+      keywords = true
+      if (names.includes(keyword[1]!)) found[keyword[1]!] = keyword[2]
+    } else if (!keywords && arg.trim()) {
+      // Python takes no positional argument after a keyword one, so what follows is a tuple's tail.
+      if (position < names.length) found[names[position]!] = arg.trim()
+      position += 1
+    }
+  }
+  return found
+}
 
 export function codePins(source: string): CodePins {
   const lines = source.split('\n')
@@ -158,14 +195,23 @@ export function codePins(source: string): CodePins {
         for (const bcm of I2C1) uses.push({ bcm, mode: 'i2c', line })
       } else if (bus.length) unresolved.push({ expression: `SMBus(${m[1]})`, line })
     }
-    if ((m = /\bDistanceSensor\(([^)]*)\)/.exec(text))) {
-      const echo = /echo\s*=\s*([^,)]+)/.exec(m[1]!)
-      const trigger = /trigger\s*=\s*([^,)]+)/.exec(m[1]!)
+    // Devices with several pins: by keyword or by position (gpiozero's order).
+    const distance = callArguments(text, 'DistanceSensor')
+    if (distance !== null) {
+      const { echo, trigger } = pinArguments(distance, ['echo', 'trigger'])
       if (echo)
-        for (const bcm of resolve(echo[1]!, line, true))
+        for (const bcm of resolve(echo, line, true))
           uses.push({ bcm, mode: 'in', pull: 'none', line })
       if (trigger)
-        for (const bcm of resolve(trigger[1]!, line, true)) uses.push({ bcm, mode: 'out', line })
+        for (const bcm of resolve(trigger, line, true)) uses.push({ bcm, mode: 'out', line })
+    }
+    const rgb = callArguments(text, 'RGBLED')
+    if (rgb !== null) {
+      const colours = pinArguments(rgb, ['red', 'green', 'blue'])
+      // pwm=False makes each colour a plain on/off output.
+      const mode = /\bpwm\s*=\s*False\b/.test(rgb) ? 'out' : 'pwm'
+      for (const pin of [colours.red, colours.green, colours.blue])
+        if (pin) for (const bcm of resolve(pin, line, true)) uses.push({ bcm, mode, line })
     }
   })
   return { uses, unresolved }

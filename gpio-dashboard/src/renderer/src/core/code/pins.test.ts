@@ -48,6 +48,32 @@ s = DistanceSensor(echo=24, trigger=23)`
     ])
   })
 
+  it('reads the pins of a distance sensor and an RGB LED by name or by position', () => {
+    expect(uses('DistanceSensor(24, 23, max_distance=2)')).toEqual([
+      { bcm: 24, mode: 'in', pull: 'none' },
+      { bcm: 23, mode: 'out', pull: undefined }
+    ])
+    expect(uses('DistanceSensor(trigger=23, echo=24)')).toEqual([
+      { bcm: 24, mode: 'in', pull: 'none' },
+      { bcm: 23, mode: 'out', pull: undefined }
+    ])
+    expect(uses('RGBLED(17, 27, 22)').map((u) => [u.bcm, u.mode])).toEqual([
+      [17, 'pwm'],
+      [27, 'pwm'],
+      [22, 'pwm']
+    ])
+    expect(
+      uses('RGBLED(red=17, green=27, blue=22, initial_value=(1, 0, 0), pwm=False)').map((u) => [
+        u.bcm,
+        u.mode
+      ])
+    ).toEqual([
+      [17, 'out'],
+      [27, 'out'],
+      [22, 'out']
+    ])
+  })
+
   it('reports what it cannot resolve instead of guessing', () => {
     const r = codePins('GPIO.setup(get_pin(), GPIO.OUT)')
     expect(r.uses).toEqual([])
