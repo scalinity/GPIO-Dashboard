@@ -257,6 +257,10 @@ M8 exit suite (2026-10-24, at 7483bd8):
 
 m9-base replayed onto v2 after M8's push (16 commits: assistant core, fallback fix + SDK pin, core gaps, Claude drawer UI); ADRs numbered 0083–0089 (assistant core), 0090–0093 (core gaps), 0094–0099 (UI). d860bcf: part ghosts carry props (LED ghosts in their colour); the top bar's Undo/Redo are disabled during a turn (e2e now asserts it). Vitest 1950, e2e 35/35. Waiting on the evals lane (live checks, ≥10 scored prompts, replay fixtures) for M9's exit: blink ERC-clean in one turn with matching code and convention wiring, Undo all deep-equal, D14 assistant+undo parts. Open: ghosts of custom parts defined in the same batch are not drawn.
 
+Evals merged (d3a7612-equivalents …; ADR-0100…0104; `docs/v2/EVALS.md`): live with the key in the eval process only, 12 prompts, 11 at 100% (blink ERC-clean one turn; parking sensor ECHO behind a divider; parking-direct caught by OVERVOLTAGE_GPIO and fixed same turn; undo deep-equal in all 11 building runs); datasheet 11/14 (org refuses web search). ≈$14 live in all. Rust proxy live test passed twice. Replay `npm run evals` reproduces it; Vitest 2046.
+**Live findings → M9 fixes lane (X9, running, base d9f566f):** (1) 20 strict tools exceed the grammar budget (`The compiled grammar is too large…`), fallback step 1 also refused → every live session ran plain without eager, so acceptance 5's early ghosts are lost; 11 mutation tools fit strict, eager works without strict → strict-set+eager → plain+eager → plain; (2) web-search refusal ends the turn → retry without web tools; (3) `simulate` can't press SW1 (`NO_SUCH_INPUT`); (4) `signal.pause()` returns at once in Pyodide; (5) `simModel: none` breaks simulate; (6) gpiozero shim has 5 of 15 classes. Then re-record live and prove the first request accepted with strict+eager.
+
+
 ## M10 Build Mode in the Studio — in progress (2026-10-24)
 
 | Lane | Model | Scope | Status |
