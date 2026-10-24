@@ -5,6 +5,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { STRICT_TOOLS, TOOLS } from '@renderer/assistant/tools'
 import { FIXTURES, fixtureExists, loadFixture } from './files'
 import { replay, seedFor, type Finished } from './main'
 import { PythonRuntime } from './nodeContext'
@@ -41,12 +42,15 @@ describe('the recorded runs', () => {
   })
 })
 
+const replayed = new Map<string, Awaited<ReturnType<typeof replay>>>()
+
 describe('replay', () => {
   const finished: Finished = new Map()
   for (const prompt of recorded) {
     it(`scores ${prompt.id} as it scored live`, async () => {
       const seed = await seedFor(prompt, finished, python)
       const result = await replay(prompt, seed, python)
+      replayed.set(prompt.id, result)
       finished.set(prompt.id, result.outcome.run.final)
       const failed = result.checks.filter((c) => !c.pass).map((c) => `${c.id}: ${c.detail}`)
       // Whatever failed live fails the same way now, and nothing else does.
@@ -114,5 +118,87 @@ describe('the requests the loop sent', () => {
   it.each(recorded.map((p) => p.id))('%s: later requests read the cache', (id) => {
     const accepted = ok(sentBy(id))
     for (const e of accepted.slice(1)) expect(sseUsage(e.body).cacheReadTokens).toBeGreaterThan(0)
+  })
+})
+
+describe('what the fixes changed, as the recordings show it (ADR-X9-1 to ADR-X9-4)', () => {
+  type Sent = { name?: string; type?: string; strict?: boolean; eager_input_streaming?: boolean }[]
+  const toolsOf = (e: Exchange) => e.request.tools as unknown as Sent
+
+  it.each(recorded.map((p) => p.id).filter((id) => id !== 'bmp280-datasheet'))(
+    '%s: the first request is accepted with the 11 strict tools and eager streaming',
+    (id) => {
+      const [first] = loadFixture(id).exchanges
+      expect(first!.status).toBe(200)
+      const tools = toolsOf(first!)
+      expect(tools.filter((t) => t.strict).map((t) => t.name)).toEqual(
+        [...STRICT_TOOLS].sort(
+          (a, b) => TOOLS.findIndex((t) => t.name === a) - TOOLS.findIndex((t) => t.name === b)
+        )
+      )
+      expect(tools.filter((t) => t.eager_input_streaming)).toHaveLength(12)
+    }
+  )
+
+  it('bmp280-datasheet: web search is refused, the loop drops it, and the turn carries on', () => {
+    const exchanges = loadFixture('bmp280-datasheet').exchanges
+    const [refused, retried] = exchanges
+    expect(refused!.status).toBe(400)
+    expect(refused!.body).toContain('Web search is not enabled for this organization')
+    expect(toolsOf(refused!).map((t) => t.name)).toContain('web_search')
+    expect(retried!.status).toBe(200)
+    const after = toolsOf(retried!)
+    expect(after.map((t) => t.name)).not.toContain('web_search')
+    expect(after.map((t) => t.name)).toContain('web_fetch')
+    expect(after.filter((t) => t.strict)).toHaveLength(11)
+    expect(after.filter((t) => t.eager_input_streaming)).toHaveLength(12)
+    const notices = replayed.get('bmp280-datasheet')!.outcome.notices
+    expect(notices.map((n) => n.code)).toEqual(['web-tools-refused'])
+    expect(replayed.get('bmp280-datasheet')!.outcome.run.turns[0]!.result.reason).toBe('end_turn')
+  })
+
+  it('building runs show partial tool input, enough to draw a ghost, before a call completed', () => {
+    const building = recorded.filter((p) => p.mutates !== false && p.id !== 'bmp280-datasheet')
+    expect(building.length).toBeGreaterThanOrEqual(8)
+    for (const p of building) {
+      const partial = replayed.get(p.id)!.outcome.partialInputs
+      expect(partial.place_part?.ghosts, p.id).toBeGreaterThan(0)
+      expect(partial.connect?.ghosts, p.id).toBeGreaterThan(0)
+    }
+  })
+
+  it('a button was pressed in simulate, and the ones it was pressed for have a pressed property', () => {
+    const pressed = ['button-toggles-led', 'second-button-speed'].flatMap((id) =>
+      replayed
+        .get(id)!
+        .outcome.run.ctx.inputLog.filter((i) => i.key === 'pressed' && i.value === true)
+    )
+    expect(pressed.length).toBeGreaterThanOrEqual(2)
+    const calls = replayed
+      .get('button-toggles-led')!
+      .outcome.run.calls.filter((c) => c.name === 'simulate')
+    expect(calls.length).toBeGreaterThan(0)
+    expect(
+      calls.every((c) => c.ok),
+      JSON.stringify(calls.map((c) => c.result))
+    ).toBe(true)
+  })
+
+  it('an event-driven gpiozero program ran to the end of the time it was given, not to t = 0', () => {
+    for (const id of ['button-toggles-led', 'second-button-speed']) {
+      const run = replayed.get(id)!.outcome.run
+      expect(run.final.code.source, id).toMatch(/\bpause\(\)/)
+      const runs = run.ctx.runLog
+      expect(runs.length, id).toBeGreaterThan(0)
+      for (const r of runs) expect(r.endedAt, id).toBeGreaterThanOrEqual(r.seconds)
+    }
+  })
+
+  it('the parking sensor was written with gpiozero’s DistanceSensor and ran', () => {
+    const run = replayed.get('parking-sensor')!.outcome.run
+    expect(run.final.code.source).toContain('DistanceSensor')
+    const sim = run.calls.find((c) => c.name === 'run_code_in_sim')
+    expect(sim?.ok).toBe(true)
+    expect(sim?.result).not.toMatch(/ImportError/)
   })
 })

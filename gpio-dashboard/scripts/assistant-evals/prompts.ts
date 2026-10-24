@@ -89,14 +89,27 @@ function runProgram(
   return { events: sim.events, error: sim.error, stdout: sim.stdout }
 }
 
-/** How many times a GPIO changed level in a program's events. */
-function transitions(events: PinTimeline['events'], bcm: number): number {
+/**
+ * How many times a GPIO changed level in a program's events. A background blink (gpiozero's
+ * `led.blink()`) is one `pwm 1 Hz 50%` event and then nothing, so it counts as the changes the
+ * pin would make until its next event, or until `until` seconds.
+ */
+function transitions(events: PinTimeline['events'], bcm: number, until = Infinity): number {
+  const mine = events.filter((e) => e.bcm === bcm)
   let last: string | null = null
   let n = 0
-  for (const e of events) {
-    if (e.bcm !== bcm || (e.event !== 'high' && e.event !== 'low')) continue
-    if (last !== null && e.event !== last) n += 1
-    last = e.event
+  for (const [i, e] of mine.entries()) {
+    const pwm = /^pwm ([\d.]+) Hz (\d+)%/.exec(e.event)
+    if (pwm) {
+      const duty = Number(pwm[2])
+      const end = Math.min(mine[i + 1]?.t ?? until, until)
+      if (duty > 0 && duty < 100 && Number.isFinite(end))
+        n += Math.floor(2 * Number(pwm[1]) * Math.max(end - e.t, 0))
+      last = null
+    } else if (e.event === 'high' || e.event === 'low') {
+      if (last !== null && e.event !== last) n += 1
+      last = e.event
+    }
   }
   return n
 }
@@ -124,7 +137,7 @@ function blinkChecks(run: Run, bcm: number): Check[] {
   const dark = Object.values(dieMilliamps(off.snapshot)).every((mA) => mA < 0.01)
   const over = on.issues.filter((i) => i.severity === 'error')
   const program = runProgram(run, 3)
-  const flips = transitions(program.events, bcm)
+  const flips = transitions(program.events, bcm, 3)
   return [
     check(
       'sim.on',
