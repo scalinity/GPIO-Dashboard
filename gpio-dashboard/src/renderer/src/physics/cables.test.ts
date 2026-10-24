@@ -23,6 +23,7 @@ import {
   place,
   rodIntoRibbon,
   run,
+  saggingRibbon,
   sdBox,
   sheetIntoBox,
   wire,
@@ -233,13 +234,14 @@ describe('contacts', () => {
 
   it('lead over ribbon: the lead rests on the sheet without sinking more than 0.5 mm', () => {
     const world = newWorld(TABLE)
-    const ribbon = world.addRibbon({ a: at(0, -95, 14), b: at(0, 95, 14, FLIP) })
+    // Sagging to 28.5 mm between its sockets.
+    const ribbon = saggingRibbon(world, 62)
     run(world, 250)
-    // Hung across the taut ribbon, 90 mm apart: on its own it would hang about 4 mm lower.
+    // Hung across the sag from housings 90 mm apart: on its own it would hang to 24.5 mm, 4 mm lower.
     const lead = world.addLead({
       a: at(-45, 0, HANG, FLIP),
       b: at(45, 0, HANG, FLIP),
-      wireMm: 130
+      wireMm: 110
     })
     run(world, 300)
     const depth = rodIntoRibbon(world, lead, ribbon)
@@ -280,10 +282,10 @@ describe('contacts', () => {
 
 describe('dragging', () => {
   it('the far socket dragged across the board: the ribbon never reaches more than 0.5 mm in', () => {
-    // Both sockets lie on the table either side of the board, 193 mm apart: the ribbon has 6 mm more
-    // than the way over the board takes, so it lies on the board between them.
+    // Both sockets lie on the table either side of the board, 197 mm apart: the ribbon has about
+    // 2 mm more than the way over the board takes, so it lies on the board's edges between them.
     const world = newWorld(TABLE, BOARD)
-    const id = world.addRibbon({ a: at(0, -99, 1), b: at(-25, 94, 1, FLIP) })
+    const id = world.addRibbon({ a: at(0, -101, 1), b: at(-25, 96, 1, FLIP) })
     run(world, 250)
     const { rows, columns } = world.info(id)
     const R = ribbonData.thicknessMm / 2
@@ -292,7 +294,7 @@ describe('dragging', () => {
     for (let f = 0; f <= 180; f++) {
       // Up to 0.9 mm a frame, about 50 mm/s, across and back: the ribbon slides along the board.
       const t = f / 180
-      world.setAnchor(id, 1, at(-25 * Math.cos(Math.PI * 2 * t), 94, 1, FLIP))
+      world.setAnchor(id, 1, at(-25 * Math.cos(Math.PI * 2 * t), 96, 1, FLIP))
       world.step()
       const p = world.positions(id)
       for (let r = 2; r < rows - 2; r++) {

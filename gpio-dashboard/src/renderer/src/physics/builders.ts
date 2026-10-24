@@ -9,24 +9,26 @@ import type { JumperDef, LeadDef, Pose, RibbonDef } from './types'
 /**
  * Tunables that no datasheet gives. Masses are estimates (a 1 mm PVC jumper weighs about 2 g per
  * metre; a 40-way ribbon about 40 g per metre). The bending stiffnesses EI are in g mm^3 / s^2
- * (1 N mm^2 = 1e6). A lead is 10 N mm^2: its seven copper strands bend nearly independently (a
- * stranded steel rope measured twice the sum of its wires' own stiffness and a fifteenth of a
- * solid section's: Bruski, "Determination of the Bending Properties of Wire Rope Used in Cable
- * Barrier Systems", Materials, 2020), so 7 x E pi d^4 / 64 with
- * E = 117 GPa is 10.5 N mm^2 for 28 AWG (7 x 0.127 mm) and 26 for 26 AWG (7 x 0.16 mm), and the
- * PVC jacket adds 1 to 3. Such a lead stands about 160 mm before its own weight folds it (the
- * self-buckling length, (7.8 EI / weight per mm)^(1/3)), so a 200 mm lead between two holes stands
- * as a loop. A 40-way ribbon is 100 to 500 N mm^2; it is set to 50, below that: at 150 its row
- * polyline, which bends hard at the clamps, measured 199.5 mm of the 200 mm that the Studio checks
- * it against. Bending is solved directly along each chain (constraints.ts, factorBending), so these
- * values are the stiffness the cables have. Compliances below are XPBD alphas, s^2/g.
+ * (1 N mm^2 = 1e6), estimated from the copper: a stranded conductor's strands bend nearly
+ * independently (a stranded steel rope measured twice the sum of its wires' own stiffness and a
+ * fifteenth of a solid section's: Bruski, "Determination of the Bending Properties of Wire Rope
+ * Used in Cable Barrier Systems", Materials, 2020), so a conductor of 7 strands of diameter d is
+ * about 7 x E pi d^4 / 64 with E = 117 GPa.
+ * - A lead is 10 N mm^2: 10.5 for 28 AWG (7 x 0.127 mm) and 26 for 26 AWG (7 x 0.16 mm), and the
+ *   PVC jacket adds 1 to 3. Such a lead stands about 160 mm before its own weight folds it (the
+ *   self-buckling length, (7.8 EI / weight per mm)^(1/3)), so a 200 mm lead between two holes
+ *   stands as a loop.
+ * - A 40-way ribbon is 400 N mm^2 out of its plane: 40 conductors of 28 AWG (7 x 0.127 mm), all on
+ *   the sheet's neutral plane, are 420, and its PVC web 50 to 200 more.
+ * Bending is solved directly along each chain (constraints.ts, factorBending), so these values are
+ * the stiffness the cables have. Compliances below are XPBD alphas, s^2/g.
  */
 export const MATERIAL = {
   leadGramsPerMm: 0.002,
   jumperGramsPerMm: 0.004,
   ribbonGramsPerMm: 0.04,
   leadEI: 1e7,
-  ribbonEI: 5e7,
+  ribbonEI: 4e8,
   /** Across the ribbon's width the strip does not bend. */
   ribbonAcrossAlpha: 1e-9,
   /** A solid jumper deflects elastically: about 0.05 mm under its own weight. */

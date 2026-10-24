@@ -133,8 +133,8 @@ export function hangOver(world: CableWorld, wall: Box) {
 /**
  * A ribbon between two sockets 185 mm apart at height z, facing each other, started sagging 34 mm
  * between them: a centreline about as long as its free span, which is near where a ribbon this
- * stiff comes to rest (it settles 0.2 mm lower). Started from the default arch it would stay arched
- * above whatever is under it.
+ * stiff comes to rest (its bottom settles at z - 33.5). Started from the default arch it would stay
+ * arched above whatever is under it.
  */
 export function saggingRibbon(world: CableWorld, z: number, columns?: number) {
   const guess: Vec3[] = []
