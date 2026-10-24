@@ -15,10 +15,18 @@ export interface PartModel {
   when?: Record<string, string>
 }
 
+/** A texture the script saves as <stem>-<png>.png, which build.ts encodes to KTX2 in place of a GLB. */
+export interface Ktx2 {
+  file: string
+  png: string
+  /** A lookup table: lossless RGBA8, sRGB, no mipmaps. Otherwise linear UASTC with mipmaps. */
+  lookup?: boolean
+}
+
 export interface Asset {
   name: string
   /** What assets:check measures it against. */
-  kind: 'breadboard' | 'pi' | 'part'
+  kind: 'breadboard' | 'pi' | 'part' | 'tboard' | 'idc' | 'ribbon' | 'dupont'
   /** Parts: the definition modelled; the GLB goes in the parts/ folder. */
   part?: PartModel
   /** Other files in blender/ that the script imports; the manifest records their hashes. */
@@ -30,6 +38,8 @@ export interface Asset {
   inputs: string[]
   /** A STEP file inside a pinned source, read by step-to-glb.ts and passed as --step-glb. */
   step?: { source: string; file: string; license: string; params: StepParams }
+  /** Textures-only assets write these KTX2 files, not <name>.glb and <name>.colliders.json. */
+  ktx2?: Ktx2[]
   budget: { texturePx: [number, number]; triangles?: number; bytes?: number }
 }
 
@@ -46,7 +56,8 @@ export interface Manifest {
   bytes: number
   textures: { name: string; format: string; size: [number, number]; slots: string[] }[]
   budget: Asset['budget'] & { met: boolean }
-  geometryHash: string
+  /** Absent for textures-only assets. */
+  geometryHash?: string
 }
 
 export const MODELS_DIR = 'src/renderer/public/models'
@@ -56,6 +67,10 @@ export const assetDir = (asset: Asset, models: string) =>
 export const MODELS_BUDGET_BYTES = 40e6
 /** Cycles bake settings, fixed so rebuilds match (SPEC 10.3). */
 export const BAKE = { samples: 128, seed: 0 }
+
+const TBOARD = 'src/renderer/src/content/controllers/tboard.json'
+const RIBBON = 'src/renderer/src/content/controllers/ribbon.json'
+const DUPONT = 'src/renderer/src/content/leads/dupont.json'
 
 const board = (name: 'bb-830' | 'bb-400', texturePx: [number, number]): Asset => ({
   name,
@@ -89,7 +104,51 @@ export const ASSETS: Asset[] = [
     budget: { texturePx: [2048, 2048], triangles: 200_000, bytes: 8e6 }
   },
   // The electronic parts (SPEC 7, 10.4): one GLB per part definition, or per shape variant.
-  ...PART_ASSETS
+  ...PART_ASSETS,
+  // Controller-side hero assets (M7 task 7.2): the T-board, the IDC socket, the ribbon's textures
+  // and the Dupont housings.
+  {
+    name: 'tboard',
+    kind: 'tboard',
+    script: 'tboard.py',
+    args: { tboard: TBOARD },
+    inputs: [TBOARD],
+    budget: { texturePx: [2048, 2048], triangles: 20_000, bytes: 3e6 }
+  },
+  {
+    name: 'idc-socket',
+    kind: 'idc',
+    script: 'idc.py',
+    args: { ribbon: RIBBON },
+    inputs: [RIBBON],
+    budget: { texturePx: [1024, 1024], triangles: 2_000, bytes: 1e6 }
+  },
+  {
+    name: 'ribbon',
+    kind: 'ribbon',
+    script: 'ribbon.py',
+    args: {
+      ribbon: RIBBON,
+      // The standard sequence's sRGB colours, read off photos 1 and 3's rainbow ribbon (ADR-A2-3).
+      colors:
+        'brown=6b3a1d,red=d81e1e,orange=f07a12,yellow=f2d21a,green=1fa84a,blue=1f59d6,violet=7a2fc4,grey=9a9a9e,white=eeeeea,black=1c1c1f'
+    },
+    inputs: [RIBBON],
+    ktx2: [
+      { file: 'ribbon-ridges.ktx2', png: 'ridges' },
+      { file: 'ribbon-colors.ktx2', png: 'colors', lookup: true }
+    ],
+    // The ridge map's size: 32 texels per ridge across the cable, a 2.54 mm tile along it.
+    budget: { texturePx: [1280, 64], bytes: 100_000 }
+  },
+  ...(['male', 'female'] as const).map((end): Asset => ({
+    name: `dupont-${end}`,
+    kind: 'dupont',
+    script: 'dupont.py',
+    args: { dupont: DUPONT, end },
+    inputs: [DUPONT],
+    budget: { texturePx: [256, 256], triangles: 500, bytes: 150_000 }
+  }))
 ]
 
 /** The assets named on a command line: every one when none is, and "parts" for all the parts. */

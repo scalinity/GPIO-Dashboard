@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { MODELS_BUDGET_BYTES, MODELS_DIR, ROOT, assetDir, select } from './assets'
 import { build } from './build'
+import { isController, verifyController } from './controllers'
 import { geometryHash, readGlb } from './glb'
 import { ktxOnPath } from './optimize'
 import { SOURCES, sha256 } from './sources'
@@ -104,7 +105,12 @@ for (const s of SOURCES.filter((s) => s.shipped)) {
 }
 
 for (const asset of assets) {
-  const findings = asset.kind === 'part' ? await verifyPart(asset) : await verifyAsset(asset)
+  const findings =
+    asset.kind === 'part'
+      ? await verifyPart(asset)
+      : isController(asset)
+        ? await verifyController(asset)
+        : await verifyAsset(asset)
   for (const f of findings) report(f.ok, `${asset.name} ${f.check}: ${f.detail}`)
 }
 if (assets.some((a) => a.part)) {
@@ -124,6 +130,17 @@ if (process.argv.includes('--rebuild')) {
   try {
     for (const asset of assets) {
       await build(asset, out, process.argv.includes('--allow-version-drift'))
+      for (const t of asset.ktx2 ?? []) {
+        // A textures-only asset: the lookup table is exact, the ridge map matches by SSIM.
+        const was = readFileSync(join(models, t.file))
+        const now = readFileSync(join(out, t.file))
+        const s = t.lookup ? Number(was.equals(now)) : ssim(decode(was, out), decode(now, out))
+        report(
+          s >= SSIM_MIN,
+          `${asset.name} rebuild: ${t.file} ${t.lookup ? 'identical' : `SSIM ${s.toFixed(4)} (min ${SSIM_MIN})`}`
+        )
+      }
+      if (asset.ktx2) continue
       const was = await readGlb(join(assetDir(asset, models), `${asset.name}.glb`))
       const now = await readGlb(join(assetDir(asset, out), `${asset.name}.glb`))
       const hash = geometryHash(now)

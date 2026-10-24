@@ -6,6 +6,7 @@ import { readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ASSETS, MODELS_BUDGET_BYTES, MODELS_DIR, ROOT } from '../../../../scripts/assets/assets'
+import { isController, verifyController } from '../../../../scripts/assets/controllers'
 import { verifyAsset } from '../../../../scripts/assets/verify'
 import { verifyIndex, verifyPart } from '../../../../scripts/assets/verify-parts'
 
@@ -18,7 +19,7 @@ const folderBytes = (dir: string): number =>
   )
 
 describe('committed models', () => {
-  for (const asset of ASSETS.filter((a) => !a.part)) {
+  for (const asset of ASSETS.filter((a) => !a.part && !isController(a))) {
     it(`${asset.name}: holes, dimensions, budgets, KTX2 textures and geometry hash`, async () => {
       const findings = await verifyAsset(asset)
       for (const f of findings) expect(f.ok, `${f.check}: ${f.detail}`).toBe(true)
@@ -29,6 +30,16 @@ describe('committed models', () => {
   it('fit the models budget together', () => {
     expect(folderBytes(join(ROOT, MODELS_DIR))).toBeLessThanOrEqual(MODELS_BUDGET_BYTES)
   })
+})
+
+describe('committed controller models', () => {
+  for (const asset of ASSETS.filter(isController)) {
+    it(`${asset.name}: pins, dimensions, empties, colliders, budgets and textures`, async () => {
+      const findings = await verifyController(asset)
+      for (const f of findings) expect(f.ok, `${f.check}: ${f.detail}`).toBe(true)
+      expect(findings.length).toBeGreaterThanOrEqual(3)
+    }, 30_000)
+  }
 })
 
 describe('committed part models', () => {

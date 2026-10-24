@@ -18,6 +18,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { type Asset, BAKE, type Manifest, MODELS_DIR, ROOT, assetDir, select } from './assets'
+import { encodeKtx2, ktx2Texture } from './controllers'
 import { geometryHash, glbIO, textures, triangleCount } from './glb'
 import { ktxOnPath, optimize } from './optimize'
 import { addToIndex } from './parts'
@@ -39,6 +40,35 @@ function tools() {
 }
 
 const fileHash = (path: string) => sha256(readFileSync(path))
+
+/** What a manifest records about how the asset was built: tools, script, inputs and sources. */
+function provenance(asset: Asset, versions: Manifest['tools'], args: Manifest['script']['args']) {
+  const libs = readdirSync(join(BLENDER_DIR, 'lib'))
+    .filter((f) => f.endsWith('.py'))
+    .sort()
+  return {
+    name: asset.name,
+    tools: versions,
+    script: {
+      path: `scripts/assets/blender/${asset.script}`,
+      args,
+      sha256: Object.fromEntries(
+        [asset.script, ...(asset.support ?? []), ...libs.map((f) => `lib/${f}`)].map((f) => [
+          `blender/${f}`,
+          fileHash(join(BLENDER_DIR, f))
+        ])
+      )
+    },
+    inputs: asset.inputs.map((path) => ({ path, sha256: fileHash(join(ROOT, path)) })),
+    sources: (asset.step ? [source(asset.step.source)] : []).map((s) => ({
+      id: s.id,
+      url: s.url,
+      sha256: s.sha256,
+      license: s.license,
+      files: s.extract?.map((e) => e.path) ?? []
+    }))
+  }
+}
 
 /** Builds one asset into outDir; throws, writing nothing, if a budget is missed. */
 export async function build(
@@ -95,6 +125,34 @@ export async function build(
       )
     }
 
+    if (asset.ktx2) {
+      // Textures only: the script saved PNGs beside its output; encode them to KTX2.
+      const written = asset.ktx2.map((t) => {
+        const file = join(work, t.file)
+        encodeKtx2(t, `${blended.slice(0, -'.glb'.length)}-${t.png}.png`, file)
+        return { file, ...ktx2Texture(t, readFileSync(file)) }
+      })
+      const bytes = written.reduce((n, w) => n + statSync(w.file).size, 0)
+      const met =
+        bytes <= (asset.budget.bytes ?? Infinity) &&
+        written.every((w) => w.size.every((s, i) => s <= asset.budget.texturePx[i]!))
+      if (!met)
+        throw new Error(`${asset.name}: over budget: ${bytes} bytes, ${JSON.stringify(written)}`)
+      const manifest: Manifest = {
+        ...provenance(asset, versions, args),
+        triangles: 0,
+        bytes,
+        textures: written.map(({ name, format, size, slots }) => ({ name, format, size, slots })),
+        budget: { ...asset.budget, met }
+      }
+      for (const w of written) copyFileSync(w.file, join(outDir, w.name))
+      writeFileSync(
+        join(outDir, `${asset.name}.manifest.json`),
+        `${JSON.stringify(manifest, null, 2)}\n`
+      )
+      return manifest
+    }
+
     const io = await glbIO()
     const doc = await io.read(blended)
     await optimize(doc, asset.budget.texturePx)
@@ -123,30 +181,8 @@ export async function build(
       )
     }
 
-    const libs = readdirSync(join(BLENDER_DIR, 'lib'))
-      .filter((f) => f.endsWith('.py'))
-      .sort()
     const manifest: Manifest = {
-      name: asset.name,
-      tools: versions,
-      script: {
-        path: `scripts/assets/blender/${asset.script}`,
-        args,
-        sha256: Object.fromEntries(
-          [asset.script, ...(asset.support ?? []), ...libs.map((f) => `lib/${f}`)].map((f) => [
-            `blender/${f}`,
-            fileHash(join(BLENDER_DIR, f))
-          ])
-        )
-      },
-      inputs: asset.inputs.map((path) => ({ path, sha256: fileHash(join(ROOT, path)) })),
-      sources: (asset.step ? [source(asset.step.source)] : []).map((s) => ({
-        id: s.id,
-        url: s.url,
-        sha256: s.sha256,
-        license: s.license,
-        files: s.extract?.map((e) => e.path) ?? []
-      })),
+      ...provenance(asset, versions, args),
       ...(step && { step }),
       ...(license && { license }),
       triangles,
@@ -180,7 +216,7 @@ if (import.meta.main) {
     const tex = m.textures.map((t) => `${t.format} ${t.size.join('x')}`).join(', ')
     console.log(
       `${m.name}: ${m.triangles} triangles, ${(m.bytes / 1e6).toFixed(2)} MB, textures ${tex || 'none'}, ` +
-        `geometry ${m.geometryHash.slice(0, 12)} (${((Date.now() - started) / 1000).toFixed(0)} s)`
+        `geometry ${m.geometryHash?.slice(0, 12) ?? 'none'} (${((Date.now() - started) / 1000).toFixed(0)} s)`
     )
   }
 }
