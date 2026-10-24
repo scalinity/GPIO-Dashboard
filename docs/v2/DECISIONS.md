@@ -2022,7 +2022,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   reach.ts's rule at its threshold. `lengthMm: 200` would rest a lead at 200 mm of wire: the
   physics host's `addLead` call should pass `wireMm: wireLengthMm(wire.lengthMm, wire.kind)`.
 
-## ADR-P3-1 Bending is solved directly along each chain
+## ADR-0078 Bending is solved directly along each chain
 
 - **Context.** ADR-0060 solves a chain's stretch constraints together but its bending by one
   symmetric Gauss-Seidel sweep a substep, and ADR-0076 found that above about 1e6 g mm^3/s^2 a
@@ -2041,7 +2041,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   linear in the positions, so the XPBD system (J W J^T + alpha / h^2) lambda = -C is exact, the
   same for x, y and z, and pentadiagonal. Its LDL^T factors depend only on the inverse masses, the
   compliances and the substep: they are found when a body is added and again when its weights
-  change (ADR-P3-3, ADR-P3-4). Each substep is a forward and a back substitution with three
+  change (ADR-0080, ADR-0081). Each substep is a forward and a back substitution with three
   right-hand sides, applying each particle's move as soon as its three multipliers are known
   (`factorBending`, `solveBending` in constraints.ts). It is the banded case of Deul, Kugelstadt,
   Weiler and Bender, "Direct Position-Based Solver for Stiff Rods" (Computer Graphics Forum
@@ -2050,7 +2050,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   chain; both builders' do, and `factorBending` refuses others. `housingBendFactor` is gone:
   solved directly, the first joint holds at the wire's own stiffness.
 - **Consequences.**
-  - The same lead at `leadEI` 1e7 (ADR-P3-2): within 30 degrees of vertical for 52.8 mm above
+  - The same lead at `leadEI` 1e7 (ADR-0079): within 30 degrees of vertical for 52.8 mm above
     each housing (within 10 degrees for 35.9), apex 78.8 mm above the board, nothing below its
     housing exits, and 12 and 48 substeps rest within 0.63 mm of each other (leads.test.ts).
     Between holes 20 mm apart: 64.6 mm and an apex of 85.1. Dense piles 1 and 2: mean apex 84.5
@@ -2083,7 +2083,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     (was 38 to 88), and the dense piles 42 to 81 frames after a drag (was 46 to 68). From their
     design curves the dense piles take 114 to 126 frames (was 93 to 100); the test allows 150.
 
-## ADR-P3-2 Stiffness: leads 10 N mm^2 and the ribbon 400, from their copper
+## ADR-0079 Stiffness: leads 10 N mm^2 and the ribbon 400, from their copper
 
 - **Context.** ADR-0076 set leads to 2 N mm^2 and the ribbon to 50 because the sweep could carry
   no more; at 1.5e8 the ribbon's row polyline bent hard at the clamps and measured 199.5 mm.
@@ -2114,13 +2114,13 @@ decision and consequences. Numbering is stable; superseded records say so.
     other: a lead lowered onto another to where it would hang 3.5 mm lower rests on it; at 4.3 mm
     lower it passes through. Bending is solved before contacts, and the stiff chain puts back what
     the contact pushed out. Scaling the pressed particles' mass for cable contacts too (as
-    ADR-P3-3 does for colliders) held both, but then no dense pile slept in 400 frames (particles
+    ADR-0080 does for colliders) held both, but then no dense pile slept in 400 frames (particles
     at 1.2 to 1.8 m/s), so it is left out. The dense piles and e2e scenes stay within 0.5 mm.
   - Penetration, before to after: dense piles 0.15 to 0.27 mm, now -0.03 to 0.09; pile of five
     -0.05, now 0.28 between leads; lead over a part 0.00, now 0.08; lead over the ribbon 0.02, now
     0.08. The deepest in any e2e flow is now -0.25 (W1 against its own housing's box).
 
-## ADR-P3-3 A particle a collider pushed is sixteen times heavier in the next substep's rod solves
+## ADR-0080 A particle a collider pushed is sixteen times heavier in the next substep's rod solves
 
 - **Context.** Solved directly, a stiff lead pressed against a part was bent back into it each
   substep by nearly the whole of what the contact had just pushed out. A wall rising under a hung
@@ -2132,14 +2132,14 @@ decision and consequences. Numbering is stable; superseded records say so.
   the next substep they weigh 16 times their mass in the bending and stretch solves (16 so the
   weight is restored exactly), the bending factors are found again whenever the set of pressed
   particles changes or empties, and the weights are put back before the contacts. Cable-to-cable
-  contacts are not marked (ADR-P3-2).
+  contacts are not marked (ADR-0079).
 - **Consequences.** The wall rising 14 mm under a hung lead: 0.07 mm deep at the end. Lead over a
   part 0.08 mm, across a 2.4 mm wall -0.01. At rest it changes nothing: a weight scales a
   particle's share of the corrections, not their balance. Factors of 20 and 100 behaved as 16
   did. A body that touches a collider pays one extra factorisation a substep, about the cost of a
   solve.
 
-## ADR-P3-4 Route hints weigh in the solve, pick their particle by reach, and pull only as far as the wire reaches
+## ADR-0081 Route hints weigh in the solve, pick their particle by reach, and pull only as far as the wire reaches
 
 - **Context.** With stiff leads a hint applied before the bending solve was mostly undone by it
   (cables.test: 1.85 mm from the target against 1.5 allowed). In the e2e route-hint flow on
