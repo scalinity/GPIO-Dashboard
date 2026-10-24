@@ -184,15 +184,18 @@ export function probeSignature(
     }
   }
 
-  // Observable: some reading is certain and differs from what an unattached pin would read
-  // (follows its bias; follows its own pull; holds its precharge when another pin is driven).
+  // Observable: the bias test is certainly tied, or another GPIO certainly follows this one both
+  // up and down (a shared path; reading the drive level in one polarity only can mean something
+  // else, such as an LED path to 3V3, pulled it there). An unattached pin would follow its bias
+  // and hold its precharge. A pin's response to its own pull adds nothing the bias test lacks
+  // (SPEC 14.5).
   const observable: ProbeSignature['observable'] = {}
   for (const b of probed) {
     const tied = bias[b]!.class === 'tied-low' || bias[b]!.class === 'tied-high'
-    const readings = probed.flatMap((a) =>
-      (['up', 'down'] as const).map((d) => ({ self: a === b, r: pairs[a]![d][b]! }))
+    const joined = probed.some(
+      (a) => a !== b && pairs[a]!.up[b] === 'follows' && pairs[a]!.down[b] === 'follows'
     )
-    observable[b] = tied || readings.some(({ self, r }) => (self ? r === 'holds' : r === 'follows'))
+    observable[b] = tied || joined
   }
 
   return { probed, skipped, bias, pairs, observable }

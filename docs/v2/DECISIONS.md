@@ -327,11 +327,11 @@ decision and consequences. Numbering is stable; superseded records say so.
   - Pins are skipped by role on their net: transistor bases, logic and ADC inputs and
     outputs, driver outputs and module signal inputs. Each skip names the pin and the
     reason.
-  - Observable means some reading is certain at every corner of the ranges and differs
-    from what an unattached pin would read:
-    - follows its bias in the bias test
-    - follows its own pull, or holds its precharge while another pin drives, in the pair
-      test
+  - Observable means the bias test is certainly tied (low or high at every corner), or
+    another GPIO certainly follows the pin both up and down. Reading the drive level in one
+    polarity only can mean something else pulled the pin there (an LED path to 3V3 lifts a
+    released pin), and a pin's response to its own pull adds nothing the bias test lacks.
+    Both were found with the Blinking LED fixture, which must stay unobserved (SPEC 18).
 - **Consequences.**
   - LED paths come out unobservable, as SPEC 14.5 expects (about 1.6 V at tens of µA).
   - GPIO2/3 read tied-high through the board's 1.8 kΩ pull-ups.
