@@ -1479,6 +1479,138 @@ decision and consequences. Numbering is stable; superseded records say so.
     leads, so the direction reads in a still picture.
 - **Consequences.** A later look-dev pass can retune them without touching the plumbing.
 
+## ADR-P-1 Rods and the ribbon centreline are solved as chains, not by Gauss–Seidel sweeps
+
+- **Context.**
+  - SPEC 10.5 asks for XPBD with small steps: 12 substeps a frame and one constraint
+    iteration each. A first version projected every distance constraint once per substep, in a
+    Gauss–Seidel sweep, with the bending constraint after it. Measured on a 200 mm lead between
+    two holes 120 mm apart: with stretch last the lead zig-zagged (a ±1 mm saw tooth every
+    2 mm, segments from 2.4 to 3.5 mm against a 3 mm rest); with bending last the lead shrank to
+    149 mm. A second stretch sweep tightened the segments to about ±5% but left the shape.
+  - The cause is conditioning, not iteration count. Bending and stretch are both near-rigid
+    at this particle spacing and mass, so the result is whichever constraint goes last, and a
+    compressive load needs one sweep per link to cross a 67-link chain.
+- **Options.** (a) More sweeps per substep, which breaks "one iteration". (b) Softer bending,
+  which cannot hold a lead up. (c) Solve each rod's stretch constraints together, exactly.
+- **Decision.** (c). Linearised, the stretch constraints of a chain give a tridiagonal XPBD
+  system `A dλ = −C` (`A = J W Jᵀ`), solved by the Thomas algorithm in O(n) (`solveChain`).
+  It costs about one sweep and makes the whole chain inextensible every substep. Each substep
+  runs: predict, hints, bending (symmetric forward-and-back sweep), solid-jumper goals, the
+  chain solve, long-range attachments, then contacts. Distance constraints are rigid;
+  bending is XPBD with `α = s³ / EI`; a touch of compliance (1e-6 relative) and a pivot floor
+  keep a chain pulled exactly straight from dividing by zero.
+- **Consequences.**
+  - In-span leads hold their length to 0.02% (worst single segment 0.4%, from contacts), and
+    the ribbon's centre column to under 0.5%, with clamped ends within 1e-5 mm of their frames.
+  - A lead's bending cannot be stiff. `MATERIAL.leadEI` is 3e4 g·mm³/s² (0.03 N·mm²), two to
+    three orders of magnitude below a real stranded jumper, because at 1e5 and above dense
+    piles keep moving above the sleep speed. A lead would hold itself upright for about 23 mm
+    above its housing and then fold. `housingBendFactor` makes the first joint five times
+    stiffer, so the wire leaves a vertical housing within 3° of vertical (measured 2.3°).
+  - Not tuned against the reference photos, which this build cannot read: every material
+    constant is in `MATERIAL` (builders.ts) for that pass.
+
+## ADR-P-2 The ribbon is a centreline chain with rigid rows
+
+- **Context.** SPEC 10.5 describes a particle grid held by stretch and shear constraints.
+  A 41 × 7 grid held that way, one pass per substep, reached 31% edge strain and 5% across
+  its width in the first settled scene (sockets offset sideways), and curved sideways, against
+  a target of 0.5% stretch.
+- **Decision.** The grid stays the interface (rows × columns of particles, contacts and
+  triangles on it) but each row rides on a centre particle. Per substep: row centres are the
+  mean of each free row; the centres form a chain solved like a lead (ADR-P-1: curvature,
+  `solveChain`, long-range attachments); the chain is kept in the plane between the two end
+  frames; and every free row is laid out again from its centre, straight, with the true
+  column spacing, turned by the two frames' width axes blended along the length. The first
+  and last two rows (0 and 5 mm in; the data says ≈6) are clamped to the socket frames.
+- **Consequences.**
+  - Across-width spacing is exact (1e-6 mm), rows stay parallel, and the ribbon cannot curve
+    sideways or twist: it bends only about its width axis, as SPEC 10.5 states. The two frames
+    must agree on the width axis (x) and on which conductor sits at which x; a socket offset
+    along x is shared out as an even shear.
+  - Ribbon contacts act on single particles. A collider thinner than the particle pitch
+    (5 mm along, 8.5 mm across at 7 columns) can pass between particles; leads use exact
+    segment contacts. The ribbon does not collide with itself.
+  - Row contacts are not rigid: a single-sided contact lifts the row's mean only, so an edge
+    that meets a row at an angle is resolved over a few substeps.
+
+## ADR-P-3 Contacts: exact segment tests, hash broad phase, no cable-to-cable friction
+
+- **Context.** SPEC 10.5 asks for particle contacts with box and capsule colliders,
+  capsule–capsule and point–triangle tests in a spatial hash, and position-based friction
+  "against surfaces". Particle-only tests let a 3 mm segment pass through a 2.4 mm part.
+- **Decision.**
+  - Rod segments (capsules of the wire's radius) are tested exactly against boxes
+    (`segmentBox`: the squared distance is piecewise quadratic in the segment parameter, so each
+    piece is minimised in closed form) and capsules (segment–segment). Ribbon particles use the
+    point tests. Lead–lead is segment–segment; lead–ribbon samples each segment at ¼ and ¾
+    against the ribbon's triangles (Ericson 5.1.5, 5.1.9).
+  - The hash (8 mm cells, Müller 11) is built once a frame over every body's swept, padded
+    boxes. A candidate pair is kept only if its closest points at the frame start are within
+    reach + 0.75 mm skin + the bodies' expected travel, and the pair list then serves all
+    twelve substeps. Collider candidates come from a per-body bounds test first.
+  - Friction is Macklin et al. 2014 (cancel the relative tangential motion up to the Coulomb
+    limit, scaled by the depth just resolved), μs 0.5 and μk 0.4, against colliders only.
+  - Each substep solves cable–cable contacts first and surfaces last, in a fixed order. A
+    contact moves its points at most 1 mm along the normal per substep, and no particle moves
+    more than 3 m/s·h in a substep; positions that stop being finite are restored to the
+    frame start.
+- **Consequences.**
+  - Penetration in the scripted scenes is at most 0.10 mm (pile of five leads), against a
+    0.5 mm tolerance; every scene also asserts that contact happens (within 0.5 mm of touching).
+  - Friction between cables was tried at three strengths and left piles creeping at 2–13 mm/s,
+    above the 0.5 mm/s sleep speed; alternating the sweep direction per substep did the same.
+    Both were removed. Crossed cables slide on each other.
+  - A cable overlapping something at the start (a design curve drawn through a part) is
+    pushed out over several frames, not in one.
+
+## ADR-P-4 Islands, sleep and wake
+
+- **Context.** SPEC 10.5: an island sleeps when every particle stays below 0.5 mm/s for 30
+  frames; any anchor change wakes it; a lead resting on a part reacts when the part moves.
+- **Decision.**
+  - A body's speed is its fastest free particle's displacement over the frame. An island is
+    the connected set of bodies whose cables came within contact range this frame (union–find
+    over the kept pairs); it sleeps when all its bodies have been quiet for 30 frames, and its
+    bodies keep one group id so they wake together.
+  - Waking: `setAnchor` with a changed pose; `setColliderPose`, `addCollider` and
+    `removeCollider` for every body whose bounds are within 5 mm of the collider's swept
+    bounds; `removeBody` likewise; and an awake body's boxes overlapping a sleeper's.
+  - A body that has slowed below 40 mm/s is damped at 14/s instead of 2/s, so it reaches the
+    sleep speed instead of hovering above it. `settle(maxFrames)` runs that damping throughout
+    and stops when everything sleeps or after the bound; the bound is in frames, not wall time,
+    to stay deterministic.
+- **Consequences.**
+  - A lead alone sleeps 45 frames (0.75 s) after the last anchor input; a lead settling from
+    its design curve takes about 85 frames.
+  - A dense pile of 40 leads on one board settles slowly: a few leads creep for more than
+    5 s, and since they touch, their island stays awake. The scene stops rendering only once
+    the whole pile is still.
+  - Sleep is per island: `isAsleep(id)` reports the island's flag, and `islandOf(id)` labels
+    it.
+
+## ADR-P-5 Over-span: the flag follows the reach rule, the relaxation follows the span
+
+- **Context.** SPEC 10.5 and 16 require a lead or ribbon whose ends are farther apart than
+  its length to relax into a straight, taut span and report itself taut, in agreement with
+  LEAD_TOO_SHORT. `core/reach.ts` flags a lead when the housing-tip distance plus two minimum
+  bend radii exceeds `lengthMm`, and a ribbon when the socket distance plus two clamped ends
+  exceeds its length.
+- **Decision.** `isTaut` uses exactly that rule, from the same data files. The span itself
+  relaxes only when the clamped ends are farther apart than the free span can reach: every
+  rest length along the cable is scaled by `D / L`, and the free particles are laid on the
+  line between the clamps (`straighten`), because a taut chain's constraints barely see
+  lateral motion and the solver otherwise sags 1.9 mm off the line on a 130 mm span.
+- **Consequences.**
+  - Between `L − 6 mm` and `L` a lead is flagged but still drapes: it has real slack and no
+    straight shape to take. The renderer tints on the flag; it should not assume straight.
+  - A straightened span ignores obstacles under it each substep, then contacts push it off;
+    it does not drape over a tall part. It is a warning state.
+  - `lengthMm` is the wire between the two housing tips, as `reach.ts` assumes. If the 200 mm
+    in the listing includes the housings, the physical lead is 24 mm shorter than this
+    treats it. `core/` owns that call.
+
 ## ADR-0065 The IDC socket plugs 5.08 mm into the box header, whose cavity is sized to its body
 
 - **Context.**
