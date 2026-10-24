@@ -706,7 +706,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** `npm run e2e` exercises the WebGPU path, as the Tauri window does. A
   machine without a GPU would fall back to WebGL2 and may miss the 2 s settle bound.
 
-## ADR-A3a-1 Every passive, switch, transistor and buzzer family is built in Blender, without textures
+## ADR-0029 Every passive, switch, transistor and buzzer family is built in Blender, without textures
 
 - **Context.**
   - SPEC 10.4 lets a family stay runtime-procedural only if a Blender version adds no visible
@@ -752,7 +752,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   moulded bodies, the family scripts bake them through `lib/bake.py` and the check's no-texture
   assertion changes for that family.
 
-## ADR-A3a-2 Part pins sit on the definition's grid; formed leads are part of the body
+## ADR-0030 Part pins sit on the definition's grid; formed leads are part of the body
 
 - **Context.** The part GLB contract puts a `pin-<id>` empty where each lead leaves the body,
   and has `assets:check` hold every rigid pin within 0.05 mm of its `offsetPitch` position.
@@ -788,7 +788,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   bent to the holes for flex ones. The `lead` material is not a runtime lead and keeps its
   place if the studio draws the runtime lead in the same colour.
 
-## ADR-A3a-3 Animated nodes and value-driven materials
+## ADR-0031 Animated nodes and value-driven materials
 
 - **Context.**
   - The studio drives the tact switch's plunger and the potentiometer's shaft as nodes, and the
@@ -817,7 +817,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   box's centre would turn about the wrong point; the family script must keep the section
   symmetric, as the shaft's is.
 
-## ADR-A3a-4 Part files go through the asset registry, in a parts/ folder
+## ADR-0032 Part files go through the asset registry, in a parts/ folder
 
 - **Context.** The asset pipeline built one GLB per entry in `assets.ts`, flat in
   `public/models`, and checked it with `verify.ts`, which this change leaves as it is.

@@ -287,7 +287,7 @@ export const PART_ASSETS: Asset[] = PARTS.map((p) => {
       ...(p.variant && { variant: p.variant.value })
     },
     inputs: [partPath(p.defId)],
-    // The parts carry no textures: their detail is geometry and material colour (ADR-A3a-1).
+    // The parts carry no textures: their detail is geometry and material colour (ADR-0029).
     budget: { texturePx: [0, 0], triangles: family.triangles, bytes: PART_BYTES }
   }
 })
