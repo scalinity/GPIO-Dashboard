@@ -12,6 +12,9 @@ export default defineConfig({
     // on-disk transform cache keys on that module's text, not on the folder it lists. A new
     // content file would be silently missing from the next run, so the cache stays off.
     fsModuleCache: false,
-    environment: 'node'
+    environment: 'node',
+    // Many tests simulate whole circuits (probe signatures, code checks, property runs) and take a
+    // few seconds alone; beside other work on the same machine the 5 s default timed them out.
+    testTimeout: 30_000
   }
 })
