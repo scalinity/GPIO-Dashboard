@@ -53,6 +53,8 @@ const cc = new Float64Array(6)
 const o = new Float64Array(8)
 const sc = new Float64Array(8)
 const disp = new Float64Array(3)
+/** Where `colliderMotion` leaves the collider point's displacement over the substep. */
+export const contactMotion = disp
 
 function resolve(
   pool: Pool,
@@ -115,7 +117,7 @@ function resolve(
 }
 
 /** How far the collider's own point at world position (wx, wy, wz) moved this substep. */
-function colliderMotion(c: Collider, wx: number, wy: number, wz: number) {
+export function colliderMotion(c: Collider, wx: number, wy: number, wz: number) {
   if (!c.moving) {
     disp[0] = disp[1] = disp[2] = 0
     return

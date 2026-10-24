@@ -15,6 +15,7 @@ import {
 } from './contacts'
 import type { Collider, Pool } from './contacts'
 import { SpatialHash } from './hash'
+import { solveStrips } from './strips'
 import { closestSegSeg } from './shapes'
 import { gatherRows, layRows } from './ribbon'
 import { normalizeQuat, posedAt, quatToMat, rng, samePose, toWorld } from './math'
@@ -180,6 +181,7 @@ export class CableWorld {
   private readonly cand = new Table(4, 2)
   private readonly rod = new Table(6, 2)
   private readonly rib = new Table(7, 2)
+  private readonly strips = new Table(6, 1)
   private readonly links = new Table(2, 0)
   /** Per awake body: how far its primitives may have moved toward a neighbour's by now, mm. */
   private bound = new Float64Array(64)
@@ -750,6 +752,7 @@ export class CableWorld {
   private collectColliderContacts(awake: Body[]) {
     const { cand, x, xe, w, box, colliders } = this
     cand.n = 0
+    this.strips.n = 0
     if (colliders.length === 0) return
     for (const b of awake) {
       for (let ci = 0; ci < colliders.length; ci++) {
@@ -779,6 +782,8 @@ export class CableWorld {
             cand.f[2 * s] = gapSegmentCollider(x, c, b.segI[k]!, b.segJ[k]!, b.radius)
             cand.f[2 * s + 1] = b.radius
           }
+        } else if (c.isBox && b.rig) {
+          this.collectStrips(b, c, ci)
         } else {
           for (let i = b.first; i < b.first + b.gridCount; i++) {
             if (w[i]! === 0) continue
@@ -800,6 +805,44 @@ export class CableWorld {
           }
         }
       }
+    }
+  }
+
+  /**
+   * The ribbon's strips (the sheet between neighbouring rows) that come near a box collider,
+   * with the rows that carry them. The strips of two clamped rows never move and are left out.
+   */
+  private collectStrips(b: Body, c: Collider, ci: number) {
+    const { x, xe, strips } = this
+    const rig = b.rig!
+    const cols = b.columns
+    const pad = b.pad
+    for (let r = rig.innerA; r < rig.innerB; r++) {
+      const rowA = b.first + r * cols
+      const rowB = rowA + cols
+      let near = true
+      for (let a = 0; a < 3 && near; a++) {
+        let lo = Infinity
+        let hi = -Infinity
+        for (let k = 0; k < 4; k++) {
+          const i = (k < 2 ? rowA : rowB) + (k & 1) * (cols - 1)
+          const p = x[3 * i + a]!,
+            q = xe[3 * i + a]!
+          lo = Math.min(lo, p, q)
+          hi = Math.max(hi, p, q)
+        }
+        near = lo - pad <= c.hi[a]! && hi + pad >= c.lo[a]!
+      }
+      if (!near) continue
+      const s = strips.next()
+      const o = s * 6
+      strips.d[o] = rowA
+      strips.d[o + 1] = rowB
+      strips.d[o + 2] = rig.qStart + r
+      strips.d[o + 3] = rig.qStart + r + 1
+      strips.d[o + 4] = cols
+      strips.d[o + 5] = ci
+      strips.f[s] = b.radius
     }
   }
 
@@ -1074,6 +1117,7 @@ export class CableWorld {
     solveRibbonPairs(pool, SAMPLES, rib.d, rib.f, rib.n, bound)
     this.lap(CABLES)
     solveSurfaces(pool, colliders, cand.d, cand.f, cand.n, bound)
+    solveStrips(pool, colliders, this.strips.d, this.strips.f, this.strips.n)
     this.lap(SURFACES)
     const inv = 1 / h
     const maxStep = MAX_SPEED * h
