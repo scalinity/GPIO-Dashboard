@@ -4,7 +4,7 @@
 // not reach a fixture. Replay serves those responses in order with no network and no key.
 //
 // A fixture stores each request's `messages` as what was added since the request before: the
-// history only grows (ADR-M9-5), so the full body is rebuilt on load and the file stays linear in
+// history only grows (ADR-0087), so the full body is rebuilt on load and the file stays linear in
 // the length of the conversation instead of quadratic.
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json }

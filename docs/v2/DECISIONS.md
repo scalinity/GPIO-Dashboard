@@ -2772,7 +2772,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     them anywhere. Writing a file that holds anything shaped like `sk-ant-...`, or the key itself,
     is refused, and a test scans every fixture.
   - A fixture stores each request's `messages` as what was added since the request before (the
-    history only grows, ADR-M9-5) and its `system` and `tools` only when they changed. Replay
+    history only grows, ADR-0087) and its `system` and `tools` only when they changed. Replay
     rebuilds the full request bodies and serves the responses in order.
   - Replay does not require the requests it sends to equal the recorded ones: the tool results the
     model saw come from today's code, so a change to a tool's wording would otherwise fail every

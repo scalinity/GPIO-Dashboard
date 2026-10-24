@@ -94,7 +94,7 @@ describe('the requests the loop sent', () => {
   })
 
   it.each(recorded.map((p) => p.id))(
-    '%s: the system prompt, tools and earlier messages never change between accepted requests (ADR-M9-5)',
+    '%s: the system prompt, tools and earlier messages never change between accepted requests (ADR-0087)',
     (id) => {
       const accepted = ok(sentBy(id))
       for (const [i, e] of accepted.entries()) {

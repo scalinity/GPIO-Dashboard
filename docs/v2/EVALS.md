@@ -190,7 +190,7 @@ streaming with strict tool schemas, so tool input streams without it. Schemas st
 ## Problems the live runs found in the assistant core
 
 Nothing in `R/assistant/` was changed. Each fix below is larger than a few lines, changes a decision
-(ADR-M9-2, ADR-M9-3), or sits outside `assistant/` (the part definitions, the Python shims); they
+(ADR-0084, ADR-0085), or sits outside `assistant/` (the part definitions, the Python shims); they
 are for the integrator.
 
 ### 1. The 20 strict tools are over the API's grammar budget, so every session runs on plain tools
@@ -219,7 +219,7 @@ accepted. Both refusals carry this message, exactly:
   (`search_parts`) made the whole request fail although the strict tools alone still compiled.
 - Suggested fix: `strict` on those 11, so `connect` and `place_part` keep the guarantee; eager on
   the 12 mutation tools as now; and the fallback chain strict+eager, then plain+eager, then plain.
-  That changes ADR-M9-2's "every tool that takes parameters is strict" and the counts in
+  That changes ADR-0084's "every tool that takes parameters is strict" and the counts in
   `contract.test.ts`, so it was left alone.
 
 ### 2. "Web search is not enabled for this organization" ends the turn
@@ -250,7 +250,7 @@ In the button run the assistant tried `pressed` (twice) and then `closed` on `SW
 tried `pressed` on `SW2` and got the same. The simulator reads `pressed` from a
 switch (`core/sim/circuit.ts`, and every tutorial assertion sets it), but `tact-switch-6mm` declares
 only `mode`, and the tool accepts only declared properties. So the assistant could not simulate a
-press; it said so in its answer and did not claim the toggle worked. ADR-C9-4 already says anything
+press; it said so in its answer and did not claim the toggle worked. ADR-0093 already says anything
 that seeds a simulator input must declare it as a property. Fix: declare `pressed` (boolean, default
 false) on `tact-switch-6mm` and `tilted` on `tilt-switch` in `content/parts/`.
 
@@ -288,7 +288,7 @@ could tell the model which classes the simulator has.
 
 ### 7. A fetched datasheet costs more than `max_content_tokens` suggests
 
-ADR-M9-4 sets `max_content_tokens: 30000` "which bounds what a datasheet costs". One `web_fetch` of
+ADR-0086 sets `max_content_tokens: 30000` "which bounds what a datasheet costs". One `web_fetch` of
 the Bosch BMP280 datasheet was billed as 112,756 input tokens in a single request, about $0.45 at the
 Opus 5.5 price, and the fetch result enters the context for the rest of the session. Also,
 `web_fetch` refuses a URL that is not already in the conversation:

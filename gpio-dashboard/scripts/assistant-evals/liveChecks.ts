@@ -1,4 +1,4 @@
-// The questions only the real API can answer (ADR-M9-2, ADR-M9-3, ADR-M9-4, ADR-M9-5). Each check
+// The questions only the real API can answer (ADR-0084, ADR-0085, ADR-0086, ADR-0087). Each check
 // sends the smallest request that settles it, records every exchange, and reports the API's own
 // words when it refuses something.
 import type Anthropic from '@anthropic-ai/sdk'
