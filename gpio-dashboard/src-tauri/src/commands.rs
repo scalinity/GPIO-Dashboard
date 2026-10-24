@@ -206,10 +206,24 @@ pub async fn ssh_kill_process(ssh: State<'_, Ssh>, filename: String) -> CommandR
     Ok(exec_json(&ssh, &tutorial_kill_command(&filename)).await)
 }
 
+/// Returns the given GPIOs to inputs with no pull, after Stop: a killed script never reaches its
+/// own cleanup, so an output it left driven (a motor driver's input, a relay) would stay on.
+/// Only user GPIOs 2-27 are accepted; 0 and 1 are the HAT ID EEPROM.
 #[tauri::command]
-pub async fn ssh_gpio_cleanup(ssh: State<'_, Ssh>) -> CommandResult {
-    let cmd = "python3 -c \"import RPi.GPIO as GPIO; GPIO.setmode(GPIO.BCM); GPIO.cleanup()\" 2>/dev/null; exit 0";
-    Ok(exec_json(&ssh, cmd).await)
+pub async fn ssh_gpio_cleanup(ssh: State<'_, Ssh>, pins: Vec<u8>) -> CommandResult {
+    match gpio_cleanup_command(&pins) {
+        Some(cmd) => Ok(exec_json(&ssh, &cmd).await),
+        None => Ok(json!({ "error": "Invalid GPIO list" })),
+    }
+}
+
+/// `pinctrl set <pins> ip pn`: input, no pull. None for an empty list or a pin outside 2-27.
+fn gpio_cleanup_command(pins: &[u8]) -> Option<String> {
+    if pins.is_empty() || pins.iter().any(|p| !(2..=27).contains(p)) {
+        return None;
+    }
+    let list: Vec<String> = pins.iter().map(u8::to_string).collect();
+    Some(format!("pinctrl set {} ip pn", list.join(",")))
 }
 
 async fn exec_json(ssh: &Ssh, cmd: &str) -> Value {
@@ -623,6 +637,17 @@ pub fn open_external(url: String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gpio_cleanup_sets_only_user_gpios_to_unpulled_inputs() {
+        assert_eq!(
+            gpio_cleanup_command(&[17, 27]).as_deref(),
+            Some("pinctrl set 17,27 ip pn")
+        );
+        assert_eq!(gpio_cleanup_command(&[]), None);
+        assert_eq!(gpio_cleanup_command(&[1, 17]), None);
+        assert_eq!(gpio_cleanup_command(&[28]), None);
+    }
 
     #[test]
     fn the_stop_command_does_not_match_its_own_shell() {

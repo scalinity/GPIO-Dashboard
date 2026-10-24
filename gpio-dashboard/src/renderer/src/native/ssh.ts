@@ -33,3 +33,10 @@ export async function killScript(filename: string): Promise<void> {
   const result = await bridge().ssh.killProcess(filename)
   if (result.error) throw new Error(result.error)
 }
+
+/** Returns the pins a stopped program used to unpulled inputs (`pinctrl set … ip pn`). */
+export async function cleanupPins(pins: number[]): Promise<void> {
+  if (!pins.length) return
+  const result = await bridge().ssh.gpioCleanup(pins)
+  if (result.error) throw new Error(result.error)
+}

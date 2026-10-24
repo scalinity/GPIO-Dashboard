@@ -2,7 +2,8 @@
 // run unless the user overrides them in the dialog; only UI handlers call run().
 import { create } from 'zustand'
 import type { Issue } from '../core/erc/erc'
-import { killScript, runScript, scriptName, uploadScript } from '../native/ssh'
+import { codePins } from '../core/code/pins'
+import { cleanupPins, killScript, runScript, scriptName, uploadScript } from '../native/ssh'
 
 export type RunStatus = 'idle' | 'deploying' | 'running' | 'done' | 'error'
 
@@ -14,6 +15,8 @@ interface Line {
 interface RunState {
   status: RunStatus
   filename: string | null
+  /** GPIOs the running program sets up (read from its code), reset after Stop. */
+  pins: number[]
   output: Line[]
   /** ERC errors waiting for the user's override before a run. */
   blocked: { projectId: string; source: string; errors: Issue[] } | null
@@ -28,6 +31,7 @@ const MAX_LINES = 1000
 export const useRun = create<RunState>((set, get) => ({
   status: 'idle',
   filename: null,
+  pins: [],
   output: [],
   blocked: null,
   addOutput(line) {
@@ -43,7 +47,14 @@ export const useRun = create<RunState>((set, get) => ({
       set({ blocked: { projectId, source, errors } })
       return
     }
-    set({ blocked: null, status: 'deploying', filename: null, output: [] })
+    const pins = [
+      ...new Set(
+        codePins(source)
+          .uses.filter((u) => u.mode !== 'i2c')
+          .map((u) => u.bcm)
+      )
+    ]
+    set({ blocked: null, status: 'deploying', filename: null, pins, output: [] })
     try {
       const filename = scriptName(projectId)
       set({ filename })
@@ -60,8 +71,10 @@ export const useRun = create<RunState>((set, get) => ({
     set({ blocked: null })
   },
   async stop() {
-    const filename = get().filename
+    const { filename, pins } = get()
     if (filename) await killScript(filename)
+    // A killed program never runs its own cleanup; return its pins to unpulled inputs.
+    await cleanupPins(pins.filter((p) => p >= 2 && p <= 27))
     set({ status: 'done' })
   }
 }))

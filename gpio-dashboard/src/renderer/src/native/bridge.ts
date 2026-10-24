@@ -27,6 +27,7 @@ export interface Bridge {
     /** Streams `tutorial:output` events until the script exits, Stop, or the time limit. */
     runTutorialScript(filename: string): Promise<{ error?: string } & Record<string, unknown>>
     killProcess(filename: string): Promise<{ error?: string } & Record<string, unknown>>
+    gpioCleanup(pins: number[]): Promise<{ error?: string } & Record<string, unknown>>
   }
   anthropic: {
     request(req: ProxyRequest, onMessage: (message: ProxyMessage) => void): Promise<unknown>

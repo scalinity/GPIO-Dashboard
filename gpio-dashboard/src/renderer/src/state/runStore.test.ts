@@ -21,7 +21,8 @@ beforeEach(() => {
       ssh: {
         scpBuffer: async (...args: unknown[]) => (calls.push(['scp', ...args]), { success: true }),
         runTutorialScript: async (...args: unknown[]) => (calls.push(['run', ...args]), {}),
-        killProcess: async (...args: unknown[]) => (calls.push(['kill', ...args]), {})
+        killProcess: async (...args: unknown[]) => (calls.push(['kill', ...args]), {}),
+        gpioCleanup: async (...args: unknown[]) => (calls.push(['cleanup', ...args]), {})
       }
     }
   }
@@ -46,10 +47,15 @@ describe('Run on Pi', () => {
     expect(useRun.getState().blocked).toBeNull()
   })
 
-  it('kills the remote process on Stop', async () => {
-    await useRun.getState().run('p1', 'x', [])
+  it('kills the remote process on Stop, then returns the program pins to inputs', async () => {
+    const code =
+      'import RPi.GPIO as GPIO\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(17, GPIO.OUT)\nGPIO.setup([22, 27], GPIO.OUT)\n'
+    await useRun.getState().run('p1', code, [])
     await useRun.getState().stop()
-    expect(calls.at(-1)).toEqual(['kill', 'project_p1.py'])
+    expect(calls.slice(-2)).toEqual([
+      ['kill', 'project_p1.py'],
+      ['cleanup', [17, 22, 27]]
+    ])
   })
 
   it('refuses a project id that could escape the script directory', async () => {

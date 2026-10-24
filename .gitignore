@@ -5,3 +5,6 @@ OpenRouter Docs/
 .env
 .env.*
 !.env.example
+
+# Python bytecode (pi-agent tests)
+__pycache__/

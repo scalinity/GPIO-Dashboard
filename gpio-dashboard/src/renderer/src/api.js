@@ -44,7 +44,7 @@ export function createApi({ invoke, listen, Channel }) {
       disconnect: () => invoke('ssh_disconnect'),
       runTutorialScript: (filename) => structured('ssh_run_tutorial_script', { filename }),
       killProcess: (filename) => structured('ssh_kill_process', { filename }),
-      gpioCleanup: () => structured('ssh_gpio_cleanup'),
+      gpioCleanup: (pins) => structured('ssh_gpio_cleanup', { pins }),
       scpBuffer: (content, remotePath) => structured('ssh_scp_buffer', { content, remotePath }),
       getStatus: () => invoke('ssh_get_status'),
       i2cScan: (bus) => structured('ssh_i2c_scan', { bus }),

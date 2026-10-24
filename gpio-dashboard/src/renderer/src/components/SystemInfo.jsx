@@ -24,22 +24,12 @@ function InfoCard({ icon: Icon, label, children }) {
   )
 }
 
+// The Raspberry Pi docs (frequency management): the Arm cores are throttled progressively from
+// 80 °C, and cores and GPU at 85 °C.
 function tempColor(temp) {
-  if (temp < 60) return '#22C55E'
-  if (temp < 75) return '#EAB308'
+  if (temp < 80) return '#22C55E'
+  if (temp < 85) return '#EAB308'
   return '#EF4444'
-}
-
-function formatUptime(seconds) {
-  if (!seconds) return '--'
-  const d = Math.floor(seconds / 86400)
-  const h = Math.floor((seconds % 86400) / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const parts = []
-  if (d > 0) parts.push(`${d}d`)
-  if (h > 0) parts.push(`${h}h`)
-  parts.push(`${m}m`)
-  return parts.join(' ')
 }
 
 export default function SystemInfo() {
@@ -54,13 +44,15 @@ export default function SystemInfo() {
     )
   }
 
-  const temp = systemInfo.cpuTemp ?? 0
-  const memPercent = systemInfo.memUsed && systemInfo.memTotal
-    ? Math.round((systemInfo.memUsed / systemInfo.memTotal) * 100)
-    : 0
-  const diskPercent = systemInfo.diskUsed && systemInfo.diskTotal
-    ? Math.round((systemInfo.diskUsed / systemInfo.diskTotal) * 100)
-    : 0
+  // The agent's shape (pi-agent/system_info.py get_info): cpu_temp in °C, memory in MB, disk in
+  // GB, uptime already formatted ("2d 3h 4m").
+  const temp = systemInfo.cpu_temp ?? 0
+  const mem = systemInfo.memory ?? {}
+  const disk = systemInfo.disk ?? {}
+  const memPercent =
+    mem.used_mb && mem.total_mb ? Math.round((mem.used_mb / mem.total_mb) * 100) : 0
+  const diskPercent =
+    disk.used_gb && disk.total_gb ? Math.round((disk.used_gb / disk.total_gb) * 100) : 0
 
   return (
     <div className="flex flex-col gap-3">
@@ -80,9 +72,9 @@ export default function SystemInfo() {
           <div className="flex justify-between text-sm">
             <span className="text-gray-300 tabular-nums">{memPercent}%</span>
             <span className="text-gray-500 tabular-nums">
-              {systemInfo.memUsed ? `${Math.round(systemInfo.memUsed)}MB` : '--'}
+              {mem.used_mb ? `${Math.round(mem.used_mb)}MB` : '--'}
               {' / '}
-              {systemInfo.memTotal ? `${Math.round(systemInfo.memTotal)}MB` : '--'}
+              {mem.total_mb ? `${Math.round(mem.total_mb)}MB` : '--'}
             </span>
           </div>
           <UsageBar value={memPercent} color={memPercent > 80 ? '#EF4444' : '#3B82F6'} />
@@ -91,7 +83,7 @@ export default function SystemInfo() {
 
       {/* Uptime */}
       <InfoCard icon={Clock} label="Uptime">
-        <span className="text-sm text-gray-300 tabular-nums">{formatUptime(systemInfo.uptime)}</span>
+        <span className="text-sm text-gray-300 tabular-nums">{systemInfo.uptime || '--'}</span>
       </InfoCard>
 
       {/* Model */}
@@ -101,7 +93,9 @@ export default function SystemInfo() {
 
       {/* IP Address */}
       <InfoCard icon={Wifi} label="IP Address">
-        <span className="text-sm text-gray-300 font-mono tabular-nums">{systemInfo.ip || '--'}</span>
+        <span className="text-sm text-gray-300 font-mono tabular-nums">
+          {systemInfo.ip || '--'}
+        </span>
       </InfoCard>
 
       {/* Disk */}
@@ -110,9 +104,9 @@ export default function SystemInfo() {
           <div className="flex justify-between text-sm">
             <span className="text-gray-300 tabular-nums">{diskPercent}%</span>
             <span className="text-gray-500 tabular-nums">
-              {systemInfo.diskUsed ? `${(systemInfo.diskUsed / 1024).toFixed(1)}GB` : '--'}
+              {disk.used_gb ? `${disk.used_gb.toFixed(1)}GB` : '--'}
               {' / '}
-              {systemInfo.diskTotal ? `${(systemInfo.diskTotal / 1024).toFixed(1)}GB` : '--'}
+              {disk.total_gb ? `${disk.total_gb.toFixed(1)}GB` : '--'}
             </span>
           </div>
           <UsageBar value={diskPercent} color={diskPercent > 90 ? '#EF4444' : '#22C55E'} />
