@@ -2484,3 +2484,111 @@ decision and consequences. Numbering is stable; superseded records say so.
     would share a strip. It is valid and ERC-clean, and the prompt tells the model how to chain.
   - `edgeColumnsUsable` is honoured through the existing blocked-hole rule, so c and i beside the
     T-board are used for leads.
+
+## ADR-C9-1 A project's custom parts live in its document
+
+- **Context.**
+  - SPEC 7 lets the assistant or the user define a part, and `define_custom_part` did, by
+    registering the definition with the `AssistantContext`. SPEC 5's `CircuitDoc` has no field for
+    one, and a `.gpiob` stores only each part's `defId`, so a project with a custom part could not
+    be reopened. The registration also sat outside the undo group of the turn that made it.
+  - Every consumer (netlist, ERC, sim, steps, placer, reach) looked a definition up through a
+    `PartDefs` function its caller supplied, which knew the library and whatever the app had
+    registered.
+- **Decision.**
+  - `CircuitDoc.customParts?: PartDef[]`, absent when there are none. Two ops, each the other's
+    inverse: `AddCustomPart {def, index?}` and `RemoveCustomPart {id}`. Removing the last one
+    drops the field, so an undo restores a strictly equal document.
+  - A custom part's id starts `custom-` (`CUSTOM_PART_PREFIX`), and `loadPartDef` refuses a
+    library id that does. A project's part therefore never shadows a library part, including one
+    a later version adds, and no lookup order has to be chosen.
+  - `validateDoc` checks each custom part before anything resolves it: `PartDefSchema`,
+    `checkPartDef`, the prefix and unique ids (`CUSTOM_PART`, `DUPLICATE_ID`), and stops there,
+    because the rest assumes sound definitions. A `defId` found in neither the document nor the
+    library is `UNKNOWN_DEF`, as before. The `.gpiob` schema parses `customParts` with the same
+    `PartDefSchema`.
+  - `docPartDefs(doc, library)` (core/netlist) is the library resolver extended with the
+    document's parts, and is the library resolver itself when there are none. Each core function
+    that takes `(doc, defs)` and calls `defs` itself applies it on entry: `netlist`, the
+    connectivity engine through it, `erc`, `simChecks`, `Circuit`, `buildSteps`, `exitPoint` and
+    `leadReach`, the placer's `offboardPose`, `endNeeds` and `planLead`, `candidates`,
+    `renderTheory` and `validateDoc`. Callers keep passing the library.
+  - `AssistantContext.partDef` and `partDefs()` are the library; `registerPartDef` is removed.
+    `define_custom_part` commits `AddCustomPart` as one transaction of the turn. The tools that
+    look a part up themselves apply `docPartDefs`, `search_parts` lists the document's parts, and
+    the catalog in the cached system prompt includes the ones the project already has.
+- **Consequences.**
+  - A custom part is not edited in place. `RemoveCustomPart` leaves any part that uses it without
+    a definition, so `validateDoc` refuses it until those parts are gone; a changed part is a new
+    id.
+  - A custom part belongs to one project and is not shared between projects.
+  - The `.gpiob` format changes (ADR-C9-3).
+  - UI code that reads `partDef(part.defId)` from `core/defs/parts` for a document's part must use
+    `docPartDefs(doc, partDef)` instead; the Claude panel's review strip should count the new op
+    types. SPEC 5 (`CircuitDoc`, `Op`) and SPEC 7 (custom parts) should name `customParts`.
+
+## ADR-C9-2 A custom part may cite no source; a library part may not
+
+- **Context.**
+  - `PartDefSchema` required at least one source URL (SPEC 5: "required"). `checkPartDef` and the
+    ERC rule `PART_WITHOUT_DATASHEET` accept none, and `define_custom_part` without a datasheet
+    built `sources: []` with the "no datasheet" tag. A project holding that part would have failed
+    its own schema on save.
+- **Decision.**
+  - The schema takes any list of URLs, including none; a string that is not a URL still fails.
+    A part with no sources is a legal custom part and gets the `PART_WITHOUT_DATASHEET` info
+    (SPEC 8), whether or not it carries the "no datasheet" tag.
+  - The rule that a shipped part cites its datasheet (SPEC 7) moves from the schema to
+    `loadPartDef`, the one place library content is loaded. A library file without a source
+    still fails at load and in the content tests.
+- **Consequences.**
+  - SPEC 5's `provenance` comment should read "required for the library; a custom part may have
+    none".
+
+## ADR-C9-3 Build-step notes: step keys, an op, and format 2
+
+- **Context.**
+  - Notes were keyed by the bare id of a step's first ref ("R1", "W2"). Part ids and wire ids are
+    unique only within their own lists, and `place_part` accepts any unused part ref, so a part
+    and a lead could share an id and the note landed on both. A part named "tboard" would have
+    collided with the T-board step.
+  - No op set `buildStepAnnotations`, so `annotate_build_steps` called
+    `AssistantContext.annotateBuildSteps` and its notes were outside the turn's undo group
+    (ADR-M9-2, last consequence).
+- **Decision.**
+  - `BuildStep.key` is `"tboard"`, `"part:R1"` or `"wire:W2"`, from `stepKey(kind, id)` in
+    core/steps. It depends only on what the step is about, so edits elsewhere do not move it.
+    `BuildStep.refs` stays as it is, for tutorial checkpoints and Board Sense.
+  - `SetBuildStepAnnotations {annotations?}` replaces the notes as a whole, the way `SetCode`
+    replaces the code, and none removes the field. The inverse is the previous value, exactly.
+    `annotate_build_steps` builds the new record from the document's and commits it as one
+    transaction of the turn.
+  - The tool accepts a step key, or a ref that only one step is about; a ref a part and a lead
+    share is refused with the keys to use. Both notes empty clear the step's notes.
+  - The `.gpiob` format is version 2, for the keys and for `customParts`. Migration 1 → 2 rewrites
+    each bare key to `part:` or `wire:` by which list holds that id (both when both do) and keeps
+    any other key as it is. The shipped tutorials stay version 1 files and are upgraded as they
+    load; a test checks that every note in them lands on a step.
+- **Consequences.**
+  - `AssistantContext.annotateBuildSteps` and `BuildStepAnnotation` are removed.
+  - A note for a step that no longer exists stays in the document and is ignored; removing a part
+    does not remove its note.
+
+## ADR-C9-4 `validateDoc` checks part properties against the definition
+
+- **Context.**
+  - The assistant's tools checked a part's props against its definition's properties, and nothing
+    else did, so a hand-edited `.gpiob` could carry a resistance of "big", or a property the part
+    does not have, and every consumer would read it.
+- **Decision.**
+  - `propProblem(def, name, value)` in core/defs/parts is the one check: a number is finite and
+    within `min` and `max`, an enum value is one of its options, a boolean is a boolean, and the
+    name is a property of the definition. `validateDoc` reports `BAD_PROP` for each prop of each
+    part, and `mergeProps` in the tools uses the same function, so the two cannot disagree. A part
+    that sets no props passes; the defaults apply.
+- **Consequences.**
+  - Every tutorial, sample and fixture validates. One test document did not: the Board Sense test
+    seeded a switch's pressed state through a prop, `pressed`, that `tact-switch-6mm` does not
+    declare (the simulator reads a part's inputs from its props). That test now gives the
+    definition it passes to the ranker a `pressed` property. Anything that seeds a simulator input
+    through props must declare it as a property.
