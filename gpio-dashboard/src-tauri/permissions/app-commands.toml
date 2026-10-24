@@ -1,0 +1,35 @@
+# The frontend's own commands, granted to the main window from its local origin (dev)
+# and from the loopback origin (production; see src/loopback.rs).
+[[set]]
+identifier = "app-commands"
+description = "Every command the frontend invokes."
+permissions = [
+  "allow-ssh-select-key-file",
+  "allow-ssh-connect",
+  "allow-ssh-disconnect",
+  "allow-ssh-run-tutorial-script",
+  "allow-ssh-kill-process",
+  "allow-ssh-gpio-cleanup",
+  "allow-ssh-scp-buffer",
+  "allow-ssh-get-status",
+  "allow-gpio-connect",
+  "allow-gpio-disconnect",
+  "allow-terminal-create",
+  "allow-terminal-write",
+  "allow-terminal-resize",
+  "allow-terminal-destroy",
+  "allow-agent-deploy",
+  "allow-agent-install",
+  "allow-agent-start",
+  "allow-agent-stop",
+  "allow-agent-get-status",
+  "allow-settings-get",
+  "allow-settings-set",
+  "allow-settings-set-password",
+  "allow-settings-get-all",
+  "allow-settings-set-api-key",
+  "allow-settings-has-api-key",
+  "allow-ai-generate",
+  "allow-ai-abort",
+  "allow-open-external",
+]

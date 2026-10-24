@@ -10,6 +10,7 @@ import PinoutPage from './pages/PinoutPage'
 import BreadboardPage from './pages/BreadboardPage'
 import TutorialsPage from './pages/TutorialsPage'
 import MonitorPage from './pages/MonitorPage'
+import DevOverlay from './dev/DevOverlay'
 
 const PAGES = {
   connect: ConnectPage,
@@ -116,6 +117,7 @@ function App() {
         <ActivePage />
       </main>
       <TerminalPanel />
+      <DevOverlay />
     </div>
   )
 }

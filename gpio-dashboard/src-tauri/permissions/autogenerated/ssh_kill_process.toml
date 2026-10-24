@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ssh-kill-process"
+description = "Enables the ssh_kill_process command without any pre-configured scope."
+commands.allow = ["ssh_kill_process"]
+
+[[permission]]
+identifier = "deny-ssh-kill-process"
+description = "Denies the ssh_kill_process command without any pre-configured scope."
+commands.deny = ["ssh_kill_process"]

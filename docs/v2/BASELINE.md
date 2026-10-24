@@ -73,9 +73,34 @@ so later regressions are measurable.
   telemetry WebSocket is expected to fail as deployed: the agent binds `127.0.0.1:8765`,
   and `ws.rs` dials the Pi's address directly.
 
-## WebGPU availability in the Tauri window
+## WebGPU availability and isolation in the Tauri window (M0 task 0.8)
 
-Recorded in M0 task 0.8, below.
+Read from the dev overlay (`src/renderer/src/dev/`, toggled with Cmd/Ctrl+Shift+D) in the
+real Tauri window (WKWebView, `AppleWebKit/605.1.15`, macOS 27.2) on 2026-10-23, after the
+ADR-0008 changes:
+
+| | dev (`tauri dev`) | production (`tauri build` .app) |
+|---|---|---|
+| origin | `http://localhost:5173` | `http://127.0.0.1:<ephemeral>` (52124 in the run) |
+| isSecureContext | true | true |
+| crossOriginIsolated | true | true |
+| SharedArrayBuffer | true | true |
+| IPC round trip (`ssh_get_status`) | ok | ok |
+| `navigator.gpu` | adapter ok | adapter ok |
+
+Adapter: `adapter.info` reports vendor, architecture and device all as "apple" (WebKit
+limits adapter info). `maxBufferSize` is 2048 MiB. Features: bgra8unorm-storage,
+clip-distances, core-features-and-limits, depth-clip-control, depth32float-stencil8,
+float16-renderable, float32-blendable, float32-filterable, float32-renderable,
+indirect-first-instance, primitive-index, rg11b10ufloat-renderable, shader-f16,
+texture-compression-astc (+ sliced-3d), texture-compression-bc (+ sliced-3d),
+texture-compression-etc2, texture-formats-tier1, texture-formats-tier2, timestamp-query.
+So WebGPU is exposed in the webview, and WebGPURenderer is expected to pick the WebGPU
+backend (verified in M7).
+
+Before ADR-0008: dev reported `crossOriginIsolated` false (stale cached headers), and
+production on `tauri://localhost` reported `crossOriginIsolated` true but
+`SharedArrayBuffer` undefined.
 
 ## T-board measurements
 

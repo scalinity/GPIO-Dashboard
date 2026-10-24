@@ -43,5 +43,6 @@ Environment facts a fresh session needs:
 | 0.4 ESLint boundary rules | done | `boundaries.test.ts`: 25 cases pass (rules exist as errors; forbidden imports and window.api rejected; native/anthropic and core allowed) |
 | 0.5 Vitest in npm test | done | `npm test` → node 7/7 + Vitest 25/25 |
 | 0.6 VERSIONS.md | done | docs/VERSIONS.md |
-| 0.7 COOP/COEP + CSP | todo | |
-| 0.8 WebGPU probe in the Tauri window | todo | |
+| 0.7 COOP/COEP + CSP | done | ADR-0008. Dev and prod both report crossOriginIsolated true, SharedArrayBuffer true, IPC ok (overlay, real window). CSP per SPEC 15 in tauri.conf.json; loopback responses carry Tauri's computed CSP |
+| 0.8 WebGPU probe in the Tauri window | done | navigator.gpu adapter present in dev and prod; recorded in BASELINE.md |
+| suite | green | cargo test 30 pass / 15 ignored; live-tests 15/15; npm test node 7/7 + Vitest 25/25; lint 0 errors (167 warnings); typecheck ok; `npm run build` ok |

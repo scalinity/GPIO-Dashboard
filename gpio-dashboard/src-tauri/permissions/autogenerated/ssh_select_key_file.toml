@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ssh-select-key-file"
+description = "Enables the ssh_select_key_file command without any pre-configured scope."
+commands.allow = ["ssh_select_key_file"]
+
+[[permission]]
+identifier = "deny-ssh-select-key-file"
+description = "Denies the ssh_select_key_file command without any pre-configured scope."
+commands.deny = ["ssh_select_key_file"]

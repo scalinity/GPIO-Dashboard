@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-gpio-disconnect"
+description = "Enables the gpio_disconnect command without any pre-configured scope."
+commands.allow = ["gpio_disconnect"]
+
+[[permission]]
+identifier = "deny-gpio-disconnect"
+description = "Denies the gpio_disconnect command without any pre-configured scope."
+commands.deny = ["gpio_disconnect"]

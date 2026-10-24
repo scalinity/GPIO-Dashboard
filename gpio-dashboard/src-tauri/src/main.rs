@@ -6,6 +6,7 @@ mod ai;
 mod commands;
 #[cfg(test)]
 mod live_tests;
+mod loopback;
 mod settings;
 mod ssh;
 #[cfg(test)]
@@ -21,9 +22,40 @@ use std::{
 };
 
 use serde_json::Value;
-use tauri::{AppHandle, Emitter, Manager, RunEvent};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder};
 
 use crate::{ai::Ai, settings::Settings, ssh::Ssh, ws::Ws};
+
+/// Creates the main window. Production loads the frontend from the loopback server, which
+/// WKWebView needs for SharedArrayBuffer (ADR-0008); dev loads `devUrl`. Either way the window
+/// may only navigate within the frontend's own origin.
+fn create_main_window(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let mut config = app
+        .config()
+        .app
+        .windows
+        .first()
+        .cloned()
+        .ok_or("no window configured")?;
+    let origin: Url = if tauri::is_dev() {
+        app.config()
+            .build
+            .dev_url
+            .clone()
+            .ok_or("devUrl is not configured")?
+    } else {
+        let addr = loopback::start(app.handle().clone())?;
+        app.add_capability(loopback::capability(addr))?;
+        format!("http://{addr}/").parse()?
+    };
+    if !tauri::is_dev() {
+        config.url = WebviewUrl::External(origin.clone());
+    }
+    WebviewWindowBuilder::from_config(app.handle(), &config)?
+        .on_navigation(move |url| url.origin() == origin.origin())
+        .build()?;
+    Ok(())
+}
 
 /// Sends an event to the renderer. Shared by the managers so they stay independent of Tauri.
 pub type Emit = Arc<dyn Fn(&str, Value) + Send + Sync>;
@@ -58,6 +90,7 @@ fn main() {
             app.manage(Ws::new(emit.clone()));
             app.manage(Ai::new(emit));
             app.manage(Settings::load(config_dir));
+            create_main_window(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

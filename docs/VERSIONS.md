@@ -22,4 +22,9 @@ checked with `npm view <pkg> version` or the tool's `--version` on 2026-10-23.
 | @types/react, @types/react-dom | ^19.3.0 | latest; match React 19 |
 | @types/node | ^26.6.5 | latest; Node 26 runtime for tests and scripts |
 
+## Rust
+
+No new crates in M0. `tokio` gains the `net` and `io-util` features for the production
+loopback server (ADR-0008).
+
 Later milestones add rows here as dependencies arrive.

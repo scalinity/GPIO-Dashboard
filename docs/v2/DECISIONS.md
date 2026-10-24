@@ -137,3 +137,46 @@ decision and consequences. Numbering is stable; superseded records say so.
   supports.
 - **Consequences.** One compiler serves typecheck and lint. Revisit when typescript-eslint
   supports 7.x.
+
+## ADR-0008 Serve the production frontend from a loopback HTTP origin
+
+- **Context.** SPEC 13.2 sets COOP/COEP for SharedArrayBuffer, which the physics worker and
+  Pyodide's blocking sleep both need. Measured in the real windows on 2026-10-23
+  (macOS 27.2, the dev overlay):
+  - **dev**, `http://localhost:5173`: `crossOriginIsolated` false at first. The cause was
+    WebKit's HTTP cache. Vite's `server.headers` is missing from its `304 Not Modified`
+    revalidations (checked with curl). `index.html` is `Cache-Control: no-cache`, so every
+    load revalidates and keeps the cached headers from before isolation existed.
+  - **production**, `tauri://localhost`: `isSecureContext` true and
+    `crossOriginIsolated` true, but **`SharedArrayBuffer` undefined**. Reproduced outside
+    Tauri: a Swift WKWebView harness serving the same headers from an `app://` scheme
+    handler gives the same result, even with WebKit's private
+    `processSwapsOnNavigationWithinSameNonHTTPFamilyProtocol` pool flag set. An http(s)
+    document in the same harness gets SharedArrayBuffer.
+  - Bare wry 0.57.1 and a plain WKWebView isolate `http://localhost` with every builder
+    option Tauri uses. That ruled out the webview configuration for the dev failure.
+- **Options.** (a) Accept no SharedArrayBuffer in production: no blocking sleep in
+  Run in Sim, and a copy-based physics transport. (b) Private WebKit flags: tried, no
+  effect. (c) Serve the embedded frontend over loopback HTTP in production.
+- **Decision.** (c), plus a dev fix.
+  - **Dev:** a Vite middleware sets the isolation headers on every response, 304s
+    included (`vite.config.js`).
+  - **Production:** `src-tauri/src/loopback.rs` binds `127.0.0.1:<ephemeral>` and serves
+    only GET/HEAD for embedded assets. Each response carries COOP, COEP, CORP
+    `same-origin`, Tauri's computed CSP, `Cache-Control: no-store` and `nosniff`.
+  - The main window is created in `setup` (`create: false` in tauri.conf.json). It loads
+    that origin and may navigate only within it.
+  - A loopback origin is *remote* to Tauri, so app commands need ACL. `build.rs`
+    declares them (`AppManifest::commands`), and `permissions/app-commands.toml` groups
+    them. The local capability (dev) and a runtime capability scoped to the exact
+    loopback origin grant the same set.
+  - A cargo test keeps `generate_handler!`, `build.rs` and the permission set in step.
+- **Consequences.**
+  - Production: `crossOriginIsolated` true, `SharedArrayBuffer` true, IPC ok; dev: the
+    same.
+  - Any local process can read the frontend's assets over loopback. They're public in
+    the repository anyway, and the IPC grant does not extend to other ports.
+  - Every new command is added in three places, and the test fails until it is.
+  - `app > security > headers` stays in tauri.conf.json, and a test checks that the
+    loopback server sends the same values.
+  - tokio gains the `net` and `io-util` features; no new crates.
