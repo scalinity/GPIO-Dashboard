@@ -2,6 +2,7 @@
 // Shown by default in dev builds; Cmd/Ctrl+Shift+D toggles it in any build.
 import { Suspense, use, useSyncExternalStore } from 'react'
 import { getStatus, subscribeStatus } from '../studio/status'
+import { getFrameCost, subscribeFrameCost } from './frameCost'
 import { probePlatform, type PlatformProbe } from './probe'
 
 let visible = import.meta.env.DEV
@@ -67,6 +68,7 @@ function ProbeRows({ probe }: { probe: Promise<PlatformProbe> }) {
 
 function StudioRows() {
   const { backend, frames, fps, physics } = useSyncExternalStore(subscribeStatus, getStatus)
+  const cost = useSyncExternalStore(subscribeFrameCost, getFrameCost)
   if (!backend) return <Row label="renderer" value="not started (open the Studio)" />
   return (
     <>
@@ -75,6 +77,12 @@ function StudioRows() {
         label="frames"
         value={`${frames}${fps === null ? '' : ` · last run ${fps.toFixed(0)} fps`}`}
       />
+      {cost && (
+        <Row
+          label="frame cost"
+          value={`render call ${cost.renderMs.toFixed(1)} ms · gpu passes ${cost.gpuMs === null ? 'n/a' : `${cost.gpuMs.toFixed(1)} ms`}`}
+        />
+      )}
       {physics && (
         <Row
           label="physics step"

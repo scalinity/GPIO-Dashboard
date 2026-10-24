@@ -2161,3 +2161,121 @@ decision and consequences. Numbering is stable; superseded records say so.
   route-hint drag now moves the grab sideways (60 px) instead of up: a standing lead is already
   near the most height its wire allows, so a target dragged up from its stub is out of every
   lead's reach. The reopened lead lies within 0.00 mm of where it was left.
+
+## ADR-F-1 The Studio draws one geometry pass and redraws the shadow map every other frame
+
+- **Context.** SPEC 10.8 asks for 60 fps in the Tauri window with physics awake and the full post
+  stack, and says to scale effect quality first (AO resolution, then depth of field). ADR-0078
+  measured the heaviest tutorial (four-digit seven-segment, 37 leads and the ribbon, bb1 dragged)
+  at 53 to 62 fps, 56 on average, with the physics worker's step at 1.8 ms. The question was where
+  the rest of the frame goes. Measured in the Tauri window (`npm run dev`'s binary, 1200 x 800,
+  WKWebView, WebGPU, a canvas of 1376 x 1189 device pixels at a pixel ratio of 2) by scripted
+  drags: synthetic pointer events at the display rate move bb1 back and forth for 3 to 5 s with
+  every cable awake. The machine was at load average 7.5 to 11.2 throughout, shared with other
+  lanes and with a second Tauri app (KasaHub) whose WebContent process held 240% CPU and whose GPU
+  process 100% at each of three samples; the same code's fps moved by 10 or more between batches
+  minutes apart. Every comparison below is therefore between runs interleaved in one batch, three
+  to five repeats each.
+- **Where a frame goes.**
+  - GPU, from timestamp queries. three 0.186 reads them when the renderer is built with
+    `trackTimestamp: true` (the adapter lists `timestamp-query`): `renderer.resolveTimestampsAsync
+    ('render')` fills `backend.timestampQueryPool.render.timestamps`, one entry per render context
+    and frame (`r:<calls>:<context>:f<frame>`, in the order the passes began), and
+    `renderer.info.render.timestamp` holds the last frame's sum. Heaviest tutorial, one run of 205
+    frames, mean ms per frame before the change: pre-pass (normal and velocity, 1376 x 1189) 1.03;
+    shadow map (2048 x 2048) 0.74; scene pass 1.75; GTAO (688 x 595) 1.66; TRAA resolve 1.66; bloom
+    4.26 (high pass 1.75, first blur 1.80, the other nine blurs and the composite 0.71); AgX and
+    grade, the pass to the canvas, 0.25; total 11.35 (p95 13.9). The sum is generous: a pass is
+    timed from its first to its last stage, and on Apple GPUs a pass waits on the one before it,
+    so a half-resolution blur reads as long as the full-resolution resolve it follows. The same
+    sums for the LED dot matrix and the shift register: 11.2 and 6.4.
+  - The GPU is not what sets the rate. At a pixel ratio of 1 (a quarter of the pixels) the passes
+    sum to 6.5 ms instead of 11.0, and three drags ran 50.2, 44.0 and 46.8 fps against 50.9, 50.8
+    and 46.6. With AO at a quarter of its resolution (344 x 297), at a quarter with 8 samples, with
+    AO off, and with bloom off, fps in each batch stayed within the spread between repeats of the
+    default (39.9 against 39.7, 38.8, 38.6 and 38.5 on average, three repeats each, one load);
+    the pass sum moved by at most 0.5 ms, and bloom off took 2.1 ms. After the change below, AO at
+    half, a quarter, and a quarter with 8 samples gave 55.5, 54.9 and 56.7 fps (medians of five).
+    Depth of field is never built: nothing calls `Post.setFocus` yet (Build Mode), so it is off.
+  - The main thread is. `post.render()` took 8.5 to 18 ms of a 9.6 to 19 ms `view.frame`, for 452
+    draws a frame: 151 visible meshes (63 instanced), 145 of them shadow casters, drawn by the
+    pre-pass, the shadow pass and the colour pass, 1.19 M triangles in all. Of the final build's
+    main thread, the sixteen full-screen passes together cost 0.56 ms (0.014 to 0.17 each, the
+    time inside `_renderScene` per pass); the geometry passes cost the rest, 6.9 ms a frame for
+    one and a half of them at that load. Exclusive time in three's render path per object and
+    pass, with the profiling wrappers on (so inflated), four-digit against LED dot matrix:
+    `RenderObjects.get` 2.9 against 1.5 us, `bindings.updateForRender` 4.8 against 5.1,
+    `geometries.updateForRender` 5.0 against 1.4, `nodes.updateForRender` 1.8 against 1.8,
+    `backend.draw` 1.2 against 0.9. The WebGPU calls themselves are about 2.0 ms of a frame: 435
+    `drawIndexed`, 668 `setBindGroup`, 840 `setVertexBuffer`, 363 `setIndexBuffer`, 304
+    `setPipeline`, 569 `queue.writeBuffer`, 49 `createBuffer` a frame (25 mapped at creation,
+    `getMappedRange` 40 us each, 1.0 ms), 20 command encoders and submits.
+  - The two dense scenes with the same 452 draws differ most in `geometries.updateForRender`
+    (2.3 against 0.7 ms a frame) and `RenderObjects.get` (1.3 against 0.7): consecutive profiled
+    drags ran at 38.8 fps (four-digit) and 60.0 (LED dot matrix). The cost is the cable geometry
+    and bindings of a scene whose cables are all awake.
+  - The frame interval follows the main thread's time in `view.frame`: 16.9 ms at 6.3, 19.6 at
+    9.6, 21.5 at 11.8, about 25 at 15. During a drag the WebContent process ran at 52 to 88% CPU
+    and WebKit's GPU process at 30 to 46%: neither was saturated.
+- **Options.** (a) Lower AO resolution and samples, then bloom or shadow resolution: the SPEC's
+  order. It buys GPU time, which is not the limit here, and costs look. (b) Draw fewer objects:
+  instance or merge the models, wrap the static ones in a render bundle, stop leads casting
+  shadows. Right, and in other lanes' files. (c) Draw each object fewer times: it is drawn by
+  the pre-pass, the colour pass and the shadow pass.
+- **Decision.** (c), in `studio/renderer.ts`, and nothing else in the pipeline.
+  - One geometry pass. The colour pass writes the colour, the packed normal (8-bit) and the
+    velocity as an MRT, and GTAO and TRAA read its depth, normal and velocity. The pre-pass is
+    gone. GTAO still feeds `builtinAOContext`, so only ambient light is occluded. three runs the
+    GTAO pass when the first object that uses it is drawn, and the colour pass's commands are
+    submitted after it, so GTAO reads the depth and normals the colour pass wrote on the previous
+    frame: the occlusion applied in a frame was computed one frame earlier. A still image is the
+    same as before; in motion the occlusion trails by a frame.
+  - The key light's shadow map is redrawn on every second frame (`SHADOW_EVERY`), by switching
+    its `autoUpdate` off and setting `needsUpdate` from `Post.render`. SPEC 10.2's 16 frames that
+    settle a change include redraws, so a still scene ends on a current shadow; a dragged board's
+    shadow trails by a frame, about a millimetre at 70 mm/s.
+  - AO stays at half resolution and 16 samples, and bloom, shadow size, TRAA and DoF are as they
+    were: the measurements say none of them buys frame rate, and each costs look.
+  - Dev builds build the renderer with `trackTimestamp` and report the render call's main-thread
+    time and the GPU's pass time to the overlay every 30 frames (`dev/frameCost.ts`, a row "frame
+    cost"). Queries on or off made no difference in four interleaved pairs of drags (`view.frame`
+    8.0 ms against 8.0, 58.3 against 57.3 fps).
+- **Consequences.**
+  - Draws a frame 452 to about 225 (151 colour, 151 shadow on every second frame). Interleaved
+    batches of five drags each, before then after (fps median; `view.frame` and its render call,
+    mean ms; pass sum, mean ms; load average):
+    - four-digit seven-segment: 33.9 to 44.6 fps; 18.9 and 17.9 to 11.9 and 11.1 ms; 12.1 to
+      11.3; load 9.7.
+    - LED dot matrix: 58.6 to 58.5; 7.2 and 6.4 to 5.3 and 4.5 ms; 11.0 to 11.3; load 9.0. It
+      held the 60 Hz cap before and after.
+    - shift register: 53.5 to 57.0; 9.2 and 8.5 to 7.0 and 6.4 ms; 6.9 to 9.0; load 9.7.
+    - The pass sum stays level or rises because the colour pass writes normal and velocity as
+      well (1.75 to 2.29 ms in the four-digit run) and bloom and TRAA read a little longer; the
+      pre-pass's 1.03 is gone. Per pass after, in that run: shadow map 0.80 (a redraw), scene 2.29,
+      GTAO 1.39, TRAA 1.87, bloom 4.77, grade 0.25, total 11.36.
+    - The final build, five drags each, load 9.8 to 10.1: 55.3, 57.6 and 55.9 fps median during
+      the drag; the overlay's "last run" 55.9 to 60.8 (medians 58.0, 58.3, 58.5); `view.frame` 8.3,
+      5.1 and 7.6 ms. A first set of four drags each at load 8.3 to 8.9: 57.6 to 59.3, 57.1 to
+      60.0 and 53.8 to 57.7 fps, last run 58.3 to 60.6. Blinking LED (61 meshes): 54.1, 56.3, 60.0
+      and 60.0 fps with `view.frame` at 2.7 to 2.9 ms, so at this load a scene that costs the main
+      thread 3 ms held 60 in half its runs. 60 fps on every drag of the heaviest tutorial was not
+      shown here, and the load on this machine did not allow a quieter measurement.
+  - What is left is per object and per pass in three's render path (about 150 objects in each of
+    two passes), and the awake scenes pay about 1.5 ms more than the quiet ones in geometry and
+    binding updates. The levers are in files this change does not touch: fewer objects per pass
+    (instancing and merging; leads and small parts need not cast shadows), a render bundle for the
+    static boards and models, and the buffers three re-creates every frame (in a second trace,
+    three binding buffers of 80, 256 and 448 bytes 6.4 times a frame each, and 19 vertex and index
+    buffers mapped at creation). Bloom costs 4.3 to 4.8 ms of pass time and does nothing while no
+    LED exceeds its threshold of 2; a switch for it, driven by the simulation's glow, is the next
+    GPU saving and the only one that costs nothing visible.
+  - Look: Blinking LED at the Iso preset in the Tauri window, dev overlay hidden, TRAA converged.
+    Compared pixel by pixel on the canvas, before against the interleaved build and against the
+    final build: mean absolute difference 0.30 and 0.49 of 255 (two captures of the same build:
+    0.08), 0.8% and 1.4% of pixels differ by more than 8 levels (same build: 0.016%), almost all on
+    silhouettes and the rims of the breadboard's holes, which read a hair darker at 6x; mean
+    luminance 132.64 to 132.71 and 132.60. By eye, at full size and at 2x and 6x crops, nothing
+    visible changed. A frame drawn after six 0.7 degree orbit steps by hand differs more (mean 1.5,
+    4.3% of pixels over 8, on edges), and the one-pass frame was the sharper.
+  - e2e's frame counter tests, including that a still scene renders no frames after a camera move,
+    pass unchanged.

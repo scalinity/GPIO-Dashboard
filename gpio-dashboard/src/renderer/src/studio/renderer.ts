@@ -4,10 +4,12 @@
 import {
   AgXToneMapping,
   type Camera,
+  type DirectionalLight,
   type Node,
   RenderPipeline,
   type Scene,
   SRGBColorSpace,
+  TimestampQuery,
   UnsignedByteType,
   WebGPURenderer
 } from 'three/webgpu'
@@ -15,6 +17,7 @@ import {
   builtinAOContext,
   mrt,
   normalView,
+  output,
   packNormalToRGB,
   max,
   min,
@@ -32,6 +35,7 @@ import { bloom } from 'three/addons/tsl/display/BloomNode.js'
 import { dof } from 'three/addons/tsl/display/DepthOfFieldNode.js'
 import { ao } from 'three/addons/tsl/display/GTAONode.js'
 import { traa } from 'three/addons/tsl/display/TRAANode.js'
+import { setFrameCost } from '../dev/frameCost'
 import { type Backend, setStatus } from './status'
 
 /**
@@ -39,11 +43,12 @@ import { type Backend, setStatus } from './status'
  * R3F hands it the DOM canvas it made.
  */
 export async function createRenderer({ canvas }: { canvas: EventTarget }): Promise<WebGPURenderer> {
-  // TRAA resolves edges, and it requires MSAA off.
+  // TRAA resolves edges, and it requires MSAA off. Dev builds time the GPU's passes (ADR-F-1).
   const renderer = new WebGPURenderer({
     canvas: canvas as HTMLCanvasElement,
     antialias: false,
-    powerPreference: 'high-performance'
+    powerPreference: 'high-performance',
+    trackTimestamp: import.meta.env.DEV
   })
   renderer.toneMappingExposure = GRADE.exposure
   await renderer.init()
@@ -87,34 +92,42 @@ const finish = (input: Output): Output => {
   return vec4(peak.sub(min(below.mul(stretch), peak)), mapped.a)
 }
 
+/** The key light's shadow map is redrawn every this many frames (ADR-F-1). */
+const SHADOW_EVERY = 2
+
 export class Post {
   private readonly pipeline: RenderPipeline
   private readonly sharp: Output
   private readonly resolved: Output
   private readonly viewZ: Node
   private focus: { output: Output; distance: ReturnType<typeof uniform> } | null = null
+  private key: DirectionalLight | null = null
+  private rendered = 0
+  private renderMs = 0
 
-  constructor(renderer: WebGPURenderer, scene: Scene, camera: Camera) {
-    // A pre-pass gives GTAO depth and normals before the colour pass, so occlusion darkens only
-    // the ambient (image-based) light; it also gives TRAA depth and velocity.
-    const pre = pass(scene, camera)
-    pre.transparent = false
-    pre.setMRT(mrt({ output: packNormalToRGB(normalView), velocity }))
-    pre.getTexture('output').type = UnsignedByteType
-    const normal = sample((uv) => unpackRGBToNormal(pre.getTextureNode().sample(uv)))
-    const depth = pre.getTextureNode('depth')
-    this.viewZ = pre.getViewZNode()
+  constructor(
+    private readonly renderer: WebGPURenderer,
+    private readonly scene: Scene,
+    camera: Camera
+  ) {
+    // One geometry pass draws the colour, the packed normal and the velocity. GTAO reads that
+    // pass's depth and normals, and the same pass applies the occlusion to its ambient light: the
+    // occlusion it applies was drawn from the previous frame's depth and normals (ADR-F-1).
+    const colour = pass(scene, camera)
+    colour.setMRT(mrt({ output, normal: packNormalToRGB(normalView), velocity }))
+    colour.getTexture('normal').type = UnsignedByteType
+    const normal = sample((uv) => unpackRGBToNormal(colour.getTextureNode('normal').sample(uv)))
+    const depth = colour.getTextureNode('depth')
+    this.viewZ = colour.getViewZNode()
 
     // GTAO's radius is in scene units: 8 mm, about three pitches.
     const occlusion = ao(depth, normal, camera)
     occlusion.resolutionScale = 0.5
     occlusion.useTemporalFiltering = true
     occlusion.radius.value = 8
-
-    const colour = pass(scene, camera)
     colour.contextNode = builtinAOContext(occlusion.getTextureNode().sample(screenUV).r)
 
-    const resolved = traa(colour, depth, pre.getTextureNode('velocity'), camera)
+    const resolved = traa(colour, depth, colour.getTextureNode('velocity'), camera)
     resolved.useSubpixelCorrection = false
     this.resolved = resolved
 
@@ -124,7 +137,33 @@ export class Post {
   }
 
   render(): void {
+    this.key ??=
+      (this.scene.getObjectByProperty('isDirectionalLight', true) as
+        DirectionalLight | undefined) ?? null
+    if (this.key) {
+      // A shadow that trails by one frame is under a millimetre behind a dragged board; the
+      // settling frames after the last change redraw it.
+      this.key.shadow.autoUpdate = false
+      this.key.shadow.needsUpdate = this.rendered % SHADOW_EVERY === 0
+    }
+    if (import.meta.env.DEV) this.renderTimed()
+    else this.pipeline.render()
+    this.rendered += 1
+  }
+
+  /** Dev builds: the render call's main-thread time and the GPU's pass time, every 30 frames. */
+  private renderTimed(): void {
+    const t0 = performance.now()
     this.pipeline.render()
+    this.renderMs += performance.now() - t0
+    if (this.rendered % 30 !== 29) return
+    const renderMs = this.renderMs / 30
+    this.renderMs = 0
+    const { info } = this.renderer
+    void this.renderer.resolveTimestampsAsync(TimestampQuery.RENDER).then(() => {
+      const gpuMs = info.render.timestamp
+      setFrameCost({ renderMs, gpuMs: gpuMs > 0 ? gpuMs : null })
+    })
   }
 
   /** Depth of field focused `distanceMm` along the view, or none (Build Mode, SPEC 11.7). */
