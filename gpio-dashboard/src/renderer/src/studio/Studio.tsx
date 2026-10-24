@@ -42,31 +42,35 @@ export default function Studio({ doc }: { doc: CircuitDoc }) {
     },
     [view]
   )
+  // The toolbar sits outside the element the orbit controls listen on: their pointer capture
+  // would otherwise take the buttons' clicks.
   return (
-    <div ref={attach} className="relative flex-1 min-h-0" data-testid="studio">
-      <Canvas
-        gl={createRenderer}
-        camera={view.camera}
-        frameloop="demand"
-        shadows="percentage"
-        scene={{ environmentIntensity: 0.6 }}
-        onCreated={(state) => {
-          // R3F sets ACES Filmic while configuring a renderer; the Studio uses AgX (SPEC 10.1).
-          state.gl.toneMapping = AgXToneMapping
-          view.bind(state.gl as unknown as WebGPURenderer, state.scene, state.invalidate)
-        }}
-      >
-        <Stage />
-        <Models doc={doc} />
-        <primitive object={view.overlay} />
-        <Frames view={view} />
-      </Canvas>
-      <div
-        ref={tooltip}
-        hidden
-        data-testid="studio-tooltip"
-        className="absolute left-0 top-0 pointer-events-none rounded-btn bg-surface-900/90 border border-white/[0.06] px-2 py-1 text-xs text-gray-200 font-mono whitespace-nowrap"
-      />
+    <div className="relative flex-1 min-h-0">
+      <div ref={attach} className="absolute inset-0" data-testid="studio">
+        <Canvas
+          gl={createRenderer}
+          camera={view.camera}
+          frameloop="demand"
+          shadows="percentage"
+          scene={{ environmentIntensity: 0.6 }}
+          onCreated={(state) => {
+            // R3F sets ACES Filmic while configuring a renderer; the Studio uses AgX (SPEC 10.1).
+            state.gl.toneMapping = AgXToneMapping
+            view.bind(state.gl as unknown as WebGPURenderer, state.scene, state.invalidate)
+          }}
+        >
+          <Stage />
+          <Models doc={doc} />
+          <primitive object={view.overlay} />
+          <Frames view={view} />
+        </Canvas>
+        <div
+          ref={tooltip}
+          hidden
+          data-testid="studio-tooltip"
+          className="absolute left-0 top-0 pointer-events-none rounded-btn bg-surface-900/90 border border-white/[0.06] px-2 py-1 text-xs text-gray-200 font-mono whitespace-nowrap"
+        />
+      </div>
       <div
         className="absolute top-3 right-3 flex gap-1 glass-panel rounded-btn p-1"
         role="toolbar"

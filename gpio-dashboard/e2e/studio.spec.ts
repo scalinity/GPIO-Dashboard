@@ -90,3 +90,21 @@ test('a still scene renders no frames, after a camera move too', async ({ page }
   await page.waitForTimeout(1000)
   expect(await frames(page)).toBe(after)
 })
+
+test('the camera preset buttons move the camera', async ({ page }) => {
+  await waitUntilStill(page, 15_000)
+  const camera = () =>
+    page.evaluate(() =>
+      (window as unknown as StudioWindow).__studio.camera.position.toArray().map(Math.round)
+    )
+  const iso = await camera()
+  await page.getByRole('button', { name: 'Top (3)' }).click()
+  await waitUntilStill(page, 2000)
+  const top = await camera()
+  expect(top).not.toEqual(iso)
+  // Seen from straight above, the camera is over the target.
+  const target = await page.evaluate(() =>
+    (window as unknown as StudioWindow).__studio.controls.target.toArray().map(Math.round)
+  )
+  expect([top[0], top[2]]).toEqual([target[0], target[2]])
+})
