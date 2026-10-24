@@ -356,3 +356,24 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** A 3V3 load heavy enough to brown out the regulator is not flagged. If a
   documented Pi 5 3V3 limit appears, it goes in `core/constants/rp1.ts` with its source and
   a RAIL_BUDGET case.
+
+## ADR-0015 Overlapping part bodies are an ERC warning, not a rejected placement
+
+- **Context.** SPEC 6.6 lists "Part bodies may not collide" among the placement rules
+  validated on every op. SPEC 8 lists PHYSICAL_COLLISION as an ERC rule, with a severity
+  to choose. Real builds put 5 mm LEDs in neighbouring row pairs (5.9 mm flanges 5.08 mm
+  apart), and their leads splay to make room. A rejected placement would refuse a layout
+  that works on the bench.
+- **Decision.**
+  - Overlap is checked in plan view from each part's `bodyMm`, centred on its pins, with a
+    separating-axis test.
+  - Overlap beyond 0.3 mm is a PHYSICAL_COLLISION **warning** naming both parts and the
+    depth.
+  - Placement validation keeps the rules that are physically absolute: one lead per hole,
+    holes under the T-board body, spans, and the trench.
+- **Consequences.**
+  - Tutorials must pass ERC with zero errors, so a collision warning does not block one.
+    The audit reviews each warning, and the tutorials avoid collisions where a free row
+    allows it.
+  - Bodies that overhang their pins to one side (the potentiometer) are approximated
+    centred on their pins. The Studio's 3D colliders (M7) are exact.
