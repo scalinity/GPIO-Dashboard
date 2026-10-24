@@ -73,6 +73,18 @@ interface Toggle {
 }
 const toggles = new Map<string, Toggle>()
 
+/** A step whose hardware checkpoints have all passed is checked: ticked off, and left in hand. */
+function confirmStep(): void {
+  const build = useBuild.getState()
+  const { runs } = useCheckpoints.getState()
+  if (
+    build.on &&
+    build.checkpoints.length > 0 &&
+    build.checkpoints.every((c) => runs[checkpointKey(c)]?.phase === 'passed')
+  )
+    build.markChecked()
+}
+
 interface CheckpointState {
   runs: Record<string, CheckpointRun>
   scan(c: Of<'i2c-scan'>): Promise<void>
@@ -85,8 +97,10 @@ interface CheckpointState {
 }
 
 export const useCheckpoints = create<CheckpointState>((set, get) => {
-  const put = (key: string, run: Partial<CheckpointRun> & { phase: CheckpointPhase }) =>
+  const put = (key: string, run: Partial<CheckpointRun> & { phase: CheckpointPhase }) => {
     set({ runs: { ...get().runs, [key]: { ...IDLE, ...run } } })
+    if (run.phase === 'passed') confirmStep()
+  }
 
   return {
     runs: {},

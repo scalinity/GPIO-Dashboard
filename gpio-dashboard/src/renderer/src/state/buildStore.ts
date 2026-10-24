@@ -54,6 +54,8 @@ interface BuildState {
   done: string[]
   /** Keys of the steps Board Sense confirmed in this session. */
   sensed: string[]
+  /** Keys of the steps whose hardware checkpoints passed in this session. */
+  checked: string[]
   scene: StepScene | null
   status: StepStatus
   /** The build's hardware checkpoints, each on the step that completes what it checks. */
@@ -70,6 +72,8 @@ interface BuildState {
   back(): void
   /** Marks the step in hand done and moves on. */
   markDone(): void
+  /** Marks the step in hand done because its hardware checkpoints passed; stays on it. */
+  markChecked(): void
   goTo(index: number): void
   showAgain(): void
   restart(): void
@@ -156,6 +160,7 @@ export const useBuild = create<BuildState>((set, get) => {
     index: 0,
     done: [],
     sensed: [],
+    checked: [],
     scene: null,
     status: { state: 'off' },
     plan: [],
@@ -182,7 +187,7 @@ export const useBuild = create<BuildState>((set, get) => {
           if (now.sweep !== before.sweep || now.mode !== before.mode) void evaluate()
         })
       ]
-      set({ on: true, doc, steps, done, sensed: [], plan: planOf(doc, steps) })
+      set({ on: true, doc, steps, done, sensed: [], checked: [], plan: planOf(doc, steps) })
       go(left >= 0 ? left : first < 0 ? steps.length : first)
     },
     stop() {
@@ -195,6 +200,7 @@ export const useBuild = create<BuildState>((set, get) => {
         doc: null,
         steps: [],
         sensed: [],
+        checked: [],
         scene: null,
         status: { state: 'off' },
         plan: [],
@@ -209,9 +215,18 @@ export const useBuild = create<BuildState>((set, get) => {
       const step = steps[index]
       if (step) go(index + 1, { done: done.includes(step.key) ? done : [...done, step.key] })
     },
+    markChecked() {
+      const { doc, steps, index, done, checked } = get()
+      const step = steps[index]
+      if (!doc || !step) return
+      const now = done.includes(step.key) ? done : [...done, step.key]
+      set({ done: now, checked: checked.includes(step.key) ? checked : [...checked, step.key] })
+      const key = progressKey(doc)
+      if (key) stored<Progress>(key, { current: step.key, done: now })
+    },
     showAgain: () => set({ frameSeq: get().frameSeq + 1 }),
     restart() {
-      set({ done: [], sensed: [] })
+      set({ done: [], sensed: [], checked: [] })
       go(0)
     },
     setBlur(blur) {

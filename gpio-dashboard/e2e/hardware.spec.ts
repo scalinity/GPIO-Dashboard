@@ -257,11 +257,17 @@ test.describe('divergence badges', () => {
       board.wires.find((w) => w.id === 'W3').a = { hole: { board: 'bb1', area: 'main', row: 5, col: 'b' } }
       s.useSense.setState({ mockBoard: board })
     })`)
-    const badge = page.getByRole('button', { name: /^GPIO\d+: Board Sense says/ }).first()
+    const badge = page
+      .getByRole('button', {
+        name: /^GPIO\d+: (a path is missing|there is a path|it reads the wrong|two GPIOs are joined)/
+      })
+      .first()
     await expect(badge).toBeVisible({ timeout: 30_000 })
     expect((await badges(page)).some((b) => b.id.startsWith('sense:'))).toBe(true)
     await badge.click()
-    const explanation = page.getByRole('dialog', { name: /Board Sense says/ })
+    const explanation = page.getByRole('dialog', {
+      name: /^GPIO\d+: (a path|there is a path|it reads|two GPIOs)/
+    })
     await expect(explanation).toContainText('GPIO')
     // Its candidate causes are ranked by a simulation, so they take a moment.
     await expect(explanation.getByRole('list', { name: 'Likely causes' })).toBeVisible({
@@ -337,6 +343,8 @@ test.describe('Build Mode checkpoints', () => {
     await expect(toggle.getByRole('status')).toContainText('Did the LED light')
     await toggle.getByRole('button', { name: 'Yes, it lit' }).click()
     await expect(toggle.getByRole('status')).toContainText('You saw D1 light on GPIO17.')
+    // The LED path is not electrically verifiable; the checkpoint is what confirms the step.
+    await expect(page.getByLabel('done, checked on the Pi')).toHaveCount(1)
     // Exactly one run, started by the one click.
     expect(await callsOf('ssh_run_tutorial_script')).toHaveLength(1)
   })
@@ -351,7 +359,7 @@ test.describe('Build Mode checkpoints', () => {
     await pi.finishRun()
     await toggle.getByRole('button', { name: 'No' }).click()
     await expect(toggle.getByRole('status')).toContainText('D1 did not light')
-    await expect(toggle.getByRole('list', { name: 'Likely causes' })).toContainText('polarity')
+    await expect(toggle.getByRole('list', { name: 'What to check' })).toContainText('polarity')
   })
 
   test('toggle the LED: ERC errors hold the run until the override dialog is answered', async ({
@@ -385,12 +393,13 @@ test.describe('Build Mode checkpoints', () => {
     expect(await callsOf('ssh_i2c_scan')).toEqual([])
     await scan.getByRole('button', { name: 'Scan the I2C bus' }).click()
     await expect(scan.getByRole('status')).toContainText('Found a device at 0x48 on bus 1')
+    await expect(page.getByLabel('done, checked on the Pi')).toHaveCount(1)
     expect(await callsOf('ssh_i2c_scan')).toEqual([{ command: 'ssh_i2c_scan', args: [1] }])
 
     await pi.i2c([{ address: 0x3c, claimed: false }])
     await scan.getByRole('button', { name: 'Scan the I2C bus again' }).click()
     await expect(scan.getByRole('status')).toContainText('Nothing answered at 0x48; 0x3c did')
-    await expect(scan.getByRole('list', { name: 'Likely causes' })).toContainText('SDA to GPIO2')
+    await expect(scan.getByRole('list', { name: 'What to check' })).toContainText('SDA to GPIO2')
 
     await pi.i2c('i2cdetect: command not found')
     await scan.getByRole('button', { name: 'Scan the I2C bus again' }).click()
@@ -430,7 +439,7 @@ test.describe('Build Mode checkpoints', () => {
       'GPIO18 reads LOW with SW1 released; it should read HIGH.',
       { timeout: 10_000 }
     )
-    await expect(press.getByRole('list', { name: 'Likely causes' })).toContainText(
+    await expect(press.getByRole('list', { name: 'What to check' })).toContainText(
       'pins 1–2 are always connected'
     )
   })

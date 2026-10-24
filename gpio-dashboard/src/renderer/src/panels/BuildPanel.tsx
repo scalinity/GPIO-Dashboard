@@ -83,7 +83,7 @@ function Status({ status }: { status: StepStatus }) {
 }
 
 export default function BuildPanel() {
-  const { doc, steps, index, done, sensed, status, checkpoints, blur } = useBuild()
+  const { doc, steps, index, done, sensed, checked, status, checkpoints, blur } = useBuild()
   const { stop, back, next, markDone, goTo, showAgain, restart, setBlur } = useBuild.getState()
   const step = steps[index]
   const finished = index >= steps.length
@@ -192,8 +192,14 @@ export default function BuildPanel() {
                 <span className="min-w-0 flex-1 truncate">{s.text}</span>
                 {done.includes(s.key) && (
                   <Check
-                    aria-label={sensed.includes(s.key) ? 'done, sensed' : 'done'}
-                    className={`h-3.5 w-3.5 shrink-0 ${sensed.includes(s.key) ? 'text-emerald-400' : 'text-gray-300'}`}
+                    aria-label={
+                      sensed.includes(s.key)
+                        ? 'done, sensed'
+                        : checked.includes(s.key)
+                          ? 'done, checked on the Pi'
+                          : 'done'
+                    }
+                    className={`h-3.5 w-3.5 shrink-0 ${sensed.includes(s.key) || checked.includes(s.key) ? 'text-emerald-400' : 'text-gray-300'}`}
                   />
                 )}
               </button>

@@ -70,8 +70,8 @@ describe('divergence badges', () => {
       id: 'sense:17',
       source: 'sense',
       bcm: 17,
-      title: 'GPIO17: Board Sense says a path is missing',
-      why: 'GPIO17 reads follows-bias, expected tied-high',
+      title: 'GPIO17: a path is missing',
+      why: 'Board Sense measured it: GPIO17 reads follows-bias, expected tied-high',
       causes: [{ text: 'lead W1 end moved one row', holes: ranked.candidates[0]!.holes }]
     })
   })

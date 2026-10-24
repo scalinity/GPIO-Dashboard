@@ -65,8 +65,8 @@ export function senseBadges(
         source: 'sense' as const,
         bcm: pin,
         severity: 'error' as const,
-        title: `GPIO${pin}: Board Sense says ${KIND_TEXT[state.kind]}`,
-        why: state.detail,
+        title: `GPIO${pin}: ${KIND_TEXT[state.kind]}`,
+        why: `Board Sense measured it: ${state.detail}`,
         cause:
           ranked === 'working'
             ? 'Finding the likely causes…'

@@ -111,7 +111,7 @@ function Card({ doc, checkpoint }: { doc: CircuitDoc; checkpoint: Checkpoint }) 
         </div>
       )}
       {run.causes.length > 0 && (
-        <ul aria-label="Likely causes" className="list-disc space-y-0.5 pl-4 text-xs text-gray-300">
+        <ul aria-label="What to check" className="list-disc space-y-0.5 pl-4 text-xs text-gray-300">
           {run.causes.map((c) => (
             <li key={c}>{c}</li>
           ))}

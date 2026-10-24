@@ -3371,6 +3371,11 @@ declare it.
     start while another program runs. The Pi's telemetry during the run is reported ("drove GPIO17
     high and low"), and the user's yes or no decides: a no lists the LED's polarity with its hole,
     the series resistor, its return and the LED itself.
+  - **The step.** SPEC 11.7 lets a step Board Sense cannot see fall back to a checkpoint. When every
+    checkpoint on the step in hand has passed, `useBuild.markChecked` ticks the step ("done, checked
+    on the Pi") and keeps it in hand, so the result stays on screen; a "no", a miss or an error
+    confirms nothing. The step stays done with the rest of the progress (ADR-0113); the "checked"
+    label lasts for the session, as Board Sense's "sensed" does.
 - **Consequences.** A toggle drives a pin as an output, so what is wired to it on the bench matters:
   the card says so before the click, and the ERC gate stands in for what the document knows.
 

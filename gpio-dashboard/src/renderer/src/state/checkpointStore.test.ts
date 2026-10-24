@@ -14,7 +14,9 @@ import {
   useCheckpoints
 } from './checkpointStore'
 import { useBuild } from './buildStore'
+import { circuit } from './circuit'
 import { type LivePin, useLive } from './liveStore'
+import { useProject } from './projectStore'
 import { useRun } from './runStore'
 import { useSense } from './senseStore'
 
@@ -312,5 +314,58 @@ describe('the LED toggle', () => {
     await vi.waitFor(() => expect(run(pressKey).phase).toBe('waiting'))
     useBuild.setState({ index: useBuild.getState().index + 1 })
     expect(run(pressKey).phase).toBe('idle')
+  })
+})
+
+describe('a step with a checkpoint in Build Mode', () => {
+  /** Opens a tutorial as a template, starts Build Mode, and goes to the step the checkpoint is on. */
+  function buildAt(id: string, kind: Checkpoint['kind']) {
+    circuit.open(doc(id))
+    useProject.setState({ id: null })
+    useBuild.getState().start()
+    const { plan, steps } = useBuild.getState()
+    const checkpoint = plan.find((c) => c.kind === kind)!
+    const index = steps.findIndex((s) => s.refs.includes(checkpoint.afterStep))
+    useBuild.getState().goTo(index)
+    return { checkpoint, step: steps[index]! }
+  }
+
+  it('is ticked off, and left in hand, once its checkpoint passes', async () => {
+    const { checkpoint, step } = buildAt('adjustable-fan', 'i2c-scan')
+    expect(useBuild.getState().checkpoints).toEqual([checkpoint])
+    devices = []
+    await useCheckpoints.getState().scan(checkpoint as Of<'i2c-scan'>)
+    // A scan that finds nothing confirms nothing.
+    expect(useBuild.getState().done).not.toContain(step.key)
+    devices = [{ address: 0x48, claimed: false }]
+    await useCheckpoints.getState().scan(checkpoint as Of<'i2c-scan'>)
+    const { done, checked, index, steps } = useBuild.getState()
+    expect(done).toContain(step.key)
+    expect(checked).toEqual([step.key])
+    expect(steps[index]).toBe(step)
+    useBuild.getState().restart()
+    expect(useBuild.getState().checked).toEqual([])
+  })
+
+  it('needs every checkpoint on the step to pass', () => {
+    const { step } = buildAt('rgb-led', 'toggle-led')
+    const all = useBuild.getState().checkpoints as Of<'toggle-led'>[]
+    // The RGB LED's three colours are three toggles on the same step.
+    expect(all.map((c) => c.gpio)).toEqual([17, 18, 27])
+    const saw = (c: Of<'toggle-led'>) =>
+      useCheckpoints.getState().answer(c, circuit.getSnapshot(), true)
+    saw(all[0]!)
+    saw(all[1]!)
+    expect(useBuild.getState().done).not.toContain(step.key)
+    saw(all[2]!)
+    expect(useBuild.getState().done).toContain(step.key)
+    expect(useBuild.getState().checked).toEqual([step.key])
+  })
+
+  it('is not ticked off by a "no"', () => {
+    const { step } = buildAt('blinking-led', 'toggle-led')
+    const [c] = useBuild.getState().checkpoints as Of<'toggle-led'>[]
+    useCheckpoints.getState().answer(c!, circuit.getSnapshot(), false)
+    expect(useBuild.getState().done).not.toContain(step.key)
   })
 })
