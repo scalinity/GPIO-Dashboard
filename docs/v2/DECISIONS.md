@@ -483,3 +483,133 @@ decision and consequences. Numbering is stable; superseded records say so.
     needs `python3-dev` and a compiler; the warning then says Board Sense is unavailable.
   - Tutorials still run with the system `python3` (`runScript`), so they're unaffected.
   - Not run on a Pi from this build (PI_HOST is unset). `HIL_CHECKLIST.md` lists the check.
+
+## ADR-A1-1 The Pi 5 model comes from the no-graphics STEP, read in parts
+
+- **Context.**
+  - SPEC 6.2 links two official STEP archives, both MIT-licensed by Raspberry Pi Ltd, retrieved
+    2026-10-24. With graphics (RP-010082, archive SHA-256
+    `1b38b554a317411bc60604f066ae004273e6c857778ecf997925ea0b56b44e0b`): a 142 MB STEP,
+    3,467 solids, 83,152 faces. No graphics (RP-010083, pinned in `sources.json`): 78 MB, 2,689
+    solids plus 22 surface shells, 45,689 faces. The extra 778 solids and 37,463 faces are
+    markings modelled as solid prisms.
+  - The budget is 200k triangles and 8 MB (SPEC 10.8).
+  - occt-import-js 0.0.23 is compiled with a 2 GB heap. Loading the 78 MB file filled it: all
+    2,711 bodies came back with their faces listed but no triangles, and the read still
+    reported success.
+- **Decision.**
+  - Use the no-graphics variant. The markings would add 82% more faces for flat colour detail,
+    which a texture carries better, and twice the STEP text to load.
+  - `step-to-glb.ts` splits the STEP text into parts holding at most 12 MB of body geometry
+    each. Every part keeps all the non-geometry entities (products, assembly, placements,
+    styles) and its share of the solids. References to left-out solids are dropped from item
+    lists, and their styles are removed. A fresh occt-import-js instance reads each part. The
+    Pi reads in 5 parts, in about 4 minutes.
+  - The read fails if any body comes back untriangulated, or if the number of bodies read
+    differs from the STEP's.
+  - The licence travels with the model: the full MIT text in `pi5.manifest.json`, the notice in
+    the GLB's `asset.copyright`.
+- **Consequences.**
+  - The Pi has no silkscreen or logos. The with-graphics markings could later be baked into a
+    colour texture; the same splitting reads that file.
+  - The STEP is drawn in `pi5-board.json`'s frame: the PCB spans 0–85 by 0–56 mm, and its
+    mounting holes sit on the drawing's centres. The only transform is the lift onto the table.
+
+## ADR-A1-2 Pi 5 budget: the PCB and header base stay as modelled, the rest is decimated
+
+- **Context.**
+  - At 0.05 mm linear and 0.5 rad angular deflection the STEP tessellates to 853,982
+    triangles. At 0.1 mm and 1.0 rad it is still 402,702, because small parts have many faces:
+    an 0402 termination takes 300–580 triangles, and the BGA balls hidden under the SoC and RAM
+    take about 150k.
+  - assets:check measures the mounting holes from the PCB's walls and the header's position
+    from its base, so those two bodies have to keep their shape.
+- **Decision.**
+  - Tessellate at 0.05 mm and 0.5 rad. Weld the faces the reader leaves apart, then apply one
+    quadric (collapse) decimation to every body except the PCB and the header base, bringing the
+    whole model to 195,000 triangles. Quadric error is absolute, so sub-millimetre detail
+    collapses first and the connectors keep their shape.
+  - Shade smooth by angle (30°), replacing the reader's per-face normals.
+  - Remove the 40 header pins, after checking each stands within 0.05 mm of its
+    `pi5-board.json` position. The build fails if any pin is missing or off the grid.
+  - Bake AO into one 2048 × 2048 map over a smart-projected atlas, repacked at one texel
+    density. Without the repack, the PCB got about 100 px of the atlas.
+- **Consequences.**
+  - One level of detail. Sub-millimetre parts lose their rounding, which isn't visible at
+    bench distance.
+  - The materials are one per STEP colour. Metal versus plastic is a table in `pi5.py`, read
+    from where each colour's bodies sit on the board, and the solder mask has a clear coat.
+
+## ADR-A1-3 KTX2 encoding goes through `ktx create`
+
+- **Context.** ADR-0005 installed KTX-Software 4.4.2 for `toktx`. gltf-transform 4.5.1's KTX2
+  transform (`toktx()` in `@gltf-transform/cli`) now runs `ktx create`, and needs
+  KTX-Software 4.4.0 or later. It no longer calls `toktx`.
+- **Decision.**
+  - The pipeline runs `ktx` from the same install. When `KTX_BIN` is set (naming `toktx`, as
+    ADR-0005 has it), its directory goes first on `PATH`.
+  - Base colour is encoded as ETC1S; normal and occlusion maps as UASTC (level 2, zstd 18).
+    Each texture is resized to fit its asset's budget.
+  - `assets:check -- --rebuild` decodes textures with `ktx extract --transcode rgba8` for its
+    SSIM comparison.
+- **Consequences.** ADR-0005 already links `ktx` into `~/.local/bin`, so nothing new is
+  installed, and the WebP fallback isn't needed.
+
+## ADR-A1-4 The asset scripts run on Node's type stripping, with a resolve hook
+
+- **Context.** Node 26 runs `.ts` files directly. assets:check measures the models against
+  `core/geometry/breadboard.ts`, which imports `../model/types` without an extension, as Vite
+  and Vitest allow. Node resolves only imports that name their file.
+- **Options.** (a) Add a TypeScript runner such as tsx. (b) A small module hook
+  (`registerHooks`), loaded with `--import`, that adds `.ts` to extensionless relative imports
+  made from `.ts` files.
+- **Decision.** (b), in `scripts/assets/resolve-ts.ts`.
+  - The scripts import without extensions, like the app.
+  - `npm run typecheck` covers the modules the Vitest guard imports, and
+    `tsc --noEmit -p scripts/assets` covers all of them.
+  - The npm scripts turn off one Node warning, about `package.json` declaring no module type.
+    That field affects the whole app, so the pipeline doesn't change it.
+- **Consequences.** No new dependency. If core starts importing JSON or browser-only modules
+  on the path assets:check takes, the hook won't cover them.
+
+## ADR-A1-5 Breadboard model: drafted recesses under one top-down texture set, sheen for ABS
+
+- **Context.**
+  - SPEC 10.4 asks for a chamfered body, molded square hole recesses as geometry, the trench
+    and rail channels, a legend generated from data, a glimpse of nickel contact, and white ABS
+    with a slightly translucent look. SPEC 10.3 bakes AO, and tangent-space normals from
+    high-poly detail.
+  - The datasheets give only the outline and the hole grid.
+  - SPEC 10.3 keeps real-time transmission to where it shows (LED lenses).
+- **Decision.**
+  - Shape values (mm), chosen to read like reference photos 3 and 4:
+    - top chamfer 0.5; corner chamfer 1.0
+    - each hole: a 1.4 square opening, a funnel to 0.9 at 0.45 deep, then a shaft drafted
+      to 0.8 at 2.2 deep
+    - the nickel contact: two leaves meeting in a V 0.2 deeper, along the strip
+    - the trench: 2.4 wide (2.0 at the floor) and 2.0 deep, centred between e and f
+    - the rail channels: 1.0 wide (0.7 at the floor) and 1.5 deep, midway between the inner
+      rail and column a or j
+    - every groove stops 1.5 short of the ends
+  - Every recess wall has draft, so the whole top maps straight down (u = x / length,
+    v = y / width) without folding over. One texture set covers it:
+    - the legend's colour, baked as emission from text and bars generated from the board JSON
+    - a normal map, baked from a copy with 0.08 mm rounded edges and hardened normals
+    - AO
+  - Texture sizes: bb-830 2048 × 1024 and bb-400 1024 × 1024, about 12 texels/mm along the
+    rows and 19 across.
+  - The legend follows the photos:
+    - row numbers 1, 5, 10, … beside columns a and j
+    - letters a–j at both ends
+    - a red line beside each + rail and a blue line beside each − rail, on the side away from
+      its partner rail
+    - + and − at both ends of each rail
+    - text reads across the board, with its top toward row 1
+  - Translucency comes from `KHR_materials_sheen` (weight 0.3, roughness 0.5) on ABS
+    (roughness 0.45), not from transmission. The exporter writes IOR only alongside
+    transmission, so ABS keeps glTF's default of 1.5.
+- **Consequences.**
+  - The legend uses Blender's built-in font, rendered into the texture.
+  - If the look-dev pass (M7.7) wants real subsurface glow, the studio can add it in TSL.
+  - Changing a shape value changes the geometry hash. Hole centres don't move, because they
+    always come from `holePosition`'s formulas.
