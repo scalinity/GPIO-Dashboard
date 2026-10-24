@@ -3399,7 +3399,7 @@ declare it.
 - **Consequences.** The tunnel, the agent and the Rust commands are still proved by the Rust tests and
   the checklist; the browser flows prove the app's reading of what they return.
 
-## ADR-F2-1 A part's lead tubes are kept while its board moves
+## ADR-0127 A part's lead tubes are kept while its board moves
 
 - **Context.** ADR-0082 left three binding buffers (80, 256 and 448 bytes) created about 6.4 times
   each per frame and 19 vertex and index buffers created mapped at creation, and put the awake
@@ -3439,7 +3439,7 @@ declare it.
   - Changing a part's pin holes (dragging the part, a leg, or a lead's end) still rebuilds its
     leads, once per change of hole, not once per pixel.
 
-## ADR-F2-2 Part leads and pieces under 4 mm do not cast shadows
+## ADR-0128 Part leads and pieces under 4 mm do not cast shadows
 
 - **Context.** ADR-0082 counted 145 of 151 meshes as shadow casters, each a draw, and a pass through
   three's per-object path, in the shadow pass, which is redrawn every second frame. The key light's
@@ -3469,7 +3469,7 @@ declare it.
     0.20 (0.02% to 0.19%), and by 1.9 (5%) in one zoomed view whose cables settled differently.
     Nothing visible changed.
 
-## ADR-F2-3 The bloom is drawn only while something passes its threshold
+## ADR-0129 The bloom is drawn only while something passes its threshold
 
 - **Context.** ADR-0082 measured the bloom at 4.3 to 4.8 ms of GPU pass time with nothing above its
   threshold of 2 (twelve passes: a high pass, ten blurs and the composite). Three things in the
@@ -3500,7 +3500,7 @@ declare it.
     rounds, load 3.5 to 4.9).
   - A new source of light over the gate must register in `SimVisuals.glowing`, or it will not bloom.
 
-## ADR-F2-4 The strip index is shared across a drag, and live pins repaint only when one is painted
+## ADR-0130 The strip index is shared across a drag, and live pins repaint only when one is painted
 
 - **Context.** A profile of the drag (V8's sampling profiler over CDP, 4 s, four-digit seven-
   segment) put `stripIndex` at 46 ms of self time, 0.19 ms a frame, with `LivePins.sync` and
@@ -3517,7 +3517,7 @@ declare it.
   5.3 to 4.9 (dot matrix), 4.6 to 4.1 (shift register), with 31.5 to 32.0, 34.4 to 35.0 and 41.2 to
   42.6 fps. Callers read the index and do not change it.
 
-## ADR-F2-5 Render bundles are not used, and where the frame goes now
+## ADR-0131 Render bundles are not used, and where the frame goes now
 
 - **Context.** ADR-0082 listed a render bundle for the static boards and models as a lever. three
   0.186 has `BundleGroup` (the WebGPU backend records a `GPURenderBundle` per camera and render
