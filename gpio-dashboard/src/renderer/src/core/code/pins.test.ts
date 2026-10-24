@@ -57,4 +57,15 @@ s = DistanceSensor(echo=24, trigger=23)`
   it('ignores commented-out setup', () => {
     expect(uses('# GPIO.setup(17, GPIO.OUT)')).toEqual([])
   })
+
+  it('reads smbus bus 1 as GPIO2 and GPIO3 in I2C use, and flags any other bus', () => {
+    const r = codePins(`import smbus\nbus = smbus.SMBus(1)\nother = SMBus(0)\n`)
+    expect(r.uses).toEqual([
+      { bcm: 2, mode: 'i2c', line: 2 },
+      { bcm: 3, mode: 'i2c', line: 2 }
+    ])
+    expect(r.unresolved).toEqual([{ expression: 'SMBus(0)', line: 3 }])
+    const named = codePins(`from smbus2 import SMBus\nBUS = 1\nwith SMBus(BUS) as b:\n    pass\n`)
+    expect(named.uses.map((u) => u.bcm)).toEqual([2, 3])
+  })
 })

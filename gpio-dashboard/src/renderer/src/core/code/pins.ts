@@ -1,9 +1,10 @@
-// Which GPIOs a program configures, and how (SPEC 8, 11.6), read statically from RPi.GPIO and
-// gpiozero code. It resolves integer constants, lists of them and `for` loops over such lists;
-// anything else is reported as unresolved rather than guessed.
+// Which GPIOs a program configures, and how (SPEC 8, 11.6), read statically from RPi.GPIO,
+// gpiozero and smbus code. It resolves integer constants, lists of them and `for` loops over such
+// lists; anything else is reported as unresolved rather than guessed.
 import { PI_HEADER } from '../defs/controllers'
 
-export type PinMode = 'out' | 'in' | 'pwm'
+/** 'i2c' is a bus pin: open drain, driven low by the Pi or a device. */
+export type PinMode = 'out' | 'in' | 'pwm' | 'i2c'
 export type Pull = 'up' | 'down' | 'none'
 
 export interface PinUse {
@@ -35,6 +36,9 @@ const GPIOZERO_OUT = [
 const GPIOZERO_IN = ['Button', 'DigitalInputDevice', 'MotionSensor', 'LineSensor', 'InputDevice']
 
 const boardToBcm = (physical: number) => PI_HEADER[physical - 1]?.bcm ?? null
+
+/** I2C bus 1, the header's bus: SDA on GPIO2 and SCL on GPIO3 (Raspberry Pi GPIO docs). */
+const I2C1 = [2, 3]
 
 export function codePins(source: string): CodePins {
   const lines = source.split('\n')
@@ -146,6 +150,13 @@ export function codePins(source: string): CodePins {
         for (const bcm of resolve(m[1]!, line, true))
           uses.push({ bcm, mode, ...(pull ? { pull } : {}), line })
       }
+    }
+    // smbus / smbus2: SMBus(1) opens bus 1; any other bus is not on the header.
+    if ((m = /\bSMBus\(\s*([^)]*?)\s*\)/.exec(text))) {
+      const bus = resolve(m[1]!, line, true)
+      if (bus.length === 1 && bus[0] === 1) {
+        for (const bcm of I2C1) uses.push({ bcm, mode: 'i2c', line })
+      } else if (bus.length) unresolved.push({ expression: `SMBus(${m[1]})`, line })
     }
     if ((m = /\bDistanceSensor\(([^)]*)\)/.exec(text))) {
       const echo = /echo\s*=\s*([^,)]+)/.exec(m[1]!)
