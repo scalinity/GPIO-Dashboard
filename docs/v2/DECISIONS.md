@@ -1718,7 +1718,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - The breadboard and the yellow spacers stay a little below the photos' brightness and
     saturation (the photos are lit by a ring of lights; the Studio by one key and the HDRI).
 
-## ADR-B5-1 The physics worker: scenes in by message, steps out through a double-buffered SharedArrayBuffer
+## ADR-0068 The physics worker: scenes in by message, steps out through a double-buffered SharedArrayBuffer
 
 - **Context.** SPEC 4.3 and 10.5: the solver runs in `workers/physics.worker.ts`; the main thread
   sends kinematic anchors, colliders and route hints, never the document; positions and per-island
@@ -1728,7 +1728,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - The Studio (`studio/cables.ts`) sends the whole cable scene whenever it changes: every
     collider by key (`bb1/0`, `pi/12`, `R1/0`, `W3:a/0`) with its shape and core-frame pose, and
     every cable by a handle the Studio assigns, with its two anchor poses, wire length, live
-    route hints and, for a routed lead, its start (ADR-B5-4). An unchanged scene is not sent.
+    route hints and, for a routed lead, its start (ADR-0071). An unchanged scene is not sent.
     The worker (`PhysicsHost`) diffs it against its world: same key and shape moves a collider,
     a known handle moves its anchors and hints, a new handle builds a body, a missing one is
     removed. A handle changes when what the body was built from changes (its length, its
@@ -1759,7 +1759,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     curves and the ribbon is not drawn. The app is isolated in Vite and in Tauri (SPEC 13.2).
   - The dev overlay shows the worker's last step and the current run's mean and longest.
 
-## ADR-B5-2 Cable geometry is rebuilt on the CPU, not in a TSL vertex stage
+## ADR-0069 Cable geometry is rebuilt on the CPU, not in a TSL vertex stage
 
 - **Context.** SPEC 10.5 asks for both to be measured: tubes and the ribbon strip rebuilt on the
   CPU each frame, or a TSL vertex stage that reads particle positions from a storage buffer.
@@ -1783,7 +1783,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** A scene several times heavier would want the vertex stage; the prototype's
   numbers say the GPU would absorb it.
 
-## ADR-B5-3 How the bench becomes the solver's scene
+## ADR-0070 How the bench becomes the solver's scene
 
 - **Context.** SPEC 10.5: colliders from every `*.colliders.json`, placed by the documents'
   transforms; leads anchored at their housings; the ribbon clamped at both sockets with
@@ -1815,7 +1815,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   0.12 mm into a collider or another cable after it settles, measured from the worker's
   positions. A module's crude box still holds leads draped over it at its full height.
 
-## ADR-B5-4 Route hints pull while dragged and start the lead when committed
+## ADR-0071 Route hints pull while dragged and start the lead when committed
 
 - **Context.** SPEC 10.5 and 11.3: dragging a lead mid-span sets a soft target stored through
   `SetWireProps.routeHints` (at most 3), so a reopened project looks the same. A lead is a soft
