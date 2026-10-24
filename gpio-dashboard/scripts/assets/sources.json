@@ -1,0 +1,14 @@
+{
+  "sources": [
+    {
+      "id": "hdri-studio-small-09",
+      "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr",
+      "sha256": "e7cfda5f4e98e623db12b8bfd0184e048488e4855d9c83e2751fb44a32e80c45",
+      "retrieved": "2026-10-24",
+      "license": "CC0 1.0 (https://polyhaven.com/license)",
+      "page": "https://polyhaven.com/a/studio_small_09",
+      "author": "Sergej Majboroda",
+      "use": "Studio image-based lighting (SPEC 10.2), shipped as public/env/studio_small_09_1k.hdr"
+    }
+  ]
+}
