@@ -58,14 +58,27 @@ export interface LeadReach {
   requiredMm: number
   /** The lead's length, with 'auto' resolved to the shortest inventory length that reaches. */
   lengthMm: number
+  /** The wire between its two housings' exits (`wireLengthMm`). */
+  wireMm: number
   ok: boolean
+}
+
+/**
+ * The wire between a lead's two housing exits. A Dupont lead's length is sold tip to tip
+ * (photo 4's 200 mm callout spans the outermost pin tips), so each housing and each exposed
+ * male pin comes off it. A solid jumper is all wire.
+ */
+export function wireLengthMm(lengthMm: number, kind: Wire['kind']): number {
+  if (kind === 'solid-arc' || kind === 'solid-flat') return lengthMm
+  const males = kind === 'dupont-mm' ? 2 : kind === 'dupont-mf' ? 1 : 0
+  return lengthMm - 2 * dupontJson.housing.lengthMm - males * dupontJson.malePin.exposedMm
 }
 
 /** Shortest inventory length with at least 10% slack, else the longest available. */
 export function autoLength(requiredMm: number, kind: Wire['kind']): number {
   if (kind === 'solid-arc' || kind === 'solid-flat') return Math.ceil(requiredMm)
   const lengths = [...dupontJson.inventoryLengthsMm].sort((a, b) => a - b)
-  return lengths.find((l) => l >= requiredMm * 1.1) ?? lengths.at(-1)!
+  return lengths.find((l) => wireLengthMm(l, kind) >= requiredMm * 1.1) ?? lengths.at(-1)!
 }
 
 export function leadReach(doc: CircuitDoc, defs: PartDefs): LeadReach[] {
@@ -77,7 +90,8 @@ export function leadReach(doc: CircuitDoc, defs: PartDefs): LeadReach[] {
     if (!a || !b) continue
     const requiredMm = dist(a, b) + bend
     const lengthMm = wire.lengthMm === 'auto' ? autoLength(requiredMm, wire.kind) : wire.lengthMm
-    out.push({ wire: wire.id, requiredMm, lengthMm, ok: requiredMm <= lengthMm })
+    const wireMm = wireLengthMm(lengthMm, wire.kind)
+    out.push({ wire: wire.id, requiredMm, lengthMm, wireMm, ok: requiredMm <= wireMm })
   }
   return out
 }

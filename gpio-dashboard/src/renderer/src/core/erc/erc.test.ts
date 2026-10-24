@@ -281,6 +281,21 @@ describe('ERC rules', () => {
     expect(codes(farPi, 'LEAD_TOO_SHORT')).toEqual(['LEAD_TOO_SHORT:warning'])
   })
 
+  it('LEAD_TOO_SHORT counts only the wire between the housings, not the length as sold', () => {
+    // A 200 mm male-male lead is 200 mm tip to tip: two 12 mm housings and two 5.5 mm pins
+    // leave 165 mm of wire. Here the exits are 175 mm apart, so it can't reach.
+    const span = doc((d) => {
+      d.boards.push({
+        id: 'bb2',
+        defId: 'bb-830',
+        transform: { position: [0, 175], rotationDeg: 0 }
+      })
+      const far: Endpoint = { hole: { board: 'bb2', area: 'main', row: 24, col: 'a' } }
+      d.wires.push({ ...wire('W1', at(24, 'a'), far), lengthMm: 200 })
+    })
+    expect(codes(span, 'LEAD_TOO_SHORT')).toEqual(['LEAD_TOO_SHORT:warning'])
+  })
+
   it('PART_WITHOUT_DATASHEET: info only', () => {
     const d = doc((x) =>
       x.parts.push(part('R1', 'test-nosheet', { 1: hole(30, 'a'), 2: hole(33, 'a') }))

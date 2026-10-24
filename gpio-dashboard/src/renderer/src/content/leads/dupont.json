@@ -18,7 +18,7 @@
       "malePin.exposedMm": "Same photo and scale: the bottom M-M ends' exposed pins measure about 37 px = 5.5 mm",
       "wire": "Secondary source (keszoox Dupont guide): jumper wire is typically 26-28 AWG; outer diameter about 1.0 mm in the same photo",
       "minBendRadiusMm": "Assumption for the reach check: a 26-28 AWG stranded lead turns within about 3 mm of its housing",
-      "inventoryLengthsMm": "Listing photo and SPEC 6.5: the T-board kit's M-M and M-F leads are 200 mm"
+      "inventoryLengthsMm": "Listing photo and SPEC 6.5: the T-board kit's M-M and M-F leads are 200 mm, measured pin tip to pin tip (photo 4's callout ends at the outermost pin tips). reach.ts wireLengthMm takes the housings and exposed pins off for the wire (ADR-0042)"
     }
   }
 }

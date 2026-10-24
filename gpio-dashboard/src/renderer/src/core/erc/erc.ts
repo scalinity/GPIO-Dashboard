@@ -442,7 +442,7 @@ const RULES: Rule[] = [
         code: 'LEAD_TOO_SHORT',
         severity: 'warning' as const,
         refs: [r.wire],
-        message: `${r.wire} needs about ${Math.ceil(r.requiredMm)} mm but is ${r.lengthMm} mm long.`,
+        message: `${r.wire} needs about ${Math.ceil(r.requiredMm)} mm of wire between its housings, but a ${r.lengthMm} mm lead has ${Math.floor(r.wireMm)} mm.`,
         fix: `Use a longer lead, or move its ends closer together.`
       }))
     const ribbon = ribbonReach(ctx.doc)

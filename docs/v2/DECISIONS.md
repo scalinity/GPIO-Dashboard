@@ -1046,3 +1046,26 @@ decision and consequences. Numbering is stable; superseded records say so.
     ridged geometry), and AO uses the pipeline's 128, at fixed seed.
 - **Consequences.** If `verify.ts` later dispatches by kind, the three shared findings can move
   back. A texture asset costs about 2 s to build; the T-board about 20 s.
+
+## ADR-0042 A lead's length is sold tip to tip; reach counts only its wire
+
+- **Context.**
+  - `reach.ts` compared the distance between a lead's two wire exits (each housing's top),
+    plus a bend allowance, with `lengthMm` itself, so it treated all 200 mm as free wire.
+  - Photo 4's 200 mm callout for the Dupont bundle ends at the outermost pin tips, so the
+    listing's length runs tip to tip. `dupont.json` gives 12 mm housings and 5.5 mm exposed
+    male pins. A 200 mm male–male lead therefore has 165 mm of wire between its housings.
+  - The cable solver (M8) needs the same figure for a lead's rest length.
+- **Decision.**
+  - `lengthMm` stays the length as sold, which build steps quote ("a 20 cm lead").
+  - `wireLengthMm(lengthMm, kind)` gives the wire between the housing exits: the length less
+    two housings, less one exposed pin per male end. Solid jumpers are all wire.
+  - `leadReach` reports it as `wireMm` and passes a lead only when the span fits it;
+    `autoLength` picks the shortest inventory length whose wire has 10% slack.
+  - `LEAD_TOO_SHORT` names both figures.
+- **Consequences.**
+  - The check is 35 mm stricter for a male–male lead. Every tutorial still passes it.
+  - The M8 integration gives `CableWorld.addLead` the wire length, so the physics and the
+    ERC agree on when a lead goes taut.
+  - The ribbon's 200 mm (photo 4) is left as it was: its callout's ends sit at the sockets,
+    and `ribbonReach` already measures between them.
