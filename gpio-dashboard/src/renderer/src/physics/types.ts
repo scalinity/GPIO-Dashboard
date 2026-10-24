@@ -79,4 +79,6 @@ export interface WorldOptions {
   substeps?: number
   /** Pool size; positions views stay valid while it holds. */
   maxParticles?: number
+  /** Time each phase of every step; read it back with `phaseTimes()`. Off by default. */
+  profile?: boolean
 }

@@ -55,6 +55,28 @@ const MAX_HINTS = 3
 const SAMPLES = [0.25, 0.75]
 const DEFAULT_MAX_PARTICLES = 8192
 
+/** The phases `WorldOptions.profile` times, in the order a frame runs them. */
+export const PHASES = [
+  'prepare',
+  'colliders',
+  'pairs',
+  'predict',
+  'chains',
+  'cables',
+  'surfaces',
+  'velocity',
+  'finish'
+] as const
+const PREPARE = 0,
+  COLLIDERS = 1,
+  PAIRS = 2,
+  PREDICT = 3,
+  CHAINS = 4,
+  CABLES = 5,
+  SURFACES = 6,
+  VELOCITY = 7,
+  FINISH = 8
+
 /** A growable table of fixed-width integer records. */
 class Records {
   d = new Int32Array(1024)
@@ -125,6 +147,9 @@ export class CableWorld {
   private nextId = 1
   private nextGroup = 1
   private settling = false
+  /** Per-phase milliseconds of the last frame, when `profile` is on. */
+  private readonly frameMs: Float64Array | null
+  private clock = 0
 
   // Collision primitives: rod segments, then ribbon triangles, in one id space.
   private primDirty = true
@@ -150,6 +175,21 @@ export class CableWorld {
     this.w = new Float64Array(this.cap)
     this.render = new Float32Array(3 * this.cap)
     this.pool = { x: this.x, xp: this.xp, w: this.w }
+    this.frameMs = options.profile ? new Float64Array(PHASES.length) : null
+  }
+
+  /** Milliseconds each phase took in the last `step()`, in `PHASES` order; null unless profiling. */
+  phaseTimes(): Float64Array | null {
+    return this.frameMs
+  }
+
+  /** Charges the time since the last lap to a phase. A no-op unless profiling. */
+  private lap(phase: number) {
+    const ms = this.frameMs
+    if (ms === null) return
+    const now = performance.now()
+    ms[phase]! += now - this.clock
+    this.clock = now
   }
 
   // ---- Colliders -----------------------------------------------------------------------------
@@ -470,12 +510,19 @@ export class CableWorld {
     const n = this.substeps
     const h = FRAME_DT / n
     if (this.primDirty) this.rebuildPrimitives()
+    if (this.frameMs !== null) {
+      this.frameMs.fill(0)
+      this.clock = performance.now()
+    }
     const awake = this.bodies.filter((b) => !b.asleep)
     const moving = this.colliders.filter((c) => c.moving)
     if (awake.length > 0) {
       this.prepare(awake)
+      this.lap(PREPARE)
       this.collectColliderContacts(awake)
+      this.lap(COLLIDERS)
       this.collectPairs(awake)
+      this.lap(PAIRS)
       for (const b of awake) {
         const c = this.settling || b.speed < SLOW_SPEED ? SLOW_DAMPING : DAMPING
         b.damp = 1 / (1 + c * h)
@@ -483,6 +530,7 @@ export class CableWorld {
       for (let k = 1; k <= n; k++) this.substep(awake, moving, k / n, h)
     }
     this.finish(awake, moving)
+    this.lap(FINISH)
   }
 
   /**
@@ -871,6 +919,7 @@ export class CableWorld {
       }
       this.relax(b)
     }
+    this.lap(PREDICT)
     const constrain = () => {
       for (const b of awake) {
         if (b.rig) gatherRows(x, b)
@@ -911,10 +960,13 @@ export class CableWorld {
       }
     }
     constrain()
+    this.lap(CHAINS)
     // Cables first, then surfaces: what a pile rests on has the last word, so a stack settles
     // instead of creeping. The order is the same every substep; alternating it kept piles awake.
     cables()
+    this.lap(CABLES)
     surfaces()
+    this.lap(SURFACES)
     const inv = 1 / h
     const maxStep = MAX_SPEED * h
     for (const b of awake) {
@@ -943,6 +995,7 @@ export class CableWorld {
         v[i3 + 2] = dz * inv * damp
       }
     }
+    this.lap(VELOCITY)
   }
 
   /**
