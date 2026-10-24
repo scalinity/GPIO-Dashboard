@@ -1202,7 +1202,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   the model; a dot is never more than 0.14 mm from the hole row it belongs to. The displays'
   segment shapes are mine, from the drawing's outline; a lookdev pass can refine them.
 
-## ADR-B2-1 The bench and the parts are instanced per model file, with handles per copy
+## ADR-0047 The bench and the parts are instanced per model file, with handles per copy
 
 - **Context.** SPEC 10.8 asks for repeated meshes to be instanced: the Pi's 40 header pins, a
   Dupont housing at every lead end, identical parts. The sim-driven visuals (SPEC 10.6, 11.5) need
@@ -1233,7 +1233,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - Segments, bars and dots are separate meshes in their files, so each is its own instanced mesh:
     64 for the dot matrix, whatever the number of matrices.
 
-## ADR-B2-2 Where part bodies seat, and how their leads bend
+## ADR-0048 Where part bodies seat, and how their leads bend
 
 - **Context.** The part contract (ADR-0030, ADR-0044) gives rigid origins on pins[0]'s hole,
   flexible parts' `seatMm` and pin spacing, modules' origins at their lowest corner with pins on
@@ -1259,7 +1259,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   1e-5 mm of their holes' axes. A radial part seated 1 mm up has little room for its knee. Square
   and flat leads are drawn round.
 
-## ADR-B2-3 Dupont housings mate by gender; the Pi's socket turns a quarter
+## ADR-0049 Dupont housings mate by gender; the Pi's socket turns a quarter
 
 - **Context.** SPEC 6.5: a male end goes into a hole or a female socket, a female end onto a male
   pin. The housings' origins are the male's pin tip and the female's mouth, with a `wire` empty
@@ -1278,7 +1278,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** The rigid cables in the servo's and keypad's models (ADR-0044) run straight
   wherever the document puts the module, through a board if it is in the way.
 
-## ADR-B2-4 The ribbon's design curve rises in a loop
+## ADR-0050 The ribbon's design curve rises in a loop
 
 - **Context.** The ribbon's strip is drawn between the two sockets' cable lines along a design
   curve of `ribbon.json`'s 200 mm until the physics lane (M8) simulates it. On the bench layout
@@ -1303,7 +1303,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   simulation replaces it. A span longer than the cable is drawn at its shortest design, not taut
   and tinted (SPEC 10.5 gives that to the simulation).
 
-## ADR-B2-5 Committed parts and lead ends seat over 150 ms; GPU resources go with the Studio
+## ADR-0051 Committed parts and lead ends seat over 150 ms; GPU resources go with the Studio
 
 - **Context.** SPEC 10.6 and 11.3: parts and leads seat with an eased insertion of about 150 ms.
   SPEC 10.8: dispose on unmount. ADR-0026 left GPU resources to the renderer's disposal.
