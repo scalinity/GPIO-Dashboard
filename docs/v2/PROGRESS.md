@@ -1,0 +1,47 @@
+# Progress
+
+Memory across context resets. After any restart, re-read SPEC.md, PLAN.md and this
+file before continuing. Each entry: milestone/task · status · verified (command →
+result) · assumed · open issues.
+
+Worktree: `/Users/danny/Documents/Tools/GPIO Dashboard/.worktrees/v2-breadboard-studio`
+(branch `v2-breadboard-studio`). Never edit the main checkout.
+
+Environment facts a fresh session needs:
+- `BLENDER_BIN=/Applications/Blender.app/Contents/MacOS/Blender` (5.2.2 LTS).
+- `toktx`/`ktx` 4.4.2 in `~/.local/bin` (ADR-0005). ngspice 47 via Homebrew.
+- `PI_HOST` is unset, so hardware-in-the-loop flows run against the mocks.
+- The Anthropic key lives only in the main checkout's `.env`. Load it into the memory of
+  an eval or live-proxy-test process only; never print, copy or log it.
+- Reference photos stay in the main checkout (the repo is public): see
+  docs/v2/reference/IMAGES.md.
+- Throwaway Python: `uv run -q --with numpy --with pillow python -I <script>`.
+- Commit messages: conventional style, no attribution trailers.
+
+---
+
+## Pre-flight (2026-10-23)
+
+| Step | Status | Verified |
+|------|--------|----------|
+| 1 SPEC exists | done | `docs/v2/SPEC.md`, 2275 lines, read in full |
+| 2 secrets | done | `git log --all --oneline -- .env` → empty. `git check-ignore -v .env` at the main root → matched only by `.git/info/exclude:9` (no root .gitignore rule, as expected) |
+| 3 worktree + first commit | done | `fa8f0f2` adds SPEC.md and the root .gitignore `.env`/`.env.*`/`!.env.example`. `git check-ignore -v .env` in the worktree → `.gitignore:5`. `.env.example` not ignored (exit 1). No `docs/v2/reference/tboard/` to copy. Worktree path per ADR-0001 |
+| 4 reference photos | done | 6 JPEGs read with vision; sizes + SHA-256 in `reference/IMAGES.md`. Repo `PUBLIC` → not copied |
+| 5 toolchain | done | BASELINE.md. Blender 5.2.2 LTS present; KTX 4.4.2 installed (ADR-0005); ngspice 47 installed; Blender MCP configured, but no live Blender (`localhost:9876` refused) |
+| 6 baseline | done | cargo test 24 pass / 15 ignored; live-tests 15/15; npm test 7/7; **lint FAIL 134 errors (pre-existing)**; build OK; `npm run dev` window renders; Pi not tested (PI_HOST unset) |
+| 7 PLAN.md | done | docs/v2/PLAN.md |
+
+## M0 Baseline and foundations — in progress
+
+| Task | Status | Verified / notes |
+|------|--------|------------------|
+| 0.1 BASELINE.md | done | see file |
+| 0.9 T-board geometry ADR | done | ADR-0004; `scripts/reference/tboard_photo_measure.py` → aspect 1.0022, row spacing 6.013 pitch |
+| 0.2 lint green | todo | ADR-0003 |
+| 0.3 TS strict + typecheck | todo | |
+| 0.4 ESLint boundary rules | todo | |
+| 0.5 Vitest in npm test | todo | |
+| 0.6 VERSIONS.md | todo | |
+| 0.7 COOP/COEP + CSP | todo | |
+| 0.8 WebGPU probe in the Tauri window | todo | |
