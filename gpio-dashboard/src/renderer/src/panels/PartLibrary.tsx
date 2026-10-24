@@ -1,11 +1,15 @@
 // The Part Library (SPEC 11.2): search, categories, an "In my inventory" filter and kit tags. A
-// part is placed by dragging it onto the board (or the table, for an off-board module).
-import { Search } from 'lucide-react'
+// part is placed by dragging it onto the board (or the table, for an off-board module). "Create
+// custom part…" hands off to Claude, which defines one from its datasheet.
+import { Search, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import inventoryJson from '../content/inventory.json'
 import { PART_DEFS } from '../core/defs/parts'
 import type { PartCategory } from '../core/model/types'
+import { openWithDraft } from '../state/assistantStore'
 import type { StudioView } from '../studio/view'
+
+const CUSTOM_PART_PROMPT = 'Define a custom part for this project from its datasheet. The part is: '
 
 const INVENTORY = new Set(inventoryJson.kit.items.flatMap((item) => item.partId ?? []))
 
@@ -70,6 +74,12 @@ export default function PartLibrary({ view }: { view: StudioView }) {
           <input type="checkbox" checked={owned} onChange={(e) => setOwned(e.target.checked)} />
           In my inventory
         </label>
+        <button
+          className="w-full flex items-center gap-1.5 rounded-btn px-2 py-1 text-xs text-accent-light hover:bg-white/[0.06]"
+          onClick={() => openWithDraft(CUSTOM_PART_PROMPT)}
+        >
+          <Sparkles className="w-3.5 h-3.5" /> Create custom part…
+        </button>
       </div>
       <ul className="flex-1 overflow-y-auto p-2 space-y-1">
         {shown.map((def) => (

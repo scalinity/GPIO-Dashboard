@@ -1,11 +1,15 @@
 // The 3D stage (SPEC 10, 11.2): R3F with WebGPURenderer from its async factory, rendering on demand.
 // React owns the stage and the boards' and Pi's models; StudioView owns the camera, hover,
 // gestures, the T-board, sockets, ribbon, parts, leads, footprints, labels and the frame loop.
+// Over the stage sit the assistant's controls (SPEC 11.8): a visible Stop while a turn runs, the
+// review strip after it, and the caption of its teaching cue.
 import { Canvas, useFrame } from '@react-three/fiber'
+import { Loader2, Square, X } from 'lucide-react'
 import { useCallback, useRef } from 'react'
 import { AgXToneMapping, type WebGPURenderer } from 'three/webgpu'
 import type { GpioState } from '../core/sim/circuit'
 import type { CircuitDoc } from '../core/model/types'
+import { bindStage, keep, reviewText, stop, undoAll, useAssistant } from '../state/assistantStore'
 import { useStudio } from '../state/studioStore'
 import { useWorkbench } from '../state/workbenchStore'
 import Models from './Models'
@@ -91,6 +95,75 @@ function PinMenu() {
   )
 }
 
+/** While a turn runs, the canvas is read-only and Stop is always in sight. */
+function Working() {
+  const running = useAssistant((s) => s.running)
+  if (!running) return null
+  return (
+    <div
+      role="status"
+      aria-label="Claude is working"
+      className="absolute top-3 left-1/2 -translate-x-1/2 z-20 glass-panel rounded-pill whitespace-nowrap flex items-center gap-2 pl-3 pr-1 py-1 text-xs text-gray-200"
+    >
+      <Loader2 className="w-3.5 h-3.5 animate-spin text-accent-light" />
+      Claude is working · the bench is read-only
+      <button
+        className="ml-1 flex items-center gap-1 rounded-pill bg-red-600 hover:bg-red-500 px-2.5 py-1 text-white"
+        onClick={stop}
+      >
+        <Square className="w-3 h-3" /> Stop
+      </button>
+    </div>
+  )
+}
+
+/** "Claude added 9 parts, 14 wires · Keep · Undo all" until the turn is kept or undone. */
+function Review() {
+  const review = useAssistant((s) => s.review)
+  if (!review) return null
+  return (
+    <div
+      role="region"
+      aria-label="Review Claude's changes"
+      className="glass-panel rounded-pill flex items-center gap-1 pl-3 pr-1 py-1 text-xs text-gray-200"
+    >
+      <span className="h-2 w-2 rounded-full bg-violet-400" aria-hidden />
+      <span className="mx-1 whitespace-nowrap">{reviewText(review)}</span>
+      <button className="btn-ghost whitespace-nowrap px-2 py-0.5 text-xs" onClick={keep}>
+        Keep
+      </button>
+      <button
+        className="btn-ghost whitespace-nowrap px-2 py-0.5 text-xs text-amber-300"
+        onClick={undoAll}
+      >
+        Undo all
+      </button>
+    </div>
+  )
+}
+
+/** The caption of Claude's focus or highlight, until it is dismissed. */
+function Cue() {
+  const cue = useStudio((s) => s.cue)
+  if (!cue) return null
+  return (
+    <div
+      role="note"
+      aria-label="Claude's note"
+      className="absolute top-3 left-3 z-20 max-w-xs glass-panel rounded-btn flex items-start gap-2 px-3 py-2 text-xs text-violet-100"
+    >
+      <span className="flex-1">{cue.note}</span>
+      <button
+        aria-label="Dismiss the note"
+        className="text-gray-400 hover:text-gray-100"
+        onClick={() => useStudio.setState({ cue: null })}
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  )
+}
+
 export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDoc }) {
   const tooltip = useRef<HTMLDivElement>(null)
   const labels = useRef<HTMLDivElement>(null)
@@ -99,8 +172,10 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
   const attach = useCallback(
     (element: HTMLDivElement) => {
       const detach = view.attach(element, tooltip.current!, labels.current!, tags.current!)
+      bindStage(view)
       if (import.meta.env.DEV) window.__studio = view
       return () => {
+        bindStage(null)
         detach()
         if (window.__studio === view) delete window.__studio
       }
@@ -140,14 +215,16 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
         />
       </div>
       <PinMenu />
-      {notice && (
-        <div
-          role="status"
-          className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[80%] glass-panel rounded-btn px-3 py-1.5 text-xs text-amber-300"
-        >
-          {notice}
-        </div>
-      )}
+      <Working />
+      <Cue />
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 max-w-[80%] flex flex-col items-center gap-2">
+        {notice && (
+          <div role="status" className="glass-panel rounded-btn px-3 py-1.5 text-xs text-amber-300">
+            {notice}
+          </div>
+        )}
+        <Review />
+      </div>
     </div>
   )
 }
