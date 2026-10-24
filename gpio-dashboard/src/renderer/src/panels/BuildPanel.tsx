@@ -23,6 +23,13 @@ function Status({ status }: { status: StepStatus }) {
       )
     case 'checking':
       return <p className="text-xs text-gray-400">Checking with Board Sense…</p>
+    case 'unavailable':
+      return (
+        <p role="status" className="text-xs text-gray-400">
+          Board Sense cannot check this step: the circuit as built so far does not simulate. Click
+          Done when it is built.
+        </p>
+      )
     case 'waiting':
       return (
         <p role="status" className="text-xs text-amber-300">

@@ -30,6 +30,8 @@ export type StepStatus =
   | { state: 'off' }
   /** Sensing is on and no verdict has held for two sweeps yet. */
   | { state: 'checking' }
+  /** The board as built to this step does not simulate, so Board Sense cannot be compared with it. */
+  | { state: 'unavailable' }
   | { state: 'waiting'; pins: number[] }
   | {
       state: 'diverged'
@@ -244,7 +246,8 @@ async function evaluate(): Promise<void> {
           : `GPIO${pin} reads neither as before this step nor as after it`
       })
   } catch {
-    return show({ state: 'checking' })
+    // A partly built circuit the simulator cannot solve (four-digit-seven-segment, steps 45 to 51).
+    return show({ state: 'unavailable' })
   }
   if (mine !== latest) return
 

@@ -20,6 +20,9 @@ import { useSense } from './senseStore'
 
 const PINS = [17, 18, 27]
 
+/** Steps whose board the stand-in cannot simulate, as the worker cannot on a few partial boards. */
+const unsolvable = new Set<number>()
+
 vi.mock('./buildSense', () => ({
   StepChecker: class {
     constructor(
@@ -27,6 +30,7 @@ vi.mock('./buildSense', () => ({
       private readonly steps: BuildStep[]
     ) {}
     async signature(index: number, pins: number[]) {
+      if (unsolvable.has(index)) throw new Error('No convergence')
       const doc = docUpTo(this.doc, this.steps, index)
       return probeSignature(new Circuit(doc, partDef, BEHAVIORS), pins)
     }
@@ -241,6 +245,20 @@ describe('with Board Sense on the simulated board', () => {
     expect(status.details[0]).toMatch(/GPIO18/)
     expect(status.causes).not.toEqual([])
     expect(useBuild.getState().index).toBe(index)
+  })
+
+  it('says so when the board as built to the step does not simulate, and Done still works', async () => {
+    useSense.setState({ mode: 'mock' })
+    begin('button')
+    const doc = tutorial('button')
+    const { steps } = useBuild.getState()
+    unsolvable.add(3)
+    useBuild.getState().goTo(3)
+    await sweeps(docUpTo(doc, steps, 2), 1)
+    await vi.waitFor(() => expect(useBuild.getState().status.state).toBe('unavailable'))
+    unsolvable.clear()
+    useBuild.getState().markDone()
+    expect(useBuild.getState().index).toBe(4)
   })
 
   it('does not move on from a step already done when Back revisits it', async () => {
