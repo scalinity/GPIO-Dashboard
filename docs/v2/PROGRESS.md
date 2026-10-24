@@ -253,12 +253,20 @@ M8 exit suite (2026-10-24, at 7483bd8):
 - Exit criteria: physics tests pass; drag e2e flows pass; physics budget holds in the Tauri window (worker 1.82–1.85 ms mean vs 4 ms; stop ≈0.92 s after the last input). LOOKDEV R4 and D3 pass (leads stand up and arc; ribbon drapes in one arch).
 - **Not met yet: 60 fps on every drag of the heaviest tutorial** (acceptance 9). Measured medians 55–58 fps at load 8–11 beside another app at 240% CPU; the remaining cost is main-thread per-object rendering. Carried to M12's performance budgets with the levers listed in the F row; a quiet-machine measurement is the final check.
 
-## M9 Assistant — in progress (2026-10-24)
+## M9 Assistant — done (2026-10-24)
 
 m9-base replayed onto v2 after M8's push (16 commits: assistant core, fallback fix + SDK pin, core gaps, Claude drawer UI); ADRs numbered 0083–0089 (assistant core), 0090–0093 (core gaps), 0094–0099 (UI). d860bcf: part ghosts carry props (LED ghosts in their colour); the top bar's Undo/Redo are disabled during a turn (e2e now asserts it). Vitest 1950, e2e 35/35. Waiting on the evals lane (live checks, ≥10 scored prompts, replay fixtures) for M9's exit: blink ERC-clean in one turn with matching code and convention wiring, Undo all deep-equal, D14 assistant+undo parts. Open: ghosts of custom parts defined in the same batch are not drawn.
 
 Evals merged (d3a7612-equivalents …; ADR-0100…0104; `docs/v2/EVALS.md`): live with the key in the eval process only, 12 prompts, 11 at 100% (blink ERC-clean one turn; parking sensor ECHO behind a divider; parking-direct caught by OVERVOLTAGE_GPIO and fixed same turn; undo deep-equal in all 11 building runs); datasheet 11/14 (org refuses web search). ≈$14 live in all. Rust proxy live test passed twice. Replay `npm run evals` reproduces it; Vitest 2046.
 **Live findings → M9 fixes lane (X9, running, base d9f566f):** (1) 20 strict tools exceed the grammar budget (`The compiled grammar is too large…`), fallback step 1 also refused → every live session ran plain without eager, so acceptance 5's early ghosts are lost; 11 mutation tools fit strict, eager works without strict → strict-set+eager → plain+eager → plain; (2) web-search refusal ends the turn → retry without web tools; (3) `simulate` can't press SW1 (`NO_SUCH_INPUT`); (4) `signal.pause()` returns at once in Pyodide; (5) `simModel: none` breaks simulate; (6) gpiozero shim has 5 of 15 classes. Then re-record live and prove the first request accepted with strict+eager.
+
+M9 fixes merged (ADR-0105…0108): 11 strict tools + eager on 12 mutation tools, first live request 200 with no fallback; refused web tools dropped from the first request; simulator inputs are declared properties (tact switch `pressed`); `simModel: none` adds no devices; `signal.pause` waits in virtual time; gpiozero shim covers the 15 classes `codePins` reads. Live re-record: 11/12 prompts 100% (datasheet 11/14, org refuses web search), $3.16; 962 partial inputs before completion, 420 enough for a ghost. D14 marked Fixed in AUDIT (no finding open or scheduled).
+
+M9 exit suite (2026-10-24, at 2755e33 + E2E_PORT):
+- `cargo test`: 94 passed / 20 ignored. `live-tests.sh`: 19/19. Rust proxy live test passed twice in the evals lane (proxy unchanged since).
+- `npm test`: node 7/7 + Vitest 2128/2128 (101 files). Lint 0 errors (35 warnings). Typecheck clean. e2e 35/35 (first run lost port 5193 to the M10 lane; `E2E_PORT` added, rerun clean). `npm run evals` replay matches the live run. `assets:check` passed. `npm run build`: .app and .dmg.
+- Exit criteria: blink an LED on GPIO17 from empty ends ERC-clean in one turn with matching code and convention wiring (live, 14/14); Undo all restores the empty document deep-equal (live and e2e); D14's assistant and undo parts pass.
+- Open: web search refused at the organization level (account setting); ghosts of custom parts defined in the same streaming batch are not drawn; keypad keys can't be pressed in `simulate` (text input); a fetched datasheet costs ≈$0.45.
 
 
 ## M10 Build Mode in the Studio — in progress (2026-10-24)
