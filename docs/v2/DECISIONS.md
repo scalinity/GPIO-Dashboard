@@ -1854,10 +1854,17 @@ decision and consequences. Numbering is stable; superseded records say so.
     the rest clears over the next substeps.
   - A body under 40 mm/s is damped at 60/s (was 14/s): it comes to rest instead of
     hovering above the sleep speed.
+  - Two cables are kept 0.06 mm apart beyond their radii (`CABLE_GAP`). A pile's last contacts
+    are with the board, and they leave the wires on top overlapping each other by a few tenths
+    of a mm; the gap comes that off the overlap measured against the true radii.
 - **Consequences.**
   - The pile slept in 80 of 80 layouts tried (40 leads of 165 mm and of 200 mm, each between
     distinct holes) and in 40 of 40 whose housings overlap, as the old random timing layout's
     do (two housings within 1 mm, which 2.54 mm housings cannot do).
+  - Settled, a pile's worst lead-in-lead overlap is 0.15 to 0.39 mm in 29 of 30 layouts and
+    0.59 mm in one (0.52 mm in one of eight without the gap); into the board 0.03 mm at most.
+    Nearby wires stacked on a taut one are where it sits. The 0.5 mm limit holds for the four
+    layouts in sleep.test.ts and not for every layout.
   - Hash order no longer matters, so the pair search may change without changing results.
 
 ## ADR-P2-2 Sleep: speed over ten frames, sleepers woken only by moving bodies

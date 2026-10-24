@@ -9,10 +9,14 @@ import {
   TABLE,
   at,
   boxShape,
+  WIRE_R,
+  cableOverlap,
   crossingPair,
   densePile,
+  depthIntoBox,
   newWorld,
-  run
+  run,
+  wire
 } from './testkit'
 import type { BodyId, Pose, Vec3 } from './types'
 import type { CableWorld } from './world'
@@ -230,6 +234,17 @@ describe('the dense pile', () => {
       // From its design curves the pile first falls, then settles: 2.5 s at the outside. (Acceptance
       // 13 is 2 s from the last input, which the drag below holds it to.)
       expect(first).toBeLessThanOrEqual(150)
+      // Asleep, nothing in the pile reaches more than 0.5 mm into a board, the table or another lead.
+      const wires = leads.map((id) => wire(world, id))
+      let worst = -Infinity
+      wires.forEach((a, i) => {
+        worst = Math.max(worst, depthIntoBox(a, WIRE_R, BOARD), depthIntoBox(a, WIRE_R, TABLE))
+        for (let j = i + 1; j < wires.length; j++) {
+          worst = Math.max(worst, cableOverlap(a, WIRE_R, wires[j]!, WIRE_R))
+        }
+      })
+      console.info(`dense pile ${seed}: worst penetration ${worst.toFixed(3)} mm`)
+      expect(worst).toBeLessThanOrEqual(0.5)
       // Drag the far end of every other lead 5 mm along the board, and the ribbon's socket 10 mm,
       // over 30 frames: half the pile and the ribbon move, and the whole island wakes.
       for (let f = 1; f <= 30; f++) {

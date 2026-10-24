@@ -42,6 +42,12 @@ const FALL = 0.5 * GRAVITY * FRAME_DT * FRAME_DT
 /** Broad-phase padding beyond the contact reach, mm. */
 const SKIN = 0.75
 const HASH_CELL = 8
+/**
+ * Two cables are kept this far (mm) apart beyond their radii. A pile's last contacts are solved
+ * against a board, not each other, and leave the wires on top overlapping by a few tenths of a mm;
+ * this takes that off the overlap measured against the true radii, and is too little to see.
+ */
+const CABLE_GAP = 0.06
 /** Linear velocity damping, 1/s: cable internal friction and air drag. */
 const DAMPING = 2
 /** A body that has slowed below SLOW_SPEED (mm/s) is damped harder, so it comes to rest. */
@@ -944,7 +950,7 @@ export class CableWorld {
               dy = my - 0.5 * (x[oi + 1]! + x[oj + 1]!),
               dz = mz - 0.5 * (x[oi + 2]! + x[oj + 2]!)
             const oh = 0.5 * len3(x[oi]! - x[oj]!, x[oi + 1]! - x[oj + 1]!, x[oi + 2]! - x[oj + 2]!)
-            const reach = b.radius + other.radius
+            const reach = b.radius + other.radius + CABLE_GAP
             const lim = reach + half + oh + b.move + other.move + SKIN
             if (dx * dx + dy * dy + dz * dz > lim * lim) continue
             const keep = reach + b.move + other.move + SKIN
@@ -1035,7 +1041,7 @@ export class CableWorld {
       rod.d[o + 4] = b.slot
       rod.d[o + 5] = other.slot
       rod.f[2 * r] = this.keptRod.slack[q]!
-      rod.f[2 * r + 1] = b.radius + other.radius
+      rod.f[2 * r + 1] = b.radius + other.radius + CABLE_GAP
       if (other !== b) {
         const u = links.next()
         links.d[2 * u] = b.slot
