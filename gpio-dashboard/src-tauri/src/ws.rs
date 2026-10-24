@@ -6,9 +6,11 @@ use std::{sync::Mutex, time::Duration};
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{json, Value};
+use std::sync::Arc;
+
 use tokio::{
     io::{AsyncRead, AsyncWrite},
-    sync::mpsc,
+    sync::{mpsc, Notify},
 };
 use tokio_tungstenite::{client_async, tungstenite::Message, WebSocketStream};
 
@@ -16,6 +18,8 @@ use crate::{ssh::Ssh, Emit};
 
 const MAX_RECONNECT_DELAY_MS: u64 = 30_000;
 const MAX_RECONNECT_ATTEMPTS: u32 = 10;
+/// How long a run waits for the agent to confirm that Board Sense released every line (SPEC 14.5).
+const SENSE_PAUSE_ACK: Duration = Duration::from_secs(1);
 
 /// How the socket reaches the agent.
 pub enum Route {
@@ -59,6 +63,8 @@ struct Connection {
 pub struct Ws {
     emit: Emit,
     connection: Mutex<Option<Connection>>,
+    /// Woken when the agent reports `sense_paused`.
+    sense_paused: Arc<Notify>,
 }
 
 impl Ws {
@@ -66,12 +72,19 @@ impl Ws {
         Self {
             emit,
             connection: Mutex::new(None),
+            sense_paused: Arc::new(Notify::new()),
         }
     }
 
     pub fn connect(&self, route: Route, auth_token: Option<String>) {
         let (outbox, queued) = mpsc::unbounded_channel();
-        let task = tauri::async_runtime::spawn(run(self.emit.clone(), route, auth_token, queued));
+        let task = tauri::async_runtime::spawn(run(
+            self.emit.clone(),
+            route,
+            auth_token,
+            queued,
+            self.sense_paused.clone(),
+        ));
         let previous = self.lock().replace(Connection { task, outbox });
         if let Some(previous) = previous {
             previous.task.abort();
@@ -95,6 +108,17 @@ impl Ws {
             .map_err(|_| "The connection to the Pi agent has ended".to_string())
     }
 
+    /// Asks the agent to pause Board Sense and waits up to a second for `sense_paused`, which it
+    /// sends once every line is released. False means no acknowledgement came.
+    pub async fn pause_sensing(&self) -> Result<bool, String> {
+        let ack = self.sense_paused.notified();
+        tokio::pin!(ack);
+        // Registered before the request goes out, so a fast reply is not missed.
+        ack.as_mut().enable();
+        self.send(&json!({ "type": "sense_pause" }))?;
+        Ok(tokio::time::timeout(SENSE_PAUSE_ACK, ack).await.is_ok())
+    }
+
     fn lock(&self) -> std::sync::MutexGuard<'_, Option<Connection>> {
         self.connection.lock().unwrap_or_else(|e| e.into_inner())
     }
@@ -105,9 +129,10 @@ async fn run(
     route: Route,
     auth_token: Option<String>,
     mut queued: mpsc::UnboundedReceiver<String>,
+    sense_paused: Arc<Notify>,
 ) {
     let mut attempts: u32 = 0;
-    let mut previous_gpio_state: Option<String> = None;
+    let mut previous = Previous::default();
 
     loop {
         match route.open().await {
@@ -121,7 +146,7 @@ async fn run(
                     tokio::select! {
                         incoming = stream.next() => match incoming {
                             Some(Ok(Message::Text(raw))) => {
-                                forward(&emit, raw.as_str(), &mut previous_gpio_state)
+                                forward(&emit, raw.as_str(), &mut previous, &sense_paused)
                             }
                             Some(Ok(_)) => {}
                             _ => break,
@@ -155,12 +180,20 @@ fn is_gpio_state(raw: &str) -> bool {
 
 /// Relays an agent message to the renderer. Unchanged `gpio_state` frames are dropped
 /// before parsing, since the agent resends the full pin state on every poll.
-fn forward(emit: &Emit, raw: &str, previous_gpio_state: &mut Option<String>) {
+/// The last frames forwarded, to drop repeats.
+#[derive(Default)]
+struct Previous {
+    gpio_state: Option<String>,
+    /// The last sweep without its timestamp: sweeps repeat while nothing on the board changes.
+    sweep: Option<Value>,
+}
+
+fn forward(emit: &Emit, raw: &str, previous: &mut Previous, sense_paused: &Notify) {
     if is_gpio_state(raw) {
-        if previous_gpio_state.as_deref() == Some(raw) {
+        if previous.gpio_state.as_deref() == Some(raw) {
             return;
         }
-        *previous_gpio_state = Some(raw.to_string());
+        previous.gpio_state = Some(raw.to_string());
     }
     let Ok(msg) = serde_json::from_str::<Value>(raw) else {
         return;
@@ -178,6 +211,21 @@ fn forward(emit: &Emit, raw: &str, previous_gpio_state: &mut Option<String>) {
         Some("system_info") => emit("gpio:system-info", data),
         Some("output") => emit("agent:log", data),
         Some("agent_status") => emit("agent:status", data),
+        Some("sense_sweep") => {
+            let mut readings = data.clone();
+            if let Some(fields) = readings.as_object_mut() {
+                fields.remove("t");
+            }
+            if previous.sweep.as_ref() != Some(&readings) {
+                previous.sweep = Some(readings);
+                emit("gpio:sense", data);
+            }
+        }
+        Some("sense_event") => emit("gpio:sense-event", data),
+        Some("sense_paused") => {
+            sense_paused.notify_waiters();
+            emit("gpio:sense-paused", Value::Null);
+        }
         _ => {}
     }
 }
@@ -194,9 +242,56 @@ mod tests {
     use crate::test_support::{capture, run, wait_for};
 
     #[test]
+    fn forwards_a_sweep_once_until_its_readings_change() {
+        let (emit, events) = capture();
+        let mut previous = Previous::default();
+        let paused = Notify::new();
+        for raw in [
+            r#"{"type":"sense_sweep","data":{"t":1.0,"bias":{"17":{"up":1,"down":0}}}}"#,
+            r#"{"type":"sense_sweep","data":{"t":2.0,"bias":{"17":{"up":1,"down":0}}}}"#,
+            r#"{"type":"sense_sweep","data":{"t":3.0,"bias":{"17":{"up":0,"down":0}}}}"#,
+            r#"{"type":"sense_event","data":{"kind":"error","message":"busy"}}"#,
+        ] {
+            forward(&emit, raw, &mut previous, &paused);
+        }
+        let names: Vec<String> = events
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(n, _)| n.clone())
+            .collect();
+        assert_eq!(names, ["gpio:sense", "gpio:sense", "gpio:sense-event"]);
+    }
+
+    #[tokio::test]
+    async fn sense_paused_wakes_a_waiter_registered_before_it_arrives() {
+        let (emit, _events) = capture();
+        let paused = Notify::new();
+        let ack = paused.notified();
+        tokio::pin!(ack);
+        ack.as_mut().enable();
+        forward(
+            &emit,
+            r#"{"type":"sense_paused"}"#,
+            &mut Previous::default(),
+            &paused,
+        );
+        assert!(tokio::time::timeout(Duration::from_millis(50), ack)
+            .await
+            .is_ok());
+    }
+
+    #[tokio::test]
+    async fn pausing_without_a_connection_is_an_error_not_a_wait() {
+        let ws = Ws::new(Arc::new(|_: &str, _: Value| {}));
+        assert!(ws.pause_sensing().await.is_err());
+    }
+
+    #[test]
     fn forwards_each_message_type_and_ignores_the_rest() {
         let (emit, events) = capture();
-        let mut previous = None;
+        let mut previous = Previous::default();
+        let paused = Notify::new();
         for raw in [
             r#"{"type":"gpio_state","pins":{"17":1}}"#,
             r#"{"type":"gpio_state","data":{"fallback":true}}"#,
@@ -206,7 +301,7 @@ mod tests {
             r#"{"type":"unknown","data":1}"#,
             "not json",
         ] {
-            forward(&emit, raw, &mut previous);
+            forward(&emit, raw, &mut previous, &paused);
         }
         assert_eq!(
             *events.lock().unwrap(),
@@ -236,9 +331,10 @@ mod tests {
             ),
         ] {
             events.lock().unwrap().clear();
-            let mut previous = None;
+            let mut previous = Previous::default();
+            let paused = Notify::new();
             for raw in [a, a, b, b, a] {
-                forward(&emit, raw, &mut previous);
+                forward(&emit, raw, &mut previous, &paused);
             }
             assert_eq!(events.lock().unwrap().len(), 3, "{a}");
         }

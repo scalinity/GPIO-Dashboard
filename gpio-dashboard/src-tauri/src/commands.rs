@@ -209,6 +209,61 @@ pub async fn ssh_kill_process(ssh: State<'_, Ssh>, filename: String) -> CommandR
 /// Returns the given GPIOs to inputs with no pull, after Stop: a killed script never reaches its
 /// own cleanup, so an output it left driven (a motor driver's input, a relay) would stay on.
 /// Only user GPIOs 2-27 are accepted; 0 and 1 are the HAT ID EEPROM.
+/// Board Sense settings from the Board tab: user GPIOs 2-27 only (0 and 1 are the HAT ID
+/// EEPROM), with the settle time and sweep period kept to sensible bounds.
+fn sense_config(pins: &[u8], settle_us: u32, period_ms: u32) -> Option<Value> {
+    if pins.is_empty() || pins.iter().any(|p| !(2..=27).contains(p)) {
+        return None;
+    }
+    Some(json!({
+        "pins": pins,
+        "settleUs": settle_us.clamp(10, 10_000),
+        "periodMs": period_ms.clamp(50, 60_000),
+    }))
+}
+
+fn sent(result: Result<(), String>) -> Value {
+    match result {
+        Ok(()) => json!({ "success": true }),
+        Err(e) => error_json(e),
+    }
+}
+
+/// Starts Board Sense (SPEC 14.5). Only the Board tab's sensing toggle calls this; the agent
+/// changes nothing but the bias of input lines.
+#[tauri::command]
+pub async fn sense_start(
+    ws: State<'_, Ws>,
+    pins: Vec<u8>,
+    settle_us: u32,
+    period_ms: u32,
+) -> CommandResult {
+    Ok(match sense_config(&pins, settle_us, period_ms) {
+        Some(config) => sent(ws.send(&json!({ "type": "sense_start", "config": config }))),
+        None => json!({ "error": "Invalid GPIO list" }),
+    })
+}
+
+#[tauri::command]
+pub async fn sense_stop(ws: State<'_, Ws>) -> CommandResult {
+    Ok(sent(ws.send(&json!({ "type": "sense_stop" }))))
+}
+
+/// Pauses Board Sense before a run and reports whether the agent confirmed, within a second,
+/// that every line is released. A run must not start without that confirmation.
+#[tauri::command]
+pub async fn sense_pause(ws: State<'_, Ws>) -> CommandResult {
+    Ok(match ws.pause_sensing().await {
+        Ok(paused) => json!({ "paused": paused }),
+        Err(e) => error_json(e),
+    })
+}
+
+#[tauri::command]
+pub async fn sense_resume(ws: State<'_, Ws>) -> CommandResult {
+    Ok(sent(ws.send(&json!({ "type": "sense_resume" }))))
+}
+
 #[tauri::command]
 pub async fn ssh_gpio_cleanup(ssh: State<'_, Ssh>, pins: Vec<u8>) -> CommandResult {
     match gpio_cleanup_command(&pins) {
@@ -637,6 +692,17 @@ pub fn open_external(url: String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sense_config_accepts_only_user_gpios_and_bounds_its_timing() {
+        assert_eq!(
+            sense_config(&[17, 27], 1, 1_000_000),
+            Some(json!({ "pins": [17, 27], "settleUs": 10, "periodMs": 60_000 }))
+        );
+        assert_eq!(sense_config(&[], 100, 250), None);
+        assert_eq!(sense_config(&[0, 17], 100, 250), None);
+        assert_eq!(sense_config(&[28], 100, 250), None);
+    }
 
     #[test]
     fn gpio_cleanup_sets_only_user_gpios_to_unpulled_inputs() {

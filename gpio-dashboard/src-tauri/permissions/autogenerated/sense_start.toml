@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sense-start"
+description = "Enables the sense_start command without any pre-configured scope."
+commands.allow = ["sense_start"]
+
+[[permission]]
+identifier = "deny-sense-start"
+description = "Denies the sense_start command without any pre-configured scope."
+commands.deny = ["sense_start"]
