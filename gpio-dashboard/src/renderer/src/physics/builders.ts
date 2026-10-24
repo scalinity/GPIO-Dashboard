@@ -14,12 +14,13 @@ import type { JumperDef, LeadDef, Pose, RibbonDef } from './types'
  * fifteenth of a solid section's: Bruski, "Determination of the Bending Properties of Wire Rope
  * Used in Cable Barrier Systems", Materials, 2020), so a conductor of 7 strands of diameter d is
  * about 7 x E pi d^4 / 64 with E = 117 GPa.
- * - A lead is 10 N mm^2: 10.5 for 28 AWG (7 x 0.127 mm) and 26 for 26 AWG (7 x 0.16 mm), and the
- *   PVC jacket adds 1 to 3. Such a lead stands about 160 mm before its own weight folds it (the
+ * - A lead is 10 N mm^2: 10.5 for 28 AWG (7 x 0.127 mm) and 26 for 26 AWG (7 x 0.16 mm), and its
+ *   1 mm PVC jacket (E 10 to 50 MPa) adds 0.5 to 2. Above 10 the shape barely changes (at 20 the
+ *   arch of a 200 mm lead between holes 60 mm apart stands 0.7 mm higher). Such a lead stands about 160 mm before its own weight folds it (the
  *   self-buckling length, (7.8 EI / weight per mm)^(1/3)), so a 200 mm lead between two holes
  *   stands as a loop.
  * - A 40-way ribbon is 400 N mm^2 out of its plane: 40 conductors of 28 AWG (7 x 0.127 mm), all on
- *   the sheet's neutral plane, are 420, and its PVC web 50 to 200 more.
+ *   the sheet's neutral plane, are 420, and its 50.8 x 0.95 mm PVC web 40 to 180 more.
  * Bending is solved directly along each chain (constraints.ts, factorBending), so these values are
  * the stiffness the cables have. Compliances below are XPBD alphas, s^2/g.
  */

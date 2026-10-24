@@ -522,7 +522,7 @@ export class CableWorld {
 
   /**
    * Mass scaling for contact (Macklin et al., "Unified Particle Physics for Real-Time
-   * Applications", SIGGRAPH 2014, section 5.1, after the shock propagation of Guendelman et al.
+   * Applications", SIGGRAPH 2014, section 5.2, after the shock propagation of Guendelman et al.
    * 2003). Bending is solved over the whole chain at once and contacts after it, so a stiff lead
    * pressed against a part was bent back into it by nearly the whole of what the contact had just
    * pushed out, every substep: a wall rising under a hung lead went through it once the lift passed

@@ -15,7 +15,10 @@ import type { Body } from './body'
  * (`factorBending`) and each substep is a forward and a back substitution with three right-hand
  * sides: O(n), exact, and the whole chain's stiffness acts at once. One Gauss-Seidel sweep a
  * substep carried a joint's correction one particle along, so a realistic EI saturated a few
- * particles above the housing (ADR-0076).
+ * particles above the housing (ADR-0076). Solving a rod's constraints together in linear time is
+ * the approach of Deul, Kugelstadt, Weiler and Bender, "Direct Position-Based Solver for Stiff
+ * Rods", Computer Graphics Forum 37(6), 2018; this is its banded special case for a chain of
+ * linear constraints, where one solve is exact and no Newton iteration is needed.
  *
  * The constraints must form a chain: constraint k acts on pool particles p + k, p + k + 1 and
  * p + k + 2 for p = cA[0].
