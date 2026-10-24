@@ -81,10 +81,25 @@ interface Lead {
 }
 
 interface Drawn {
-  key: string
   mesh: Mesh
+  diameter: number
+  /** Each lead's corners in the frame the mesh is placed by: a rigid move of the part leaves them be. */
+  local: Vector3[][]
+  /** The mesh's place before any lift. */
+  at: Vector3
   ends: { pin: string; hole: Vector3; ring: number }[]
 }
+
+/** Corners that differ by less than this (mm) are the same lead. */
+const SAME_MM = 1e-3
+
+const sameLeads = (a: Vector3[][], b: Vector3[][]) =>
+  a.length === b.length &&
+  a.every(
+    (lead, i) =>
+      lead.length === b[i]!.length &&
+      lead.every((p, j) => p.distanceToSquared(b[i]![j]!) < SAME_MM ** 2)
+  )
 
 interface Handled {
   color: Map<string, Color | null>
@@ -180,7 +195,7 @@ export class PartLayer {
         list.push({ id: part.id, pose: placed.pose })
         poses.set(file!, list)
       }
-      this.drawLeads(part.id, placed.leads, leadDiameterMm(def, part.props))
+      this.drawLeads(part.id, placed.leads, leadDiameterMm(def, part.props), placed.pose)
     }
 
     this.slots.clear()
@@ -196,7 +211,7 @@ export class PartLayer {
       for (const { id } of list) this.apply(id)
     }
     for (const id of [...this.leads.keys()]) if (!seen.has(id)) this.removeLeads(id)
-    for (const [id, drawn] of this.leads) drawn.mesh.position.y = lift(id)
+    for (const [id, drawn] of this.leads) this.lift(drawn, lift(id))
     for (const id of [...this.handled.keys()])
       if (!doc.parts.some((p) => p.id === id)) this.handled.delete(id)
   }
@@ -205,7 +220,7 @@ export class PartLayer {
   animate(lift: (id: string) => number): void {
     for (const [id, slot] of this.slots)
       this.files.get(slot.file)!.move(slot.index, this.lifted(slot.pose, lift(id)))
-    for (const [id, drawn] of this.leads) drawn.mesh.position.y = lift(id)
+    for (const [id, drawn] of this.leads) this.lift(drawn, lift(id))
   }
 
   /** Whether every part's model has settled, so each body is where it will stay. */
@@ -473,12 +488,25 @@ export class PartLayer {
     setModuleModel(def.id, { pins, rect, top: max.y })
   }
 
-  private drawLeads(id: string, leads: Lead[], diameter: number): void {
-    const key = JSON.stringify([leads.map((l) => l.points), diameter])
-    if (this.leads.get(id)?.key === key) return
+  /**
+   * Draws a part's leads. Their corners are taken in `frame` (the body's pose, else the scene), so
+   * a board dragged with its parts leaves them as they were: only the mesh moves. The tubes and
+   * their GPU buffers are built again when a lead's shape changes.
+   */
+  private drawLeads(id: string, leads: Lead[], diameter: number, frame: Matrix4 | null): void {
+    const inverse = frame?.clone().invert()
+    const local = leads.map((l) =>
+      l.points.map((p) => (inverse ? p.clone().applyMatrix4(inverse) : p))
+    )
+    const drawn = this.leads.get(id)
+    if (drawn && drawn.diameter === diameter && sameLeads(drawn.local, local)) {
+      drawn.ends.forEach((e, i) => (e.hole = leads[i]!.hole))
+      this.pose(drawn, frame)
+      return
+    }
     this.removeLeads(id)
     if (!leads.length) return
-    const tubes = leads.map((l) => bentLeadGeometry(l.points, diameter / 2, diameter))
+    const tubes = local.map((points) => bentLeadGeometry(points, diameter / 2, diameter))
     const ends: Drawn['ends'] = []
     let offset = 0
     tubes.forEach((t, i) => {
@@ -489,7 +517,24 @@ export class PartLayer {
     tubes.forEach((t) => t.dispose())
     mesh.castShadow = mesh.receiveShadow = true
     this.group.add(mesh)
-    this.leads.set(id, { key, mesh, ends })
+    const next: Drawn = { mesh, diameter, local, at: new Vector3(), ends }
+    this.pose(next, frame)
+    this.leads.set(id, next)
+  }
+
+  /** Puts the mesh in `frame`, the one its corners were taken in; `update` then lifts it. */
+  private pose(drawn: Drawn, frame: Matrix4 | null): void {
+    if (frame) frame.decompose(drawn.at, drawn.mesh.quaternion, new Vector3())
+    else {
+      drawn.at.set(0, 0, 0)
+      drawn.mesh.quaternion.identity()
+    }
+    drawn.mesh.position.copy(drawn.at)
+  }
+
+  /** Raises a lead's mesh `mm` above its place (a part being inserted). */
+  private lift(drawn: Drawn, mm: number): void {
+    drawn.mesh.position.set(drawn.at.x, drawn.at.y + mm, drawn.at.z)
   }
 
   private removeLeads(id: string): void {
