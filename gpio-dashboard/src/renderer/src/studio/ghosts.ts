@@ -31,7 +31,7 @@ export function withGhosts(doc: CircuitDoc, ghosts: Record<string, Ghost>): Circ
         continue
       const id = taken.has(ghost.ref) ? `${ghost.ref}?${call}` : ghost.ref
       taken.add(id)
-      parts.push({ id, defId: ghost.defId, props: {}, placement: ghost.placement })
+      parts.push({ id, defId: ghost.defId, props: ghost.props, placement: ghost.placement })
     } else {
       wires.push({
         id: ghostWireId(call),

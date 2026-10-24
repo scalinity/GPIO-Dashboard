@@ -100,6 +100,7 @@ export function ghostFor(
       kind: 'part',
       ref: plan.part.id,
       defId: plan.part.defId,
+      props: plan.part.props,
       placement: plan.part.placement
     }
   }

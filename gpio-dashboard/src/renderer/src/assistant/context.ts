@@ -80,7 +80,13 @@ export interface CapturedView {
 
 /** A non-committing preview shown while a tool call streams in (SPEC 12.6). */
 export type Ghost =
-  | { kind: 'part'; ref: string; defId: string; placement: PartInstance['placement'] }
+  | {
+      kind: 'part'
+      ref: string
+      defId: string
+      props: PartInstance['props']
+      placement: PartInstance['placement']
+    }
   | { kind: 'wire'; a: Endpoint; b: Endpoint; wireKind: Wire['kind']; color: string }
 
 // --- Board Sense: read only. The assistant can not start, stop or configure sensing. ---

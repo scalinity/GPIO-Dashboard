@@ -22,6 +22,7 @@ import PartLibrary from '../panels/PartLibrary'
 import ProjectsGallery from '../panels/ProjectsGallery'
 import Properties from '../panels/Properties'
 import RunBlockedDialog from '../panels/RunBlockedDialog'
+import { useAssistant } from '../state/assistantStore'
 import { circuit } from '../state/circuit'
 import { newProject, openFile, save, saveAs, showGallery, useProject } from '../state/projectStore'
 import { runOnPi, useRun } from '../state/runStore'
@@ -80,6 +81,8 @@ function TopBar() {
   const tool = useStudio((s) => s.tool)
   const { source, code, codeStatus, runInSim, stopCode } = useWorkbench()
   const runStatus = useRun((s) => s.status)
+  // A running assistant turn owns the document (ADR-0094): its undo and redo wait for it.
+  const assistantRunning = useAssistant((s) => s.running)
   const stopRun = useRun((s) => s.stop)
   const error = useProject((s) => s.error)
   const simulating = codeStatus === 'running'
@@ -104,7 +107,7 @@ function TopBar() {
         className="btn-ghost text-sm"
         aria-label="Undo"
         title="Undo (⌘Z)"
-        disabled={!circuit.canUndo}
+        disabled={assistantRunning || !circuit.canUndo}
         onClick={() => circuit.undo()}
       >
         <Undo2 className="w-4 h-4" />
@@ -113,7 +116,7 @@ function TopBar() {
         className="btn-ghost text-sm"
         aria-label="Redo"
         title="Redo (⌘⇧Z)"
-        disabled={!circuit.canRedo}
+        disabled={assistantRunning || !circuit.canRedo}
         onClick={() => circuit.redo()}
       >
         <Redo2 className="w-4 h-4" />

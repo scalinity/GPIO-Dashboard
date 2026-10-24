@@ -2280,7 +2280,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - e2e's frame counter tests, including that a still scene renders no frames after a camera move,
     pass unchanged.
 
-## ADR-M9-1 The loop reads the stream itself instead of using the SDK's message helper
+## ADR-0083 The loop reads the stream itself instead of using the SDK's message helper
 
 - **Context.**
   - SPEC 12.3 requires every assistant content block to go back to the API exactly as received,
@@ -2311,7 +2311,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - The `_vendor` path is an SDK internal. A future SDK that moves it fails the import at build
     time, and `partialJson.ts` is the one file to change.
 
-## ADR-M9-2 Twenty of the 22 tools are strict, and strict-driven shapes differ from SPEC 12.5
+## ADR-0084 Twenty of the 22 tools are strict, and strict-driven shapes differ from SPEC 12.5
 
 - **Context.**
   - SPEC 12.4 asks for `strict: true` on every client tool. The API limits a request to 20 strict
@@ -2338,14 +2338,14 @@ decision and consequences. Numbering is stable; superseded records say so.
   - A test asserts at most 20 strict tools, 24 optional parameters and 16 unions over the schemas
     actually sent. They use 20, 15 and 5.
 - **Consequences.**
-  - The API also limits compiled grammar size, which can not be checked offline. ADR-M9-3 covers
+  - The API also limits compiled grammar size, which can not be checked offline. ADR-0085 covers
     a rejection.
   - `circuitStore` gets no new op: `annotate_build_steps` can not commit, because no op sets
     `buildStepAnnotations`. The tool validates its steps and calls
     `AssistantContext.annotateBuildSteps`. A `SetBuildStepAnnotations` op in `core/` would make
     it one transaction of the turn, and undoable with it.
 
-## ADR-M9-3 Mutation tools stream eagerly, and a rejected first request retries with plain tools
+## ADR-0085 Mutation tools stream eagerly, and a rejected first request retries with plain tools
 
 - **Context.**
   - SPEC 12.4 sets `eager_input_streaming: true` on the mutation tools and asks to drop it from a
@@ -2353,14 +2353,14 @@ decision and consequences. Numbering is stable; superseded records say so.
     and tool reference pages say nothing about the combination. This build can not call the API
     (no key is read or used), so the combination is unverified.
   - Eager streaming turns off the server's validation of each parameter, so the accumulated input
-    can be invalid JSON (ADR-M9-1) or cut off (`max_tokens`).
+    can be invalid JSON (ADR-0083) or cut off (`max_tokens`).
 - **Decision.**
   - `eager_input_streaming` is set on the 12 tools that change the document or the part library,
     together with `strict`.
   - If the first request of a conversation fails with a 400 whose message mentions strict, eager,
     schema or complexity, the session rebuilds its tools without both flags, tells the UI with a
     `plain-tools` notice, and retries once. Later requests never do this: the tools array is part
-    of what thinking blocks are bound to (ADR-M9-5), and the first request has none yet.
+    of what thinking blocks are bound to (ADR-0087), and the first request has none yet.
   - Runtime validation does not depend on the flags, so plain tools lose only the grammar
     guarantee and early ghosts.
 - **Consequences.**
@@ -2370,7 +2370,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - A live check belongs in `HIL_CHECKLIST.md`: send one request with the 22 tools and read the
     response or the 400.
 
-## ADR-M9-4 Web search and web fetch run as direct calls
+## ADR-0086 Web search and web fetch run as direct calls
 
 - **Context.**
   - SPEC 12.3 names `web_search_20260318` and `web_fetch_20260318` and asks to read the
@@ -2387,7 +2387,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - The loop answers only client `tool_use` blocks, resends the same tools on every request,
     and resumes `pause_turn` by sending the assistant content back as received, up to 8 times in a
     row. A turn that stops for `tool_use` with no client call waiting is resumed the same way.
-  - `assistant.webTools` is fixed for a conversation (ADR-M9-5).
+  - `assistant.webTools` is fixed for a conversation (ADR-0087).
 - **Consequences.**
   - Search results and fetched pages enter the context whole, up to the caps. Switching to dynamic
     filtering later is `allowed_callers` and `webTools()` in `tools/index.ts`, plus whatever
@@ -2395,7 +2395,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - Fetched text is untrusted. The assistant has no hardware tool, and every document change it
     makes is one undoable transaction, so injected instructions can do no more than a bad build.
 
-## ADR-M9-5 A conversation freezes its prefix and only grows
+## ADR-0087 A conversation freezes its prefix and only grows
 
 - **Context.**
   - Opus 5.5, Sonnet 5.5, Fable 5.1 and Haiku 5.5 bind each thinking block to the system prompt,
@@ -2424,7 +2424,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - There is no compaction. The 1M window holds a long build session; a longer one needs the
     server-side compaction beta.
 
-## ADR-M9-6 How a turn ends
+## ADR-0088 How a turn ends
 
 - **Context.**
   - SPEC 12.3 requires handling `tool_use`, `end_turn`, `max_tokens`, `pause_turn` and `refusal`,
@@ -2438,7 +2438,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     parse as a valid partial object. Complete blocks are kept and every complete tool call is
     answered with a `TRUNCATED` error so the history stays valid; the UI gets a notice and the
     user can say "continue".
-  - `pause_turn`: resumed, as in ADR-M9-4.
+  - `pause_turn`: resumed, as in ADR-0086.
   - `refusal`: the response is dropped, not appended; the UI gets the category and explanation.
     Server-side fallback needs the beta namespace and is not enabled; `fallbacks` can be added to
     the request in `loop.ts` once a fallback model is chosen.
@@ -2454,7 +2454,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.**
   - A mid-stream error loses the partial response; the user resends.
 
-## ADR-M9-7 `place_part` and `connect` resolve holes in a pure placer
+## ADR-0089 `place_part` and `connect` resolve holes in a pure placer
 
 - **Context.**
   - SPEC 12.5 has `place_part {at: 'auto'}` choose free strips near related nets, and `connect`
@@ -2485,7 +2485,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - `edgeColumnsUsable` is honoured through the existing blocked-hole rule, so c and i beside the
     T-board are used for leads.
 
-## ADR-C9-1 A project's custom parts live in its document
+## ADR-0090 A project's custom parts live in its document
 
 - **Context.**
   - SPEC 7 lets the assistant or the user define a part, and `define_custom_part` did, by
@@ -2522,12 +2522,12 @@ decision and consequences. Numbering is stable; superseded records say so.
     a definition, so `validateDoc` refuses it until those parts are gone; a changed part is a new
     id.
   - A custom part belongs to one project and is not shared between projects.
-  - The `.gpiob` format changes (ADR-C9-3).
+  - The `.gpiob` format changes (ADR-0092).
   - UI code that reads `partDef(part.defId)` from `core/defs/parts` for a document's part must use
     `docPartDefs(doc, partDef)` instead; the Claude panel's review strip should count the new op
     types. SPEC 5 (`CircuitDoc`, `Op`) and SPEC 7 (custom parts) should name `customParts`.
 
-## ADR-C9-2 A custom part may cite no source; a library part may not
+## ADR-0091 A custom part may cite no source; a library part may not
 
 - **Context.**
   - `PartDefSchema` required at least one source URL (SPEC 5: "required"). `checkPartDef` and the
@@ -2545,7 +2545,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - SPEC 5's `provenance` comment should read "required for the library; a custom part may have
     none".
 
-## ADR-C9-3 Build-step notes: step keys, an op, and format 2
+## ADR-0092 Build-step notes: step keys, an op, and format 2
 
 - **Context.**
   - Notes were keyed by the bare id of a step's first ref ("R1", "W2"). Part ids and wire ids are
@@ -2554,7 +2554,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     collided with the T-board step.
   - No op set `buildStepAnnotations`, so `annotate_build_steps` called
     `AssistantContext.annotateBuildSteps` and its notes were outside the turn's undo group
-    (ADR-M9-2, last consequence).
+    (ADR-0084, last consequence).
 - **Decision.**
   - `BuildStep.key` is `"tboard"`, `"part:R1"` or `"wire:W2"`, from `stepKey(kind, id)` in
     core/steps. It depends only on what the step is about, so edits elsewhere do not move it.
@@ -2574,7 +2574,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - A note for a step that no longer exists stays in the document and is ignored; removing a part
     does not remove its note.
 
-## ADR-C9-4 `validateDoc` checks part properties against the definition
+## ADR-0093 `validateDoc` checks part properties against the definition
 
 - **Context.**
   - The assistant's tools checked a part's props against its definition's properties, and nothing
@@ -2593,7 +2593,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     definition it passes to the ranker a `pressed` property. Anything that seeds a simulator input
     through props must declare it as a property.
 
-## ADR-U9-1 A running turn owns the document, and a turn undoes as one group
+## ADR-0094 A running turn owns the document, and a turn undoes as one group
 
 - **Context.**
   - SPEC 11.8 makes the canvas read-only while Claude runs, keeps committed ops after Stop, and
@@ -2618,7 +2618,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     is outside this lane). Disabling them on `useAssistant.running` is a one-line change there.
   - Cmd+Z after a build takes the whole build back at once, as Undo all does.
 
-## ADR-U9-2 The assistant simulates and runs Python in workers of its own
+## ADR-0095 The assistant simulates and runs Python in workers of its own
 
 - **Context.**
   - The app has one sim worker and one Pyodide worker, and the Workbench reloads its sim on every
@@ -2643,7 +2643,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - The two new files sit in `workers/`, beside the code they reuse; neither changes the existing
     workers.
 
-## ADR-U9-3 Ghosts are drawn into the shown document; the review strip reads the document's change
+## ADR-0096 Ghosts are drawn into the shown document; the review strip reads the document's change
 
 - **Context.**
   - SPEC 12.6 and acceptance 5: a ghost per streaming tool call, a part at its anchor, a lead as a
@@ -2670,7 +2670,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - A ghost carries no props, so an LED's ghost lens shows the default colour until it commits.
   - A turn that only wrote code reads "Claude updated the code".
 
-## ADR-U9-4 capture_view reads the frame it has just drawn
+## ADR-0097 capture_view reads the frame it has just drawn
 
 - **Context.**
   - SPEC 12.5: capture_view waits for physics to sleep (at most 2 s) and returns a PNG of the top
@@ -2690,7 +2690,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     capture of the iso view showed the built blink circuit, with the camera back where it was.
   - With the Studio closed, capture_view fails with a plain message and the turn goes on.
 
-## ADR-U9-5 The key, the settings and the transcript
+## ADR-0098 The key, the settings and the transcript
 
 - **Context.**
   - SPEC 4.2, 12.1 and 12.2: the key goes to the Keychain through Rust, and its commands return
@@ -2704,7 +2704,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     cleared.
   - `native/settings.ts` reads and writes the three settings; the defaults in `settings.rs` were
     already `claude-opus-5-5`, `high` and `true`, and the allowlist already held the keys. Model
-    and effort apply from the next turn; web tools from the next conversation (ADR-M9-5), and
+    and effort apply from the next turn; web tools from the next conversation (ADR-0087), and
     Settings says so.
   - The transcript is `<id>.transcript.json` beside `<id>.gpiob`, written by a new command,
     `projects_write_transcript`, after every turn and on a project's first save. It holds what was
@@ -2718,7 +2718,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - A transcript is a record, not a resumable conversation: the API history (thinking signatures,
     captured images) is not saved.
 
-## ADR-U9-6 The drawer is tested through a stand-in for the native bridge
+## ADR-0099 The drawer is tested through a stand-in for the native bridge
 
 - **Context.**
   - The e2e tests run in Chromium without Tauri, and no API key is used to record real streams.

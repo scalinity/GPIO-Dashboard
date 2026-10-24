@@ -91,6 +91,7 @@ describe('ghosts on the bench', () => {
     const ghosted = withGhosts(doc, {
       t1: {
         kind: 'part',
+        props: {},
         ref: 'R1',
         defId: 'resistor',
         placement: { pins: { 1: hole(30), 2: hole(34) } }
@@ -102,7 +103,7 @@ describe('ghosts on the bench', () => {
         wireKind: 'dupont-mm',
         color: 'red'
       },
-      t3: { kind: 'part', ref: 'X1', defId: 'custom-unknown', placement: { pins: {} } }
+      t3: { kind: 'part', props: {}, ref: 'X1', defId: 'custom-unknown', placement: { pins: {} } }
     })
     expect(ghostIds(doc, ghosted)).toEqual(['R1', 'ghost:t2'])
     expect(doc.parts).toEqual([])

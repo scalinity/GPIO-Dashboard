@@ -546,7 +546,7 @@ export function setEffort(effort: Effort): void {
   void persist('assistant.effort', effort)
 }
 
-/** Web search and fetch; a conversation keeps what it started with (ADR-M9-5). */
+/** Web search and fetch; a conversation keeps what it started with (ADR-0087). */
 export function setWebTools(on: boolean): void {
   set({ webTools: on })
   void persist('assistant.webTools', on)
