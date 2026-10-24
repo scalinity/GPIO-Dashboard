@@ -295,6 +295,6 @@ M11 exit suite (2026-10-24, at fbae85e): `cargo test` 94 passed / 20 ignored; `l
 | Lane | Model | Scope | Status |
 |------|-------|-------|--------|
 | M12 perf | Sonnet, worktree (base fbae85e) | main-thread levers from ADR-0082: per-frame buffer churn, shadow casters (leads/small parts), render bundle for statics, bloom off when nothing glows; interleaved measurements on the three heaviest tutorials (headless WebGPU if the Mac session stays locked); HIL note for the Tauri fps check; ADR-F2-n | running |
-| M12 docs | Sonnet, worktree (base fbae85e) | README rewrite via the `readme` skill (no push; closes D16; every number sourced) + `docs/ARCHITECTURE.md` with a Mermaid diagram and ADR pointers | running |
+| M12 docs | Sonnet, worktree | README + ARCHITECTURE | **merged** (211c4a5…3eb7227 equivalents): README rewritten via the `readme` skill (two accuracy passes; every number sourced), `docs/ARCHITECTURE.md` with a Mermaid diagram (renders) and an ADR index; AUDIT D16 Fixed, README rows updated. Its finding fixed by me in 80f8595: `ws.rs` dropped repeat sweeps while the reconciler needs a repeat to believe a change, so on a real Pi a change would stay 'settling' (mock had no filter) — every sweep now forwarded. README rows about 60 fps and M8 figures to refresh after the perf lane |
 
 Then (integrator): final acceptance run on the quietest machine available, `docs/v2/FINAL_REPORT.md` with evidence per SPEC 20 item, push, PR to main (not merged).
