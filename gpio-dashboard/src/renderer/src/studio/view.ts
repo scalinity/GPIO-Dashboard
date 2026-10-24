@@ -24,7 +24,7 @@ import { PI_HEADER } from '../core/defs/controllers'
 import { partDef } from '../core/defs/parts'
 import { holeKey, isValidHole, parseHoleKey } from '../core/geometry/breadboard'
 import { tboardPinHoles } from '../core/geometry/tboard'
-import type { CircuitDoc, Endpoint, Op, Wire } from '../core/model/types'
+import type { CircuitDoc, Endpoint, Op, Vec3, Wire } from '../core/model/types'
 import type { Problem } from '../core/ops/validate'
 import { circuit } from '../state/circuit'
 import { useSense } from '../state/senseStore'
@@ -98,7 +98,8 @@ export interface SceneReport {
   housings: { male: number; female: number }
   /** Copies drawn per part file. */
   copies: Record<string, number>
-  parts: Record<string, { body: boolean; leads: number }>
+  /** Per part: whether a body and how many leads are drawn, and its selection box's top centre (core frame, mm). */
+  parts: Record<string, { body: boolean; leads: number; top: Vec3 | null }>
   /** Every part lead's end and male Dupont pin in a hole: off its hole's axis, and how deep. */
   leadEnds: { id: string; offAxisMm: number; depthMm: number }[]
   /** What the simulation and Board Sense paint: glow, motion, flow, halos, tags, tints. */
@@ -319,7 +320,16 @@ export class StudioView {
         female: this.wires.housings.female?.count ?? 0
       },
       copies: this.parts.copies(),
-      parts: Object.fromEntries(doc.parts.map((p) => [p.id, this.parts.drawn(p.id)])),
+      parts: Object.fromEntries(
+        doc.parts.map((p) => {
+          const box = bodyBox(doc, { kind: 'part', id: p.id })
+          const top = box && new Vector3(0, 0.5, 0).applyMatrix4(box)
+          return [
+            p.id,
+            { ...this.parts.drawn(p.id), top: top && ([top.x, -top.z, top.y] as const) }
+          ]
+        })
+      ),
       leadEnds: [...this.parts.leadEnds(), ...this.wires.maleTips()],
       sim: this.visuals.report()
     }

@@ -225,9 +225,16 @@ test.describe('cables on the DHT11 circuit', () => {
   })
 
   test('dragging the module drags its leads', async ({ page }) => {
-    const pose = (await doc(page)).parts.find((p) => p.id === 'DHT1')!.placement.offboardPose!
-    const from = await screen(page, [pose.position[0] + 8, pose.position[1] + 8, 8])
-    const to = await screen(page, [pose.position[0] + 28, pose.position[1] + 18, 8])
+    // Grab the module's body, not a lead. Its leads stand up off the header at its front edge and
+    // arch toward the board, so from the iso camera they hide the body; from straight above, the
+    // back of its top is clear. The module sits where the dev overlay is drawn, so hide that too.
+    await page.keyboard.press('Control+Shift+D')
+    await expect(page.getByTestId('dev-overlay')).toBeHidden()
+    await page.keyboard.press('3')
+    await waitUntilStill(page, 5_000)
+    const [x, y, z] = (await studio(page, (s) => s.report())).parts.DHT1!.top!
+    const from = await screen(page, [x, y + 5, z])
+    const to = await screen(page, [x + 20, y + 15, z])
     await dragAndSettle(
       page,
       from,
@@ -269,6 +276,25 @@ test.describe('cables on the bench layout', () => {
       (a, b) => b.controller.tboard.pin1Row === a.controller.tboard.pin1Row + 3
     )
   })
+})
+
+test('a project opened while the renderer starts still gets every model and texture', async ({
+  page
+}) => {
+  // openProject opens the document as the Studio mounts, before the renderer has told the KTX2
+  // loader its formats; loads asked for that early must wait, not fail and stay failed.
+  const failed: string[] = []
+  page.on('console', (m) => {
+    if (/did not load|Couldn't load texture/.test(m.text())) failed.push(m.text())
+  })
+  await openProject(page, 'dht11')
+  expect(failed).toEqual([])
+  const ribbonMapped = await studio(page, (s) => {
+    const ribbon = (s as unknown as { bench: { ribbon?: { material: { map: unknown } } } }).bench
+      .ribbon
+    return Boolean(ribbon?.material.map)
+  })
+  expect(ribbonMapped).toBe(true)
 })
 
 test.describe('route hints', () => {

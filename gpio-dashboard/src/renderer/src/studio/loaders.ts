@@ -12,12 +12,20 @@ import type { ColliderFile } from './cables'
 const ktx2 = new KTX2Loader().setTranscoderPath('/basis/')
 const gltf = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).setKTX2Loader(ktx2)
 
+let configured = () => {}
+/**
+ * Every load waits for this. A document can arrive while the renderer is still starting, and a
+ * KTX2 load before `detectSupport` fails, so models and textures asked for early wait instead.
+ */
+const ready = new Promise<void>((resolve) => (configured = resolve))
+
 /** KTX2 transcodes to a format the device supports, so it must ask the renderer first. */
 export function configureModels(renderer: WebGPURenderer): void {
   ktx2.detectSupport(renderer)
   const config = (ktx2 as unknown as { workerConfig: Record<string, boolean> }).workerConfig
   const formats = Object.entries(config).flatMap(([name, ok]) => (ok ? [name] : []))
   console.info(`[studio] KTX2 transcode targets: ${formats.join(', ') || 'none (RGBA32)'}`)
+  configured()
 }
 
 const cache = new Map<string, Promise<Group | null>>()
@@ -32,20 +40,22 @@ const arrivals = new Set<() => void>()
 export function loadModel(url: string): Promise<Group | null> {
   let model = cache.get(url)
   if (!model) {
-    model = gltf.loadAsync(url).then(
-      ({ scene }) => {
-        scene.traverse((o) => {
-          o.castShadow = true
-          o.receiveShadow = true
-        })
-        scene.updateMatrixWorld(true)
-        return scene
-      },
-      (error: unknown) => {
-        console.warn(`[studio] ${url} did not load: ${String(error)}`)
-        return null
-      }
-    )
+    model = ready
+      .then(() => gltf.loadAsync(url))
+      .then(
+        ({ scene }) => {
+          scene.traverse((o) => {
+            o.castShadow = true
+            o.receiveShadow = true
+          })
+          scene.updateMatrixWorld(true)
+          return scene
+        },
+        (error: unknown) => {
+          console.warn(`[studio] ${url} did not load: ${String(error)}`)
+          return null
+        }
+      )
     model.then((scene) => {
       settled.set(url, scene)
       arrivals.forEach((notify) => notify())
@@ -74,8 +84,8 @@ const requested = new Set<string>()
 export function textureNow(url: string): Texture | null | undefined {
   if (!requested.has(url)) {
     requested.add(url)
-    ktx2
-      .loadAsync(url)
+    ready
+      .then(() => ktx2.loadAsync(url))
       .then(
         (texture) => void textures.set(url, texture),
         (error: unknown) => {
