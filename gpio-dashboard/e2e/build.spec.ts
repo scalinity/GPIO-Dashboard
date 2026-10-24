@@ -176,10 +176,18 @@ test.describe('the Blinking LED in Build Mode', () => {
     await done(page).click()
     await expect(page.getByRole('region', { name: 'Step 2' })).toContainText(list[1]!.text)
     // The shipped notes: a "why" and a common mistake on the steps that have them.
-    const annotated = await page.evaluate(
-      "import('/src/state/buildStore.ts').then((m) => m.useBuild.getState().steps.filter((s) => s.why && s.mistake).length)"
-    )
-    expect(annotated).toBeGreaterThan(0)
+    const notes = (await page.evaluate(
+      "import('/src/state/buildStore.ts').then((m) => m.useBuild.getState().steps.map((s, i) => ({ i, why: s.why, mistake: s.mistake })).filter((s) => s.why && s.mistake))"
+    )) as { i: number; why: string; mistake: string }[]
+    expect(notes.length).toBeGreaterThan(0)
+    // Each note shows on its own step, from the document's notes by step key.
+    for (const { i, why, mistake } of notes) {
+      await page.getByRole('list', { name: 'Steps' }).getByRole('button').nth(i).click()
+      const card = page.getByRole('region', { name: `Step ${i + 1}` })
+      await expect(card).toContainText(`Why: ${why}`)
+      await expect(card).toContainText(`Watch out: ${mistake}`)
+    }
+    await page.getByRole('list', { name: 'Steps' }).getByRole('button').nth(1).click()
     await page.getByRole('button', { name: 'Back', exact: true }).click()
     await expect(page.getByRole('region', { name: 'Step 1' })).toBeVisible()
     await page.getByRole('button', { name: 'Next', exact: true }).click()
