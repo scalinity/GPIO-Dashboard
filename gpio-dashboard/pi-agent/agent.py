@@ -146,7 +146,9 @@ async def handle_client(ws: websockets.WebSocketServerProtocol, monitor: GpioMon
 
 
 async def main():
-    host = os.environ.get("AGENT_HOST", "127.0.0.1")
+    # Loopback only: the app reaches the agent through an SSH tunnel, and the agent runs
+    # code on request, so it must never listen on the network.
+    host = "127.0.0.1"
     port = int(os.environ.get("AGENT_PORT", "8765"))
 
     auth_token = secrets.token_urlsafe(32)

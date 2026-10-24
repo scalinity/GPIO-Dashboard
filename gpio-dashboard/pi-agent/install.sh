@@ -76,7 +76,8 @@ echo "To start the agent:"
 echo "  python3 $(dirname "$0")/agent.py"
 echo ""
 echo "The agent will listen on ws://127.0.0.1:8765"
-echo "Set AGENT_HOST and AGENT_PORT environment variables to customize."
+echo "It listens on loopback only; the dashboard connects through the SSH session."
+echo "Set AGENT_PORT to change the port."
 echo ""
 
 # Uncomment below to install as a systemd service:

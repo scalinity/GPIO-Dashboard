@@ -11,7 +11,7 @@ use std::{
 use russh::{
     client::{self, DisconnectReason, Handle},
     keys::{self, PrivateKeyWithHashAlg, PublicKeyOrCertificate},
-    Channel, ChannelMsg, Disconnect,
+    Channel, ChannelMsg, ChannelStream, Disconnect,
 };
 use serde_json::{json, Value};
 use tokio::sync::{mpsc, Notify};
@@ -24,6 +24,7 @@ const KEEPALIVE_MAX: usize = 3;
 const MAX_RECONNECT_DELAY_MS: u64 = 30_000;
 const MAX_RECONNECT_ATTEMPTS: u32 = 10;
 const SHELL_INIT_TIMEOUT: Duration = Duration::from_secs(10);
+const TUNNEL_OPEN_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Clone)]
 pub enum Auth {
@@ -504,16 +505,22 @@ impl Ssh {
             .map_err(|_| format!("Command timed out after {}ms", timeout.as_millis()))?
     }
 
-    /// Runs `cmd`, forwarding its output to the renderer as it arrives.
-    /// Resolves to `{ code }`, or `{ code: -1, timedOut: true }` on timeout.
-    pub async fn execute_streaming(&self, cmd: &str, timeout: Duration) -> Result<Value, String> {
+    /// Runs `cmd`, forwarding its output to the renderer as it arrives, until it exits, Stop
+    /// is pressed, or the optional time limit passes (D17: a run has no fixed deadline).
+    /// Resolves to `{ code }`, or `{ code: -1, timedOut: true }` when the limit ends it.
+    /// Ending the stream closes the channel only; the caller kills the remote process.
+    pub async fn execute_streaming(
+        &self,
+        cmd: &str,
+        limit: Option<Duration>,
+    ) -> Result<Value, String> {
         let handle = self.connected_handle()?;
 
         // The stop signal exists before the channel is opened, so Stop works even while
         // a stalled server has not yet answered.
         let kill = Arc::new(Notify::new());
         self.st().tutorial_kill = Some(kill.clone());
-        let result = self.stream_command(&handle, cmd, &kill, timeout).await;
+        let result = self.stream_command(&handle, cmd, &kill, limit).await;
         {
             let mut s = self.st();
             if s.tutorial_kill
@@ -531,10 +538,15 @@ impl Ssh {
         handle: &Handle<ClientHandler>,
         cmd: &str,
         kill: &Notify,
-        timeout: Duration,
+        limit: Option<Duration>,
     ) -> Result<Value, String> {
         let killed = kill.notified();
-        let deadline = tokio::time::sleep(timeout);
+        let deadline = async {
+            match limit {
+                Some(limit) => tokio::time::sleep(limit).await,
+                None => std::future::pending().await,
+            }
+        };
         tokio::pin!(killed, deadline);
 
         // Opening the channel is covered by the same deadline and stop signal.
@@ -594,6 +606,25 @@ impl Ssh {
         if let Some(kill) = self.st().tutorial_kill.take() {
             kill.notify_one();
         }
+    }
+
+    /// Opens a TCP connection from the remote host to `host:port` through this SSH session
+    /// (a direct-tcpip channel), so a service bound to the Pi's loopback interface, like
+    /// the agent on 127.0.0.1:8765, is reachable without listening on the network (D18).
+    pub async fn open_tunnel(
+        &self,
+        host: &str,
+        port: u16,
+    ) -> Result<ChannelStream<client::Msg>, String> {
+        let handle = self.connected_handle()?;
+        let channel = tokio::time::timeout(
+            TUNNEL_OPEN_TIMEOUT,
+            handle.channel_open_direct_tcpip(host, u32::from(port), "127.0.0.1", 0),
+        )
+        .await
+        .map_err(|_| format!("Opening the tunnel to {host}:{port} timed out"))?
+        .map_err(|e| format!("Could not open a tunnel to {host}:{port}: {e}"))?;
+        Ok(channel.into_stream())
     }
 
     /// Writes `data` to `remote_path` by piping it into `cat` on the remote side.

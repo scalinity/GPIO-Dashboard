@@ -15,17 +15,16 @@ use crate::{
     ai::Ai,
     settings::{self, Settings},
     ssh::{Auth, Ssh, Target},
-    ws::Ws,
+    ws::{Route, Ws},
 };
 
 type CommandResult = Result<Value, String>;
 
 const GPIO_AGENT_PORT: u16 = 8765;
 const TUTORIAL_DIR: &str = "/tmp/gpio_dashboard";
-const TUTORIAL_TIMEOUT: Duration = Duration::from_secs(120);
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
 
-const SETTINGS_ALLOWLIST: [&str; 9] = [
+const SETTINGS_ALLOWLIST: [&str; 10] = [
     "ui.completedTutorials",
     "ui.selectedTab",
     "connection.host",
@@ -35,6 +34,7 @@ const SETTINGS_ALLOWLIST: [&str; 9] = [
     "connection.keyPath",
     "ai.model",
     "ai.thinkingLevel",
+    "run.timeLimitSec",
 ];
 
 fn error_json(e: String) -> Value {
@@ -151,16 +151,44 @@ pub async fn ssh_disconnect(ssh: State<'_, Ssh>) -> CommandResult {
     Ok(json!({ "success": true }))
 }
 
-/// Runs an uploaded tutorial script, streaming its output as `tutorial:output` events.
+/// Runs an uploaded script, streaming its output as `tutorial:output` events, until it exits
+/// or Stop is pressed. There is no fixed deadline (D17); the optional `run.timeLimitSec`
+/// setting, off by default, ends the run after that many seconds.
 #[tauri::command]
-pub async fn ssh_run_tutorial_script(ssh: State<'_, Ssh>, filename: String) -> CommandResult {
+pub async fn ssh_run_tutorial_script(
+    ssh: State<'_, Ssh>,
+    settings: State<'_, Settings>,
+    filename: String,
+) -> CommandResult {
     if !is_safe_script_name(&filename) {
         return Ok(json!({ "error": "Invalid script filename" }));
     }
-    Ok(ssh
-        .execute_streaming(&tutorial_run_command(&filename), TUTORIAL_TIMEOUT)
+    let limit = run_time_limit(&settings.get("run.timeLimitSec"));
+    Ok(run_script(&ssh, &filename, limit).await)
+}
+
+/// A positive number of seconds; anything else means no limit.
+fn run_time_limit(setting: &Value) -> Option<Duration> {
+    setting
+        .as_f64()
+        .filter(|secs| *secs > 0.0)
+        .and_then(|secs| Duration::try_from_secs_f64(secs).ok())
+}
+
+/// Streams a run of `filename` (already checked by `is_safe_script_name`). Closing the
+/// channel does not end a remote process that is not writing output, so a run ended by its
+/// time limit is also killed on the Pi, as Stop does through `ssh_kill_process`.
+pub(crate) async fn run_script(ssh: &Ssh, filename: &str, limit: Option<Duration>) -> Value {
+    let result = ssh
+        .execute_streaming(&tutorial_run_command(filename), limit)
         .await
-        .unwrap_or_else(|e| json!({ "error": e })))
+        .unwrap_or_else(|e| json!({ "error": e }));
+    if result["timedOut"] == true {
+        let _ = ssh
+            .execute(&tutorial_kill_command(filename), COMMAND_TIMEOUT)
+            .await;
+    }
+    result
 }
 
 #[tauri::command]
@@ -222,9 +250,19 @@ pub fn ssh_get_status(ssh: State<'_, Ssh>) -> CommandResult {
 
 // --- GPIO WebSocket ---
 
+/// Connects the telemetry socket to the agent through the SSH session (D18): the agent
+/// listens only on the Pi's 127.0.0.1, so the Pi's address is never dialed directly.
 #[tauri::command]
-pub fn gpio_connect(ws: State<'_, Ws>, host: String, auth_token: Option<String>) -> CommandResult {
-    ws.connect(host, GPIO_AGENT_PORT, auth_token.filter(|t| !t.is_empty()));
+pub fn gpio_connect(
+    ws: State<'_, Ws>,
+    ssh: State<'_, Ssh>,
+    auth_token: Option<String>,
+) -> CommandResult {
+    let route = Route::Tunnel {
+        ssh: ssh.inner().clone(),
+        port: GPIO_AGENT_PORT,
+    };
+    ws.connect(route, auth_token.filter(|t| !t.is_empty()));
     Ok(json!({ "success": true }))
 }
 
@@ -406,6 +444,20 @@ mod tests {
         assert!(
             !kill.contains("tutorial_1.py"),
             "the literal name would match this shell"
+        );
+    }
+
+    #[test]
+    fn a_run_has_no_time_limit_unless_one_is_set() {
+        assert_eq!(run_time_limit(&Value::Null), None);
+        assert_eq!(run_time_limit(&json!(0)), None);
+        assert_eq!(run_time_limit(&json!(-5)), None);
+        assert_eq!(run_time_limit(&json!("60")), None);
+        assert_eq!(run_time_limit(&json!(1e300)), None);
+        assert_eq!(run_time_limit(&json!(90)), Some(Duration::from_secs(90)));
+        assert_eq!(
+            run_time_limit(&json!(0.5)),
+            Some(Duration::from_millis(500))
         );
     }
 

@@ -34,6 +34,10 @@ fn defaults() -> Value {
         "ai": {
             "model": "anthropic/claude-opus-4.6",
             "thinkingLevel": "medium"
+        },
+        "run": {
+            // Seconds after which a run on the Pi is stopped; null means no limit (D17).
+            "timeLimitSec": null
         }
     })
 }

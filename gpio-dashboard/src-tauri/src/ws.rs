@@ -1,65 +1,136 @@
-//! WebSocket client for the Pi agent's GPIO feed, with automatic reconnect.
+//! WebSocket client for the Pi agent: GPIO telemetry in, agent commands out, with
+//! automatic reconnect. The agent listens only on the Pi's 127.0.0.1, so the socket runs
+//! through an SSH direct-tcpip tunnel rather than over the network (D18).
 
 use std::{sync::Mutex, time::Duration};
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{json, Value};
-use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tokio::{
+    io::{AsyncRead, AsyncWrite},
+    sync::mpsc,
+};
+use tokio_tungstenite::{client_async, tungstenite::Message, WebSocketStream};
 
-use crate::Emit;
+use crate::{ssh::Ssh, Emit};
 
 const MAX_RECONNECT_DELAY_MS: u64 = 30_000;
 const MAX_RECONNECT_ATTEMPTS: u32 = 10;
 
+/// How the socket reaches the agent.
+pub enum Route {
+    /// Through the SSH session to the agent on the Pi's loopback interface.
+    Tunnel { ssh: Ssh, port: u16 },
+    /// A plain TCP connection, for tests against a local server.
+    #[cfg(test)]
+    Direct { host: String, port: u16 },
+}
+
+trait Io: AsyncRead + AsyncWrite + Unpin + Send {}
+impl<T: AsyncRead + AsyncWrite + Unpin + Send> Io for T {}
+
+impl Route {
+    async fn open(&self) -> Result<WebSocketStream<Box<dyn Io>>, String> {
+        let (io, url): (Box<dyn Io>, String) = match self {
+            Route::Tunnel { ssh, port } => (
+                Box::new(ssh.open_tunnel("127.0.0.1", *port).await?),
+                format!("ws://127.0.0.1:{port}"),
+            ),
+            #[cfg(test)]
+            Route::Direct { host, port } => (
+                Box::new(
+                    tokio::net::TcpStream::connect((host.as_str(), *port))
+                        .await
+                        .map_err(|e| e.to_string())?,
+                ),
+                format!("ws://{host}:{port}"),
+            ),
+        };
+        let (stream, _) = client_async(url, io).await.map_err(|e| e.to_string())?;
+        Ok(stream)
+    }
+}
+
+struct Connection {
+    task: tauri::async_runtime::JoinHandle<()>,
+    outbox: mpsc::UnboundedSender<String>,
+}
+
 pub struct Ws {
     emit: Emit,
-    task: Mutex<Option<tauri::async_runtime::JoinHandle<()>>>,
+    connection: Mutex<Option<Connection>>,
 }
 
 impl Ws {
     pub fn new(emit: Emit) -> Self {
         Self {
             emit,
-            task: Mutex::new(None),
+            connection: Mutex::new(None),
         }
     }
 
-    pub fn connect(&self, host: String, port: u16, auth_token: Option<String>) {
-        let mut task = self.task.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(previous) = task.take() {
-            previous.abort();
+    pub fn connect(&self, route: Route, auth_token: Option<String>) {
+        let (outbox, queued) = mpsc::unbounded_channel();
+        let task = tauri::async_runtime::spawn(run(self.emit.clone(), route, auth_token, queued));
+        let previous = self.lock().replace(Connection { task, outbox });
+        if let Some(previous) = previous {
+            previous.task.abort();
         }
-        *task = Some(tauri::async_runtime::spawn(run(
-            self.emit.clone(),
-            host,
-            port,
-            auth_token,
-        )));
     }
 
     pub fn disconnect(&self) {
-        if let Some(task) = self.task.lock().unwrap_or_else(|e| e.into_inner()).take() {
-            task.abort();
+        if let Some(connection) = self.lock().take() {
+            connection.task.abort();
         }
+    }
+
+    /// Queues a message for the agent. Messages are delivered in order, once the socket is
+    /// (re)connected and authenticated.
+    pub fn send(&self, message: &Value) -> Result<(), String> {
+        self.lock()
+            .as_ref()
+            .ok_or("Not connected to the Pi agent")?
+            .outbox
+            .send(message.to_string())
+            .map_err(|_| "The connection to the Pi agent has ended".to_string())
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, Option<Connection>> {
+        self.connection.lock().unwrap_or_else(|e| e.into_inner())
     }
 }
 
-async fn run(emit: Emit, host: String, port: u16, auth_token: Option<String>) {
-    let url = format!("ws://{host}:{port}");
+async fn run(
+    emit: Emit,
+    route: Route,
+    auth_token: Option<String>,
+    mut queued: mpsc::UnboundedReceiver<String>,
+) {
     let mut attempts: u32 = 0;
     let mut previous_gpio_state: Option<String> = None;
 
     loop {
-        match connect_async(url.as_str()).await {
-            Ok((mut stream, _)) => {
+        match route.open().await {
+            Ok(mut stream) => {
                 attempts = 0;
                 if let Some(token) = &auth_token {
                     let auth = json!({ "type": "auth", "token": token }).to_string();
                     let _ = stream.send(Message::text(auth)).await;
                 }
-                while let Some(Ok(message)) = stream.next().await {
-                    if let Message::Text(raw) = message {
-                        forward(&emit, raw.as_str(), &mut previous_gpio_state);
+                loop {
+                    tokio::select! {
+                        incoming = stream.next() => match incoming {
+                            Some(Ok(Message::Text(raw))) => {
+                                forward(&emit, raw.as_str(), &mut previous_gpio_state)
+                            }
+                            Some(Ok(_)) => {}
+                            _ => break,
+                        },
+                        Some(outgoing) = queued.recv() => {
+                            if stream.send(Message::text(outgoing)).await.is_err() {
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -180,7 +251,13 @@ mod tests {
             let port = listener.local_addr().unwrap().port();
             let (emit, events) = capture();
             let ws = Ws::new(emit);
-            ws.connect("127.0.0.1".into(), port, Some("tok123".into()));
+            ws.connect(
+                Route::Direct {
+                    host: "127.0.0.1".into(),
+                    port,
+                },
+                Some("tok123".into()),
+            );
 
             let (stream, _) = listener.accept().await.unwrap();
             let mut conn = accept_async(stream).await.unwrap();
@@ -213,6 +290,45 @@ mod tests {
                     .is_err(),
                 "client reconnected after disconnect()"
             );
+        });
+    }
+
+    #[test]
+    fn sent_messages_reach_the_agent_in_order_after_auth() {
+        run(async {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let (emit, _) = capture();
+            let ws = Ws::new(emit);
+            assert!(
+                ws.send(&json!({"type": "ping"})).is_err(),
+                "no connection yet"
+            );
+
+            ws.connect(
+                Route::Direct {
+                    host: "127.0.0.1".into(),
+                    port,
+                },
+                Some("tok".into()),
+            );
+            // Queued before the socket is up; delivered after the auth frame.
+            ws.send(&json!({"type": "sense_pause"})).unwrap();
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut conn = accept_async(stream).await.unwrap();
+            ws.send(&json!({"type": "sense_resume"})).unwrap();
+            let mut frames = Vec::new();
+            for _ in 0..3 {
+                let text = conn.next().await.unwrap().unwrap().into_text().unwrap();
+                frames.push(serde_json::from_str::<Value>(text.as_str()).unwrap()["type"].clone());
+            }
+            assert_eq!(
+                frames,
+                vec![json!("auth"), json!("sense_pause"), json!("sense_resume")]
+            );
+
+            ws.disconnect();
+            assert!(ws.send(&json!({"type": "ping"})).is_err(), "disconnected");
         });
     }
 }
