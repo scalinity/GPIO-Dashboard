@@ -2987,3 +2987,138 @@ declare it.
     edge on a pin does not run there: the run shows that the program sets up and waits for the
     time it was given. Input changes during a run are not a parameter of the tool.
   - SPEC 13.2 lists the old five classes and wants the line updated.
+
+## ADR-B10-1 Build Mode draws a document derived from the circuit, and never writes to it
+
+- **Context.** SPEC 11.7 grows the bench step by step, and SPEC 11.9 makes a tutorial a read-only
+  template. The Studio draws `circuit.getSnapshot()`, and `circuit.open()` settles the cables
+  afresh each time.
+- **Options.** (a) Dispatch each step's ops into the CircuitStore: the tutorial opens empty, the
+  undo history fills, the Workbench reloads its simulation on every step, and leaving mid-way
+  leaves a half-built project. (b) Open `docUpTo(step)` as the document each time: nothing is
+  incremental and the cables reset. (c) Draw a derived document and leave the circuit alone.
+- **Decision.** (c). At step *i* the stage draws `docUpTo(doc, steps, i - 1)` (the steps done) and
+  step *i*'s part or lead as one more ghost (`studio/build.ts`, `stepScene`). The view's reads of
+  the document go through `base()`, the document the bench holds as committed (Build Mode's, else
+  the app's), and `conn()`, its connectivity (`computeState` of that document): hover, picking,
+  the insertion animation, the cables and the tooltip. A step done adds its part or lead to the
+  base, which drops in over 150 ms (ADR-0051) while the solver starts its lead and lets it settle
+  (ADR-0070); going Back turns it into the ghost again. Once the last step is passed the base is
+  `docUpTo` of the last step, which equals the tutorial's document.
+  - While a build is played the canvas refuses edits (`refuseWhileLocked`, and `edit()` for anything
+    but `SetCode` and `SetMeta`), presses switch nothing and the pin menu stays shut: they would act
+    on parts that are not drawn.
+  - Nothing glows or moves from the simulation until the build is finished (the visuals get no
+    snapshot), and Board Sense's tint is off. Both compare against the finished document, so every
+    net not yet built reads as diverged, and the overlay then asks the sim worker for the causes of
+    each (one `rankCandidates` of the whole document per net), which starved the mock sweeps. The
+    step card reports what the sweeps say of the step in hand instead.
+- **Consequences.**
+  - `docUpTo` keys on bare refs (a part and a lead sharing an id would both appear with either's
+    step). A test checks that no shipped tutorial shares one.
+  - Opening another project or tutorial ends Build Mode; an edit of the same one (undo, the
+    assistant) regenerates the steps and keeps the step in hand where it still exists.
+
+## ADR-B10-2 The step's holes are ringed by DOM elements, so a held step draws no frames
+
+- **Context.** SPEC 11.7 asks for a pulsing ghost at the exact holes; SPEC 10.2 and 10.8 ask for
+  zero frames when the scene is static. A pulse drawn in the scene renders the whole post stack
+  (two geometry passes, GTAO, TRAA) at the display rate for as long as a step is read.
+- **Decision.** The ghost itself is the assistant's ghost (violet, hovering 4 mm over its holes,
+  tinted, never simulated). The pulse is a ring per hole or module pin (`studio/stepMarks.ts`): a
+  DOM element over the canvas, positioned from the camera on each drawn frame as the labels are,
+  animated by a CSS keyframe (`step-pulse`, 1.4 s; none under `prefers-reduced-motion`), with a dot
+  that stays where the ring fades. It is outside the element the orbit controls listen on. Rings
+  stand on the holes, so the part hovering above does not hide them. The T-board step has no part
+  to ghost (the T-board belongs to the bench), so its rings mark pin 1 and pin 40 and its frame is
+  the T-board and the Pi. Board Sense's likeliest cause for a diverged step adds red rings at its
+  holes.
+- **Consequences.** A held step costs no frame once the camera and TRAA settle (an e2e test counts
+  them over 1.5 s). Rings that stand where they stood are not rebuilt, so the pulse keeps its beat.
+  The tone classes are written out in `stepMarks.ts`: the stylesheet's content scan does not see a
+  class assembled from a template string (the first version lost its colours that way).
+
+## ADR-B10-3 Framing, and depth of field as an option that is off until asked for
+
+- **Decision.**
+  - A step's frame is the bounding sphere of its marks and its part's box, at least 25 mm across
+    (`FOCUS_MIN_RADIUS_MM`), seen from the direction the camera already has, reached by the
+    preset tween (`PRESET_MS`, 500 ms, eased). `report().build.framingMs` is the time from setting
+    off to the frame that ended the tween; an e2e test holds it to 600 ms on every step of every
+    tutorial. Reopening the Studio in the middle of a build puts the camera there at once.
+  - Depth of field (`Post.setFocus`, ADR-0025) follows the camera's target: the focus distance is
+    the camera-to-target distance, set on each frame, so orbiting and the tween keep the target
+    sharp. It is a checkbox in the panel, off by default and remembered, because it blurs the rest
+    of the circuit the reader may want to see, and is the first thing SPEC 10.8 scales back. It is
+    skipped on the finished bench, which has no target, and `setFocus(null)` runs when Build Mode
+    ends.
+- **Consequences.** `Post.setFocus` had no caller before; an e2e test exercises it (the output node
+  swaps to the depth-of-field output and back) and a screenshot in Chromium on WebGPU shows the
+  background soften with the step sharp.
+
+## ADR-B10-4 Step confirmation: signatures once per step, two sweeps to believe, a stricter "changed"
+
+- **Context.** `checkStep` simulates the board before and after the step on every call: 0.15 to
+  6.8 s per call on the shipped tutorials (led-dot-matrix 6.8 s, four-digit-seven-segment 3.1 s),
+  and a sweep arrives every 250 ms. It also counts GPIO2 and GPIO3, observable through their board
+  pull-ups, as changed by any step that alters how another pin answers them in the pair table; they
+  always match. On a full probe it therefore confirms 34 steps of the shipped tutorials, 24 of them
+  with no evidence about the step (the Blinking LED's last lead, eight of led-bar-graph's, eight of
+  flowing-leds', the Button's W2, among others), where SPEC 14.5 says an LED path is never shown as
+  verified. On four-digit-seven-segment, `probeSignature` throws (`gmin stepping stalled`) for the
+  partly built boards of steps 45 to 51.
+- **Decision.**
+  - `StepChecker` (`state/buildSense.ts`) loads `docUpTo(i)` into a sim worker of Build Mode's own
+    and takes its probe signature, once per step and pin set, one request at a time; the main
+    thread only judges. `judge` (`state/buildCheck.ts`) is `checkStep`'s verdict on those
+    signatures, except that a pin counts as changed when its own reading changed or its reading
+    against another observable pin did; it confirms 10 of the 34. A test holds it equal to
+    `checkStep` on the three-pin fixtures and pins the difference on the full probe (that test
+    fails once core is fixed, which is the cue to delete the difference). A board that does not
+    simulate shows "Board Sense cannot check this step" and waits for Done.
+  - A verdict shows once two sweeps in a row give it (SPEC 14.5: a change counts once it persists).
+    A step confirmed that way is marked done, ticks in the list as sensed, and the build moves on,
+    unless it was done already (Back revisits a step; sweeps do not carry the build off it). A
+    diverged step shows what each differing pin reads against what the step should leave, and the
+    ranked causes of the board as the step should leave it, found by the same worker.
+  - Build Mode only reads `senseStore` (a new read-only `sweep` field). It never starts, stops,
+    pauses or configures sensing, and does not set `mockBoard`; tests and the walkthrough do.
+  - The mock timer waits for a sweep in flight instead of queueing another every 250 ms: a sweep
+    can take seconds on a busy machine, and the backlog left the sweeps describing the board as it
+    stood a minute before.
+- **Consequences.** Core's `checkStep` should adopt the stricter rule and expose its two
+  signatures so a caller can compute them once (see the lane report).
+
+## ADR-B10-5 Progress is kept in browser storage, by project
+
+- **Decision.** The steps done and the step in hand (by step key, so edits elsewhere do not move
+  them) are written to `localStorage` under `gpio.build.progress.project:<file id>` once the
+  document is one of my projects, else `gpio.build.progress.tutorial:<tutorial id>` for a template;
+  a document that is neither (a new, unsaved project) keeps its progress for the session only. The
+  blur choice is `gpio.build.blur`. Storage that is missing or full is ignored.
+- **Why not the settings.** The plain settings are an allowlist in Rust (`SETTINGS_ALLOWLIST`); a
+  new key is a Rust change outside this lane. The app is served from one loopback origin
+  (ADR-0008), so the storage persists between runs.
+- **Back, Next and Done.** Back and Next only move; Done marks the step in hand done and moves on;
+  Board Sense does what Done does for a step it confirms. A finished build reopens finished, with
+  Start over.
+
+## ADR-B10-6 Tutorials open as templates and fork as themselves
+
+- **Decision.** `openTemplate` opens a tutorial's document with no project file (so `isTemplate()`
+  holds and `edit()` refuses it), named by the tutorial's id for Run on Pi. `forkTemplate` writes
+  the document, unchanged but for `meta.created` and `meta.updated`, as a project file of its own
+  and opens it. It still names `sourceTutorialId`, which records where it came from and no longer
+  makes it a template once it has a file. The Tutorials page has "Build in the Studio", "Open in
+  Studio" and "Fork to my projects"; the Studio shows a template badge with the same fork button.
+- **Consequences.** A fork equals its tutorial in everything the circuit, the code and the notes
+  hold (an e2e test compares them), and the tutorial is left as it was. Run through the real
+  `projects_write`, `projects_list` and `projects_delete` in the Tauri window, a fork gave the same
+  document.
+
+## ADR-B10-7 A hardware checkpoint has a place in the step, and it is empty
+
+- **Decision.** `useBuild.checkpoint` is the tutorial checkpoint (`Checkpoint`, from the tutorial
+  schema's `checkpoints`) that follows the step in hand, and the panel renders one under the step
+  when it is set. It is `null` until M11, which fills it from the tutorial's
+  `checkpoints[].afterStep` and runs the I2C scan, the press watch or the LED toggle (SPEC 14.4).
