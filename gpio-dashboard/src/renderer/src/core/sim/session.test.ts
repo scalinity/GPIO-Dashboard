@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import { partDef } from '../defs/parts'
 import type { CircuitDoc, PartDef } from '../model/types'
-import { at, emptyDoc, hole, part, wire } from '../testing/fixtures'
+import { at, CUSTOM_RES, emptyDoc, hole, part, wire } from '../testing/fixtures'
 import type { BehaviorFactory } from './behavior'
 import { BEHAVIORS } from './behaviors'
 import { Circuit } from './circuit'
@@ -115,6 +115,21 @@ describe('button with pull-down', () => {
     expect(s.read(18)).toBe('high')
     s.setGpio(18, { mode: 'in', pull: 'down' })
     expect(s.read(18)).toBe('low')
+  })
+})
+
+describe('a part with no simulation model', () => {
+  it('adds no devices, so the rest of the circuit still simulates', () => {
+    const d = blink()
+    // A custom part defined with simModel "none", sharing GPIO17's strip and a strip of its own.
+    d.customParts = [{ ...CUSTOM_RES, id: 'custom-no-model', sim: { model: 'none', params: {} } }]
+    d.parts.push(part('X1', 'custom-no-model', { 1: hole(6, 'c'), 2: hole(20, 'c') }))
+    const s = session(d)
+    s.setGpio(17, { mode: 'out', level: true })
+    const on = s.snapshot()
+    expect(on.error).toBeNull()
+    expect(on.dies['D1.D']!.currentA).toBeCloseTo(5.494e-3, 4)
+    expect(on.nets['GPIO17']).toBeGreaterThan(1)
   })
 })
 

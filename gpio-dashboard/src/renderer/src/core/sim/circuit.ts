@@ -258,6 +258,10 @@ export class Circuit {
         )
         return
       }
+      case 'none':
+        // A part with no model (a custom part defined without one): its pins are nets, and it
+        // adds no devices, so the rest of the circuit still simulates.
+        return
       default:
         throw new Error(`${def.id}: no simulation model for ${def.sim.model}`)
     }
