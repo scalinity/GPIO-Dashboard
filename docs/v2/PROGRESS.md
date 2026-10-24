@@ -47,7 +47,7 @@ Environment facts a fresh session needs:
 | 0.8 WebGPU probe in the Tauri window | done | navigator.gpu adapter present in dev and prod; recorded in BASELINE.md |
 | suite | green | cargo test 30 pass / 15 ignored; live-tests 15/15; npm test node 7/7 + Vitest 25/25; lint 0 errors (167 warnings); typecheck ok; `npm run build` ok |
 
-## M1 Native additions — in progress
+## M1 Native additions — done
 
 | Task | Status | Verified / notes |
 |------|--------|------------------|
@@ -62,7 +62,12 @@ Environment facts a fresh session needs:
 | 1.1 anthropic.rs | done | Authored by a Sonnet subagent (19 tests; its own mutation check: 15/15 caught); production code reviewed line by line. `anthropic-workspace-id` added to the forwarded headers (ADR-0010). Commands `anthropic_request` (Channel: JSON head/end/error, raw chunks) and `anthropic_abort`; `proxy_events_become_json_messages_and_raw_chunks` |
 | 1.9 live proxy test | done | `live_count_tokens_through_the_real_proxy_path`, key loaded from the main .env into that cargo process only → 1 passed (HTTP 200, numeric input_tokens). Output filtered for `sk-ant`; nothing printed |
 
-Suite at fc780d9/991ac40: cargo test 65 pass / 19 ignored; live-tests 19/19; node 6/6; Vitest 29/29; lint 0 errors; typecheck ok.
+M1 exit suite (2026-10-24, at afc0796 + the live-tests.sh fix):
+- `cargo test`: 85 passed / 20 ignored.
+- `live-tests.sh`: 19/19. It now skips the Anthropic live test, which needs a key in its own process. Run that one with `cargo test live_count_tokens_through_the_real_proxy_path -- --ignored`; it passed earlier the same day.
+- `npm test`: node 7/7 + Vitest 37/37. Lint 0 errors (167 warnings). Typecheck ok. `npm run build` ok.
+- Production app, read from the overlay: origin `http://127.0.0.1:57852`, crossOriginIsolated true, SharedArrayBuffer true, IPC ok.
+- The subagent worktrees were removed after a diff confirmed their work is integrated (5.4 GB freed).
 
 ### Research carried into M2 (verified 2026-10-23; turn each into data with its source)
 - **Pi 5 header pins**: the official table "Pin names, types, and typical functions" in
