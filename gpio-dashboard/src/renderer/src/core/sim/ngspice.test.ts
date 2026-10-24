@@ -38,7 +38,8 @@ interface Fixture {
   results: Record<string, number>
 }
 
-const fixtures = reference.fixtures as Fixture[]
+// The JSON import infers a union of each fixture's literal keys; the shape is checked at runtime by use.
+const fixtures = reference.fixtures as unknown as Fixture[]
 
 function build(elements: Element[]) {
   let nodes =
