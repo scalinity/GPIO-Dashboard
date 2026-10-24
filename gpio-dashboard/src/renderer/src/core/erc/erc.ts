@@ -1,7 +1,7 @@
 // Electrical rule checks (SPEC 8). Each rule has a code, a severity, the refs involved, a plain
-// explanation and a fix. This is v1: rules decided from the netlist, the code and geometry.
-// Rules that need simulated currents (PIN_OVERCURRENT, RAIL_BUDGET, and LED_NO_LIMIT's current
-// check) are added with the simulator (M3).
+// explanation and a fix. These rules are decided from the netlist, the code and geometry; the
+// ones that need simulated currents (PIN_OVERCURRENT, RAIL_BUDGET, and LED_NO_LIMIT's current
+// check) are in core/sim/checks.ts.
 import { codePins, type PinUse } from '../code/pins'
 import type { CircuitDoc, PartDef, PartInstance, Vec2 } from '../model/types'
 import { boardDef } from '../defs/boards'

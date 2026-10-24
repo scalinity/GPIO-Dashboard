@@ -337,3 +337,22 @@ decision and consequences. Numbering is stable; superseded records say so.
   - GPIO2/3 read tied-high through the board's 1.8 kΩ pull-ups.
   - The capacitance range is unverified until the bench calibration fixture runs. It is
     listed in HIL_CHECKLIST.md with that fixture.
+
+## ADR-0014 RAIL_BUDGET checks only documented budgets
+
+- **Context.** SPEC 8: "PIN_OVERCURRENT and RAIL_BUDGET: sim currents above the documented
+  limits in constants". The Raspberry Pi documentation at 1bf32ac gives:
+  - "GPIO pins (combined): 50 mA maximum" and "GPIO pin (individual): Up to 16 mA"
+    (`power-supplies.adoc`; the same figures appear in `gpio-on-raspberry-pi.adoc`).
+  - For the 5 V pins on a Pi 5: "Limited by PSU, board, and connector ratings only".
+  - No current limit for the 3V3 pins.
+- **Decision.**
+  - PIN_OVERCURRENT fires above 16 mA on any GPIO.
+  - RAIL_BUDGET fires when the GPIOs carry more than 50 mA together.
+  - The 3V3 and 5V currents are reported in every snapshot (and the Inspect panel), but no
+    limit is invented for them.
+  - LED_NO_LIMIT's current check compares each die with its datasheet's maximum continuous
+    current (`ifMaxMa`).
+- **Consequences.** A 3V3 load heavy enough to brown out the regulator is not flagged. If a
+  documented Pi 5 3V3 limit appears, it goes in `core/constants/rp1.ts` with its source and
+  a RAIL_BUDGET case.
