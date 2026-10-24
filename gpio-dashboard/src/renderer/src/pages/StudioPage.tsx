@@ -7,7 +7,9 @@ import {
   Cpu,
   FilePlus,
   FolderOpen,
+  GitFork,
   LayoutGrid,
+  ListChecks,
   Play,
   Redo2,
   Save,
@@ -16,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useState, useSyncExternalStore } from 'react'
 import ConnectionStatus from '../components/ConnectionStatus'
+import BuildPanel from '../panels/BuildPanel'
 import Drawer from '../panels/Drawer'
 import Inspect from '../panels/Inspect'
 import PartLibrary from '../panels/PartLibrary'
@@ -23,8 +26,17 @@ import ProjectsGallery from '../panels/ProjectsGallery'
 import Properties from '../panels/Properties'
 import RunBlockedDialog from '../panels/RunBlockedDialog'
 import { useAssistant } from '../state/assistantStore'
+import { useBuild } from '../state/buildStore'
 import { circuit } from '../state/circuit'
-import { newProject, openFile, save, saveAs, showGallery, useProject } from '../state/projectStore'
+import {
+  forkTemplate,
+  newProject,
+  openFile,
+  save,
+  saveAs,
+  showGallery,
+  useProject
+} from '../state/projectStore'
 import { runOnPi, useRun } from '../state/runStore'
 import { edit, useStudio } from '../state/studioStore'
 import { follow, useWorkbench } from '../state/workbenchStore'
@@ -85,6 +97,9 @@ function TopBar() {
   const assistantRunning = useAssistant((s) => s.running)
   const stopRun = useRun((s) => s.stop)
   const error = useProject((s) => s.error)
+  // A tutorial that is not one of my projects is a read-only template (SPEC 11.9).
+  const template = useProject((s) => s.id === null) && !!doc.meta.sourceTutorialId
+  const building = useBuild((s) => s.on)
   const simulating = codeStatus === 'running'
   const onPi = runStatus === 'deploying' || runStatus === 'running'
   const rename = (name: string) => {
@@ -128,6 +143,27 @@ function TopBar() {
       >
         <Cable className="w-4 h-4" /> Wire (W)
       </button>
+      <button
+        className={`btn-ghost text-sm flex items-center gap-1.5 ${building ? 'bg-accent/20 text-accent-light' : ''}`}
+        aria-pressed={building}
+        title="Play the build steps one at a time"
+        onClick={() => (building ? useBuild.getState().stop() : useBuild.getState().start())}
+      >
+        <ListChecks className="w-4 h-4" /> Build
+      </button>
+      {template && (
+        <>
+          <span className="rounded-pill bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
+            Template · read-only
+          </span>
+          <button
+            className="btn-secondary text-sm flex items-center gap-1.5"
+            onClick={() => void forkTemplate(circuit.getSnapshot())}
+          >
+            <GitFork className="w-4 h-4" /> Fork to my projects
+          </button>
+        </>
+      )}
       {error && <span className="text-xs text-red-400 truncate">{error}</span>}
       <div className="ml-auto flex items-center gap-2">
         {simulating ? (
@@ -167,11 +203,12 @@ export default function StudioPage() {
   const [view] = useState(() => new StudioView())
   const doc = useSyncExternalStore(circuit.subscribe, circuit.getSnapshot)
   const preview = useStudio((s) => s.preview)
+  const building = useBuild((s) => s.on)
   return (
     <div ref={followOnMount} className="relative flex-1 flex flex-col h-full overflow-hidden">
       <TopBar />
       <div className="relative flex-1 flex min-h-0">
-        <PartLibrary view={view} />
+        {building ? <BuildPanel /> : <PartLibrary view={view} />}
         <Studio view={view} doc={preview ?? doc} />
         <aside className="w-64 shrink-0 overflow-y-auto border-l border-white/[0.04] bg-surface-900/60 p-3 space-y-4">
           <Properties />

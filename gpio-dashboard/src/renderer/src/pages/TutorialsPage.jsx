@@ -1,7 +1,17 @@
-// Tutorials (SPEC 11.1, 13.1): the verified content, until the Studio and Build Mode exist. Each
-// shows its theory, the generated wiring table and build steps, and its code, which runs on the
-// Pi through the existing run path. "Open in Workbench" checks and simulates its circuit.
-import { ArrowLeft, BookOpen, ExternalLink, FlaskConical, Play, Square } from 'lucide-react'
+// Tutorials (SPEC 11.1, 13.1): the verified content. Each shows its theory, the generated wiring
+// table and build steps, and its code, which runs on the Pi through the existing run path. It
+// opens in the Studio as a read-only template, with Build Mode over its steps, or forks into my
+// projects (SPEC 11.9); "Open in Workbench" checks and simulates its circuit.
+import {
+  ArrowLeft,
+  BookOpen,
+  ExternalLink,
+  FlaskConical,
+  GitFork,
+  Hammer,
+  Play,
+  Square
+} from 'lucide-react'
 import { useState } from 'react'
 import CodeEditor from '../components/CodeEditor'
 import { partDef } from '../core/defs/parts'
@@ -14,6 +24,8 @@ import RunBlockedDialog from '../panels/RunBlockedDialog'
 import useConnectionStore from '../store/connectionStore'
 import useTutorialStore from '../store/tutorialStore'
 import useUiStore from '../store/uiStore'
+import { useBuild } from '../state/buildStore'
+import { forkTemplate, openTemplate, useProject } from '../state/projectStore'
 import { useRun } from '../state/runStore'
 import { useWorkbench } from '../state/workbenchStore'
 
@@ -98,9 +110,18 @@ function Code({ tutorial }) {
 function Detail({ tutorial, onBack }) {
   const [tab, setTab] = useState('theory')
   const { meta } = tutorial
+  const error = useProject((s) => s.error)
   const openInWorkbench = () => {
     useWorkbench.getState().open(meta.id, tutorial.doc)
     useUiStore.getState().setActiveTab('workbench')
+  }
+  // The template opens in the Studio, with Build Mode over its steps when asked; a fork opens
+  // as a project of my own. A document that fails to open stays here with its reason.
+  const inStudio = async (open, then) => {
+    await open()
+    if (useProject.getState().error) return
+    then?.()
+    useUiStore.getState().setActiveTab('studio')
   }
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -119,13 +140,39 @@ function Detail({ tutorial, onBack }) {
               {t}
             </span>
           ))}
-          <button
-            className="ml-auto btn-secondary text-sm flex items-center gap-1.5"
-            onClick={openInWorkbench}
-          >
-            <FlaskConical className="w-4 h-4" /> Open in Workbench
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              className="btn-success text-sm flex items-center gap-1.5"
+              onClick={() =>
+                inStudio(
+                  () => openTemplate(tutorial),
+                  () => useBuild.getState().start()
+                )
+              }
+            >
+              <Hammer className="w-4 h-4" /> Build in the Studio
+            </button>
+            <button
+              className="btn-secondary text-sm"
+              onClick={() => inStudio(() => openTemplate(tutorial))}
+            >
+              Open in Studio
+            </button>
+            <button
+              className="btn-secondary text-sm flex items-center gap-1.5"
+              onClick={() => inStudio(() => forkTemplate(tutorial.doc))}
+            >
+              <GitFork className="w-4 h-4" /> Fork to my projects
+            </button>
+            <button
+              className="btn-secondary text-sm flex items-center gap-1.5"
+              onClick={openInWorkbench}
+            >
+              <FlaskConical className="w-4 h-4" /> Open in Workbench
+            </button>
+          </div>
         </div>
+        {error && <p className="text-xs text-red-400">{error}</p>}
         <p className="text-sm text-gray-400">{meta.summary}</p>
         <div className="flex flex-wrap gap-3 text-xs">
           {[meta.sources.kit, ...meta.sources.datasheets, ...meta.sources.pi]
