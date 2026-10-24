@@ -80,7 +80,7 @@ at effort `high`; the two explanation prompts at `medium` (SPEC 12.2). The model
 - `convention`: the wiring convention (SPEC 6.5, acceptance 17): `validateDoc` is clean (genders,
   holes, placement), every hole-to-hole lead is male-male, no part leg sits in a T-board strip, and
   every Pi net with a part on it is reached by a lead that has an end in that net's T-board strip.
-  All 28 shipped tutorials pass it (`checks.test.ts`).
+  All 26 shipped tutorials pass it (`checks.test.ts`).
 - `inventory`: every part is in `content/inventory.json`, or is one the prompt names (the HC-SR04) or
   a custom part the prompt asks for; every lead is a kind the kits hold.
 - `code.syntax` and `code.pins`: the project's code compiles under Pyodide, and the GPIOs it
