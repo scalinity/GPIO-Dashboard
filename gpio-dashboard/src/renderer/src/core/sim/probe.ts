@@ -7,8 +7,7 @@ import type { PinRole } from '../model/types'
 import type { EnvValue } from './behavior'
 import type { Circuit } from './circuit'
 import { Capacitor, Resistor } from './devices'
-import type { Device } from './solver'
-import { solveTransient } from './solver'
+import { ConvergenceError, solveTransient, type Device, type SolveOptions } from './solver'
 
 export interface ProbeRange {
   pullUpOhm: readonly [number, number]
@@ -40,6 +39,11 @@ export interface ProbeSignature {
   pairs: Record<number, Record<Bias, Record<number, PairReading>>>
   /** Whether the net's expected readings differ, for certain, from "nothing attached". */
   observable: Record<number, boolean>
+  /**
+   * Why the board could not be solved, when it could not (ADR-S-2). No reading is then known:
+   * every one is ambiguous and no net is observable, so nothing is matched or refuted by it.
+   */
+  unsolved?: string
 }
 
 /** Pin roles whose nets are never probed: bias edges would reach or fight them (SPEC 14.5). */
@@ -62,16 +66,48 @@ function agree<T extends string>(readings: T[], ambiguous: T): T {
   return readings.every((r) => r === readings[0]) ? readings[0]! : ambiguous
 }
 
+/**
+ * Tolerances for the retry of a solve that stalls. A reading is only classified against the
+ * thresholds 0.8 V and 2.0 V, so 1e-4 relative (0.1 mV at 1 V) and 0.1 µV on a node move no
+ * reading across a threshold, but they let Newton settle where an LED network rings under the
+ * trapezoidal rule (ADR-S-2).
+ */
+const LOOSE: SolveOptions = { reltol: 1e-4, vntol: 1e-7 }
+
+/** `run` at the default tolerances, and once more at LOOSE when Newton does not converge. */
+function settled<T>(run: (options?: SolveOptions) => T): T {
+  try {
+    return run()
+  } catch (e) {
+    if (!(e instanceof ConvergenceError)) throw e
+    return run(LOOSE)
+  }
+}
+
+/** What a board that cannot be solved predicts: nothing is known, so nothing is observable. */
+function unsolved(
+  probed: number[],
+  skipped: ProbeSignature['skipped'],
+  reason: string
+): ProbeSignature {
+  const bias: ProbeSignature['bias'] = {}
+  const pairs: ProbeSignature['pairs'] = {}
+  const observable: ProbeSignature['observable'] = {}
+  const unknown = Object.fromEntries(probed.map((b) => [b, 'ambiguous' as const]))
+  for (const a of probed) {
+    bias[a] = { up: 'ambiguous', down: 'ambiguous', class: 'ambiguous' }
+    pairs[a] = { up: { ...unknown }, down: { ...unknown } }
+    observable[a] = false
+  }
+  return { probed, skipped, bias, pairs, observable, unsolved: reason }
+}
+
 export function probeSignature(
   circuit: Circuit,
   candidates: number[],
   env: Map<string, Record<string, EnvValue>> = circuit.defaultEnv(),
   range: ProbeRange = PROBE_DEFAULTS
 ): ProbeSignature {
-  const envOf = (part: string) => env.get(part)!
-  const v33 = circuit.nodeOfNet.get('3V3')!
-  const none = new Map()
-
   const skipped: ProbeSignature['skipped'] = []
   const probed: number[] = []
   for (const bcm of candidates) {
@@ -86,6 +122,27 @@ export function probeSignature(
     else if (sensitive?.length) skipped.push({ bcm, reason: sensitive[0]! })
     else probed.push(bcm)
   }
+  try {
+    return predict(circuit, probed, skipped, env, range)
+  } catch (e) {
+    // A partly built board can have no operating point Newton finds. That is not a divergence of
+    // the board from the twin, and it is not an exception for the caller: it is a board whose
+    // readings are not known (ADR-S-2).
+    if (!(e instanceof ConvergenceError)) throw e
+    return unsolved(probed, skipped, e.message)
+  }
+}
+
+function predict(
+  circuit: Circuit,
+  probed: number[],
+  skipped: ProbeSignature['skipped'],
+  env: Map<string, Record<string, EnvValue>>,
+  range: ProbeRange
+): ProbeSignature {
+  const envOf = (part: string) => env.get(part)!
+  const v33 = circuit.nodeOfNet.get('3V3')!
+  const none = new Map()
 
   const node = (bcm: number) => circuit.gpioNodes.get(bcm)!
   const at = (x: Float64Array, n: number) => (n === 0 ? 0 : x[n - 1]!)
@@ -96,12 +153,15 @@ export function probeSignature(
   // Bias test: every probed pin pulled the same way at once, at each end of the pull range.
   const biasReading = (bias: Bias): Map<number, Reading> => {
     const corners = ohmsRange(bias).map((ohms) => {
-      const { x } = circuit.solve(
-        none,
-        envOf,
-        undefined,
-        new Map(),
-        probed.map((b) => pull(b, bias, ohms))
+      const { x } = settled((options) =>
+        circuit.solve(
+          none,
+          envOf,
+          undefined,
+          new Map(),
+          probed.map((b) => pull(b, bias, ohms)),
+          options
+        )
       )
       return new Map(probed.map((b) => [b, classify(at(x, node(b)))]))
     })
@@ -146,24 +206,29 @@ export function probeSignature(
       for (const ohms of ohmsRange(drive)) {
         for (const farads of range.nodeCapF) {
           // The precharge settles through the pulls, so its level does not depend on capacitance.
-          const pre = circuit.solve(
-            none,
-            envOf,
-            undefined,
-            new Map(),
-            probed.map((b) => pull(b, opposite, ohmsRange(opposite)[0]))
+          const pre = settled((options) =>
+            circuit.solve(
+              none,
+              envOf,
+              undefined,
+              new Map(),
+              probed.map((b) => pull(b, opposite, ohmsRange(opposite)[0])),
+              options
+            )
           )
           const devices: Device[] = circuit.devices(none, envOf, new Map(), [
             pull(a, drive, ohms),
             ...nets.map((n) => new Capacitor(n, 0, farads))
           ])
-          const run = solveTransient(
-            circuit.nodes,
-            devices,
-            range.settleS,
-            range.settleS / 100,
-            {},
-            pre.x
+          const run = settled((options) =>
+            solveTransient(
+              circuit.nodes,
+              devices,
+              range.settleS,
+              range.settleS / 100,
+              options,
+              pre.x
+            )
           )
           const end = run.solutions.at(-1)!
           corners.push(
