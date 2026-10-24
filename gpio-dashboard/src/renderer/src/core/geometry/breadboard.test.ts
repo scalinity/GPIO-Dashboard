@@ -122,3 +122,31 @@ describe('bb-830 geometry', () => {
     expect(RAIL_IDS).toEqual(['top+', 'top-', 'bottom+', 'bottom-'])
   })
 })
+
+describe('bb-400 geometry', () => {
+  const half = boardDef('bb-400')
+  const holes = boardHoles(half, 'bb2')
+
+  it('has 300 circuit holes in 30 rows and four 25-hole rails', () => {
+    expect(holes.filter((h) => h.area === 'main')).toHaveLength(300)
+    expect(holes.filter((h) => h.area === 'rail')).toHaveLength(100)
+    expect(half.rows).toBe(30)
+  })
+
+  it('offsets its rail holes half a pitch (0.050") from the circuit rows, in groups of five', () => {
+    const rows = Array.from({ length: 25 }, (_, i) => railHoleRow(half, i))
+    expect(rows.slice(0, 6)).toEqual([1.5, 2.5, 3.5, 4.5, 5.5, 7.5])
+    expect(rows.at(-1)).toBe(29.5)
+  })
+
+  it('keeps every hole inside its 84.0 x 54.3 mm body and finds each again', () => {
+    for (const h of holes) {
+      const [x, y] = holePosition(half, h)
+      expect(x).toBeGreaterThan(0)
+      expect(x).toBeLessThan(half.body.lengthMm)
+      expect(y).toBeGreaterThan(0)
+      expect(y).toBeLessThan(half.body.widthMm)
+      expect(nearestHole(half, 'bb2', [x, y])).toEqual(h)
+    }
+  })
+})

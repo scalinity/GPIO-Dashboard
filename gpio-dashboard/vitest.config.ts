@@ -8,6 +8,10 @@ export default defineConfig({
   },
   test: {
     include: ['src/renderer/src/**/*.test.{ts,tsx}'],
+    // The content registries expand import.meta.glob when their module is transformed, and the
+    // on-disk transform cache keys on that module's text, not on the folder it lists. A new
+    // content file would be silently missing from the next run, so the cache stays off.
+    fsModuleCache: false,
     environment: 'node'
   }
 })
