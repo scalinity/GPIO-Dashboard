@@ -2279,3 +2279,208 @@ decision and consequences. Numbering is stable; superseded records say so.
     4.3% of pixels over 8, on edges), and the one-pass frame was the sharper.
   - e2e's frame counter tests, including that a still scene renders no frames after a camera move,
     pass unchanged.
+
+## ADR-M9-1 The loop reads the stream itself instead of using the SDK's message helper
+
+- **Context.**
+  - SPEC 12.3 requires every assistant content block to go back to the API exactly as received,
+    and SPEC 12.4 requires a tool input that is not valid JSON to come back as a `tool_result`
+    with `{"INVALID_JSON": "<raw>"}`.
+  - `@anthropic-ai/sdk` 1.3.0 builds a tool call's `input` as a lazy getter over a tolerant
+    partial-JSON parse, and evaluates it when the block closes. Input the parser rejects makes
+    `finalMessage()` reject, which loses the whole message: the thinking signature, the server-tool
+    results and the other tool calls. Input it accepts can be silently truncated.
+  - The SDK's `Stream` treats an `AbortError` as the end of the stream (`core/streaming.js`), so
+    an aborted request looks like a message with no stop reason.
+- **Decision.**
+  - `assistant/stream.ts` calls `client.messages.create({stream: true})` and accumulates the events
+    itself: each `content_block_start` is cloned and filled by its deltas, and tool input is kept
+    as raw text and parsed strictly with `JSON.parse` at `content_block_stop`. A tool input that is
+    not a JSON object is recorded with its raw text and answered with `INVALID_JSON`; the block
+    goes back with `input: {}`, since the API needs an object.
+  - Previews use the SDK's own partial parser (`@anthropic-ai/sdk/_vendor/partial-json-parser`).
+    It keeps only keys and values that have fully arrived, so a ghost never jumps. A property test
+    shows that no prefix of any JSON object yields a value the finished object lacks.
+  - The loop checks `signal.aborted` after the stream ends and reports `aborted` then.
+  - A block the stream never closed (a response cut off by `max_tokens`) is not sent back: a
+    thinking block without its signature, or a tool call with half an input, would be a 400.
+- **Consequences.**
+  - The SDK still does transport, SSE parsing, retries (two, before a stream starts), headers and
+    types. Only the accumulation is ours, one small module, tested against hand-written SSE
+    fixtures split at odd byte positions.
+  - The `_vendor` path is an SDK internal. A future SDK that moves it fails the import at build
+    time, and `partialJson.ts` is the one file to change.
+
+## ADR-M9-2 Twenty of the 22 tools are strict, and strict-driven shapes differ from SPEC 12.5
+
+- **Context.**
+  - SPEC 12.4 asks for `strict: true` on every client tool. The API limits a request to 20 strict
+    tools, 24 optional parameters and 16 parameters with union types across all strict schemas,
+    and rejects every JSON Schema keyword outside a small subset (structured outputs, "Schema
+    complexity limits" and "JSON Schema limitations"). SPEC 12.5 lists 22 tools.
+  - `additionalProperties` must be `false` on every object, so a map with arbitrary keys can not
+    be described.
+- **Decision.**
+  - Every tool that takes parameters is strict (20). `run_erc` and `read_board_sense` take none;
+    a grammar over `{}` guarantees nothing, so they are not.
+  - Schemas are written in Zod and converted by `tools/jsonSchema.ts`, which keeps only the
+    subset, closes every object, and moves ranges and lengths into the description. The same Zod
+    schema validates the input at runtime, so the ranges still hold.
+  - Shapes that a strict schema can not express change form, with the same content:
+    - holes are text, `"bb1:23e"` or `"bb1:top+.7"`, which also saves a union per hole;
+    - `props` is a list of `{name, value}`;
+    - `simulate` takes `stimulus: {gpio: [...], inputs: [...]}` with `durationMs` required (0 for
+      `op`); `inputs` carries what SPEC 12.5 splits into `inputs` and `env`, because both set a
+      part property in the simulator;
+    - `annotate_build_steps` entries carry `why` and `mistake` as required strings, empty when
+      there is nothing to say;
+    - `define_custom_part` pins carry `connector: "none"` for parts that plug into the board.
+  - A test asserts at most 20 strict tools, 24 optional parameters and 16 unions over the schemas
+    actually sent. They use 20, 15 and 5.
+- **Consequences.**
+  - The API also limits compiled grammar size, which can not be checked offline. ADR-M9-3 covers
+    a rejection.
+  - `circuitStore` gets no new op: `annotate_build_steps` can not commit, because no op sets
+    `buildStepAnnotations`. The tool validates its steps and calls
+    `AssistantContext.annotateBuildSteps`. A `SetBuildStepAnnotations` op in `core/` would make
+    it one transaction of the turn, and undoable with it.
+
+## ADR-M9-3 Mutation tools stream eagerly, and a rejected first request retries with plain tools
+
+- **Context.**
+  - SPEC 12.4 sets `eager_input_streaming: true` on the mutation tools and asks to drop it from a
+    tool if the API rejects it together with `strict`. The fine-grained streaming, strict tool use
+    and tool reference pages say nothing about the combination. This build can not call the API
+    (no key is read or used), so the combination is unverified.
+  - Eager streaming turns off the server's validation of each parameter, so the accumulated input
+    can be invalid JSON (ADR-M9-1) or cut off (`max_tokens`).
+- **Decision.**
+  - `eager_input_streaming` is set on the 12 tools that change the document or the part library,
+    together with `strict`.
+  - If the first request of a conversation fails with a 400 whose message mentions strict, eager,
+    schema or complexity, the session rebuilds its tools without both flags, tells the UI with a
+    `plain-tools` notice, and retries once. Later requests never do this: the tools array is part
+    of what thinking blocks are bound to (ADR-M9-5), and the first request has none yet.
+  - Runtime validation does not depend on the flags, so plain tools lose only the grammar
+    guarantee and early ghosts.
+- **Consequences.**
+  - The first live run of the Claude drawer settles it. If the API rejects the combination,
+    this fallback is what the user sees; the permanent fix is dropping `eager` from the tool the
+    API names, in `tools/index.ts`.
+  - A live check belongs in `HIL_CHECKLIST.md`: send one request with the 22 tools and read the
+    response or the 400.
+
+## ADR-M9-4 Web search and web fetch run as direct calls
+
+- **Context.**
+  - SPEC 12.3 names `web_search_20260318` and `web_fetch_20260318` and asks to read the
+    `allowed_callers` and mixed-turn rules. From `_20260209` on, the web tools default to
+    `allowed_callers: ["code_execution_20260120"]`: dynamic filtering, with code execution
+    provisioned by the API in a container, and no zero-data-retention eligibility.
+  - A turn that calls a web tool and a client tool together ends with `stop_reason: "tool_use"`
+    and a `server_tool_use` block with no result; the next request must carry only the client
+    `tool_result` blocks and the same `tools`. A long server loop ends with `pause_turn`.
+- **Decision.**
+  - Both tools are declared with `allowed_callers: ["direct"]`, `max_uses` 6 (search) and 4
+    (fetch), and `max_content_tokens` 30000 for fetch, which bounds what a datasheet costs now
+    that nothing filters it.
+  - The loop answers only client `tool_use` blocks, resends the same tools on every request,
+    and resumes `pause_turn` by sending the assistant content back as received, up to 8 times in a
+    row. A turn that stops for `tool_use` with no client call waiting is resumed the same way.
+  - `assistant.webTools` is fixed for a conversation (ADR-M9-5).
+- **Consequences.**
+  - Search results and fetched pages enter the context whole, up to the caps. Switching to dynamic
+    filtering later is `allowed_callers` and `webTools()` in `tools/index.ts`, plus whatever
+    container handling the API then needs.
+  - Fetched text is untrusted. The assistant has no hardware tool, and every document change it
+    makes is one undoable transaction, so injected instructions can do no more than a bad build.
+
+## ADR-M9-5 A conversation freezes its prefix and only grows
+
+- **Context.**
+  - Opus 5.5, Sonnet 5.5, Fable 5.1 and Haiku 5.5 bind each thinking block to the system prompt,
+    the tools and every earlier message. A request that edits any of them after a block was
+    produced is a 400 on accounts created from 2026-08-31, and a cache miss on every account
+    (preserved thinking; prompt caching).
+- **Decision.**
+  - `AssistantSession` builds its system blocks (the rules from `system-prompt.md`, then the part
+    catalog summary) and its tools once. The catalog is a snapshot; parts defined later are found
+    with `search_parts`. `webTools`, strictness and eagerness are fixed with it. The panel starts a
+    new session to change them.
+  - History is append-only. Per-turn overrides are limited to `model` and `effort`, which the API
+    allows to change (a model change drops the old thinking blocks, unbilled). Either one costs a
+    cache write for that turn, so the panel should change them rarely.
+  - Caching uses two breakpoints: an explicit one on the last system block, which caches the tools
+    and the system together, and the top-level automatic one, which follows the growing history.
+  - `get_circuit_state` is the only way live state reaches the model, so nothing volatile enters
+    the prefix. `since` is answered from documents the assistant remembered by revision.
+  - A turn that ends early never edits the history either: a response that was cut off, refused or
+    aborted is not appended, and an aborted tool round is closed with error results.
+- **Consequences.**
+  - Two adjacent user messages (after an aborted turn) are merged by the API, which allows it.
+  - A conversation that mixed a web tool with a client tool and was aborted before its results
+    went back leaves a server tool call unresolved; the next request would be a 400. That needs a
+    new conversation.
+  - There is no compaction. The 1M window holds a long build session; a longer one needs the
+    server-side compaction beta.
+
+## ADR-M9-6 How a turn ends
+
+- **Context.**
+  - SPEC 12.3 requires handling `tool_use`, `end_turn`, `max_tokens`, `pause_turn` and `refusal`,
+    a soft cap of 60 tool calls, and abort. The API also returns `stop_sequence` (never requested
+    here) and `model_context_window_exceeded`.
+- **Decision.**
+  - `end_turn`, `stop_sequence`: the response is appended and the turn ends.
+  - `tool_use`: client tools run in order; all results go back in one user message. Parallel
+    calls are not run concurrently, because later calls read what earlier ones changed.
+  - `max_tokens`, `model_context_window_exceeded`: nothing runs, since a tool input cut off can
+    parse as a valid partial object. Complete blocks are kept and every complete tool call is
+    answered with a `TRUNCATED` error so the history stays valid; the UI gets a notice and the
+    user can say "continue".
+  - `pause_turn`: resumed, as in ADR-M9-4.
+  - `refusal`: the response is dropped, not appended; the UI gets the category and explanation.
+    Server-side fallback needs the beta namespace and is not enabled; `fallbacks` can be added to
+    the request in `loop.ts` once a fallback model is chosen.
+  - Cap: at 60 calls the remaining calls in the batch get a `TOOL_CALL_CAP` error, and the next
+    request sets `tool_choice: none` so the model can only summarize and ask whether to continue.
+    `tool_choice` is outside the prefix the thinking blocks bind to; it costs one cache write.
+    The count restarts each turn.
+  - Abort: the request is aborted, a half-received response is dropped, committed transactions
+    stay, results already earned are returned, calls not yet run get an `ABORTED` error, and every
+    ghost is cleared.
+  - An API error, or a stream that ends without a stop reason, ends the turn with `error` and the
+    reason; the SDK has already retried what it retries before a stream starts.
+- **Consequences.**
+  - A mid-stream error loses the partial response; the user resends.
+
+## ADR-M9-7 `place_part` and `connect` resolve holes in a pure placer
+
+- **Context.**
+  - SPEC 12.5 has `place_part {at: 'auto'}` choose free strips near related nets, and `connect`
+    accept `{net}` and `{partPin}` ends and return concrete holes and a resolved length.
+    SPEC 6.5 and 6.6 fix the wiring convention and the placement rules.
+- **Decision.**
+  - `core/placer/placer.ts` holds the rules, pure and deterministic, with tests that check every
+    result against `validateDoc`.
+  - A net resolves to the first free hole (a, b, c beside a d pin; j, i beside an h pin) in the
+    T-board strip of a pin on that net. Of several strips (GND has eight) the nearest to the other
+    end wins. A part pin on the breadboard resolves to a free hole in its own strip, nearest the
+    other end. An off-board module pin stays a pin end.
+  - The lead kind follows the genders the ends need (hole or female socket: male; male pin:
+    female). Two net ends are refused as a short. The length is `autoLength` over the exact
+    distance, through `leadReach`, and is stored as a number.
+  - `at: 'auto'` scans outward from the search row (the row of `near`, a part or a net's strip;
+    otherwise the first row past the T-board and everything under it). A position needs every pin
+    in a free hole, every strip it touches empty, and, for a part that straddles the trench, both
+    halves used. Flexible parts run along the rows with the span that fits the body
+    (`ceil(body / 2.54)`). Off-board modules sit beside the board's j side in rows of three. When
+    nothing fits, the tool says to add a board.
+  - Parts placed automatically do not share strips, so they join nothing until `connect` joins
+    them. To chain parts, the model gives an exact `at` in a strip already in use; the reply lists
+    each pin's free holes and warns when a pin shares a strip.
+- **Consequences.**
+  - A circuit built entirely with `auto` uses one lead per series connection, where a hand build
+    would share a strip. It is valid and ERC-clean, and the prompt tells the model how to chain.
+  - `edgeColumnsUsable` is honoured through the existing blocked-hole rule, so c and i beside the
+    T-board are used for leads.

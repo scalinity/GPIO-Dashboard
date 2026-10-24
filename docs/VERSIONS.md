@@ -41,6 +41,12 @@ checked with `npm view <pkg> version` or the tool's `--version` on 2026-10-23.
 |------|---------|--------|
 | `src/renderer/public/basis/basis_transcoder.{js,wasm}` | as shipped in three 0.186.1 (`examples/jsm/libs/basis`) | KTX2Loader's transcoder (Basis Universal, Apache-2.0). A test fails if the copy differs from the installed three's |
 
+## npm dependencies
+
+| Package | Version | Reason |
+|---------|---------|--------|
+| @anthropic-ai/sdk | ^1.3.0 | latest 1.x (checked 2026-10-24); sends `anthropic-version: 2026-10-21` and `Authorization: Bearer`, and its request types carry no temperature, top_p or top_k (SPEC 12.1). The assistant builds it with a placeholder key and `nativeAnthropicFetch` (ADR-M9-1) |
+
 ## Rust
 
 No new crates in M0. `tokio` gains the `net` and `io-util` features for the production
