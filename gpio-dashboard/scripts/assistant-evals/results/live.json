@@ -1,0 +1,1249 @@
+{
+ "date": "2026-10-24",
+ "model": "claude-opus-5-5",
+ "spentUsd": 2.746219,
+ "prompts": [
+  {
+   "id": "blink-led",
+   "title": "Blink an LED on GPIO17",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 17"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.on",
+     "label": "GPIO17 high lights an LED within 1-16 mA",
+     "pass": true,
+     "detail": "D1.D 5.49 mA"
+    },
+    {
+     "id": "sim.off",
+     "label": "GPIO17 low leaves every LED dark",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.program",
+     "label": "The program toggles GPIO17 in the simulator",
+     "pass": true,
+     "detail": "5 level changes in 3 s"
+    },
+    {
+     "id": "code.requested-pins",
+     "label": "The code uses the GPIOs the prompt names",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "one-turn",
+     "label": "Built in one turn, with no question to the user",
+     "pass": true,
+     "detail": "1 turn(s), 0 question(s)"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "6 of 6 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 9,
+   "toolCalls": 13,
+   "inputTokens": 20,
+   "outputTokens": 2535,
+   "cacheWriteTokens": 4399,
+   "cacheReadTokens": 139943,
+   "webSearches": 0,
+   "costUsd": 0.10076360000000001,
+   "seconds": 28,
+   "notices": [
+    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
+    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
+   ]
+  },
+  {
+   "id": "button-toggles-led",
+   "title": "A button with a pull-up toggles an LED",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 17, 27"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.requested-pins",
+     "label": "The code uses the GPIOs the prompt names",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.released",
+     "label": "Released, GPIO27 reads high",
+     "pass": true,
+     "detail": "reads high (pull up)"
+    },
+    {
+     "id": "sim.pressed",
+     "label": "Pressed, GPIO27 reads low",
+     "pass": true,
+     "detail": "reads low"
+    },
+    {
+     "id": "parts",
+     "label": "A button and an LED",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.program",
+     "label": "Pressing the button changes GPIO17 in the program",
+     "pass": true,
+     "detail": "1 change(s) of GPIO17 after the press"
+    },
+    {
+     "id": "one-turn",
+     "label": "Built in one turn, with no question to the user",
+     "pass": true,
+     "detail": "1 turn(s), 0 question(s)"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "11 of 11 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 12,
+   "toolCalls": 22,
+   "inputTokens": 26,
+   "outputTokens": 5220,
+   "cacheWriteTokens": 11386,
+   "cacheReadTokens": 222395,
+   "webSearches": 0,
+   "costUsd": 0.20591299999999998,
+   "seconds": 52,
+   "notices": [
+    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
+    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
+   ]
+  },
+  {
+   "id": "parking-sensor",
+   "title": "Parking sensor with HC-SR04, passive buzzer and 3 LEDs",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 17, 18, 22, 23, 24, 27"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "parts",
+     "label": "An HC-SR04, a passive buzzer and 3 LEDs",
+     "pass": true,
+     "detail": "resistor, led, resistor, led, resistor, led, pn2222, resistor, passive-buzzer, resistor, resistor, hc-sr04"
+    },
+    {
+     "id": "echo.protected",
+     "label": "ECHO is protected by a divider or level shifter",
+     "pass": true,
+     "detail": "U1.ECHO divides down to GPIO24"
+    },
+    {
+     "id": "echo.volts",
+     "label": "No GPIO net rises above 3.6 V while the sensor measures",
+     "pass": true,
+     "detail": "3.30 V at most"
+    },
+    {
+     "id": "overvoltage.handled",
+     "label": "An OVERVOLTAGE_GPIO report, if any, was fixed in the same turn",
+     "pass": true,
+     "detail": "ECHO wired directly first: false; OVERVOLTAGE_GPIO seen: false; turns: 1"
+    },
+    {
+     "id": "code.directions",
+     "label": "The code reads ECHO and drives TRIG, the buzzer and the LEDs",
+     "pass": true,
+     "detail": "1 input(s), 5 output(s)"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "33 of 33 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 20,
+   "toolCalls": 48,
+   "inputTokens": 42,
+   "outputTokens": 13437,
+   "cacheWriteTokens": 25429,
+   "cacheReadTokens": 531843,
+   "webSearches": 0,
+   "costUsd": 0.5024215999999999,
+   "seconds": 132,
+   "notices": [
+    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
+    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
+   ]
+  },
+  {
+   "id": "parking-sensor-direct",
+   "title": "Parking sensor, ECHO wired straight to a GPIO first",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 17, 18, 22, 23, 24, 27"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "parts",
+     "label": "An HC-SR04, a passive buzzer and 3 LEDs",
+     "pass": true,
+     "detail": "hc-sr04, resistor, resistor, pn2222, resistor, passive-buzzer, resistor, resistor, resistor, led, led, led, diode-1n4007"
+    },
+    {
+     "id": "echo.protected",
+     "label": "ECHO is protected by a divider or level shifter",
+     "pass": true,
+     "detail": "U1.ECHO divides down to GPIO24"
+    },
+    {
+     "id": "echo.volts",
+     "label": "No GPIO net rises above 3.6 V while the sensor measures",
+     "pass": true,
+     "detail": "3.30 V at most"
+    },
+    {
+     "id": "overvoltage.handled",
+     "label": "An OVERVOLTAGE_GPIO report, if any, was fixed in the same turn",
+     "pass": true,
+     "detail": "ECHO wired directly first: true; OVERVOLTAGE_GPIO seen: true; turns: 1"
+    },
+    {
+     "id": "code.directions",
+     "label": "The code reads ECHO and drives TRIG, the buzzer and the LEDs",
+     "pass": true,
+     "detail": "1 input(s), 5 output(s)"
+    },
+    {
+     "id": "overvoltage.caught",
+     "label": "ERC reported OVERVOLTAGE_GPIO for the direct ECHO lead",
+     "pass": true,
+     "detail": "ECHO wired directly: true; reported: true"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "37 of 37 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 28,
+   "toolCalls": 53,
+   "inputTokens": 58,
+   "outputTokens": 12785,
+   "cacheWriteTokens": 25272,
+   "cacheReadTokens": 698663,
+   "webSearches": 0,
+   "costUsd": 0.5220246,
+   "seconds": 136,
+   "notices": [
+    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
+    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
+   ]
+  },
+  {
+   "id": "undo-all",
+   "title": "Undo restores each earlier document",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 17, 27"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.requested-pins",
+     "label": "The code uses the GPIOs the prompt names",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.program",
+     "label": "GPIO17 and GPIO27 blink in opposition",
+     "pass": true,
+     "detail": "9 opposite, 10 equal pin states"
+    },
+    {
+     "id": "led.count",
+     "label": "Two LEDs",
+     "pass": true,
+     "detail": "2 LED(s)"
+    },
+    {
+     "id": "undo.turn2",
+     "label": "Undoing turn 2 restores the document before it",
+     "pass": true,
+     "detail": "5 of 5 transactions undone"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "5 of 5 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 2,
+   "requests": 15,
+   "toolCalls": 22,
+   "inputTokens": 34,
+   "outputTokens": 3971,
+   "cacheWriteTokens": 8839,
+   "cacheReadTokens": 262382,
+   "webSearches": 0,
+   "costUsd": 0.17622740000000003,
+   "seconds": 43,
+   "notices": [
+    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
+    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
+   ]
+  },
+  {
+   "id": "second-button-speed",
+   "title": "Add a second button that changes the blink speed",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 17, 22, 27"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "reads-first",
+     "label": "Reads the project before editing it",
+     "pass": true,
+     "detail": "first call: get_circuit_state"
+    },
+    {
+     "id": "kept",
+     "label": "Keeps the parts that were there",
+     "pass": true,
+     "detail": "4 of 4"
+    },
+    {
+     "id": "buttons",
+     "label": "Two buttons",
+     "pass": true,
+     "detail": "2 button(s)"
+    },
+    {
+     "id": "code.requested-pins",
+     "label": "The code uses the GPIOs the prompt names",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "8 of 8 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 12,
+   "toolCalls": 17,
+   "inputTokens": 26,
+   "outputTokens": 5478,
+   "cacheWriteTokens": 11064,
+   "cacheReadTokens": 240776,
+   "webSearches": 0,
+   "costUsd": 0.21313919999999997,
+   "seconds": 66,
+   "notices": [
+    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
+    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
+   ]
+  },
+  {
+   "id": "rgb-led",
+   "title": "An RGB LED cycles red, green, blue",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 17, 22, 27"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.requested-pins",
+     "label": "The code uses the GPIOs the prompt names",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.dies",
+     "label": "Each GPIO lights its own colour, 1-16 mA",
+     "pass": true,
+     "detail": "GPIO17 D1.R 5.3 mA; GPIO27 D1.G 2.2 mA; GPIO22 D1.B 2.2 mA"
+    },
+    {
+     "id": "sim.program",
+     "label": "The program drives all three GPIOs",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "one-turn",
+     "label": "Built in one turn, with no question to the user",
+     "pass": true,
+     "detail": "1 turn(s), 0 question(s)"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "17 of 17 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 19,
+   "toolCalls": 32,
+   "inputTokens": 40,
+   "outputTokens": 8168,
+   "cacheWriteTokens": 17120,
+   "cacheReadTokens": 397346,
+   "webSearches": 0,
+   "costUsd": 0.32858919999999997,
+   "seconds": 95,
+   "notices": [
+    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
+    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
+   ]
+  },
+  {
+   "id": "buzzer-driver",
+   "title": "An active buzzer sounded from GPIO18",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 18"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.requested-pins",
+     "label": "The code uses the GPIOs the prompt names",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "driver",
+     "label": "A transistor drives the buzzer",
+     "pass": true,
+     "detail": "1 transistor(s)"
+    },
+    {
+     "id": "not-direct",
+     "label": "The buzzer is on no GPIO net",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.sounds",
+     "label": "GPIO18 high sounds the buzzer; low silences it",
+     "pass": true,
+     "detail": "high: true, low: false"
+    },
+    {
+     "id": "sim.pin-current",
+     "label": "GPIO18 supplies under 16 mA",
+     "pass": true,
+     "detail": "2.45 mA"
+    },
+    {
+     "id": "one-turn",
+     "label": "Built in one turn, with no question to the user",
+     "pass": true,
+     "detail": "1 turn(s), 0 question(s)"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "9 of 9 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 11,
+   "toolCalls": 19,
+   "inputTokens": 24,
+   "outputTokens": 4106,
+   "cacheWriteTokens": 8053,
+   "cacheReadTokens": 193643,
+   "webSearches": 0,
+   "costUsd": 0.1612096,
+   "seconds": 40,
+   "notices": [
+    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
+    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
+   ]
+  },
+  {
+   "id": "pot-adc",
+   "title": "A potentiometer read through the ADS7830",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 2, 3"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "parts",
+     "label": "A potentiometer and the ADS7830",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.reads",
+     "label": "The first value printed follows the wiper (at 25% and at 75%)",
+     "pass": true,
+     "detail": "wiper 25%: want ~64 (or 191 wired the other way), printed 191; wiper 75%: want ~191 (or 64 wired the other way), printed 63"
+    },
+    {
+     "id": "i2c",
+     "label": "The code uses I2C on GPIO2 and GPIO3",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "one-turn",
+     "label": "Built in one turn, with no question to the user",
+     "pass": true,
+     "detail": "1 turn(s), 0 question(s)"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "12 of 12 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 8,
+   "toolCalls": 19,
+   "inputTokens": 18,
+   "outputTokens": 4766,
+   "cacheWriteTokens": 7881,
+   "cacheReadTokens": 138221,
+   "webSearches": 0,
+   "costUsd": 0.1624412,
+   "seconds": 45,
+   "notices": [
+    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
+    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
+   ]
+  },
+  {
+   "id": "debug-board-sense",
+   "title": "Debugging a real board: read Board Sense first",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 1 warnings (CODE_PIN_MISMATCH)"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "no-mutation",
+     "label": "The project is unchanged",
+     "pass": true,
+     "detail": "0 transactions"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "reads-sense-first",
+     "label": "Calls read_board_sense before anything else",
+     "pass": true,
+     "detail": "first call: read_board_sense"
+    },
+    {
+     "id": "no-edits",
+     "label": "Changes nothing in the project",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "names-cause",
+     "label": "Names what Board Sense ranked first",
+     "pass": true,
+     "detail": "top candidate names P1, W1, W2, R1"
+    },
+    {
+     "id": "names-fault",
+     "label": "Names the lead that is actually missing (W2)",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "says-unobserved",
+     "label": "Says what the Pi cannot observe",
+     "pass": true,
+     "detail": ""
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "medium",
+   "turns": 1,
+   "requests": 3,
+   "toolCalls": 3,
+   "inputTokens": 8,
+   "outputTokens": 1536,
+   "cacheWriteTokens": 3744,
+   "cacheReadTokens": 45034,
+   "webSearches": 0,
+   "costUsd": 0.058478800000000004,
+   "seconds": 22,
+   "notices": [
+    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
+    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
+   ]
+  },
+  {
+   "id": "explain-no-change",
+   "title": "A question that must not change the project",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "no-mutation",
+     "label": "The project is unchanged",
+     "pass": true,
+     "detail": "0 transactions"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "no-edits",
+     "label": "Makes no tool call that changes the project",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "quotes-current",
+     "label": "Quotes the current in mA",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "grounded",
+     "label": "Looked at the circuit or simulated it",
+     "pass": true,
+     "detail": ""
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "medium",
+   "turns": 1,
+   "requests": 4,
+   "toolCalls": 4,
+   "inputTokens": 10,
+   "outputTokens": 1074,
+   "cacheWriteTokens": 5004,
+   "cacheReadTokens": 61511,
+   "webSearches": 0,
+   "costUsd": 0.0588422,
+   "seconds": 15,
+   "notices": [
+    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
+    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
+   ]
+  },
+  {
+   "id": "bmp280-datasheet",
+   "title": "A BMP280 breakout, from its datasheet",
+   "pass": false,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 2, 3"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "custom-part",
+     "label": "Defines a custom part and places it",
+     "pass": true,
+     "detail": "1 defined"
+    },
+    {
+     "id": "datasheet",
+     "label": "The part cites a datasheet URL",
+     "pass": false,
+     "detail": ""
+    },
+    {
+     "id": "web-tools",
+     "label": "Looked the datasheet up with the web tools (a call that returned)",
+     "pass": false,
+     "detail": "web_fetch (failed)"
+    },
+    {
+     "id": "i2c",
+     "label": "The code uses I2C",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "mixed-turn",
+     "label": "Web and client tools both worked in one run",
+     "pass": false,
+     "detail": ""
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "10 of 10 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 10,
+   "toolCalls": 17,
+   "inputTokens": 179,
+   "outputTokens": 5561,
+   "cacheWriteTokens": 21751,
+   "cacheReadTokens": 177388,
+   "webSearches": 0,
+   "costUsd": 0.2561686,
+   "seconds": 80,
+   "notices": [
+    "plain-tools: The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict.",
+    "plain-tools: The API refused the strict tool schemas, so tools run without them. Input is still validated here."
+   ]
+  }
+ ]
+}

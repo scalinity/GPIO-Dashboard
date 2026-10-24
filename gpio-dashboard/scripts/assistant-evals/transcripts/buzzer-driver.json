@@ -1,0 +1,406 @@
+{
+ "id": "buzzer-driver",
+ "title": "An active buzzer sounded from GPIO18",
+ "model": "claude-opus-5-5",
+ "effort": "high",
+ "recorded": "2026-10-24",
+ "turns": [
+  {
+   "user": "Sound the active buzzer for half a second every few seconds, from GPIO18.",
+   "assistant": "Now the leads: GPIO18 → resistor, buzzer + → 5V, buzzer − → collector, emitter → GND.I've built the buzzer circuit with a transistor driver. GPIO18 never powers the buzzer directly; it only switches the transistor. ERC is clean, and the simulation shows a 0.5 s beep every 3.5 s.\n\n**What I built**\n- **Q1 (PN2222 transistor):** emitter in row 40, base in row 41, collector in row 42, all on the a–e side.\n- **R1 (1 kΩ resistor):** runs from the base strip (row 41) to row 36, and GPIO18 connects to row 36.\n- **BZ1 (active buzzer):** + in hole 40f, − in hole 43f.\n- **Leads:** 5V to the buzzer's +, the buzzer's − to the collector, and the emitter to GND.\n\n**How it works**\n- **Why a transistor:** the buzzer is a 5 V part and the simulation shows it drawing about 30 mA from the 5 V rail. That's well over the Pi's 16 mA per-pin limit. So the transistor carries the buzzer current and GPIO18 only feeds its base.\n- **Base current:** (3.2 V − 0.75 V) / 1 kΩ ≈ 2.45 mA from GPIO18, which matches the simulation. That's enough to switch the transistor fully on: the collector sits at 0.07 V, so the buzzer gets 4.93 V.\n- **When GPIO18 is low:** the base current is 0 mA and the buzzer is silent.\n- **The program:** it uses gpiozero's `Buzzer(18)` and loops: on for 0.5 s, then off for 3 s. In the 8 s code simulation, GPIO18 went high at 0.0, 3.5 and 7.0 s and low half a second after each. Ctrl+C turns the buzzer off and exits cleanly. To change the gap, edit `PAUSE_S`.\n\n**What to check on the bench**\n- **Transistor direction:** with the flat face toward you, the pins left to right are E, B, C. They need to land in rows 40, 41 and 42.\n- **Buzzer direction:** the long lead (+) goes in 40f. Also make sure it's the active buzzer (sealed underside, often with a sticker), not the passive one. The passive one only clicks on plain on/off.\n- **Ribbon cable:** the brown (or striped) wire marks pin 1. It should sit at row 1 of the T-board, toward the edge of the Pi's header nearest the SD card.",
+   "end": "end_turn",
+   "notices": [
+    {
+     "code": "plain-tools",
+     "message": "The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict."
+    },
+    {
+     "code": "plain-tools",
+     "message": "The API refused the strict tool schemas, so tools run without them. Input is still validated here."
+    }
+   ],
+   "usage": {
+    "inputTokens": 24,
+    "outputTokens": 4106,
+    "cacheWriteTokens": 8053,
+    "cacheReadTokens": 193643,
+    "webSearches": 0,
+    "requests": 11,
+    "costUsd": 0.1612096
+   },
+   "toolCalls": [
+    {
+     "tool": "get_circuit_state",
+     "input": {
+      "detail": "summary"
+     },
+     "ok": true,
+     "result": "Revision 0: 1 board(s), 0 part(s), 0 wire(s). ERC: 0 error(s), 0 warning(s).\n{\"revision\":0,\"boards\":[{\"id\":\"bb1\",\"def\":\"bb-830\",\"rows\":63,\"freeRows\":[[24,63]],\"freeRailHoles\":{\"top+\":50,\"top-\":50,\"bottom+\":50,\"bottom-\":50}}],\"tboard\":{\"board\":\"bb1\",\"pin1Row\":1,\"colPair\":\"d/h\",\"orientation\":\"header-toward-row-0\"},\"parts\":[],\"wires\":[],\"nets\":[],\"erc\":[],\"code\":{\"library\":\"RPi.GPIO\",\"lines\":0,\"uses\":[],\"unresolved\":[]}}"
+    },
+    {
+     "tool": "search_parts",
+     "input": {
+      "query": "active buzzer"
+     },
+     "ok": true,
+     "result": "[{\"id\":\"active-buzzer\",\"name\":\"Active buzzer (12 mm, 5 V)\",\"category\":\"audio\",\"inInventory\":true,\"tags\":[\"kit\"],\"footprint\":{\"kind\":\"rigid\"},\"pins\":[{\"id\":\"+\",\"label\":\"+ (long lead)\",\"role\":\"positive\"},{\"id\":\"-\",\"label\":\"- (short lead)\",\"role\":\"negative\"}],\"properties\":{},\"sim\":\"active-buzzer\",\"datasheet\":\"https://stacktronics.com/wp-content/uploads/2024/12/TMB12A05.pdf\"}]"
+    },
+    {
+     "tool": "search_parts",
+     "input": {
+      "query": "pn2222"
+     },
+     "ok": true,
+     "result": "[{\"id\":\"pn2222\",\"name\":\"PN2222A NPN transistor (TO-92)\",\"category\":\"semiconductor\",\"inInventory\":true,\"tags\":[\"kit\"],\"footprint\":{\"kind\":\"rigid\"},\"pins\":[{\"id\":\"1\",\"label\":\"Emitter\",\"role\":\"emitter\"},{\"id\":\"2\",\"label\":\"Base\",\"role\":\"base\"},{\"id\":\"3\",\"label\":\"Collector\",\"role\":\"collector\"}],\"properties\":{},\"sim\":\"npn\",\"datasheet\":\"https://www.megastar.com/content/pdfs/PN2222A-D.pdf\"}]"
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "pn2222",
+      "at": "bb1:40c",
+      "orientation": 0,
+      "props": [],
+      "ref": "Q1"
+     },
+     "ok": true,
+     "result": "{\"ref\":\"Q1\",\"pins\":{\"1\":{\"hole\":\"bb1:40c\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:40a\",\"bb1:40b\",\"bb1:40d\",\"bb1:40e\"]},\"2\":{\"hole\":\"bb1:41c\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:41a\",\"bb1:41b\",\"bb1:41d\",\"bb1:41e\"]},\"3\":{\"hole\":\"bb1:42c\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:42a\",\"bb1:42b\",\"bb1:42d\",\"bb1:42e\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "resistor",
+      "at": "bb1:41e",
+      "orientation": 90,
+      "props": [
+       {
+        "name": "resistance",
+        "value": 1000
+       }
+      ],
+      "ref": "R1",
+      "span": 2
+     },
+     "ok": false,
+     "result": "{\"BAD_PLACEMENT\":\"pin across 2 pitches from column e has no hole\"}"
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "active-buzzer",
+      "at": "auto",
+      "orientation": 0,
+      "props": [],
+      "ref": "BZ1",
+      "near": "Q1"
+     },
+     "ok": true,
+     "result": "{\"ref\":\"BZ1\",\"pins\":{\"+\":{\"hole\":\"bb1:40f\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:40j\",\"bb1:40i\",\"bb1:40h\",\"bb1:40g\"]},\"-\":{\"hole\":\"bb1:43f\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:43j\",\"bb1:43i\",\"bb1:43h\",\"bb1:43g\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "resistor",
+      "at": "bb1:41a",
+      "orientation": 180,
+      "props": [
+       {
+        "name": "resistance",
+        "value": 1000
+       }
+      ],
+      "ref": "R1",
+      "span": 5
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R1\",\"pins\":{\"1\":{\"hole\":\"bb1:41a\",\"net\":\"N4\",\"freeInStrip\":[\"bb1:41b\",\"bb1:41d\",\"bb1:41e\"]},\"2\":{\"hole\":\"bb1:36a\",\"net\":\"N6\",\"freeInStrip\":[\"bb1:36b\",\"bb1:36c\",\"bb1:36d\",\"bb1:36e\"]}},\"warnings\":[\"R1.1 shares its strip with Q1.2, so it joins their net\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "net": "GPIO18"
+      },
+      "to": {
+       "partPin": {
+        "ref": "R1",
+        "pin": "2"
+       }
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W1\",\"kind\":\"dupont-mm\",\"color\":\"yellow\",\"lengthMm\":200,\"a\":\"bb1:6j\",\"b\":\"bb1:36b\"},\"net\":\"GPIO18\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "net": "5V"
+      },
+      "to": {
+       "partPin": {
+        "ref": "BZ1",
+        "pin": "+"
+       }
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W2\",\"kind\":\"dupont-mm\",\"color\":\"red\",\"lengthMm\":200,\"a\":\"bb1:2j\",\"b\":\"bb1:40j\"},\"net\":\"5V\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "BZ1",
+        "pin": "-"
+       }
+      },
+      "to": {
+       "partPin": {
+        "ref": "Q1",
+        "pin": "3"
+       }
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W3\",\"kind\":\"dupont-mm\",\"color\":\"green\",\"lengthMm\":200,\"a\":\"bb1:43g\",\"b\":\"bb1:42e\"},\"net\":\"N1\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "Q1",
+        "pin": "1"
+       }
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W4\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:40a\",\"b\":\"bb1:20a\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "run_erc",
+     "input": {},
+     "ok": true,
+     "result": "{\"errors\":0,\"warnings\":1,\"info\":0,\"issues\":[{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO18\"],\"message\":\"GPIO18 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO18 in the code, or move the lead to the pin the code uses.\"}]}"
+    },
+    {
+     "tool": "simulate",
+     "input": {
+      "mode": "op",
+      "durationMs": 0,
+      "stimulus": {
+       "gpio": [
+        {
+         "pin": 18,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        }
+       ],
+       "inputs": []
+      }
+     },
+     "ok": true,
+     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":0,\"GPIO18\":3.197,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":0,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":0,\"N1\":0.07,\"N2\":0.746},\"leds\":[],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO18\",\"volts\":3.197,\"mA\":2.45},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":0,\"mA\":0}],\"rails\":{\"3V3_mA\":0,\"5V_mA\":29.578},\"resistors\":[{\"ref\":\"R1\",\"ohms\":1000,\"volts\":-2.45,\"mA\":-2.45,\"mW\":6.005}],\"parts\":{\"BZ1\":{\"sounding\":true,\"volts\":4.9297422"
+    },
+    {
+     "tool": "simulate",
+     "input": {
+      "mode": "op",
+      "durationMs": 0,
+      "stimulus": {
+       "gpio": [
+        {
+         "pin": 18,
+         "level": "low",
+         "freqHz": 0,
+         "duty": 0
+        }
+       ],
+       "inputs": []
+      }
+     },
+     "ok": true,
+     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":0,\"GPIO18\":0,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":0,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":0,\"N1\":5,\"N2\":0},\"leds\":[],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO18\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":0,\"mA\":0}],\"rails\":{\"3V3_mA\":0,\"5V_mA\":0},\"resistors\":[{\"ref\":\"R1\",\"ohms\":1000,\"volts\":0,\"mA\":0,\"mW\":0}],\"parts\":{\"BZ1\":{\"sounding\":false,\"volts\":1.6700001381764196e-9}},\"errors\":0,\"warning"
+    },
+    {
+     "tool": "write_code",
+     "input": {
+      "library": "gpiozero",
+      "source": "from gpiozero import Buzzer\nfrom time import sleep\n\n# GPIO18 drives the PN2222's base through 1 kΩ; the transistor switches the 5 V buzzer.\nbuzzer = Buzzer(18)\n\nBEEP_S = 0.5    # how long each beep lasts\nPAUSE_S = 3.0   # silence between beeps\n\ntry:\n    while True:\n        buzzer.on()\n        print(\"beep\")\n        sleep(BEEP_S)\n        buzzer.off()\n        sleep(PAUSE_S)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    buzzer.off()\n    buzzer.close()\n"
+     },
+     "ok": true,
+     "result": "{\"syntax\":\"ok\",\"gpioUsed\":[{\"gpio\":18,\"mode\":\"out\"}],\"unresolved\":[],\"crossCheck\":\"matches the wiring\"}",
+     "committed": 1
+    },
+    {
+     "tool": "run_code_in_sim",
+     "input": {
+      "seconds": 8
+     },
+     "ok": true,
+     "result": "{\"stdout\":\"beep\\nbeep\\nbeep\",\"error\":null,\"events\":[\"0.000 GPIO18 high\",\"0.500 GPIO18 low\",\"3.500 GPIO18 high\",\"4.000 GPIO18 low\",\"7.000 GPIO18 high\",\"7.500 GPIO18 low\",\"10.500 GPIO18 low\",\"10.500 GPIO18 low\"],\"eventCount\":8}"
+    },
+    {
+     "tool": "run_erc",
+     "input": {},
+     "ok": true,
+     "result": "{\"errors\":0,\"warnings\":0,\"info\":0,\"issues\":[]}"
+    },
+    {
+     "tool": "capture_view",
+     "input": {
+      "preset": "top"
+     },
+     "ok": false,
+     "result": "{\"INTERNAL_ERROR\":\"capture_view is not available in this session: there is no 3D stage here (headless evaluation). Check the layout from the hole positions and nets that get_circuit_state returns.\"}"
+    },
+    {
+     "tool": "annotate_build_steps",
+     "input": {
+      "annotations": [
+       {
+        "step": "Q1",
+        "why": "The buzzer draws about 27 mA at 5 V, which is more than a GPIO can safely give. The transistor does the switching and the GPIO only supplies a small base current.",
+        "mistake": "Putting the TO-92 in backwards. With the flat face toward you, the pins from left to right are E, B, C (rows 40, 41, 42)."
+       },
+       {
+        "step": "R1",
+        "why": "1 kΩ keeps the base current near 2.5 mA, which is enough to fully switch on about 30 mA of load.",
+        "mistake": "Leaving the resistor out. That puts the GPIO straight onto the base-emitter junction and can overload the pin."
+       },
+       {
+        "step": "BZ1",
+        "why": "The + side goes to 5 V and the − side goes to the transistor's collector, so the transistor switches the low side.",
+        "mistake": "Fitting the buzzer the wrong way round. An active buzzer is polarised: the long lead (+) goes to row 40, f side."
+       },
+       {
+        "step": "W4",
+        "why": "The emitter has to reach the Pi's GND, or no current can flow through the buzzer.",
+        "mistake": ""
+       }
+      ]
+     },
+     "ok": true,
+     "result": "{\"annotated\":4}",
+     "committed": 1
+    }
+   ],
+   "transactions": 9
+  }
+ ],
+ "questions": [],
+ "custom": [],
+ "final": {
+  "parts": [
+   "Q1 pn2222",
+   "BZ1 active-buzzer",
+   "R1 resistor"
+  ],
+  "wires": 4,
+  "code": "from gpiozero import Buzzer\nfrom time import sleep\n\n# GPIO18 drives the PN2222's base through 1 kΩ; the transistor switches the 5 V buzzer.\nbuzzer = Buzzer(18)\n\nBEEP_S = 0.5    # how long each beep lasts\nPAUSE_S = 3.0   # silence between beeps\n\ntry:\n    while True:\n        buzzer.on()\n        print(\"beep\")\n        sleep(BEEP_S)\n        buzzer.off()\n        sleep(PAUSE_S)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    buzzer.off()\n    buzzer.close()\n"
+ },
+ "checks": [
+  {
+   "id": "turns.complete",
+   "label": "Every turn ends with end_turn",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "erc",
+   "label": "Zero ERC errors",
+   "pass": true,
+   "detail": "0 errors, 0 warnings"
+  },
+  {
+   "id": "convention",
+   "label": "Wiring follows the convention",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "inventory",
+   "label": "Inventory respected",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "code.syntax",
+   "label": "The project has code that compiles",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "code.pins",
+   "label": "Code pins match the netlist",
+   "pass": true,
+   "detail": "GPIO 18"
+  },
+  {
+   "id": "claims",
+   "label": "Claims nothing ran on hardware",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "ghosts",
+   "label": "Every streamed preview is cleared",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "code.requested-pins",
+   "label": "The code uses the GPIOs the prompt names",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "driver",
+   "label": "A transistor drives the buzzer",
+   "pass": true,
+   "detail": "1 transistor(s)"
+  },
+  {
+   "id": "not-direct",
+   "label": "The buzzer is on no GPIO net",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "sim.sounds",
+   "label": "GPIO18 high sounds the buzzer; low silences it",
+   "pass": true,
+   "detail": "high: true, low: false"
+  },
+  {
+   "id": "sim.pin-current",
+   "label": "GPIO18 supplies under 16 mA",
+   "pass": true,
+   "detail": "2.45 mA"
+  },
+  {
+   "id": "one-turn",
+   "label": "Built in one turn, with no question to the user",
+   "pass": true,
+   "detail": "1 turn(s), 0 question(s)"
+  },
+  {
+   "id": "undo.all",
+   "label": "Undo all restores the starting document exactly",
+   "pass": true,
+   "detail": "9 of 9 transactions undone"
+  }
+ ]
+}

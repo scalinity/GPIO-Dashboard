@@ -1,0 +1,983 @@
+{
+ "id": "parking-sensor-direct",
+ "title": "Parking sensor, ECHO wired straight to a GPIO first",
+ "model": "claude-opus-5-5",
+ "effort": "high",
+ "recorded": "2026-10-24",
+ "turns": [
+  {
+   "user": "Build a parking sensor with an HC-SR04, a passive buzzer and 3 LEDs. Start by wiring the HC-SR04 ECHO pin straight to a GPIO and run ERC, so I can see what it says about that. Then fix the circuit properly.",
+   "assistant": "HC-SR04 isn't listed in your inventory, but you asked for it by name, so I'll assume you have one. First, the deliberately wrong version: ECHO goes straight to a GPIO.Divider done. Next the buzzer driver: the passive buzzer goes on 5 V through a PN2222, so the GPIO only supplies the base current.Now three LEDs, each with its own 220 Ω resistor.Now the code, then ERC and simulation.The checker can't follow the `for p in ...` loop, so I'll set each LED pin up on its own line.ERC is clean. Now a worst-case simulation, with all LEDs on, the buzzer driven and an object at 20 cm:The DC numbers are fine, but ECHO only goes high after a trigger pulse. Running the program shows the echo path working:One more thing before I finish: a passive magnetic buzzer is a small coil, so it gets a flyback diode across it to protect Q1 when PWM switches it off.The diode overlaps the buzzer body, so I'll move it to its own rows and join it with two leads.I built the parking sensor in two stages: first the wrong wiring you asked to see, then the proper fix. ERC is now clean (0 errors, 0 warnings).\n\n**What ERC said about the direct wiring**\nWith ECHO wired straight to GPIO24, ERC flagged one error: *OVERVOLTAGE_GPIO: \"U1 Echo drives 5 V straight into GPIO24, a 3.3 V pin.\"* The HC-SR04 runs on 5 V, so its ECHO pulse is 5 V. The Pi's pins aren't built to take 5 V, and over time that can damage the GPIO. I removed that lead.\n\n**What I built**\n- **HC-SR04:** VCC to 5 V, GND to GND, TRIG to GPIO23. A 3.3 V trigger pulse is enough for it. ECHO now goes through a divider: R1 (1 kΩ) from ECHO to row 34, and R2 (2 kΩ) from row 34 to GND. GPIO24 connects at row 34. **Note:** the HC-SR04 isn't in your listed inventory. I used it because you asked for it by name.\n- **Buzzer:** 5 V → BZ1 → PN2222 (Q1) → GND. GPIO18 drives Q1's base through a 1 kΩ resistor (R3). I added a 1N4007 diode (D1) across the buzzer because it's a coil.\n- **LEDs:** GPIO17 for green, GPIO27 for yellow, GPIO22 for red, each through a 220 Ω resistor.\n\n**How it works**\n- **Divider:** 5 V × 2k / (1k + 2k) = **3.33 V** at GPIO24. The transient sim never caught the moment ECHO was high, so that figure is from the arithmetic, not a sim reading.\n- **LED resistors:** (3.3 V − about 2 V) / 220 Ω ≈ 6 mA. The sim gives **5.1 / 5.3 / 5.5 mA**, well under 16 mA per pin.\n- **Total GPIO current:** about 17 mA with every output on, well under the 50 mA limit. The buzzer only takes **1.2 mA** of base current from GPIO18 at 50 % PWM, and the 5 V supply carries the buzzer current.\n- **The program:** green above 100 cm. Yellow from 30 to 100 cm, with beeps that get faster as the object gets closer. Solid red and a steady 2 kHz tone below 30 cm.\n- **Code check:** the code matches the wiring. In the code sim, the program read **99.5 cm** (sensor set to 100 cm), turned yellow on and beeped every ~0.5 s.\n\n**What to check on the bench**\n- **R1 and R2:** 1 kΩ on the ECHO side (row 30), 2 kΩ to GND (row 38). If you swap them, GPIO24 only gets 1.67 V.\n- **PN2222:** with the flat face toward you, the legs are E-B-C from left to right.\n- **D1:** the band goes to 5 V (row 24).\n- **LEDs:** the long leg (anode) goes toward the resistor.\n- **Ribbon cable:** the brown wire (pin 1) goes on the T-board's 3V3 end.\n\nI couldn't take a 3D snapshot because no 3D view is available in this session, so I checked the layout from hole positions only. ERC caught the one overlap, the diode against the buzzer, and I moved the diode.",
+   "end": "end_turn",
+   "notices": [
+    {
+     "code": "plain-tools",
+     "message": "The API refused eager streaming with strict tool schemas, so tool input streams without it. Schemas stay strict."
+    },
+    {
+     "code": "plain-tools",
+     "message": "The API refused the strict tool schemas, so tools run without them. Input is still validated here."
+    }
+   ],
+   "usage": {
+    "inputTokens": 58,
+    "outputTokens": 12785,
+    "cacheWriteTokens": 25272,
+    "cacheReadTokens": 698663,
+    "webSearches": 0,
+    "requests": 28,
+    "costUsd": 0.5220246
+   },
+   "toolCalls": [
+    {
+     "tool": "get_circuit_state",
+     "input": {
+      "detail": "summary"
+     },
+     "ok": true,
+     "result": "Revision 0: 1 board(s), 0 part(s), 0 wire(s). ERC: 0 error(s), 0 warning(s).\n{\"revision\":0,\"boards\":[{\"id\":\"bb1\",\"def\":\"bb-830\",\"rows\":63,\"freeRows\":[[24,63]],\"freeRailHoles\":{\"top+\":50,\"top-\":50,\"bottom+\":50,\"bottom-\":50}}],\"tboard\":{\"board\":\"bb1\",\"pin1Row\":1,\"colPair\":\"d/h\",\"orientation\":\"header-toward-row-0\"},\"parts\":[],\"wires\":[],\"nets\":[],\"erc\":[],\"code\":{\"library\":\"RPi.GPIO\",\"lines\":0,\"uses\":[],\"unresolved\":[]}}"
+    },
+    {
+     "tool": "search_parts",
+     "input": {
+      "query": "hc-sr04"
+     },
+     "ok": true,
+     "result": "[{\"id\":\"hc-sr04\",\"name\":\"HC-SR04 ultrasonic ranging module\",\"category\":\"sensor\",\"inInventory\":false,\"tags\":[\"not in kit\"],\"footprint\":{\"kind\":\"offboard\"},\"pins\":[{\"id\":\"VCC\",\"label\":\"Vcc\",\"role\":\"power\",\"connector\":\"male-pin\"},{\"id\":\"TRIG\",\"label\":\"Trig\",\"role\":\"logic-in\",\"connector\":\"male-pin\"},{\"id\":\"ECHO\",\"label\":\"Echo\",\"role\":\"logic-out\",\"connector\":\"male-pin\"},{\"id\":\"GND\",\"label\":\"Gnd\",\"role\":\"ground\",\"connector\":\"male-pin\"}],\"properties\":{\"distanceCm\":{\"type\":\"number\",\"label\":\"Distance to object\",\"unit\":\"cm\",\"min\":2,\"max\":400,\"default\":100}},\"sim\":\"hc-sr04\",\"datasheet\":\"https://cdn.sparkfun.com/datasheets/Sensors/Proximity/HCSR04.pdf\"}]"
+    },
+    {
+     "tool": "search_parts",
+     "input": {
+      "query": "passive buzzer"
+     },
+     "ok": true,
+     "result": "[{\"id\":\"passive-buzzer\",\"name\":\"Passive buzzer (12 mm magnetic transducer)\",\"category\":\"audio\",\"inInventory\":true,\"tags\":[\"kit\"],\"footprint\":{\"kind\":\"rigid\"},\"pins\":[{\"id\":\"+\",\"label\":\"+ (marked lead)\",\"role\":\"positive\"},{\"id\":\"-\",\"label\":\"- (unmarked lead)\",\"role\":\"negative\"}],\"properties\":{},\"sim\":\"passive-buzzer\",\"datasheet\":\"https://www.soberton.com/wp-content/uploads/2022/03/WT-1209T.pdf\"}]"
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "hc-sr04",
+      "at": "auto",
+      "orientation": 0,
+      "props": [],
+      "ref": "U1"
+     },
+     "ok": true,
+     "result": "{\"ref\":\"U1\",\"pins\":{\"VCC\":{\"hole\":\"off-board\",\"net\":\"N4\"},\"TRIG\":{\"hole\":\"off-board\",\"net\":\"N3\"},\"ECHO\":{\"hole\":\"off-board\",\"net\":\"N1\"},\"GND\":{\"hole\":\"off-board\",\"net\":\"N2\"}}}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "VCC"
+       }
+      },
+      "to": {
+       "net": "5V"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W1\",\"kind\":\"dupont-mf\",\"color\":\"red\",\"lengthMm\":200,\"a\":\"U1.VCC\",\"b\":\"bb1:2j\"},\"net\":\"5V\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "GND"
+       }
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W2\",\"kind\":\"dupont-mf\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"U1.GND\",\"b\":\"bb1:10j\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "TRIG"
+       }
+      },
+      "to": {
+       "net": "GPIO23"
+      },
+      "color": "orange"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W3\",\"kind\":\"dupont-mf\",\"color\":\"orange\",\"lengthMm\":200,\"a\":\"U1.TRIG\",\"b\":\"bb1:8j\"},\"net\":\"GPIO23\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "ECHO"
+       }
+      },
+      "to": {
+       "net": "GPIO24"
+      },
+      "color": "yellow"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W4\",\"kind\":\"dupont-mf\",\"color\":\"yellow\",\"lengthMm\":200,\"a\":\"U1.ECHO\",\"b\":\"bb1:9j\"},\"net\":\"GPIO24\"}",
+     "committed": 1
+    },
+    {
+     "tool": "run_erc",
+     "input": {},
+     "ok": true,
+     "result": "{\"errors\":1,\"warnings\":2,\"info\":0,\"issues\":[{\"code\":\"OVERVOLTAGE_GPIO\",\"severity\":\"error\",\"refs\":[\"U1\",\"GPIO24\"],\"message\":\"U1 Echo drives 5 V straight into GPIO24, a 3.3 V pin.\",\"fix\":\"Add a divider (for example 1 kΩ over 2 kΩ) between U1 Echo and the GPIO.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO23\"],\"message\":\"GPIO23 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO23 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO24\"],\"message\":\"GPIO24 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO24 in the code, or move the lead to the pin the code uses.\"}]}"
+    },
+    {
+     "tool": "remove_wire",
+     "input": {
+      "id": "W4"
+     },
+     "ok": true,
+     "result": "{\"removed\":\"W4\"}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "resistor",
+      "at": "bb1:30a",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "resistance",
+        "value": 1000
+       }
+      ],
+      "ref": "R1",
+      "span": 4
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R1\",\"pins\":{\"1\":{\"hole\":\"bb1:30a\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:30b\",\"bb1:30c\",\"bb1:30d\",\"bb1:30e\"]},\"2\":{\"hole\":\"bb1:34a\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:34b\",\"bb1:34c\",\"bb1:34d\",\"bb1:34e\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "resistor",
+      "at": "bb1:34b",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "resistance",
+        "value": 2000
+       }
+      ],
+      "ref": "R2",
+      "span": 4
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R2\",\"pins\":{\"1\":{\"hole\":\"bb1:34b\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:34c\",\"bb1:34d\",\"bb1:34e\"]},\"2\":{\"hole\":\"bb1:38b\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:38a\",\"bb1:38c\",\"bb1:38d\",\"bb1:38e\"]}},\"warnings\":[\"R2.1 shares its strip with R1.2, so it joins their net\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "ECHO"
+       }
+      },
+      "to": {
+       "hole": "bb1:30c"
+      },
+      "color": "yellow"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W4\",\"kind\":\"dupont-mf\",\"color\":\"yellow\",\"lengthMm\":200,\"a\":\"U1.ECHO\",\"b\":\"bb1:30c\"},\"net\":\"N1\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "hole": "bb1:34e"
+      },
+      "to": {
+       "net": "GPIO24"
+      },
+      "color": "yellow"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W5\",\"kind\":\"dupont-mm\",\"color\":\"yellow\",\"lengthMm\":200,\"a\":\"bb1:34e\",\"b\":\"bb1:9j\"},\"net\":\"GPIO24\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "hole": "bb1:38e"
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W6\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:38e\",\"b\":\"bb1:20a\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "search_parts",
+     "input": {
+      "query": "pn2222"
+     },
+     "ok": true,
+     "result": "[{\"id\":\"pn2222\",\"name\":\"PN2222A NPN transistor (TO-92)\",\"category\":\"semiconductor\",\"inInventory\":true,\"tags\":[\"kit\"],\"footprint\":{\"kind\":\"rigid\"},\"pins\":[{\"id\":\"1\",\"label\":\"Emitter\",\"role\":\"emitter\"},{\"id\":\"2\",\"label\":\"Base\",\"role\":\"base\"},{\"id\":\"3\",\"label\":\"Collector\",\"role\":\"collector\"}],\"properties\":{},\"sim\":\"npn\",\"datasheet\":\"https://www.megastar.com/content/pdfs/PN2222A-D.pdf\"}]"
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "pn2222",
+      "at": "bb1:44g",
+      "orientation": 0,
+      "props": [],
+      "ref": "Q1"
+     },
+     "ok": true,
+     "result": "{\"ref\":\"Q1\",\"pins\":{\"1\":{\"hole\":\"bb1:44g\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:44j\",\"bb1:44i\",\"bb1:44h\",\"bb1:44f\"]},\"2\":{\"hole\":\"bb1:45g\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:45j\",\"bb1:45i\",\"bb1:45h\",\"bb1:45f\"]},\"3\":{\"hole\":\"bb1:46g\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:46j\",\"bb1:46i\",\"bb1:46h\",\"bb1:46f\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "resistor",
+      "at": "bb1:45j",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "resistance",
+        "value": 1000
+       }
+      ],
+      "ref": "R3",
+      "span": 4
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R3\",\"pins\":{\"1\":{\"hole\":\"bb1:45j\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:45i\",\"bb1:45h\",\"bb1:45f\"]},\"2\":{\"hole\":\"bb1:49j\",\"net\":\"N5\",\"freeInStrip\":[\"bb1:49i\",\"bb1:49h\",\"bb1:49g\",\"bb1:49f\"]}},\"warnings\":[\"R3.1 shares its strip with Q1.2, so it joins their net\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "passive-buzzer",
+      "at": "auto",
+      "orientation": 0,
+      "props": [],
+      "ref": "BZ1",
+      "near": "Q1"
+     },
+     "ok": true,
+     "result": "{\"ref\":\"BZ1\",\"pins\":{\"+\":{\"hole\":\"bb1:44e\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:44a\",\"bb1:44b\",\"bb1:44c\",\"bb1:44d\"]},\"-\":{\"hole\":\"bb1:47e\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:47a\",\"bb1:47b\",\"bb1:47c\",\"bb1:47d\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "hole": "bb1:49f"
+      },
+      "to": {
+       "net": "GPIO18"
+      },
+      "color": "blue"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W7\",\"kind\":\"dupont-mm\",\"color\":\"blue\",\"lengthMm\":200,\"a\":\"bb1:49f\",\"b\":\"bb1:6j\"},\"net\":\"GPIO18\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "hole": "bb1:44f"
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W8\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:44f\",\"b\":\"bb1:20b\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "hole": "bb1:47a"
+      },
+      "to": {
+       "hole": "bb1:46f"
+      },
+      "color": "green"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W9\",\"kind\":\"dupont-mm\",\"color\":\"green\",\"lengthMm\":200,\"a\":\"bb1:47a\",\"b\":\"bb1:46f\"},\"net\":\"N2\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "hole": "bb1:44a"
+      },
+      "to": {
+       "net": "5V"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W10\",\"kind\":\"dupont-mm\",\"color\":\"red\",\"lengthMm\":200,\"a\":\"bb1:44a\",\"b\":\"bb1:2i\"},\"net\":\"5V\"}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "resistor",
+      "at": "bb1:52a",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "resistance",
+        "value": 220
+       }
+      ],
+      "ref": "R4",
+      "span": 3
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R4\",\"pins\":{\"1\":{\"hole\":\"bb1:52a\",\"net\":\"N4\",\"freeInStrip\":[\"bb1:52b\",\"bb1:52c\",\"bb1:52d\",\"bb1:52e\"]},\"2\":{\"hole\":\"bb1:55a\",\"net\":\"N5\",\"freeInStrip\":[\"bb1:55b\",\"bb1:55c\",\"bb1:55d\",\"bb1:55e\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "resistor",
+      "at": "bb1:52j",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "resistance",
+        "value": 220
+       }
+      ],
+      "ref": "R5",
+      "span": 3
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R5\",\"pins\":{\"1\":{\"hole\":\"bb1:52j\",\"net\":\"N6\",\"freeInStrip\":[\"bb1:52i\",\"bb1:52h\",\"bb1:52g\",\"bb1:52f\"]},\"2\":{\"hole\":\"bb1:55j\",\"net\":\"N7\",\"freeInStrip\":[\"bb1:55i\",\"bb1:55h\",\"bb1:55g\",\"bb1:55f\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "resistor",
+      "at": "bb1:58a",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "resistance",
+        "value": 220
+       }
+      ],
+      "ref": "R6",
+      "span": 3
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R6\",\"pins\":{\"1\":{\"hole\":\"bb1:58a\",\"net\":\"N8\",\"freeInStrip\":[\"bb1:58b\",\"bb1:58c\",\"bb1:58d\",\"bb1:58e\"]},\"2\":{\"hole\":\"bb1:61a\",\"net\":\"N9\",\"freeInStrip\":[\"bb1:61b\",\"bb1:61c\",\"bb1:61d\",\"bb1:61e\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "led",
+      "at": "bb1:55c",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "color",
+        "value": "green"
+       }
+      ],
+      "ref": "LED1",
+      "span": 2
+     },
+     "ok": true,
+     "result": "{\"ref\":\"LED1\",\"pins\":{\"A\":{\"hole\":\"bb1:55c\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:55b\",\"bb1:55d\",\"bb1:55e\"]},\"K\":{\"hole\":\"bb1:57c\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:57a\",\"bb1:57b\",\"bb1:57d\",\"bb1:57e\"]}},\"warnings\":[\"LED1.A shares its strip with R4.2, so it joins their net\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "led",
+      "at": "bb1:55h",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "color",
+        "value": "yellow"
+       }
+      ],
+      "ref": "LED2",
+      "span": 2
+     },
+     "ok": true,
+     "result": "{\"ref\":\"LED2\",\"pins\":{\"A\":{\"hole\":\"bb1:55h\",\"net\":\"N4\",\"freeInStrip\":[\"bb1:55i\",\"bb1:55g\",\"bb1:55f\"]},\"K\":{\"hole\":\"bb1:57h\",\"net\":\"N5\",\"freeInStrip\":[\"bb1:57j\",\"bb1:57i\",\"bb1:57g\",\"bb1:57f\"]}},\"warnings\":[\"LED2.A shares its strip with R5.2, so it joins their net\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "led",
+      "at": "bb1:61c",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "color",
+        "value": "red"
+       }
+      ],
+      "ref": "LED3",
+      "span": 2
+     },
+     "ok": true,
+     "result": "{\"ref\":\"LED3\",\"pins\":{\"A\":{\"hole\":\"bb1:61c\",\"net\":\"N6\",\"freeInStrip\":[\"bb1:61b\",\"bb1:61d\",\"bb1:61e\"]},\"K\":{\"hole\":\"bb1:63c\",\"net\":\"N7\",\"freeInStrip\":[\"bb1:63a\",\"bb1:63b\",\"bb1:63d\",\"bb1:63e\"]}},\"warnings\":[\"LED3.A shares its strip with R6.2, so it joins their net\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "hole": "bb1:52e"
+      },
+      "to": {
+       "net": "GPIO17"
+      },
+      "color": "green"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W11\",\"kind\":\"dupont-mm\",\"color\":\"green\",\"lengthMm\":200,\"a\":\"bb1:52e\",\"b\":\"bb1:6a\"},\"net\":\"GPIO17\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "hole": "bb1:52f"
+      },
+      "to": {
+       "net": "GPIO27"
+      },
+      "color": "yellow"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W12\",\"kind\":\"dupont-mm\",\"color\":\"yellow\",\"lengthMm\":200,\"a\":\"bb1:52f\",\"b\":\"bb1:7a\"},\"net\":\"GPIO27\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "hole": "bb1:58e"
+      },
+      "to": {
+       "net": "GPIO22"
+      },
+      "color": "white"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W13\",\"kind\":\"dupont-mm\",\"color\":\"white\",\"lengthMm\":200,\"a\":\"bb1:58e\",\"b\":\"bb1:8a\"},\"net\":\"GPIO22\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "hole": "bb1:57e"
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W14\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:57e\",\"b\":\"bb1:20c\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "hole": "bb1:57j"
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W15\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:57j\",\"b\":\"bb1:17j\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "hole": "bb1:63e"
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W16\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:63e\",\"b\":\"bb1:17i\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "write_code",
+     "input": {
+      "library": "RPi.GPIO",
+      "source": "#!/usr/bin/env python3\n# Parking sensor: HC-SR04 + passive buzzer + green/yellow/red LEDs\nimport time\nimport RPi.GPIO as GPIO\n\nTRIG = 23     # HC-SR04 Trig (3.3 V is enough to trigger it)\nECHO = 24     # HC-SR04 Echo, via 1k/2k divider (5 V -> 3.3 V)\nBUZZER = 18   # PN2222 base via 1k\nGREEN, YELLOW, RED = 17, 27, 22\n\nFAR_CM = 100    # beyond this: green, silent\nNEAR_CM = 30    # under this: red, continuous tone\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(TRIG, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(ECHO, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)\nGPIO.setup(BUZZER, GPIO.OUT, initial=GPIO.LOW)\nfor p in (GREEN, YELLOW, RED):\n    GPIO.setup(p, GPIO.OUT, initial=GPIO.LOW)\n\ntone = GPIO.PWM(BUZZER, 2000)  # 2 kHz for the passive buzzer\n\n\ndef distance_cm():\n    GPIO.output(TRIG, GPIO.HIGH)\n    time.sleep(0.00001)          # 10 us trigger pulse\n    GPIO.output(TRIG, GPIO.LOW)\n    t0 = time.time()\n    while GPIO.input(ECHO) == 0:\n        if time.time() - t0 > 0.03:\n            return None\n    start = time.time()\n    while GPIO.input(ECHO) == 1:\n        if time.time() - start > 0.03:\n            return None\n    return (time.time() - start) * 34300 / 2\n\n\ndef show(green, yellow, red):\n    GPIO.output(GREEN, green)\n    GPIO.output(YELLOW, yellow)\n    GPIO.output(RED, red)\n\n\ntry:\n    beeping = False\n    while True:\n        d = distance_cm()\n        if d is None or d > FAR_CM:\n            show(1, 0, 0)\n            tone.stop(); beeping = False\n            time.sleep(0.1)\n        elif d > NEAR_CM:\n            show(0, 1, 0)\n            # beep faster as the object gets closer\n            gap = 0.05 + (d - NEAR_CM) / (FAR_CM - NEAR_CM) * 0.4\n            tone.start(50); time.sleep(0.05)\n            tone.stop(); beeping = False\n            time.sleep(gap)\n        else:\n            show(0, 0, 1)\n            if not beeping:\n                tone.start(50); beeping = True\n            time.sleep(0.05)\n        if d is not None:\n            print(f\"{d:.1f} cm\")\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    tone.stop()\n    GPIO.cleanup()\n"
+     },
+     "ok": true,
+     "result": "{\"syntax\":\"ok\",\"gpioUsed\":[{\"gpio\":23,\"mode\":\"out\"},{\"gpio\":24,\"mode\":\"in\",\"pull\":\"down\"},{\"gpio\":18,\"mode\":\"out\"},{\"gpio\":18,\"mode\":\"pwm\"}],\"unresolved\":[{\"expression\":\"p\",\"line\":19}],\"crossCheck\":[{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO17\"],\"message\":\"GPIO17 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO17 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO22\"],\"message\":\"GPIO22 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO22 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO27\"],\"message\":\"GPIO27 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO27 in the code, or move the lead to the pin the code uses.\"}]}",
+     "committed": 1
+    },
+    {
+     "tool": "run_erc",
+     "input": {},
+     "ok": true,
+     "result": "{\"errors\":0,\"warnings\":3,\"info\":0,\"issues\":[{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO17\"],\"message\":\"GPIO17 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO17 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO22\"],\"message\":\"GPIO22 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO22 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO27\"],\"message\":\"GPIO27 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO27 in the code, or move the lead to the pin the code uses.\"}]}"
+    },
+    {
+     "tool": "write_code",
+     "input": {
+      "library": "RPi.GPIO",
+      "source": "#!/usr/bin/env python3\n# Parking sensor: HC-SR04 + passive buzzer + green/yellow/red LEDs\nimport time\nimport RPi.GPIO as GPIO\n\nTRIG = 23     # HC-SR04 Trig (3.3 V is enough to trigger it)\nECHO = 24     # HC-SR04 Echo, via 1k/2k divider (5 V -> 3.3 V)\nBUZZER = 18   # PN2222 base via 1k\nGREEN = 17\nYELLOW = 27\nRED = 22\n\nFAR_CM = 100    # beyond this: green, silent\nNEAR_CM = 30    # under this: red, continuous tone\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(TRIG, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(ECHO, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)\nGPIO.setup(BUZZER, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(GREEN, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(YELLOW, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(RED, GPIO.OUT, initial=GPIO.LOW)\n\ntone = GPIO.PWM(BUZZER, 2000)  # 2 kHz for the passive buzzer\n\n\ndef distance_cm():\n    GPIO.output(TRIG, GPIO.HIGH)\n    time.sleep(0.00001)          # 10 us trigger pulse\n    GPIO.output(TRIG, GPIO.LOW)\n    t0 = time.time()\n    while GPIO.input(ECHO) == 0:\n        if time.time() - t0 > 0.03:\n            return None\n    start = time.time()\n    while GPIO.input(ECHO) == 1:\n        if time.time() - start > 0.03:\n            return None\n    return (time.time() - start) * 34300 / 2\n\n\ndef show(green, yellow, red):\n    GPIO.output(GREEN, green)\n    GPIO.output(YELLOW, yellow)\n    GPIO.output(RED, red)\n\n\ntry:\n    beeping = False\n    while True:\n        d = distance_cm()\n        if d is None or d > FAR_CM:\n            show(1, 0, 0)\n            tone.stop(); beeping = False\n            time.sleep(0.1)\n        elif d > NEAR_CM:\n            show(0, 1, 0)\n            # beep faster as the object gets closer\n            gap = 0.05 + (d - NEAR_CM) / (FAR_CM - NEAR_CM) * 0.4\n            tone.start(50); time.sleep(0.05)\n            tone.stop(); beeping = False\n            time.sleep(gap)\n        else:\n            show(0, 0, 1)\n            if not beeping:\n                tone.start(50); beeping = True\n            time.sleep(0.05)\n        if d is not None:\n            print(f\"{d:.1f} cm\")\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    tone.stop()\n    GPIO.cleanup()\n"
+     },
+     "ok": true,
+     "result": "{\"syntax\":\"ok\",\"gpioUsed\":[{\"gpio\":23,\"mode\":\"out\"},{\"gpio\":24,\"mode\":\"in\",\"pull\":\"down\"},{\"gpio\":18,\"mode\":\"out\"},{\"gpio\":17,\"mode\":\"out\"},{\"gpio\":27,\"mode\":\"out\"},{\"gpio\":22,\"mode\":\"out\"},{\"gpio\":18,\"mode\":\"pwm\"}],\"unresolved\":[],\"crossCheck\":\"matches the wiring\"}",
+     "committed": 1
+    },
+    {
+     "tool": "run_erc",
+     "input": {},
+     "ok": true,
+     "result": "{\"errors\":0,\"warnings\":0,\"info\":0,\"issues\":[]}"
+    },
+    {
+     "tool": "simulate",
+     "input": {
+      "mode": "op",
+      "durationMs": 0,
+      "stimulus": {
+       "gpio": [
+        {
+         "pin": 17,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 27,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 22,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 18,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 23,
+         "level": "low",
+         "freqHz": 0,
+         "duty": 0
+        }
+       ],
+       "inputs": [
+        {
+         "part": "U1",
+         "key": "distanceCm",
+         "value": 20
+        }
+       ]
+      }
+     },
+     "ok": true,
+     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":3.084,\"GPIO18\":3.198,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":3.069,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":3.076,\"N1\":0.107,\"N2\":1.956,\"N3\":1.908,\"N4\":1.86,\"N5\":0.777,\"N6\":0},\"leds\":[{\"die\":\"LED1.D\",\"mA\":5.129,\"brightness\":0.513},{\"die\":\"LED2.D\",\"mA\":5.311,\"brightness\":0.531},{\"die\":\"LED3.D\",\"mA\":5.494,\"brightness\":0.549}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":3.084,\"mA\":5.129},{\"pin\":\"GPIO18\",\"volts\":3.198,\"mA\":2.421},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":3.069,\"mA\":5.494},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"vol"
+    },
+    {
+     "tool": "run_code_in_sim",
+     "input": {
+      "seconds": 3
+     },
+     "ok": true,
+     "result": "{\"stdout\":\"99.6 cm\\n99.5 cm\\n99.5 cm\\n99.5 cm\\n99.5 cm\",\"error\":null,\"events\":[\"0.000 GPIO23 high\",\"0.000 GPIO23 low\",\"0.006 GPIO17 low\",\"0.006 GPIO27 high\",\"0.006 GPIO22 low\",\"0.006 GPIO18 pwm 2000 Hz 50%\",\"0.056 GPIO18 pwm stop\",\"0.504 GPIO23 high\",\"0.504 GPIO23 low\",\"0.510 GPIO17 low\",\"0.510 GPIO27 high\",\"0.510 GPIO22 low\",\"0.510 GPIO18 pwm 2000 Hz 50%\",\"0.560 GPIO18 pwm stop\",\"1.007 GPIO23 high\",\"1.007 GPIO23 low\",\"1.013 GPIO17 low\",\"1.013 GPIO27 high\",\"1.013 GPIO22 low\",\"1.013 GPIO18 pwm 2000 Hz 50%\",\"1.063 GPIO18 pwm stop\",\"1.510 GPIO23 high\",\"1.510 GPIO23 low\",\"1.516 GPIO17 low\",\"1.516 GPIO27 high\",\"1.516 GPIO22 low\",\"1.516 GPIO18 pwm 2000 Hz 50%\",\"1.566 GPIO18 pwm stop\",\"2.013 GPIO23 high\",\"2.013 GPIO23 low\",\"2.019 GPIO17 low\",\"2.019 GPIO27 high\",\"2.019 GPIO22 low\",\"2.019 GPIO18 pwm 2000 Hz 50%\",\"2.069 GPIO18 pwm stop\",\"2.516 GPIO23 high\",\"2.516 GPIO23 low\",\"2.522 GPIO17 low\",\"2.522 GPIO27 high\",\"2.522 GPIO22 low\",\"2.522 GPIO18 pwm 2000 Hz 50%\",\"2.572 GPIO18 pwm stop\",\"3.019 GPIO18 pwm stop\"],\"eventCount\":43}"
+    },
+    {
+     "tool": "simulate",
+     "input": {
+      "mode": "transient",
+      "durationMs": 20,
+      "stimulus": {
+       "gpio": [
+        {
+         "pin": 23,
+         "level": "pwm",
+         "freqHz": 50,
+         "duty": 0.001
+        }
+       ],
+       "inputs": [
+        {
+         "part": "U1",
+         "key": "distanceCm",
+         "value": 100
+        }
+       ]
+      }
+     },
+     "ok": true,
+     "result": "{\"t\":0.02,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":0,\"GPIO18\":0.287,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":0,\"GPIO23\":3.3,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":0,\"N1\":5,\"N2\":0,\"N3\":0,\"N4\":0,\"N5\":0.287,\"N6\":0},\"leds\":[{\"die\":\"LED1.D\",\"mA\":0,\"brightness\":0},{\"die\":\"LED2.D\",\"mA\":0,\"brightness\":0},{\"die\":\"LED3.D\",\"mA\":0,\"brightness\":0}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO18\",\"volts\":0.287,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO23\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":0,\"mA\":0}],\"rails\":{\"3V3_m"
+    },
+    {
+     "tool": "capture_view",
+     "input": {
+      "preset": "iso"
+     },
+     "ok": false,
+     "result": "{\"INTERNAL_ERROR\":\"capture_view is not available in this session: there is no 3D stage here (headless evaluation). Check the layout from the hole positions and nets that get_circuit_state returns.\"}"
+    },
+    {
+     "tool": "highlight",
+     "input": {
+      "refs": [
+       "R1",
+       "R2"
+      ],
+      "note": "ECHO divider: 5 V × 2k/(1k+2k) = 3.33 V at GPIO24. R1 (1k) on the ECHO side, R2 (2k) to GND."
+     },
+     "ok": true,
+     "result": "ok"
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "diode-1n4007",
+      "at": "bb1:47c",
+      "orientation": 180,
+      "props": [],
+      "ref": "D1",
+      "span": 3
+     },
+     "ok": true,
+     "result": "{\"ref\":\"D1\",\"pins\":{\"A\":{\"hole\":\"bb1:47c\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:47b\",\"bb1:47d\"]},\"K\":{\"hole\":\"bb1:44c\",\"net\":\"5V\",\"freeInStrip\":[\"bb1:44b\",\"bb1:44d\"]}},\"warnings\":[\"D1.A shares its strip with W9.a, BZ1.-, so it joins their net\",\"D1.K shares its strip with W10.a, BZ1.+, so it joins their net\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "run_erc",
+     "input": {},
+     "ok": true,
+     "result": "{\"errors\":0,\"warnings\":1,\"info\":0,\"issues\":[{\"code\":\"PHYSICAL_COLLISION\",\"severity\":\"warning\",\"refs\":[\"BZ1\",\"D1\"],\"message\":\"BZ1 and D1 overlap by about 2.3 mm, so they cannot both sit straight on the board.\",\"fix\":\"Move D1 along the board, or leave an empty row between them.\"}]}"
+    },
+    {
+     "tool": "simulate",
+     "input": {
+      "mode": "op",
+      "durationMs": 0,
+      "stimulus": {
+       "gpio": [
+        {
+         "pin": 17,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 27,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 22,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 18,
+         "level": "pwm",
+         "freqHz": 2000,
+         "duty": 0.5
+        }
+       ],
+       "inputs": []
+      }
+     },
+     "ok": true,
+     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":3.084,\"GPIO18\":1.599,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":3.069,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":3.076,\"N1\":2.554,\"N2\":1.956,\"N3\":1.908,\"N4\":1.86,\"N5\":0.389,\"N6\":0},\"leds\":[{\"die\":\"LED1.D\",\"mA\":5.129,\"brightness\":0.513},{\"die\":\"LED2.D\",\"mA\":5.311,\"brightness\":0.531},{\"die\":\"LED3.D\",\"mA\":5.494,\"brightness\":0.549},{\"die\":\"D1.D\",\"mA\":0,\"brightness\":0}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":3.084,\"mA\":5.129},{\"pin\":\"GPIO18\",\"volts\":1.599,\"mA\":1.21},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":3.069,\"mA\":5.494},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"v"
+    },
+    {
+     "tool": "move_part",
+     "input": {
+      "ref": "D1",
+      "at": "bb1:27a",
+      "orientation": 180,
+      "span": 3
+     },
+     "ok": true,
+     "result": "{\"ref\":\"D1\",\"pins\":{\"A\":{\"hole\":\"bb1:27a\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:27b\",\"bb1:27c\",\"bb1:27d\",\"bb1:27e\"]},\"K\":{\"hole\":\"bb1:24a\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:24b\",\"bb1:24c\",\"bb1:24d\",\"bb1:24e\"]}},\"leadsLeftBehind\":[\"W9\",\"W10\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "hole": "bb1:27e"
+      },
+      "to": {
+       "hole": "bb1:47b"
+      },
+      "color": "green"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W17\",\"kind\":\"dupont-mm\",\"color\":\"green\",\"lengthMm\":200,\"a\":\"bb1:27e\",\"b\":\"bb1:47b\"},\"net\":\"N1\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "hole": "bb1:24e"
+      },
+      "to": {
+       "net": "5V"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W18\",\"kind\":\"dupont-mm\",\"color\":\"red\",\"lengthMm\":200,\"a\":\"bb1:24e\",\"b\":\"bb1:1j\"},\"net\":\"5V\"}",
+     "committed": 1
+    },
+    {
+     "tool": "run_erc",
+     "input": {},
+     "ok": true,
+     "result": "{\"errors\":0,\"warnings\":0,\"info\":0,\"issues\":[]}"
+    },
+    {
+     "tool": "simulate",
+     "input": {
+      "mode": "op",
+      "durationMs": 0,
+      "stimulus": {
+       "gpio": [
+        {
+         "pin": 17,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 27,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 22,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 18,
+         "level": "pwm",
+         "freqHz": 2000,
+         "duty": 0.5
+        }
+       ],
+       "inputs": []
+      }
+     },
+     "ok": true,
+     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":3.084,\"GPIO18\":1.599,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":3.069,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":3.076,\"N1\":2.554,\"N2\":1.956,\"N3\":1.908,\"N4\":1.86,\"N5\":0.389,\"N6\":0},\"leds\":[{\"die\":\"LED1.D\",\"mA\":5.129,\"brightness\":0.513},{\"die\":\"LED2.D\",\"mA\":5.311,\"brightness\":0.531},{\"die\":\"LED3.D\",\"mA\":5.494,\"brightness\":0.549},{\"die\":\"D1.D\",\"mA\":0,\"brightness\":0}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":3.084,\"mA\":5.129},{\"pin\":\"GPIO18\",\"volts\":1.599,\"mA\":1.21},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":3.069,\"mA\":5.494},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"v"
+    },
+    {
+     "tool": "annotate_build_steps",
+     "input": {
+      "annotations": [
+       {
+        "step": "R1",
+        "why": "Top half of the ECHO divider: 5 V × 2k/(1k+2k) = 3.33 V reaches GPIO24.",
+        "mistake": "Swapping R1 and R2 gives 1.67 V, which the Pi may not read as high."
+       },
+       {
+        "step": "R2",
+        "why": "Bottom half of the divider, from the GPIO24 node to GND.",
+        "mistake": "Forgetting the GND lead from row 38 leaves the full 5 V on GPIO24."
+       },
+       {
+        "step": "Q1",
+        "why": "The buzzer draws more current than a GPIO should supply, so the PN2222 switches it from 5 V.",
+        "mistake": "Flat face toward you, the legs are E-B-C from left to right. Check this before you push it in."
+       },
+       {
+        "step": "D1",
+        "why": "A flyback diode across the buzzer coil absorbs the voltage spike each time Q1 switches off.",
+        "mistake": "The band (cathode) goes to 5 V, row 24. If it's reversed it shorts the buzzer out."
+       },
+       {
+        "step": "W4",
+        "why": "ECHO goes to the top of the divider, never straight to the T-board.",
+        "mistake": "Plugging ECHO straight into GPIO24 puts 5 V on a 3.3 V pin."
+       }
+      ]
+     },
+     "ok": true,
+     "result": "{\"annotated\":5}",
+     "committed": 1
+    }
+   ],
+   "transactions": 37
+  }
+ ],
+ "questions": [],
+ "custom": [],
+ "final": {
+  "parts": [
+   "U1 hc-sr04",
+   "R1 resistor",
+   "R2 resistor",
+   "Q1 pn2222",
+   "R3 resistor",
+   "BZ1 passive-buzzer",
+   "R4 resistor",
+   "R5 resistor",
+   "R6 resistor",
+   "LED1 led",
+   "LED2 led",
+   "LED3 led",
+   "D1 diode-1n4007"
+  ],
+  "wires": 18,
+  "code": "#!/usr/bin/env python3\n# Parking sensor: HC-SR04 + passive buzzer + green/yellow/red LEDs\nimport time\nimport RPi.GPIO as GPIO\n\nTRIG = 23     # HC-SR04 Trig (3.3 V is enough to trigger it)\nECHO = 24     # HC-SR04 Echo, via 1k/2k divider (5 V -> 3.3 V)\nBUZZER = 18   # PN2222 base via 1k\nGREEN = 17\nYELLOW = 27\nRED = 22\n\nFAR_CM = 100    # beyond this: green, silent\nNEAR_CM = 30    # under this: red, continuous tone\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(TRIG, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(ECHO, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)\nGPIO.setup(BUZZER, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(GREEN, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(YELLOW, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(RED, GPIO.OUT, initial=GPIO.LOW)\n\ntone = GPIO.PWM(BUZZER, 2000)  # 2 kHz for the passive buzzer\n\n\ndef distance_cm():\n    GPIO.output(TRIG, GPIO.HIGH)\n    time.sleep(0.00001)          # 10 us trigger pulse\n    GPIO.output(TRIG, GPIO.LOW)\n    t0 = time.time()\n    while GPIO.input(ECHO) == 0:\n        if time.time() - t0 > 0.03:\n            return None\n    start = time.time()\n    while GPIO.input(ECHO) == 1:\n        if time.time() - start > 0.03:\n            return None\n    return (time.time() - start) * 34300 / 2\n\n\ndef show(green, yellow, red):\n    GPIO.output(GREEN, green)\n    GPIO.output(YELLOW, yellow)\n    GPIO.output(RED, red)\n\n\ntry:\n    beeping = False\n    while True:\n        d = distance_cm()\n        if d is None or d > FAR_CM:\n            show(1, 0, 0)\n            tone.stop(); beeping = False\n            time.sleep(0.1)\n        elif d > NEAR_CM:\n            show(0, 1, 0)\n            # beep faster as the object gets closer\n            gap = 0.05 + (d - NEAR_CM) / (FAR_CM - NEAR_CM) * 0.4\n            tone.start(50); time.sleep(0.05)\n            tone.stop(); beeping = False\n            time.sleep(gap)\n        else:\n            show(0, 0, 1)\n            if not beeping:\n                tone.start(50); beeping = True\n            time.sleep(0.05)\n        if d is not None:\n            print(f\"{d:.1f} cm\")\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    tone.stop()\n    GPIO.cleanup()\n"
+ },
+ "checks": [
+  {
+   "id": "turns.complete",
+   "label": "Every turn ends with end_turn",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "erc",
+   "label": "Zero ERC errors",
+   "pass": true,
+   "detail": "0 errors, 0 warnings"
+  },
+  {
+   "id": "convention",
+   "label": "Wiring follows the convention",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "inventory",
+   "label": "Inventory respected",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "code.syntax",
+   "label": "The project has code that compiles",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "code.pins",
+   "label": "Code pins match the netlist",
+   "pass": true,
+   "detail": "GPIO 17, 18, 22, 23, 24, 27"
+  },
+  {
+   "id": "claims",
+   "label": "Claims nothing ran on hardware",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "ghosts",
+   "label": "Every streamed preview is cleared",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "parts",
+   "label": "An HC-SR04, a passive buzzer and 3 LEDs",
+   "pass": true,
+   "detail": "hc-sr04, resistor, resistor, pn2222, resistor, passive-buzzer, resistor, resistor, resistor, led, led, led, diode-1n4007"
+  },
+  {
+   "id": "echo.protected",
+   "label": "ECHO is protected by a divider or level shifter",
+   "pass": true,
+   "detail": "U1.ECHO divides down to GPIO24"
+  },
+  {
+   "id": "echo.volts",
+   "label": "No GPIO net rises above 3.6 V while the sensor measures",
+   "pass": true,
+   "detail": "3.30 V at most"
+  },
+  {
+   "id": "overvoltage.handled",
+   "label": "An OVERVOLTAGE_GPIO report, if any, was fixed in the same turn",
+   "pass": true,
+   "detail": "ECHO wired directly first: true; OVERVOLTAGE_GPIO seen: true; turns: 1"
+  },
+  {
+   "id": "code.directions",
+   "label": "The code reads ECHO and drives TRIG, the buzzer and the LEDs",
+   "pass": true,
+   "detail": "1 input(s), 5 output(s)"
+  },
+  {
+   "id": "overvoltage.caught",
+   "label": "ERC reported OVERVOLTAGE_GPIO for the direct ECHO lead",
+   "pass": true,
+   "detail": "ECHO wired directly: true; reported: true"
+  },
+  {
+   "id": "undo.all",
+   "label": "Undo all restores the starting document exactly",
+   "pass": true,
+   "detail": "37 of 37 transactions undone"
+  }
+ ]
+}
