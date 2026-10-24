@@ -1,0 +1,87 @@
+{
+  "id": "tboard",
+  "name": "SunFounder GPIO Extension Board (T-board)",
+  "pitchMm": 2.54,
+  "rowSpacingPitches": 6,
+  "edgeColumnsUsable": true,
+  "frame": "Local mm frame: pin 1 at the origin; +x runs along the stem from pin 1 toward pin 39; +y runs from the odd-pin row toward the even-pin row (6 pitches). The header and top bar lie at negative x.",
+  "pins": [
+    { "pin": 1, "label": "3V3" },
+    { "pin": 2, "label": "5V0" },
+    { "pin": 3, "label": "SDA1" },
+    { "pin": 4, "label": "5V0" },
+    { "pin": 5, "label": "SCL1" },
+    { "pin": 6, "label": "GND" },
+    { "pin": 7, "label": "GPIO4" },
+    { "pin": 8, "label": "TXD0" },
+    { "pin": 9, "label": "GND" },
+    { "pin": 10, "label": "RXD0" },
+    { "pin": 11, "label": "GPIO17" },
+    { "pin": 12, "label": "GPIO18" },
+    { "pin": 13, "label": "GPIO27" },
+    { "pin": 14, "label": "GND" },
+    { "pin": 15, "label": "GPIO22" },
+    { "pin": 16, "label": "GPIO23" },
+    { "pin": 17, "label": "3V3" },
+    { "pin": 18, "label": "GPIO24" },
+    { "pin": 19, "label": "SPIMOSI" },
+    { "pin": 20, "label": "GND" },
+    { "pin": 21, "label": "SPIMISO" },
+    { "pin": 22, "label": "GPIO25" },
+    { "pin": 23, "label": "SPISCLK" },
+    { "pin": 24, "label": "SPICE0" },
+    { "pin": 25, "label": "GND" },
+    { "pin": 26, "label": "SPICE1" },
+    { "pin": 27, "label": "ID_SD" },
+    { "pin": 28, "label": "ID_SC" },
+    { "pin": 29, "label": "GPIO5" },
+    { "pin": 30, "label": "GND" },
+    { "pin": 31, "label": "GPIO6" },
+    { "pin": 32, "label": "GPIO12" },
+    { "pin": 33, "label": "GPIO13" },
+    { "pin": 34, "label": "GND" },
+    { "pin": 35, "label": "GPIO19" },
+    { "pin": 36, "label": "GPIO16" },
+    { "pin": 37, "label": "GPIO26" },
+    { "pin": 38, "label": "GPIO20" },
+    { "pin": 39, "label": "GND" },
+    { "pin": 40, "label": "GPIO21" }
+  ],
+  "outline": {
+    "stem": { "xMin": -1.83, "xMax": 56.23, "yMin": -2.37, "yMax": 17.61 },
+    "topBar": { "xMin": -15.4, "xMax": -1.83, "yMin": -21.24, "yMax": 36.48 },
+    "cornerRadiusMm": 2.54,
+    "pcbThicknessMm": 1.6
+  },
+  "header": {
+    "centerXMm": -11.4,
+    "centerYMm": 7.62,
+    "lengthAlongYMm": 58.5,
+    "widthAlongXMm": 8.8,
+    "heightMm": 11.2,
+    "keySlotWall": "the long wall at the -x side (away from the stem)"
+  },
+  "mountingHoles": [
+    { "xMm": 53.77, "yMm": 0, "diameterMm": 2.5 },
+    { "xMm": 53.77, "yMm": 15.24, "diameterMm": 2.5 }
+  ],
+  "dupontHousingMm": 2.54,
+  "provenance": {
+    "sources": [
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/preparation/GPIO_Extension_Board.html",
+      "https://github.com/adafruit/Adafruit-Pi-Cobber-PCBs"
+    ],
+    "values": {
+      "rowSpacingPitches": "ADR-0004: the underside photo measures 6.013 pitch (15.27 mm) and the holes are on a 2.54 grid; Adafruit T-Cobbler Plus prior 15.24 mm",
+      "edgeColumnsUsable": "SPEC 6.3 bench fact: leads seat in b or c beside a d pin; HIL_CHECKLIST confirms",
+      "pins": "Labels read from reference photos 3 and 6 (docs/v2/reference/IMAGES.md), matching SPEC 6.3; pin n joins Pi header pin n through the straight-through ribbon",
+      "outline.stem": "ADR-0004 calibrated photo: stem 20 mm wide, 2.37 mm outside each pin row; ends 7.97 mm past pin 39 (19 x 2.54 + 7.97 = 56.23); the bar's bottom edge is 1.83 mm before pin 1",
+      "outline.topBar": "ADR-0004 calibrated photo: 57.7 mm wide (centred on the stem), 13.57 mm deep; pin 1 is 15.40 mm from the top edge",
+      "outline.cornerRadiusMm": "Adafruit T-Cobbler Plus board file prior (2.54 mm corner arcs)",
+      "outline.pcbThicknessMm": "Assumption: standard 1.6 mm FR-4 (not measurable from the photos)",
+      "header": "ADR-0004: centre 11.40 mm before pin 1 and 4.00 mm from the top edge (photo); size from the DC3-40P listing (58.5 x 8.5 x 11.5 mm), the Adafruit outline (about 58.4 x 9.0 mm) and the photo's 11 mm callout; key slot on the outer long wall (photos 3, 4, 6). Which end carries header pin 1 is not yet measured",
+      "mountingHoles": "ADR-0004: in line with the pin rows, 5.51 mm past pin 39 (photo); diameter 2.5 mm from the Adafruit prior",
+      "dupontHousingMm": "Pololu 0.1 in crimp housings, 1x1: B = 2.54 mm (https://www.pololu.com/product/1900)"
+    }
+  }
+}
