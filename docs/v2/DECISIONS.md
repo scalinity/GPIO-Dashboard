@@ -613,3 +613,95 @@ decision and consequences. Numbering is stable; superseded records say so.
   - If the look-dev pass (M7.7) wants real subsurface glow, the studio can add it in TSL.
   - Changing a shape value changes the geometry hash. Hole centres don't move, because they
     always come from `holePosition`'s formulas.
+
+## ADR-0025 GTAO feeds the ambient light through a normal and velocity pre-pass
+
+- **Context.** SPEC 10.2 asks for a scene pass with MRT (output, normals, velocity as
+  needed), then GTAO, bloom and TRAA, with depth of field available. In three 0.186 the
+  pipeline class is `RenderPipeline` (`PostProcessing` remains only as a deprecated alias),
+  and three's own GTAO example no longer multiplies occlusion over the finished image: it
+  renders depth, packed normals and velocity in a pre-pass and hands occlusion to the
+  colour pass through `builtinAOContext`, so only ambient light is occluded.
+  `PCFSoftShadowMap` is removed from WebGPURenderer in r186 (it falls back to
+  `PCFShadowMap` with a warning).
+- **Options.** (a) One scene pass with MRT `{output, normal, velocity}` and occlusion
+  multiplied over the output: one geometry pass, but direct light and highlights darken in
+  creases too. (b) The r186 structure: an MRT pre-pass and a colour pass, two geometry passes.
+- **Decision.** (b), in `studio/renderer.ts`:
+  - pre-pass: `pass()` with `mrt({ output: packNormalToRGB(normalView), velocity })`, its
+    normal target 8-bit, transparent objects skipped;
+  - `ao()` (GTAONode) from the pre-pass depth and normals at half resolution with temporal
+    filtering, radius 8 mm (scene units are mm);
+  - colour `pass()` with `contextNode = builtinAOContext(ao)`;
+  - `traa()` over the colour pass with the pre-pass depth and velocity (MSAA off, renderer
+    `antialias: false`);
+  - `bloom(traa, 0.35, 0.4, 1)` added on top, thresholded at 1 so the white boards don't
+    glow and lit LEDs will;
+  - depth of field (`dof()`, DepthOfFieldNode) is built the first time `Post.setFocus()`
+    asks for focus, between TRAA and bloom, and `setFocus(null)` turns it off;
+  - AgX tone mapping and sRGB output are applied by the pipeline's output transform;
+    shadows use `PCFShadowMap` (`shadows="percentage"`) softened by `shadow.radius`.
+- **Consequences.**
+  - Every frame draws the scene twice. In the Tauri window on this Mac (WebGPU, M5 Pro) the
+    empty bench runs at 60 fps, which is WKWebView's requestAnimationFrame cap; it has to be
+    measured again once the board and Pi models load (SPEC 10.8).
+  - `@types/three` 0.186 types DepthOfFieldNode without its vec4 output, so one cast in
+    `setFocus` carries a comment saying so.
+
+## ADR-0026 The Studio renders on demand from a frame loop it owns
+
+- **Context.** SPEC 10.2: render only while something moves, then at most 16 frames for TRAA
+  to converge, then none. SPEC 11.3 and acceptance 8: a hover shows its strip and net within
+  one frame. Routing the highlight through React state would put React's render between the
+  pointer event and the frame.
+- **Decision.**
+  - R3F runs with `frameloop="demand"`. One `useFrame` subscriber with priority 1 renders the
+    `RenderPipeline` and asks `FrameLoop.tick()` whether another frame is needed. Moving
+    means the damped OrbitControls (three's addon, not drei) changed the camera or a preset
+    move is running. Any frame nobody scheduled for settling (a hover, a document change, a
+    model arriving, a resize) counts as a change and starts the same 16-frame run.
+  - `StudioView` owns the camera, the controls, the hover and its overlay. A pointer move
+    picks a hole against each board's top plane (`nearestHole` within half a pitch), writes
+    the strip's holes and the net's wire ends into one instanced mesh from core geometry,
+    sets the tooltip's text, and requests a frame, all in the event handler. React renders
+    only what the document declares: the stage and the models.
+  - Listeners attach through a React 19 ref callback with cleanup, and objects are created
+    in `useState` initializers, so no `useEffect` is involved (ADR-0006).
+  - Dev builds expose the view as `window.__studio` (frame counter, hover record with the
+    frame it was first drawn on, hole projection) for the e2e tests. The dev overlay shows
+    the backend, the frame count and the frame rate of the last continuous run of frames.
+  - Models are loaded once per URL and shared; each placement clones the node tree. A model
+    that fails to load logs a warning and draws nothing. GPU resources go with the renderer,
+    which R3F disposes when the Studio unmounts.
+- **Consequences.**
+  - Later motion sources (drags, sim animations, physics) report "moving" to the same tick.
+  - The e2e tests assert that the first frame drawn after a hover already carries it, and
+    that a still scene draws nothing, before and after a camera move.
+
+## ADR-0027 One app-wide CircuitStore; the Workbench opens into it
+
+- **Context.** The Studio renders the circuit document, and the interim Workbench (SPEC 11.1)
+  holds its own copy in `workbenchStore`. Both pages must show one document.
+- **Decision.** `state/circuit.ts` holds the app's one `CircuitStore`, starting as a new
+  project on the bench layout (`newDoc`). `workbenchStore.open()` calls `circuit.open(doc)`
+  for every document that passes `validateDoc`. The Studio reads it with
+  `useSyncExternalStore`, and hover reads nets from its ConnectivityEngine.
+- **Consequences.** A document that breaks placement rules opens in the Workbench, which lists
+  its problems, but not in the Studio, which keeps the previous document (`CircuitStore`
+  rejects it anyway). The Workbench still reads its own copy until its panels move into the
+  Studio drawer (M7).
+
+## ADR-0028 End-to-end tests run in headless Chromium on the GPU, on their own port
+
+- **Context.** SPEC 18 asks for Playwright e2e in Chromium against the Vite dev server.
+  Playwright's default headless shell has no WebGPU adapter and draws WebGL2 in software
+  (SwiftShader): there the Studio ran on the WebGL2 fallback, and a preset move plus its 16
+  settle frames took longer than the 2 s acceptance 13 allows. A page on `about:blank` also
+  sees no `navigator.gpu`, which needs a secure context.
+- **Decision.** `playwright.config.ts` uses the `chromium` channel: Playwright's full
+  Chromium build in new headless mode, which draws on the Metal GPU and offers a WebGPU
+  adapter on this Mac with no extra flags. The server is `npm run web:dev -- --port 5193`
+  with `reuseExistingServer: false`, so a running `tauri dev` on 5173, or another checkout's
+  server, is never tested by mistake. Results go to `out/e2e`, which is ignored.
+- **Consequences.** `npm run e2e` exercises the WebGPU path, as the Tauri window does. A
+  machine without a GPU would fall back to WebGL2 and may miss the 2 s settle bound.

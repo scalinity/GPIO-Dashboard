@@ -25,6 +25,21 @@ checked with `npm view <pkg> version` or the tool's `--version` on 2026-10-23.
 | @gltf-transform/core, extensions, functions, cli | ^4.5.1 | latest; dedup, weld, prune, meshopt and KTX2 (SPEC 10.3). The cli package holds the KTX2 transform |
 | meshoptimizer | ^1.3.0 | latest; meshopt encoder and decoder for gltf-transform |
 | sharp | ^0.35.5 | latest; gltf-transform's KTX2 transform needs it to resize textures to budget |
+| @types/three | ^0.186.0 | latest; matches three 0.186 (checked 2026-10-24) |
+| @playwright/test | ^1.64.1 | latest; Studio e2e in Chromium (SPEC 18). Its browser is Chromium 156.0.8078.4 (revision 1248), installed with `npx playwright install chromium` |
+
+## npm dependencies
+
+| Package | Version | Reason |
+|---------|---------|--------|
+| three | ^0.186.1 | latest (checked 2026-10-24); WebGPURenderer, TSL and `RenderPipeline` (named `PostProcessing` before r183, which 0.186 keeps only as a deprecated alias) |
+| @react-three/fiber | ^9.8.2 | latest stable (10.x is alpha); its async `gl` factory awaits `WebGPURenderer.init()`, and it supports React 19.0–19.3 |
+
+## Shipped files
+
+| File | Version | Reason |
+|------|---------|--------|
+| `src/renderer/public/basis/basis_transcoder.{js,wasm}` | as shipped in three 0.186.1 (`examples/jsm/libs/basis`) | KTX2Loader's transcoder (Basis Universal, Apache-2.0). A test fails if the copy differs from the installed three's |
 
 ## Rust
 
