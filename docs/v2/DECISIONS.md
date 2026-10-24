@@ -1319,3 +1319,162 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** The scene still stops drawing once the drop and TRAA's settling frames end.
   Opening a tutorial seats all of it at once.
 
+
+## ADR-B4-1 Lead currents are derived from the snapshot by Kirchhoff's law
+
+- **Context.** SPEC 11.5 asks for dashes along each lead whose speed follows its current. The simulator
+  solves one node per net (core/sim/circuit.ts), so a lead has no current of its own, and the
+  snapshot carries only LED die currents, GPIO currents, the two supplies' currents, net voltages
+  and each behavioural part's view.
+- **Options.** (a) Add per-pin currents to the snapshot (core and the sim worker change). (b) Derive
+  lead currents in the Studio from what the snapshot has.
+- **Decision.** (b), in `studio/flow.ts`, so that nothing outside the Studio changes.
+  - The nodes are rigid clusters: a strip with the parts standing in it, a module pin, the T-board's
+    strips with their header pins and the header's supply pins, joined as the netlist joins
+    everything except leads. The leads are the edges, each counted as the same small resistance.
+  - What each cluster takes from outside comes from the snapshot where it names it (LED dies, GPIOs,
+    `rails`) and from Ohm's law for the resistive parts (resistor, passive buzzer, potentiometer, LDR,
+    NTC, from the same formulas as the simulator and the part inputs). A part with no current in the
+    snapshot (ICs, motor, relay, servo, transistors, switches) takes what is left of its net, split
+    between its clusters; a net with no such part gives what is left to the ground pins, else drops
+    it. The potentials of the cluster graph are solved per net and a lead's current is its end
+    difference.
+  - Current is conventional, positive from a lead's end `a` to its end `b`.
+- **Consequences.**
+  - Leads in series with an LED, a resistor or a GPIO carry exactly the circuit's current (tested
+    against the Blinking LED and the Button). Leads around a behavioural part carry the remainder of
+    their net, which is right for one such part per net and approximate for several.
+  - A snapshot with per-pin currents would replace this (core request B4-A in the lane report). The
+    resistive formulas are the one place the Studio repeats the simulator's models.
+
+## ADR-B4-2 The sim-driven visuals are one layer that writes through the part handles
+
+- **Context.** SPEC 10.6 and 11.5: parts glow and move from simulation state; the scene renders
+  continuously only while something animates (SPEC 10.2); a still scene renders no frames.
+  Snapshots arrive about every 33 ms while a program runs, whether or not anything changed.
+- **Decision.** `studio/simvisuals.ts` (`SimVisuals`) is built by the view and fed one `SimInputs`
+  (the drawn document, the snapshot, the part inputs, the issues, the Inspect toggles and Board
+  Sense's states) whenever the workbench store, the studio store, the sense store or the drawn
+  document changes.
+  - It writes to what already exists: part handles (`setEmission`, `setTransform`, `setTexture`), the
+    lead layer's overlays, a halo layer, a marker set and the tag layer. Each write is compared with
+    the last one first, and only a change asks for a frame, so snapshots that change nothing leave
+    the scene still.
+  - Motion is `Motion` channels (`studio/motion.ts`): an ease (exponential, a time constant of 20 to
+    50 ms) for the plunger, shaft, horn and armature, and a spin (speed eased, angle integrated)
+    for the rotor. `StudioView.frame` calls `visuals.step`, which reports whether any channel is
+    unsettled or any lead has current flowing; those frames count as moving, so the scene renders
+    continuously then and settles through TRAA's 16 frames after.
+  - The dashes run while current flows and the Current toggle is on, so a circuit with a steady current
+    renders continuously until the toggle is turned off. Measured: 42 fps in headless Chromium and
+    60 fps in the Tauri window (WKWebView's rate cap), on this Mac.
+  - A channel's first transform is applied on its first step, and a spin counts as moving on the frame
+    it starts (no time has passed on it).
+- **Consequences.** `view.report().sim` reads back what was applied (lit nodes, channel values, lead
+  speeds, halos, tags, tint counts, LCD lines) for the e2e tests.
+
+## ADR-B4-3 A node's extra transform is in millimetres about the node's origin; a copy can have its own texture
+
+- **Context.** ADR-0047's handle composed a node's extra transform after the node's whole matrix,
+  which for a quantized mesh node includes its scale: a plunger node has scale 1.75, so a travel of
+  1 mm would have moved 1.75 mm. It also gave no per-copy texture, which the LCD's characters need.
+- **Decision.**
+  - `ModelInstances.local` places the extra between the node's translation and rotation and its scale
+    (`T R extra S`), so a translation is in mm and a rotation is about the node's origin, in the node's
+    own axes. A node without an extra, and every pivot (scale 1), is as before.
+  - `PartHandle.setTexture(name, texture)` sets the colour and emission map of the meshes called
+    `name` for that copy. The copy is drawn as a mesh of its own with a cloned material (the
+    instanced copy is hidden by a zero-scale matrix), follows the copy's pose, lift and node
+    transforms, and is cleared by `set()`, after which the parts layer puts the texture back from the
+    handle's state. Handle setters write only their own channel and look the copy up again each call,
+    since a redraw can move it inside its file.
+- **Consequences.** A copy with a texture is one more draw call and one more material, for the LCD
+  only. A model with a per-copy texture on many copies would want an atlas instead.
+
+## ADR-B4-4 The LCD draws the HD44780's display RAM into the module's screen quad
+
+- **Context.** SPEC 10.6: characters from the HD44780 model, drawn into the `lcd-screen` texture. The
+  model exposes the 16 x 2 window's character codes, CGRAM, the cursor and the backlight (`view()`).
+- **Decision.** `studio/lcd.ts`: one canvas of 562 x 115 px (10 px per mm of the 56.2 x 11.5 mm quad,
+  glTF's UV origin at the top left, so `flipY` is off), per LCD. A character is 5 x 8 dots of 5.4 x 5 px
+  on the datasheet's 3.55 mm cell pitch; lit dots are near white on the backlight's blue, unlit dots
+  a faint shade, an unpowered module a dark glass and an unlit backlight a dim one. The glass is lit
+  by emission (the same map), so it reads under any light. The picture is redrawn only when the
+  view's JSON changes.
+  - Glyphs for the ASCII range are a table drawn for this app (5 x 7 shapes in the layout of the
+    controller's A00 ROM: yen at 0x5C, arrows at 0x7E and 0x7F); other codes show a box; codes 0 to
+    15 are CGRAM's eight custom characters.
+- **Consequences.** The katakana and symbols of the A00 ROM are not drawn. The blank-glass texture
+  in the model's file is replaced, not blended.
+
+## ADR-B4-5 Inspect: toggles, the Nets list, and a read-only Board Sense overlay
+
+- **Context.** SPEC 11.2 and 11.5 list Labels, Voltages, Current flow, Nets (a list suffices, SPEC 21)
+  and the Board Sense overlay; Live Pi state belongs to M11.
+- **Decision.**
+  - `studioStore` holds `voltages`, `current`, `nets` and `sense` beside `labels`. Voltage tags are
+    DOM tags (as labels are) at the first part pin of each net with something on it, else its first
+    lead end; the 3V3 net reads "3V3 3.30 V". A net that is only header pins has no tag.
+  - The Nets list names every net with a part or lead on it, with its voltage; hovering a row draws
+    all its strips and every lead end on it with the hover's markers (`view.highlightNet`).
+  - Board Sense: each probed GPIO's net is tinted from `senseStore.states` (matched green, diverged
+    red, ambiguous amber, settling and unobserved grey, skipped none): the strips' holes by markers
+    and its leads by a tinted overlay tube. A net with nothing on it is tinted only when it
+    diverged. A diverged net's tag carries the divergence's detail and its top two ranked causes;
+    when `senseStore.candidates` has none for the pin, the overlay asks for them once, a simulation
+    that senses nothing, which is what the Board tab's "Find likely causes" runs. The overlay
+    never starts, stops or pauses sensing; the Board tab's buttons do. "Board Sense" in Inspect shows
+    or hides the tint, and it only has an effect while sensing runs.
+- **Consequences.** The overlay is silent when `senseStore.mode` is `off`.
+
+## ADR-B4-6 Playing the circuit: switches in 3D, sliders in Properties, a pin menu
+
+- **Context.** SPEC 11.5: during Simulate, click switches, drag sliders, toggle GPIOs from the T-board
+  pin's context menu when no code runs; everything clickable outside the orbit controls' element.
+- **Decision.**
+  - A press on a tact switch sets its `pressed` input while the button is down and releases it on
+    pointer up or when the press becomes a drag; a `retain` switch and a tilt switch change state on each
+    press. Inputs go through `workbenchStore.setInput`, so they reach a running program and the
+    static simulation alike. A press also selects the part, as before.
+  - While a program runs, Properties' environment sliders and boolean inputs (`INPUT_PROPS`) send the
+    value to the simulation as they move; otherwise they stay build choices, committed once on
+    release.
+  - A right press and release within 4 px on a T-board GPIO pin opens a menu (`studioStore.pinMenu`),
+    rendered by `Studio.tsx` outside the orbit element: output HIGH or LOW, input with pull-up,
+    pull-down or none. While a program runs it says the program owns the pins. The menu opens on
+    release, so a right-drag pan does not open it.
+  - A running program's snapshots recompute the issues that read currents (`simChecks`) against its
+    document, and the netlist ERC once per document, so the ERC tab and the halos follow the run.
+- **Consequences.** Pressing a switch while editing also works the simulation, which is harmless.
+
+## ADR-B4-7 A part over its rating gets a halo and its issue in Properties
+
+- **Context.** SPEC 11.5: a warning halo linked to its ERC issue.
+- **Decision.** Parts named in the `refs` of an issue with a rating code (`LED_NO_LIMIT`, from both the
+  netlist rule and the simulated-current check) get a soft additive glow on the board under their
+  box (error red, warning amber) and a tag "D1: LED_NO_LIMIT"; selecting the part shows the issue
+  and a button to the ERC tab. The halo is static, so it never keeps the scene drawing.
+- **Consequences.** Issues that name GPIOs (`PIN_OVERCURRENT`, `OVERVOLTAGE_GPIO`) have no part to
+  halo. More codes join by adding them to `RATING_CODES`.
+
+## ADR-B4-8 Modelling choices of the visuals
+
+- **Context.** The datasheets give no on-screen travel, swing or speed, and the models are drawn
+  at rest.
+- **Decision.** Each is a constant in `studio/glow.ts` or `studio/motion.ts`.
+  - LED glow: emission is `4 * min(brightness, 2)^0.6` times the lens colour, brightness being the
+    die current over its datasheet test current, so a die at its test current is at 4 (bloom starts
+    at 1) and a faint one still shows. A display's segment, bar or dot lights as the same die; an RGB
+    LED's lens shows its three dies mixed; the relay's indicator lights while its transistor drives
+    the coil.
+  - Tact plunger: 0.4 mm down its own axis (the Omron B3F actuates at 0.25 mm), eased over about 25 ms.
+  - Potentiometer shaft: (wiper - 50 %) of the part's `rotationDeg` (300), a higher wiper clockwise
+    seen from the shaft's end.
+  - Servo horn: the behaviour's `angleDeg` (the datasheet pulse mapping, in the part definition), a
+    longer pulse clockwise seen from above, eased over about 40 ms against the 33 ms snapshots.
+  - Motor rotor: the behaviour's rpm over the no-load rpm, as a share of 3 turns a second, speed eased
+    over 150 ms; real speeds would only strobe at 60 fps.
+  - Relay armature: 6 degrees about its hinge, eased over about 20 ms.
+  - Dashes: 5 mm apart, 4 mm/s per mA, at most 80 mm/s, none below 10 uA; a ramp whose sharp edge
+    leads, so the direction reads in a still picture.
+- **Consequences.** A later look-dev pass can retune them without touching the plumbing.
