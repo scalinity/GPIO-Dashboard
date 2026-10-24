@@ -8,18 +8,21 @@ import type { JumperDef, LeadDef, Pose, RibbonDef } from './types'
 
 /**
  * Tunables that no datasheet gives. Masses are estimates (a 1 mm PVC jumper weighs about 2 g per
- * metre; a 40-way ribbon about 40 g per metre). The bending stiffnesses EI (g mm^3 / s^2) are
- * set so a Dupont lead standing in a hole holds itself up for about 50 mm before it folds over,
- * and a 200 mm ribbon sags about 40 mm as a cantilever. Compliances below are XPBD alphas, s^2/g.
+ * metre; a 40-way ribbon about 40 g per metre). The bending stiffnesses EI are in g mm^3 / s^2
+ * (1 N mm^2 = 1e6): a stranded 26-28 AWG jumper is about 1 to 25 N mm^2 (copper strands plus a
+ * soft PVC jacket) and a 40-way ribbon 100 to 500. A lead of 2 N mm^2 stands about 90 mm before
+ * its own weight folds it (the self-buckling length, (7.8 EI / weight per mm)^(1/3)). Above about
+ * 1e6 the lead's value stops showing in the shape: one sweep a substep cannot carry the stiffness
+ * any further along the chain (ADR-P2 on bending). Compliances below are XPBD alphas, s^2/g.
  */
 export const MATERIAL = {
   leadGramsPerMm: 0.002,
   jumperGramsPerMm: 0.004,
   ribbonGramsPerMm: 0.04,
-  leadEI: Number((globalThis as any).process?.env?.EI ?? 3e4),
+  leadEI: 2e6,
   /** The first joint above a housing is stiffer: the wire leaves its strain relief straight. */
   housingBendFactor: 0.2,
-  ribbonEI: 1.5e7,
+  ribbonEI: 1.5e8,
   /** Across the ribbon's width the strip does not bend. */
   ribbonAcrossAlpha: 1e-9,
   /** A solid jumper deflects elastically: about 0.05 mm under its own weight. */

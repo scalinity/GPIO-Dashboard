@@ -437,8 +437,9 @@ describe('sleep', () => {
     const part: Box = { c: [0, 0, BOARD_TOP + 7], h: [3, 26, 7] }
     const world = newWorld(TABLE, BOARD)
     const partId = world.addCollider(boxShape(part), at(...part.c))
-    // A short lead, nearly taut between its holes: only the part holds its middle up.
-    const id = world.addLead({ a: at(-30, 0, BOARD_TOP), b: at(30, 0, BOARD_TOP), lengthMm: 72 })
+    // A lead long enough to lie on the board on its own (90 mm between holes 60 mm apart): only
+    // the part holds its middle up.
+    const id = world.addLead({ a: at(-30, 0, BOARD_TOP), b: at(30, 0, BOARD_TOP), lengthMm: 90 })
     run(world, 400)
     expect(world.isAsleep(id)).toBe(true)
     const middle = () => wire(world, id)[Math.floor(wire(world, id).length / 2)]![2]
@@ -726,7 +727,7 @@ describe('world bookkeeping', () => {
     const part: Box = { c: [0, 0, BOARD_TOP + 7], h: [3, 26, 7] }
     const world = newWorld(TABLE, BOARD)
     const partId = world.addCollider(boxShape(part), at(...part.c))
-    const id = world.addLead({ a: at(-30, 0, BOARD_TOP), b: at(30, 0, BOARD_TOP), lengthMm: 72 })
+    const id = world.addLead({ a: at(-30, 0, BOARD_TOP), b: at(30, 0, BOARD_TOP), lengthMm: 90 })
     run(world, 400)
     const middle = () => wire(world, id)[Math.floor(wire(world, id).length / 2)]![2]
     const held = middle()
