@@ -1,6 +1,7 @@
 // Projects (SPEC 11.9): .gpiob files in the app data folder with a gallery, plus Save As and Open
-// through the native dialogs that Rust runs. Every document opens through the Workbench's open(),
-// which validates it and hands it to the app's CircuitStore.
+// through the native dialogs that Rust runs. Tutorials open as read-only templates and fork into
+// projects. Every document opens through the Workbench's open(), which validates it and hands it
+// to the app's CircuitStore.
 import { create } from 'zustand'
 import { newDoc } from '../core/model/defaults'
 import type { CircuitDoc } from '../core/model/types'
@@ -28,7 +29,7 @@ export const useProject = create<ProjectState>(() => ({ id: null, gallery: null,
 
 /**
  * A document opened from the Tutorials and not saved as one of my projects is a read-only
- * template (SPEC 11.9); forking it into my projects comes with Build Mode.
+ * template (SPEC 11.9); "Fork to my projects" copies it into one.
  */
 export const isTemplate = (doc: CircuitDoc = circuit.getSnapshot()) =>
   !!doc.meta.sourceTutorialId && useProject.getState().id === null
@@ -51,11 +52,11 @@ function unlocked() {
   if (circuit.locked) throw new Error('Claude is working on the circuit. Stop it first.')
 }
 
-async function open(id: string | null, raw: unknown) {
+async function open(id: string | null, raw: unknown, source?: string) {
   unlocked()
   const doc = migrate(raw)
   const workbench = useWorkbench.getState()
-  await workbench.open(id ?? doc.meta.name, doc)
+  await workbench.open(source ?? id ?? doc.meta.name, doc)
   const { problems } = useWorkbench.getState()
   if (problems.length)
     throw new Error(`The project breaks placement rules: ${problems[0]!.message}`)
@@ -89,6 +90,26 @@ export const openFile = () =>
   })
 
 export const openProject = (id: string) => attempt(async () => open(id, await readProject(id)))
+
+/** A tutorial's document, open as a read-only template. */
+export const openTemplate = (tutorial: { meta: { id: string }; doc: CircuitDoc }) =>
+  attempt(async () => open(null, tutorial.doc, tutorial.meta.id))
+
+/**
+ * "Fork to my projects" (SPEC 11.9): a template's document, written as a project of its own and
+ * opened for editing. It is the tutorial's circuit, code and notes as they are, still naming the
+ * tutorial it came from; only its dates are its own.
+ */
+export const forkTemplate = (template: CircuitDoc) =>
+  attempt(async () => {
+    unlocked()
+    const now = new Date().toISOString()
+    const doc = structuredClone(template)
+    doc.meta = { ...doc.meta, created: now, updated: now }
+    const id = fileId(doc.meta.name)
+    await writeProject(id, doc)
+    await open(id, doc)
+  })
 
 export const save = () =>
   attempt(async () => {
