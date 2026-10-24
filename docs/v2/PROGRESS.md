@@ -269,9 +269,14 @@ M9 exit suite (2026-10-24, at 2755e33 + E2E_PORT):
 - Open: web search refused at the organization level (account setting); ghosts of custom parts defined in the same streaming batch are not drawn; keypad keys can't be pressed in `simulate` (text input); a fetched datasheet costs ≈$0.45.
 
 
-## M10 Build Mode in the Studio — merged, exit pending (2026-10-24)
+## M10 Build Mode in the Studio — done (2026-10-24)
 
 M10 lane merged onto v2 after M9's push (10 commits; ADR-0109…0115): tutorials open as templates and fork (`openTemplate`, `forkTemplate`); `useBuild` store (Next/Back/Done, progress in localStorage per project/tutorial); `stepScene` (docUpTo, ghost, rings); DOM pulsing rings so a held step draws zero frames; framing ≤600 ms, DoF option off by default; Board Sense confirmations via signatures in a worker + `judge`/`changedPins` (two sweeps to believe); empty checkpoint slot (ADR-0115). e2e 74/74 in its worktree: **all 26 tutorials (411 steps) play through Build Mode**; Button W3 confirms against the mock, other steps 'not electrically verifiable'; a wrong W3 shows divergence + ranked causes. Tauri 3D not checked: the Mac session is locked (WKWebView hidden), so visuals were checked with headless WebGPU.
+
+M10 exit suite (2026-10-24, at 3cfb0dc + Vitest 30 s timeout):
+- `cargo test`: 94 passed / 20 ignored (Rust unchanged since M9; live-tests not re-run).
+- `npm test`: node 7/7; Vitest 2256 passed / 2 skipped (heavy full-probe tutorials, FULL_PROBE=1 opt-in). The first run timed out four simulation-heavy tests at the 5 s default under load average 4–7 with the M11 lane running; `testTimeout: 30_000` added, rerun clean at load 11. Lint 0 errors. Typecheck clean. e2e 74/74. `npm run evals` replay matches. `assets:check` passed. `npm run build`: .app and .dmg.
+- Exit criteria: every tutorial plays through Build Mode (26 tutorials, 411 steps, e2e); against the mock sense agent observable steps confirm themselves and unobservable ones are labelled (Button W3; Blinking LED all labelled). On the user's Pi: HIL checklist. Tauri-window visuals of Build Mode not seen (Mac session locked); checked in headless WebGPU.
 
 | Lane | Model | Scope | Status |
 |------|-------|-------|--------|
