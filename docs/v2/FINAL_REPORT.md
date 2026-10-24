@@ -8,10 +8,9 @@ milestone's recorded exit suite say that instead.
 - Drafted: 2026-10-24 (EDT), on `v2-breadboard-studio` at `20b9ab8` ("docs(progress): M11 done, with
   its exit suite"). The build ran from 2026-10-23 22:39 EDT (first commit `fa8f0f2`) to 2026-10-24
   15:55 EDT (`20b9ab8`): 238 commits over `52639d9`, 815 files changed.
-- Two M12 lanes were still running when this was drafted: the frame-rate lane (acceptance 9) and the
-  docs lane (the README rewrite that closes D16, and `docs/ARCHITECTURE.md`). Where the result
-  depends on them, this report states what the repository shows today and carries a double-bracket
-  INTEGRATOR placeholder at that spot, to be replaced once the lanes have merged.
+- Finished after every M12 lane had merged: the frame-rate lane (ADR-0127 to ADR-0131), the docs
+  lane (the README rewrite that closes D16, and `docs/ARCHITECTURE.md`), and the fixes that followed
+  them. The final acceptance run (appendix) ran at `21d1081` from 17:17 EDT on 2026-10-24.
 - The repository is public. No secret is in this report. The reference photos are not in the
   repository either (`docs/v2/reference/IMAGES.md` lists them by hash).
 
@@ -33,11 +32,11 @@ Tauri-window run.
 
 | | Result |
 |---|---|
-| SPEC 20 acceptance | 11 Met, 7 Partly met, 0 Not met (section 2) |
-| Partly met items | 4 (D16 pending), 8 (Labels untested), 9 (60 fps), 10 (real Pi), 12 (real Pi), 15 (look-dev gaps), 16 (README findings) |
-| Defects | D1 to D15, D17, D18 fixed with a named guard; D16 (README) waits on the docs lane (section 4) |
+| SPEC 20 acceptance | 13 Met, 5 Partly met, 0 Not met (section 2) |
+| Partly met items | 9 (60 fps not shown in the Tauri window), 10 (real Pi), 12 (real Pi), 15 (look-dev gaps), 16 (README findings guarded by review) |
+| Defects | D1 to D18 closed: each with a named guard, D16 by the README rewrite and its review (section 4) |
 | Hardware work left for the user | 48 unticked items in `HIL_CHECKLIST.md` (section 5.1) |
-| Decisions recorded | 126 ADRs, ADR-0001 to ADR-0126, contiguous (section 6) |
+| Decisions recorded | 131 ADRs, ADR-0001 to ADR-0131, contiguous (section 6) |
 
 Test suites, re-run at `20b9ab8` for this report (commands and output in the appendix):
 
@@ -153,9 +152,16 @@ flows that run on a mock Pi, or on a real one when `PI_HOST` is set (ADR-0120 to
 Vitest 2321 passed, 2 skipped; e2e 101 passed, 2 skipped; `HIL_CHECKLIST.md` lists everything that
 needs the Pi or the user's hands.
 
-**M12 Polish and acceptance.** In progress at the base commit. The frame-rate lane works on the
-main-thread levers listed in ADR-0082; the docs lane rewrites the README (closing D16) and writes
-`docs/ARCHITECTURE.md`; this report is the third item. [[INTEGRATOR: update after the M12 lanes]]
+**M12 Polish and acceptance.** The frame-rate lane found that dragging a board rebuilt every part's
+lead tubes on each pointer move (75 new GPU buffers a frame on the heaviest scene, then 0), kept them
+through a rigid move, left leads and pieces under 4 mm out of the shadow map, drew the bloom only
+while something passes its threshold, and shared the strip index across a drag (ADR-0127 to
+ADR-0131). The docs lane rewrote the README through the `readme` skill, with two accuracy passes
+and every number sourced, and wrote `docs/ARCHITECTURE.md` with a Mermaid diagram. The docs lane's
+end-to-end description surfaced a Board Sense bug the tests could not see: `ws.rs` dropped a sweep
+that repeated the last, while the reconciler believes a change only when the next sweep repeats it,
+so on a real Pi a change would stay "settling" (fixed in `80f8595`; every sweep is forwarded). A
+Labels e2e (`e2e/labels.spec.ts`) closed item 8's gap. Final acceptance run: appendix.
 
 ## 2. SPEC 20 acceptance, item by item
 
@@ -164,19 +170,19 @@ main-thread levers listed in ADR-0082; the docs lane rewrites the README (closin
 | 1 | Every lead end is in a real hole or on a real header pin | Met | Bench seating of the T-board is the user's to confirm |
 | 2 | Geometry and constants cited and tested | Met | A few assumptions recorded (below) |
 | 3 | Every tutorial: ERC, assertions, wiring text, code pins | Met | 26 tutorials; the LCD1602 is withheld |
-| 4 | D1 to D18 each guarded | Partly met | D16 (README) waits on the docs lane |
+| 4 | D1 to D18 each guarded | Met | D16 is closed by review, as the item allows |
 | 5 | Assistant ghosts before input completes; fuzzed | Met | Ghosts not watched on a live stream in the Tauri window |
 | 6 | Parking-sensor eval ends ERC-clean | Met | Replay is a recording, not a new model call |
 | 7 | Undo of an assistant turn is deep-equal | Met | |
-| 8 | Hover in one frame; Labels, Voltages, Current | Partly met | Labels has no automated test |
-| 9 | WebGPU in the Tauri window, 60 fps, idle zero | Partly met | 60 fps not shown on the heaviest scenes [[INTEGRATOR: update after the M12 lanes]] |
+| 8 | Hover in one frame; Labels, Voltages, Current | Met | Run in Chromium, not WKWebView |
+| 9 | WebGPU in the Tauri window, 60 fps, idle zero | Partly met | 60 fps not shown in the Tauri window since the M12 changes (session locked) |
 | 10 | Run on Pi works; ERC gates it | Partly met | Never run on a real Pi |
 | 11 | Secrets and safety | Met | The Settings key field not used with a real key in the real window |
 | 12 | Baseline suites green; features keep working | Partly met | Features proven against local sshd and mocks only |
 | 13 | Cables physical in real time | Met | Tauri measurement is from M8 |
-| 14 | Assets reproducible | Met | Clean rebuild last run at M7's exit |
+| 14 | Assets reproducible | Met | |
 | 15 | Look fidelity (LOOKDEV.md) | Partly met | Two rows pass on data only; side-by-sides not committed |
-| 16 | Correctness audit complete | Partly met | README findings are review-guarded [[INTEGRATOR: update after the M12 lanes]] |
+| 16 | Correctness audit complete | Partly met | README findings are guarded by review, not by tests |
 | 17 | Wiring convention | Met | |
 | 18 | Board Sense | Met | Real-Pi behaviour is the user's to run |
 
@@ -261,9 +267,10 @@ Its draft is on the local branch `held/lcd1602-tutorial`.
 
 ### Item 4. D1 to D18 each have a passing regression test or a verified fix (D16)
 
-**Status: Partly met.** 17 of 18 have a named guard that passes today. D16 is the README. The
-interim README replaced the false claims at M4; the full rewrite and its review belong to the docs
-lane. [[INTEGRATOR: update after the M12 lanes]] Section 4 lists each defect and its guard.
+**Status: Met.** 17 of 18 have a named guard that passes today. D16 is the README, the "verified fix"
+the item allows: the M12 rewrite through the `readme` skill, with two accuracy passes against the
+code, every number tied to the command or file that gives it, and `AUDIT.md`'s D16 row and README
+rows closed against it. Section 4 lists each defect and its guard.
 
 ### Item 5. The assistant builds with visible incremental ghosts and never commits an invalid op
 
@@ -322,26 +329,26 @@ and `undo-all` (two turns) restores the document after turn 1 when turn 2 is und
 
 ### Item 8. Hover highlights strip and net within one frame; Labels, Voltages and Current work in Simulate
 
-**Status: Partly met.**
+**Status: Met.**
 
-Evidence (re-run today in headless Chromium with WebGPU): `studio.spec.ts` "hovering a hole
+Evidence (headless Chromium with WebGPU): `studio.spec.ts` "hovering a hole
 highlights its strip and every wire end on its net within one frame" asserts the first frame drawn
 after the pointer event already carries the highlight. `sim.spec.ts` turns Voltages and Current on,
 presses Simulate, and asserts the LED lens lights, dashes run from 3V3 toward GPIO17 on both leads,
 and the 3V3 net reads "3V3 3.30 V". Pressing a switch in 3D, the Nets list and the warning halos
 have their own e2e tests.
 
-Gap: the **Labels** toggle (`studio/labels.ts`, `panels/Inspect.tsx`) has no automated test, and
-none of the e2e or look-dev captures is documented as having it on. It is untested rather than
-known broken.
+Labels: `e2e/labels.spec.ts` (added in M12) turns the Inspect toggle on, finds the LED's "Anode (+)"
+and "Cathode (−)" and the T-board's "GPIO17", keeps them through Simulate, and finds none once the
+toggle is off; it also asserts none show before the toggle, so it cannot pass trivially.
 
 Assumed or unverified: all of this ran in Chromium, not WKWebView.
 
 ### Item 9. WebGPURenderer in the Tauri window, 60 fps, zero frames when static
 
-**Status: Partly met.** [[INTEGRATOR: update after the M12 lanes]]
+**Status: Partly met.** 60 fps on the heaviest scenes was not demonstrated in the Tauri window.
 
-What the repository shows today:
+What the repository shows:
 - Backend shown in the overlay: the dev overlay has a "renderer" row; `studio.spec.ts` "the dev
   overlay shows the renderer backend" passes (it read "WebGPU" today, in Chromium).
 - WebGPU on the Mac: `BASELINE.md` recorded `navigator.gpu` and an adapter in the Tauri window (dev
@@ -359,11 +366,21 @@ What the repository shows today:
   quarter of the pixels, AO off or bloom off moved fps within noise); the main thread's per-object
   cost in three's render path is. Levers not yet pulled when M8 closed: per-frame buffer churn,
   shadow casters (leads and small parts), a render bundle for the static boards, bloom off while
-  nothing glows. The M12 frame-rate lane works on these.
+  nothing glows.
+- **M12 (ADR-0127 to ADR-0131), measured in headless Chromium on WebGPU** because the Mac session was
+  locked: a board drag had rebuilt every part's lead tubes on each pointer move (GPU buffers created
+  per frame 75, 13 and 73 on the three heavy scenes, now 0). With the tubes kept, fewer shadow
+  casters, the bloom drawn only while something glows (GPU pass sum about 44 to 10 ms in headless;
+  ADR-0082 put bloom at 4.3 to 4.8 ms of the Tauri frame), and the strip index shared, frame plus
+  pointer handler fell from 8.4 to 4.5 ms (four-digit), 6.1 to 4.2 (dot matrix) and 6.9 to 3.2
+  (shift register). Unthrottled, all three hold the 60 Hz cap; with the main thread slowed 2x, a
+  stand-in for the slower webview, 52.6, 54.3 and 57.3 fps. A render bundle was tried and dropped:
+  three 0.186 throws on it every frame (ADR-0131). The look is unchanged (pixel differences at the
+  noise floor).
 
-Assumed or unverified: a quiet-machine measurement in the Tauri window. The Mac session was locked
-during M10, which hides the WKWebView, and the M12 frame-rate lane brief still plans for headless
-WebGPU if it stays locked, so later frame-rate work may be measured only there.
+Assumed or unverified: the frame rate in the Tauri window after the M12 changes. The Mac session was
+locked from M10 on, which hides the WKWebView, so the M12 numbers are headless. `HIL_CHECKLIST.md`
+("Studio frame rate in the app window") gives the steps and the overlay readings to take.
 
 ### Item 10. Run on Pi works for projects and tutorials; ERC errors block it unless overridden
 
@@ -452,7 +469,7 @@ Chromium only. How the cables feel under the user's hand is theirs to judge.
 
 ### Item 14. The assets are reproducible
 
-**Status: Met.** The clean-rebuild leg was last run at M7's exit.
+**Status: Met.** The final acceptance run rebuilt every asset from scratch (appendix).
 
 Evidence:
 - `npm run assets:build` regenerates every GLB headlessly from committed scripts
@@ -495,7 +512,7 @@ Gaps:
 
 ### Item 16. Correctness audit
 
-**Status: Partly met.** [[INTEGRATOR: update after the M12 lanes]]
+**Status: Partly met.** The README findings are closed against the M12 rewrite but guarded by review, not by tests.
 
 Evidence:
 - `AUDIT.md` has 242 finding rows (sections for the 26 rebuilt tutorials, the pins, depictions,
@@ -567,15 +584,15 @@ for fixture 8 (PNP bases behind 1 kΩ on the 4-Digit 7-Segment) is open until a 
 | Run on Pi, SSH, tunnel, agent | cargo 94 and 19 live tests on a loopback sshd; 58 agent tests | The real Pi: install, libgpiod binding, `pinctrl set` as the user, Stop returning pins | HIL "Pi agent", "Run on Pi" |
 | Board Sense | 52 fake-gpiod tests; core reconciliation and ranking; mock-agent e2e | The real board, real pulls, the eight fixtures; presence not built | HIL fixtures |
 | Hardware twin and checkpoints | `hardware.spec.ts` (20 tests) against a mock Pi; read-only real-Pi flows exist but skip without `PI_HOST` | Everything under HIL "Hardware twin" | HIL |
-| 3D Studio | 103 e2e tests in headless Chromium with WebGPU; 101 passed at the M11 exit; 10 re-run today | The Tauri window for the M10 and M11 visuals (session locked) | Section 5.2 |
+| 3D Studio | 105 e2e tests in headless Chromium with WebGPU; 102 passed and 3 opt-in or real-Pi skipped in the final run | The Tauri window for the M10 and M11 visuals (session locked) | Section 5.2 |
 | Physics | 48 Vitest tests, 8 e2e flows; Tauri window at M8 | Tauri window after M8; the feel of a drag | Section 5.2 |
-| Frame rate | Tauri-window medians 55.3, 57.6, 55.9 fps on three heavy scenes under load | 60 fps on the heaviest scenes on a quiet machine | M12 frame-rate lane [[INTEGRATOR: update after the M12 lanes]] |
-| Assets | `assets:check` today (469 checks); `--rebuild` at M7's exit (556 checks) | A fresh rebuild now | Integrator |
+| Frame rate | Tauri window at M8: medians 55.3, 57.6, 55.9 fps under load; M12 in headless WebGPU: 60 fps unthrottled, 52.6 to 57.3 fps with the main thread slowed 2x | 60 fps in the Tauri window after the M12 changes | Section 5.2 |
+| Assets | `assets:check -- --rebuild` in the final run: every geometry hash exact, every texture SSIM 1.0000 (556 checks) | | |
 | Assistant | Replay today (158 of 161 checks); live recording 2026-10-24; Rust proxy live test passed twice in the evals lane | A fresh live run; the `web_search` path (it has never run); the Settings key flow in the real window | Section 5.3 |
 | Secrets | Rust and Vitest tests; history scan | The real Settings-to-Keychain flow with a real key | Section 5.3 |
 | Look | Tauri-window captures at M7; the lane's reading of both images | The user's own eye; the final render path | Section 5.2 |
 | macOS bundle | `npm run build` produced the .app and .dmg at each milestone exit | The production bundle was launched and read at M1's exit only | Section 5.2 |
-| README and ARCHITECTURE | Interim README (73 lines) lists only what existed at M4 | Rewrite pending [[INTEGRATOR: update after the M12 lanes]] | Docs lane |
+| README and ARCHITECTURE | M12 rewrite with two accuracy passes and every number sourced; `docs/ARCHITECTURE.md` with a Mermaid diagram that renders | README prose is guarded by review, not tests | Section 4 |
 
 ## 4. Defects D1 to D18
 
@@ -599,7 +616,7 @@ suite all green).
 | D13 | Curriculum drifted from the kit | Fixed: the kit's 17 projects first, extras tagged | "D13" |
 | D14 | Single-turn OpenRouter assistant, tutorial-only runs, no undo | Fixed: OpenRouter removed; project-level ERC-gated runs; the assistant commits every change as one undoable group | `anthropic::tests`; `state/runStore.test.ts`; `scripts/assistant-evals/replay.test.ts` (`undo-all`); `assistant/customTurn.test.ts`; e2e "builds a blinking LED from an empty project" |
 | D15 | No netlist or connectivity model | Fixed | `core/regressions.test.ts` "D15"; `core/netlist/*.test.ts` |
-| D16 | README overclaimed ("photo-realistic breadboard", "63-row", "18-project kit curriculum") | The interim README (M4) states only what existed then; it now understates the product. The full rewrite is the docs lane's. [[INTEGRATOR: update after the M12 lanes]] | Review (SPEC 18); 27 README rows in `AUDIT.md` |
+| D16 | README overclaimed ("photo-realistic breadboard", "63-row", "18-project kit curriculum") | Fixed: the M12 README states only what exists, each number sourced; the interim README had removed the false claims at M4 | Review (SPEC 18) at the M12 rewrite; 27 README rows in `AUDIT.md` |
 | D17 | A fixed 120 s run deadline closed the output while the script ran on | Fixed: no deadline unless set; a limit kills the remote process | `commands::tests::a_run_has_no_time_limit_unless_one_is_set`; live `a_run_that_hits_its_time_limit_is_killed_on_the_remote` |
 | D18 | Agent bound to loopback while the app dialled the Pi's address | Fixed: SSH direct-tcpip tunnel | live `the_agent_socket_runs_through_the_ssh_tunnel_to_a_loopback_only_server` |
 
@@ -637,8 +654,8 @@ Safety notes from the docs:
 The Mac session was locked during the M10 lane (`PROGRESS.md`), which hides the WKWebView, and the
 M12 lane brief still allows for it. These were not looked at in the Tauri window and were checked in
 headless WebGPU instead:
-- The final frame rate on the heaviest tutorial scenes, on a quiet machine, with physics awake
-  (item 9). [[INTEGRATOR: update after the M12 lanes]]
+- The frame rate on the heaviest tutorial scenes after the M12 changes, on a quiet machine, with
+  physics awake (item 9; the "Studio frame rate in the app window" section of `HIL_CHECKLIST.md`).
 - Build Mode visuals: DOM pulsing rings, camera framing (at most 600 ms), the optional depth of
   field, the step ghost.
 - The hardware twin's visuals: painted header pins and T-board strips, divergence badges and their
@@ -671,8 +688,9 @@ headless WebGPU instead:
 From `PROGRESS.md`, `DECISIONS.md` and `AUDIT.md`:
 - **LCD1602 tutorial** waits for an I2C level-shifter part (the kit has none). The draft is on the
   local branch `held/lcd1602-tutorial`, not pushed.
-- **Docs lane** (D16, `docs/ARCHITECTURE.md`) and **frame-rate lane** (item 9).
-  [[INTEGRATOR: update after the M12 lanes]]
+- **Part Library re-renders** on every drag preview (about 0.8 to 1.2 ms a frame in React's development
+  build), and the engine's preview netlist and the document check cost about 1 ms per pointer move
+  (ADR-0131): the next main-thread savings for item 9.
 - **Per-pin currents** are not in the simulator's snapshot, so `studio/flow.ts` carries copies of
   `circuit.ts` formulas (ADR-0052); move them into core and delete the copies.
 - **`ASSUMED_HEIGHTS_MM.modulePin`** (10 mm) in `core/reach` against the model pin heights.
@@ -694,7 +712,7 @@ From `PROGRESS.md`, `DECISIONS.md` and `AUDIT.md`:
 
 ## 6. ADR index
 
-126 ADRs in `DECISIONS.md`, ADR-0001 to ADR-0126 with no gaps. ADR-0105 supersedes
+131 ADRs in `DECISIONS.md`, ADR-0001 to ADR-0131 with no gaps. ADR-0105 supersedes
 the strictness decision of ADR-0084 and the fallback of ADR-0085. The list below was produced by a
 script that reads the `## ADR-NNNN` headings of `DECISIONS.md`; its line count was compared with the
 heading count.
@@ -825,6 +843,11 @@ heading count.
 - ADR-0124 A checkpoint hangs on the first step that completes what it checks
 - ADR-0125 How a checkpoint runs: one click, and what it touches
 - ADR-0126 One set of hardware-in-the-loop flows, on a mock Pi or a real one
+- ADR-0127 A part's lead tubes are kept while its board moves
+- ADR-0128 Part leads and pieces under 4 mm do not cast shadows
+- ADR-0129 The bloom is drawn only while something passes its threshold
+- ADR-0130 The strip index is shared across a drag, and live pins repaint only when one is painted
+- ADR-0131 Render bundles are not used, and where the frame goes now
 
 ## 7. Commands
 
@@ -890,7 +913,28 @@ So the repository records no use of the Blender MCP server. It cannot show what 
 sessions of the individual lanes did with their own tools, only that nothing the build depends on
 came from one.
 
-## Appendix: numbers re-checked for this report
+## Appendix: the final acceptance run
+
+Run at `21d1081` on `v2-breadboard-studio`, from 17:17 EDT on 2026-10-24, after `npm ci`, at load
+average about 6.4. Every step exited 0.
+
+| Step | Command | Result |
+|---|---|---|
+| Rust | `cd src-tauri && cargo test` | 94 passed, 20 ignored |
+| Live sshd | `cd src-tauri && bash live-tests.sh` | 19 passed |
+| Node bridge + Vitest | `npm test` | node 7/7; Vitest 2321 passed, 2 skipped (FULL_PROBE opt-in), 113 files + 1 skipped |
+| Pi agent | `cd pi-agent && python3 -B -m unittest` | 58 tests OK |
+| Lint | `npm run lint` | 0 errors, 35 warnings (baseline `.js`/`.jsx` files) |
+| Typecheck | `npm run typecheck` | clean |
+| e2e | `E2E_PORT=5199 npm run e2e` | 102 passed, 3 skipped (FRAME_RATE opt-in; two real-Pi flows, PI_HOST unset) |
+| Evals replay | `npm run evals` | 12 prompts, scores as recorded in `EVALS.md` |
+| Assets | `BLENDER_BIN=… npm run assets:check -- --rebuild` | passed: every geometry hash exact, every baked texture SSIM 1.0000 (556 checks) |
+| macOS bundle | `npm run build` | `GPIO Dashboard.app` and `GPIO Dashboard_1.0.0_aarch64.dmg` (19.45 MiB) |
+
+Not run in this pass: anything that needs the Pi (`PI_HOST` unset), the Tauri window (session
+locked), or a live API call.
+
+## Appendix: numbers re-checked while drafting (at `20b9ab8`)
 
 All run on 2026-10-24 (EDT) in a worktree at `20b9ab8`, after `npm ci`, on a machine with load
 average about 7.6 from other lanes.
