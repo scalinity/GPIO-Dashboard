@@ -559,12 +559,15 @@ export class StudioView {
       }),
       // Build Mode: the step in hand changes what is drawn, where the camera looks, and the marks.
       useBuild.subscribe((now, before) => {
+        // A selection or a tool left from editing means nothing on a bench shown as built so far.
+        if (now.on && !before.on) useStudio.setState({ selection: null, tool: 'select' })
         if (now.scene !== before.scene) {
           this.refreshHover()
           this.draw()
         } else if (now.status !== before.status) this.syncMarks()
         if (now.frameSeq !== before.frameSeq) this.frameBuild()
-        if (now.on !== before.on || now.blur !== before.blur) this.syncFocus()
+        if (now.on !== before.on || now.blur !== before.blur || now.scene !== before.scene)
+          this.syncFocus()
       }),
       // A model, texture or the parts index arriving draws what was waiting on it.
       onArrival(() => this.draw())
@@ -1172,10 +1175,13 @@ export class StudioView {
     this.invalidate()
   }
 
-  /** Depth of field follows the camera's target while Build Mode asks for it; otherwise it is off. */
+  /**
+   * Depth of field follows the camera's target while Build Mode asks for it and a step has one;
+   * the finished bench has no target, and blurring all of it would show nothing.
+   */
   private syncFocus(): void {
-    const { on, blur } = useBuild.getState()
-    this.focusing = on && blur
+    const { on, blur, scene } = useBuild.getState()
+    this.focusing = on && blur && !!scene && (scene.tboard || scene.marks.length > 0)
     if (!this.focusing) this.post?.setFocus(null)
     this.invalidate()
   }

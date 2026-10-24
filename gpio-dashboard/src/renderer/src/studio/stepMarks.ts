@@ -7,6 +7,9 @@ import { type PerspectiveCamera, Vector3 } from 'three/webgpu'
 /** The ring's colour says how the step stands: to do, confirmed, or done differently. */
 export type Tone = 'step' | 'cause'
 
+/** The tone's class, written out so the stylesheet's scan finds it. */
+const TONE_CLASS: Record<Tone, string> = { step: 'step-mark-step', cause: 'step-mark-cause' }
+
 export interface Mark {
   at: Vector3
   tone: Tone
@@ -27,10 +30,12 @@ export class StepMarks {
     this.container.replaceChildren()
     this.marks = marks.map((mark) => {
       const el = document.createElement('div')
-      el.className = 'absolute left-0 top-0'
+      el.className = `absolute left-0 top-0 ${TONE_CLASS[mark.tone]}`
       const ring = document.createElement('span')
-      ring.className = `step-mark step-mark-${mark.tone}`
-      el.append(ring)
+      ring.className = 'step-mark'
+      const dot = document.createElement('span')
+      dot.className = 'step-mark-dot'
+      el.append(ring, dot)
       this.container.append(el)
       return { mark, el }
     })

@@ -154,20 +154,23 @@ export default function BuildPanel() {
             Next
             <ChevronRight className="ml-0.5 inline h-3.5 w-3.5" />
           </button>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-gray-300">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={blur} onChange={(e) => setBlur(e.target.checked)} />
+            Blur what is not the step
+          </label>
           <button
-            className="btn-ghost ml-auto px-2 py-1 text-xs"
+            className="btn-ghost ml-auto whitespace-nowrap px-2 py-1 text-xs"
             title="Frame this step again"
+            disabled={finished}
             onClick={showAgain}
           >
             <Crosshair className="mr-1 inline h-3.5 w-3.5" />
             Show me
           </button>
         </div>
-
-        <label className="flex items-center gap-2 text-xs text-gray-300">
-          <input type="checkbox" checked={blur} onChange={(e) => setBlur(e.target.checked)} />
-          Blur what is not the step
-        </label>
 
         <ol aria-label="Steps" className="space-y-0.5 text-xs">
           {steps.map((s, i) => (

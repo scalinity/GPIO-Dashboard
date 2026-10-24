@@ -68,7 +68,10 @@ const studioCables = (page: Page) => studio(page, (s) => s.cablesReport())
 
 const done = (page: Page) => page.getByRole('button', { name: 'Done', exact: true })
 
-/** The step in hand is framed within 600 ms, ghosted, and its holes are on screen and ringed. */
+/**
+ * The step in hand is framed within 600 ms, ghosted, and its holes are on screen and ringed.
+ * Returns how long the camera took.
+ */
 async function expectStepShown(page: Page, i: number, step: StepInfo) {
   await expect.poll(async () => (await build(page)).framingMs, { timeout: 5000 }).not.toBeNull()
   const shown = await build(page)
@@ -89,6 +92,7 @@ async function expectStepShown(page: Page, i: number, step: StepInfo) {
     expect(at.y).toBeGreaterThan(canvas.y)
     expect(at.y).toBeLessThan(canvas.y + canvas.height)
   }
+  return shown.framingMs!
 }
 
 test.describe('every tutorial plays through Build Mode', () => {
@@ -123,14 +127,16 @@ test.describe('every tutorial plays through Build Mode', () => {
       await openBuild(page, id)
       const list = await steps(page)
       expect(list.length).toBeGreaterThan(1)
+      let slowest = 0
       for (const [i, step] of list.entries()) {
         await expect(page.getByLabel('Build Mode')).toContainText(`Step ${i + 1} of ${list.length}`)
         await expect(page.getByRole('region', { name: `Step ${i + 1}` })).toContainText(
           step.text.slice(0, 40)
         )
-        await expectStepShown(page, i, step)
+        slowest = Math.max(slowest, await expectStepShown(page, i, step))
         await done(page).click()
       }
+      console.log(`BUILD ${id}: ${list.length} steps, slowest framing ${Math.round(slowest)} ms`)
       // The build is complete: the whole tutorial is drawn, nothing is ghosted, and the circuit
       // itself was never touched.
       await expect(page.getByRole('region', { name: 'Build complete' })).toBeVisible()
