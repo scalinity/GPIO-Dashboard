@@ -144,16 +144,16 @@ Notes carried into M5 (Pyodide shims):
 - The DHT11 counts its power-up wait from its first powered update: start sessions at t = 0.
 - The kit's code is at https://github.com/lafvintech/Basic-Starter-Kit-for-Raspberry-Pi (from its "Download the Code" page); `python/ADCDevice.py` drives the ADS7830 at 0x48 with cmd 0x84.
 
-## M4 correctness audit and verified content — in progress (2026-10-24)
+## M4 correctness audit and verified content — done pending the exit suite (2026-10-24)
 
 | Task | Status | Verified / notes |
 |------|--------|------------------|
-| 4.1 inventory | done in M2 | `content/inventory.json` + test (now checked against `PART_DEFS`) |
-| 4.2 audit | in progress | `docs/v2/AUDIT.md`: one marked section per item (`<!-- section:<id> -->`), findings numbered `<id>-<n>`, plus the D1–D18 register (section `defects`, uncommitted until the subagent sections land). Non-tutorial items (pins.js, depictions, other hard-coded facts, README claims) are with a Sonnet subagent ("audit-facts") |
-| 4.3 tutorials | in progress | Format: `content/tutorials/<id>/{doc.gpiob, tutorial.json, theory.md}`; `core/tutorials/{tutorial,assert,theory,audit}.ts`; `content/tutorials/tutorials.test.ts` runs SPEC 13.1 on each and keeps AUDIT.md's generated tables in step (`UPDATE_AUDIT=1`). Exemplar `blinking-led` (kit 1.1.1, active low) done. Three Sonnet subagents build the other 26: LEDs/displays, actuators/inputs, analog/I2C/sensors |
-| 4.4 steps | done | `core/steps/steps.ts`: SPEC 11.7 order and wording, colour bands (4/5-band by tolerance), wiring table; 13 golden tests |
-| 4.5 retire SVG | done | Breadboard page, SVG renderer, old tutorial cards and `data/tutorials.js` removed (8c6d465); Tutorials page lists verified tutorials with theory, steps, table, code and the existing run path; checked in Chromium. D6–D13 regression tests still to write (`content/tutorials/regressions.test.ts`) once the tutorials land |
-| 4.6 cross-check | written, uncommitted | `src/renderer/src/audit.test.ts`: every baseline tutorial id (frozen list from 52639d9), pins/depictions/facts/readme/defects sections, D1–D18, eight-column rows with source and guard, no open status except D14 (scheduled M5, M8 by SPEC 19) |
+| 4.1 inventory | done in M2 | `content/inventory.json` + test (checked against `PART_DEFS`) |
+| 4.2 audit | done | `docs/v2/AUDIT.md`: a section per tutorial (26 shipped + LCD1602 held back), pins, depictions, other facts, README, and the D1–D18 register. Non-tutorial audit by a Sonnet subagent (81 rows); I closed its six open facts: the Live Monitor dropped output pins (pinctrl drive field), System Info read field names the agent never sends, GPIO cleanup was a no-op (now `pinctrl set <program's pins> ip pn` after Stop, pins 2–27), chip detection by label (gpiochip4→0 since Aug 2024), alternate functions named, temperature colours at the documented throttling points. README: an interim README states only what exists (full rewrite M12) |
+| 4.3 tutorials | done | 26 tutorials by three Sonnet subagents + the exemplar; 13.1 checks green (365 tests incl. the cross-check). **LCD1602 not shipped**: the 5 V backpack's pull-ups put ~3.8 V on GPIO2/3 and the PCF8574's 3.5 V VIH rules out a 3.3 V bus; a safe build needs an I2C level shifter (no part). Its content is kept on local branch `held/lcd1602-tutorial` (not pushed). Notable kit conflicts recorded per tutorial: Active Buzzer and Relay text vs diagram/prints (followed the diagram and the module), Tilt Switch kit diagram grounds ID_SD, Morse kit diagram feeds the buzzer from 3V3 (below the 4 V minimum; used 5V0), Thermistor kit text inverts hot/voltage, Adjustable Fan's table lists seven GPIOs for a three-GPIO circuit |
+| 4.4 steps | done | `core/steps/steps.ts`, 13 golden tests |
+| 4.5 retire SVG | done | Breadboard page, SVG renderer and `data/tutorials.js` removed; Tutorials page shows verified content; `content/tutorials/regressions.test.ts` guards D6–D13 (33 tests) |
+| 4.6 cross-check | done | `src/renderer/src/audit.test.ts` green |
 
 Decisions this milestone: ADR-0015 (collisions are ERC warnings), ADR-0016 (tutorial code is written for this app; the kit's code is GPL-3.0 at lafvintech/Basic-Starter-Kit-for-Raspberry-Pi and this repo has no license, so nothing is copied).
 
