@@ -23,7 +23,7 @@ import { partDef } from '../core/defs/parts'
 import type { CircuitDoc, Endpoint, Wire } from '../core/model/types'
 import { leadReach } from '../core/reach/reach'
 import { type CableIn, type CableState, corePose, fromCore, type Placement, toCore } from './cables'
-import { endpointInScene } from './coords'
+import { defOf, endpointInScene } from './coords'
 import { ModelInstances } from './instances'
 import { LEAD_DEPTH_MM } from './leads'
 import { modelNow } from './loaders'
@@ -156,7 +156,7 @@ export function leadEnd(doc: CircuitDoc, wire: Wire, end: Endpoint): LeadEnd | n
   const part = 'pin' in end ? doc.parts.find((p) => p.id === end.pin.part) : undefined
   const connector =
     part && 'pin' in end
-      ? partDef(part.defId).pins.find((p) => p.id === end.pin.pin)?.connector
+      ? defOf(doc, part.defId).pins.find((p) => p.id === end.pin.pin)?.connector
       : null
   return { ...place, gender: connector === 'male-pin' ? 'female' : 'male' }
 }

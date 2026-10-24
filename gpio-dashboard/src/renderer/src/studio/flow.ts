@@ -11,7 +11,7 @@ import { headerNetName, PI_HEADER } from '../core/defs/controllers'
 import { stripKey } from '../core/geometry/breadboard'
 import { tboardPinHole } from '../core/geometry/tboard'
 import type { CircuitDoc, Endpoint, HoleRef, PartDef } from '../core/model/types'
-import { netlist, type PartDefs } from '../core/netlist/netlist'
+import { docPartDefs, netlist, type PartDefs } from '../core/netlist/netlist'
 import type { EnvValue } from '../core/sim/behavior'
 import type { Snapshot } from '../core/sim/session'
 import { dieEnds } from './dies'
@@ -143,7 +143,7 @@ export function wireCurrents(
     if (first === undefined) supply.set(name, pin)
     else rigid.union(`hdr:${first}`, `hdr:${pin}`)
   }
-  const parts = doc.parts.map((part) => ({ part, def: defs(part.defId) }))
+  const parts = doc.parts.map((part) => ({ part, def: docPartDefs(doc, defs)(part.defId) }))
   for (const { part, def } of parts) {
     for (const pin of def.pins) {
       const hole = part.placement.pins[pin.id]

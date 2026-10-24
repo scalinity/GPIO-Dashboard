@@ -15,9 +15,13 @@ import type {
   Transform2D,
   Vec2
 } from '../core/model/types'
+import { docPartDefs } from '../core/netlist/netlist'
 import { ASSUMED_HEIGHTS_MM, toTable } from '../core/reach/reach'
 
 const up = new Vector3(0, 1, 0)
+
+/** A part's definition in `doc`: the library's, or one of the project's own (SPEC 7). */
+export const defOf = (doc: CircuitDoc, defId: string) => docPartDefs(doc, partDef)(defId)
 
 export function toThree([x, y]: Vec2, z: number, target = new Vector3()): Vector3 {
   return target.set(x, z, -y)
@@ -90,10 +94,10 @@ export function moduleModel(defId: string): ModuleModel | undefined {
 }
 
 /** Where a module's pin is in its pose's frame: the model's tip, or the definition's layout. */
-function modulePinLocal(part: PartInstance, pin: string): ModulePinFrame | null {
+function modulePinLocal(doc: CircuitDoc, part: PartInstance, pin: string): ModulePinFrame | null {
   const known = modules.get(part.defId)?.pins[pin]
   if (known) return known
-  const offset = partDef(part.defId).pins.find((p) => p.id === pin)?.offsetPitch
+  const offset = defOf(doc, part.defId).pins.find((p) => p.id === pin)?.offsetPitch
   if (!offset) return null
   return {
     at: toThree([offset[0] * 2.54, offset[1] * 2.54], ASSUMED_HEIGHTS_MM.modulePin),
@@ -102,9 +106,9 @@ function modulePinLocal(part: PartInstance, pin: string): ModulePinFrame | null 
 }
 
 /** Where an off-board module's connector pin is in the scene, or null if it isn't on the table. */
-export function modulePinInScene(part: PartInstance, pin: string): Vector3 | null {
+export function modulePinInScene(doc: CircuitDoc, part: PartInstance, pin: string): Vector3 | null {
   const pose = part.placement.offboardPose
-  const local = pose && modulePinLocal(part, pin)
+  const local = pose && modulePinLocal(doc, part, pin)
   return local ? local.at.clone().applyMatrix4(poseMatrix(pose, 0)) : null
 }
 
@@ -127,7 +131,7 @@ export function endpointInScene(
   }
   const part = doc.parts.find((p) => p.id === end.pin.part)
   const pose = part?.placement.offboardPose
-  const local = pose && modulePinLocal(part, end.pin.pin)
+  const local = pose && modulePinLocal(doc, part, end.pin.pin)
   if (!local) return null
   const turn = (pose.rotationDeg * Math.PI) / 180
   return {

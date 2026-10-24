@@ -59,7 +59,7 @@ export function netAnchor(
     const part = doc.parts.find((p) => p.id === m.part)
     const hole = part?.placement.pins[m.pin]
     const board = hole && doc.boards.find((b) => b.id === hole.board)
-    const at = board ? holeInScene(board, hole) : part && modulePinInScene(part, m.pin)
+    const at = board ? holeInScene(board, hole) : part && modulePinInScene(doc, part, m.pin)
     if (at) return at
   }
   for (const m of net.members) {

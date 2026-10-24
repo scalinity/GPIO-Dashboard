@@ -3,7 +3,8 @@
 import { Radar } from 'lucide-react'
 import { partDef } from '../core/defs/parts'
 import type { CircuitDoc, PartInstance } from '../core/model/types'
-import { netlist } from '../core/netlist/netlist'
+import { docPartDefs, netlist } from '../core/netlist/netlist'
+import { circuit } from '../state/circuit'
 import type { GpioState } from '../core/sim/circuit'
 import { USER_GPIOS, useWorkbench } from '../state/workbenchStore'
 import { INPUT_PROPS } from './inputs'
@@ -91,7 +92,7 @@ function GpioControl({ bcm }: { bcm: number }) {
 }
 
 function PartInputs({ part }: { part: PartInstance }) {
-  const def = partDef(part.defId)
+  const def = docPartDefs(circuit.getSnapshot(), partDef)(part.defId)
   const env = useWorkbench((s) => s.env[part.id])
   const setInput = useWorkbench((s) => s.setInput)
   const keys = Object.entries(def.properties).filter(([key]) => INPUT_PROPS.has(key))

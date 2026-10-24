@@ -3,11 +3,10 @@
 // end on its net, from the same geometry and netlist the rest of the app uses.
 import { Plane, type Ray, Vector3 } from 'three/webgpu'
 import { boardDef } from '../core/defs/boards'
-import { partDef } from '../core/defs/parts'
 import { boardHoles, nearestHole, railHoleRow, stripKey } from '../core/geometry/breadboard'
 import type { CircuitDoc, HoleRef } from '../core/model/types'
 import type { Netlist } from '../core/netlist/netlist'
-import { modulePinInScene } from './coords'
+import { defOf, modulePinInScene } from './coords'
 
 const plane = new Plane(new Vector3(0, 1, 0), 0)
 const hit = new Vector3()
@@ -73,8 +72,8 @@ export function pickModulePin(doc: CircuitDoc, ray: Ray): { part: string; pin: s
   let best: { part: string; pin: string; distance: number } | null = null
   for (const part of doc.parts) {
     if (!part.placement.offboardPose) continue
-    for (const pin of partDef(part.defId).pins) {
-      const at = modulePinInScene(part, pin.id)
+    for (const pin of defOf(doc, part.defId).pins) {
+      const at = modulePinInScene(doc, part, pin.id)
       if (!at || ray.distanceSqToPoint(at) > PIN_REACH_MM ** 2) continue
       const distance = ray.origin.distanceTo(at)
       if (!best || distance < best.distance) best = { part: part.id, pin: pin.id, distance }

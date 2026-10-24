@@ -4,6 +4,7 @@
 import { boardDef } from '../core/defs/boards'
 import { TBOARD } from '../core/defs/controllers'
 import { partDef } from '../core/defs/parts'
+import { defOf } from './coords'
 import { holeKey, holePosition, nearestHole, stripKey } from '../core/geometry/breadboard'
 import { tboardBlockedHoles } from '../core/geometry/tboard'
 import type {
@@ -109,7 +110,7 @@ export const seated = (pins: Record<string, HoleRef | null>) =>
 
 /** Each placed pin's offset from pin 1, in mm in the board's frame. */
 function vectorsOf(doc: CircuitDoc, part: PartInstance): Record<string, Vec2> | null {
-  const def = partDef(part.defId)
+  const def = defOf(doc, part.defId)
   const first = part.placement.pins[def.pins[0]!.id]
   if (!first) return null
   const [x, y] = at(doc, first)
@@ -133,7 +134,7 @@ export function newPart(
   defId: string,
   where: { anchor: HoleRef; rotation: Rotation } | { pose: Transform2D }
 ): PartInstance {
-  const def = partDef(defId)
+  const def = defOf(doc, defId)
   const id = nextId(
     doc.parts.map((p) => p.id),
     PREFIX[def.sim.model] ?? 'U'
@@ -173,7 +174,7 @@ export function turnedPart(doc: CircuitDoc, part: PartInstance, by: 90 | -90): P
     const offboardPose = { ...pose, rotationDeg: turned(pose.rotationDeg, by) }
     return { ...part, placement: { ...part.placement, offboardPose } }
   }
-  const def = partDef(part.defId)
+  const def = defOf(doc, part.defId)
   const vectors = vectorsOf(doc, part)
   const anchor = part.placement.pins[def.pins[0]!.id]
   if (!vectors || !anchor) return part
@@ -228,7 +229,7 @@ export function newWire(doc: CircuitDoc, a: Endpoint, b: Endpoint): Wire {
   const onMalePin = [a, b].some((e) => {
     if (!('pin' in e)) return false
     const part = doc.parts.find((p) => p.id === e.pin.part)
-    const pin = part && partDef(part.defId).pins.find((p) => p.id === e.pin.pin)
+    const pin = part && defOf(doc, part.defId).pins.find((p) => p.id === e.pin.pin)
     return pin?.connector === 'male-pin'
   })
   return {

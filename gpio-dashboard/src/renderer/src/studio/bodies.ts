@@ -5,14 +5,13 @@ import piBoardJson from '../content/controllers/pi5-board.json'
 import { Box3, Matrix4, Quaternion, type Ray, Vector3 } from 'three/webgpu'
 import { boardDef } from '../core/defs/boards'
 import { TBOARD, type Rect } from '../core/defs/controllers'
-import { partDef } from '../core/defs/parts'
 import { holePosition } from '../core/geometry/breadboard'
 import { tboardOutline } from '../core/geometry/tboard'
 import type { CircuitDoc, PartInstance, Transform2D, Vec2 } from '../core/model/types'
 import { ASSUMED_HEIGHTS_MM, toTable } from '../core/reach/reach'
 import type { Selection } from '../state/studioStore'
 import { PI_HEIGHT_MM } from './camera'
-import { moduleModel, toThree } from './coords'
+import { defOf, moduleModel, toThree } from './coords'
 
 const PITCH_MM = 2.54
 const up = new Vector3(0, 1, 0)
@@ -34,7 +33,7 @@ function box(t: Transform2D, r: Rect, z0: number, z1: number): Matrix4 {
  * model is once that has loaded.
  */
 function partBox(doc: CircuitDoc, part: PartInstance): Matrix4 | null {
-  const def = partDef(part.defId)
+  const def = defOf(doc, part.defId)
   const pose = part.placement.offboardPose
   const model = pose && moduleModel(part.defId)
   if (model) return box(pose, model.rect, 0, model.top)

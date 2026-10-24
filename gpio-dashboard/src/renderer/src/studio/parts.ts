@@ -16,13 +16,12 @@ import {
 } from 'three/webgpu'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { boardDef } from '../core/defs/boards'
-import { partDef } from '../core/defs/parts'
 import { holePosition } from '../core/geometry/breadboard'
 import type { CircuitDoc, HoleRef, PartDef, PartInstance } from '../core/model/types'
 import { toTable } from '../core/reach/reach'
 import { resistorBands } from '../core/steps/steps'
 import type { Placement } from './cables'
-import { holeInScene, type ModulePinFrame, poseMatrix, setModuleModel } from './coords'
+import { defOf, holeInScene, type ModulePinFrame, poseMatrix, setModuleModel } from './coords'
 import { ModelInstances } from './instances'
 import { bentLeadGeometry, leadDiameterMm, leadPath, RADIAL } from './leads'
 import { modelNow, type PartFile, partIndexNow } from './loaders'
@@ -165,7 +164,7 @@ export class PartLayer {
     const poses = new Map<string, { id: string; pose: Matrix4 }[]>()
     const seen = new Set<string>()
     for (const part of doc.parts) {
-      const def = partDef(part.defId)
+      const def = defOf(doc, part.defId)
       const file = index && fileOf(index, part, def)
       const model = file ? modelNow(file) : null
       if (model === undefined) {
@@ -327,7 +326,7 @@ export class PartLayer {
     const slot = this.slots.get(id)
     const part = this.doc?.parts.find((p) => p.id === id)
     if (!slot || !part) return
-    const values = new Map(valueColors(part, partDef(part.defId)))
+    const values = new Map(valueColors(part, defOf(this.doc!, part.defId)))
     const set = this.handled.get(id)?.color.get(name)
     this.files.get(slot.file)!.color(slot.index, name, set ?? values.get(name) ?? null)
   }
@@ -338,7 +337,7 @@ export class PartLayer {
     const part = this.doc?.parts.find((p) => p.id === id)
     if (!slot || !part) return
     const instances = this.files.get(slot.file)!
-    const values = new Map(valueColors(part, partDef(part.defId)))
+    const values = new Map(valueColors(part, defOf(this.doc!, part.defId)))
     const h = this.handled.get(id)
     for (const name of new Set([...values.keys(), ...(h?.color.keys() ?? [])]))
       instances.color(slot.index, name, h?.color.get(name) ?? values.get(name) ?? null)

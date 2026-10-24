@@ -4,13 +4,12 @@
 import { type PerspectiveCamera, Vector3 } from 'three/webgpu'
 import { boardDef } from '../core/defs/boards'
 import { TBOARD } from '../core/defs/controllers'
-import { partDef } from '../core/defs/parts'
 import { columnY, rowX } from '../core/geometry/breadboard'
 import { tboardPinHole } from '../core/geometry/tboard'
 import type { CircuitDoc } from '../core/model/types'
 import { MAIN_COLUMNS } from '../core/model/types'
 import { toTable } from '../core/reach/reach'
-import { holeInScene, modulePinInScene, toThree } from './coords'
+import { defOf, holeInScene, modulePinInScene, toThree } from './coords'
 
 type Kind = 'pin' | 'tboard' | 'guide' | 'volt' | 'sense' | 'halo'
 
@@ -68,10 +67,10 @@ export function labelsOf(doc: CircuitDoc): Label[] {
     }
   }
   for (const part of doc.parts) {
-    for (const pin of partDef(part.defId).pins) {
+    for (const pin of defOf(doc, part.defId).pins) {
       const hole = part.placement.pins[pin.id]
       const board = hole && doc.boards.find((b) => b.id === hole.board)
-      const at = board ? holeInScene(board, hole) : modulePinInScene(part, pin.id)
+      const at = board ? holeInScene(board, hole) : modulePinInScene(doc, part, pin.id)
       if (at) labels.push({ text: pin.label, at, kind: 'pin' })
     }
   }

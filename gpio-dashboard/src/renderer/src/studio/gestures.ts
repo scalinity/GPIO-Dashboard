@@ -4,7 +4,7 @@
 // circuitStore.check() for the green/red glow and commits it on release.
 import { Plane, type Ray, Vector3 } from 'three/webgpu'
 import { boardDef } from '../core/defs/boards'
-import { partDef } from '../core/defs/parts'
+import { defOf } from './coords'
 import { holePosition, isValidHole } from '../core/geometry/breadboard'
 import { tboardPinHoles } from '../core/geometry/tboard'
 import type {
@@ -90,7 +90,7 @@ export function boardTop(doc: CircuitDoc, id: string): number {
 export function propose(g: Gesture, p: Pointer, doc: CircuitDoc): Proposal | null {
   switch (g.kind) {
     case 'place': {
-      const def = partDef(g.defId)
+      const def = defOf(doc, g.defId)
       if (def.footprint.kind === 'offboard') {
         const at = planePoint(p.ray, 0)
         if (!at) return null
@@ -139,7 +139,7 @@ export function propose(g: Gesture, p: Pointer, doc: CircuitDoc): Proposal | nul
       if (!part || !p.hole) return null
       const placement = { ...part.placement, pins: { ...part.placement.pins, [g.pin]: p.hole } }
       return {
-        label: `Move ${part.id}'s ${partDef(part.defId).pins.find((x) => x.id === g.pin)?.label}`,
+        label: `Move ${part.id}'s ${defOf(doc, part.defId).pins.find((x) => x.id === g.pin)?.label}`,
         ops: [{ type: 'MovePart', id: part.id, placement }],
         holes: [p.hole],
         pins: [],

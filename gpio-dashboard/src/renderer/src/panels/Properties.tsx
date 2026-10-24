@@ -11,6 +11,7 @@ import type {
   Wire
 } from '../core/model/types'
 import { COL_PAIRS } from '../core/model/types'
+import { docPartDefs } from '../core/netlist/netlist'
 import { leadReach } from '../core/reach/reach'
 import { ohmsText, resistorBands } from '../core/steps/steps'
 import { circuit } from '../state/circuit'
@@ -116,7 +117,7 @@ function ResistorValue({
   set: (key: string, v: unknown) => void
 }) {
   const [e24, setE24] = useState(false)
-  const schema = partDef(part.defId).properties.resistance!
+  const schema = docPartDefs(circuit.getSnapshot(), partDef)(part.defId).properties.resistance!
   const ohms = Number(part.props.resistance ?? schema.default)
   const values = series(
     e24 ? E24 : E12,
@@ -274,7 +275,7 @@ function PartIssues({ part }: { part: PartInstance }) {
 }
 
 function PartProps({ part }: { part: PartInstance }) {
-  const def = partDef(part.defId)
+  const def = docPartDefs(circuit.getSnapshot(), partDef)(part.defId)
   const running = useWorkbench((s) => s.codeStatus === 'running')
   const env = useWorkbench((s) => s.env[part.id])
   const setInput = useWorkbench((s) => s.setInput)
