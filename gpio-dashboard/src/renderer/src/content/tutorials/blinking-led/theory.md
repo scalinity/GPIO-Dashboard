@@ -8,7 +8,7 @@ the anode is fed from 3.3 V through the {{part R1}}, and the cathode goes to {{n
 - When it drives {{net D1.K}} **LOW**, the pin sinks current: about (3.3 V − 1.9 V) ÷ {{value R1}},
   a few milliamps. The LED lights.
 
-This is called *active low*: LOW means on. Many circuits wire LEDs this way, so always check
+This is called _active low_: LOW means on. Many circuits wire LEDs this way, so always check
 which way round the LED sits before reading the code.
 
 ## Why the resistor
