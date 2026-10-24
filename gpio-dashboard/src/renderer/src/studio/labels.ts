@@ -12,9 +12,9 @@ import { MAIN_COLUMNS } from '../core/model/types'
 import { toTable } from '../core/reach/reach'
 import { holeInScene, modulePinInScene, toThree } from './coords'
 
-type Kind = 'pin' | 'tboard' | 'guide'
+type Kind = 'pin' | 'tboard' | 'guide' | 'volt' | 'sense' | 'halo'
 
-interface Label {
+export interface Label {
   text: string
   at: Vector3
   kind: Kind
@@ -23,7 +23,20 @@ interface Label {
 const STYLE: Record<Kind, string> = {
   pin: 'bg-surface-900/85 text-amber-200',
   tboard: 'bg-red-950/80 text-gray-100',
-  guide: 'text-gray-400'
+  guide: 'text-gray-400',
+  volt: 'bg-surface-900/85 text-sky-200',
+  sense: 'bg-red-950/85 text-red-200 whitespace-pre',
+  halo: 'bg-amber-950/85 text-amber-200'
+}
+
+/** Where a tag stands against its point: pin tags above it, net tags below it, the rest on it. */
+const SHIFT: Record<Kind, string> = {
+  pin: '-130%',
+  halo: '-130%',
+  volt: '40%',
+  sense: '40%',
+  tboard: '-50%',
+  guide: '-50%'
 }
 
 /** Every label the document shows. */
@@ -83,6 +96,21 @@ export class LabelLayer {
     })
   }
 
+  /** The labels' texts, in order (tests). */
+  texts(): string[] {
+    return this.labels.map(({ el }) => el.textContent ?? '')
+  }
+
+  /** Changes the texts of labels whose places stay (a voltage tag following the simulation). */
+  retext(texts: string[]): void {
+    this.labels.forEach(({ label, el }, i) => {
+      if (label.text !== texts[i]) {
+        label.text = texts[i]!
+        el.textContent = texts[i]!
+      }
+    })
+  }
+
   /** Puts each label over its point as the camera sees it; hidden behind the camera. */
   project(camera: PerspectiveCamera, width: number, height: number): void {
     for (const { label, el } of this.labels) {
@@ -90,7 +118,7 @@ export class LabelLayer {
       el.hidden = this.p.z > 1
       const x = ((this.p.x + 1) / 2) * width
       const y = ((1 - this.p.y) / 2) * height
-      el.style.transform = `translate(${x}px, ${y}px) translate(-50%, ${label.kind === 'pin' ? '-130%' : '-50%'})`
+      el.style.transform = `translate(${x}px, ${y}px) translate(-50%, ${SHIFT[label.kind]})`
     }
   }
 }

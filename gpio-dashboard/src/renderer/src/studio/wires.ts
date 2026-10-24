@@ -11,12 +11,14 @@ import {
   type Group,
   Matrix4,
   Mesh,
+  MeshBasicNodeMaterial,
   MeshStandardNodeMaterial,
   Quaternion,
   type Ray,
   TubeGeometry,
   Vector3
 } from 'three/webgpu'
+import { float, fract, max, mix, step, uniform, uv, vec3 } from 'three/tsl'
 import { partDef } from '../core/defs/parts'
 import type { CircuitDoc, Endpoint, Wire } from '../core/model/types'
 import { endpointInScene } from './coords'
@@ -28,6 +30,34 @@ const RADIUS_MM = dupontJson.wire.outerDiameterMm / 2
 /** Picking treats a lead as a capsule this much fatter than the wire. */
 const PICK_RADIUS_MM = 1.5
 const up = new Vector3(0, 1, 0)
+
+/** Current flow (SPEC 11.5): dashes this far apart travel along a lead at this speed per mA. */
+const DASH_PERIOD_MM = 5
+const DASH_MM_PER_S_PER_MA = 4
+const DASH_MAX_MM_PER_S = 80
+/** Below this a lead shows no flow. */
+const VISIBLE_A = 1e-5
+const OVERLAY_SCALE = 1.3
+const DASH_COLOR = new Color(1, 0.85, 0.35).multiplyScalar(2.5)
+const TINT_ALPHA = 0.55
+
+/** What a lead's overlay shows: the current in it (a to b, amps) and the tint over it, if any. */
+export interface WireFxState {
+  amps: number
+  tint: Color | null
+}
+
+/** A lead's overlay tube: its dashes (a TSL offset along the tube's uv) and its tint. */
+interface Overlay {
+  mesh: Mesh
+  material: MeshBasicNodeMaterial
+  phase: { value: number }
+  flow: { value: number }
+  tint: { value: Color }
+  tintAmount: { value: number }
+  /** Dash periods per second, signed: positive runs from end a to end b. */
+  rate: number
+}
 
 export type Gender = 'male' | 'female'
 
@@ -120,6 +150,10 @@ export class WireLayer {
   readonly housings: Record<Gender, ModelInstances | null> = { male: null, female: null }
   /** Each copy's end, in copy order, for animating and measuring. */
   private placed: Record<Gender, { key: string; end: LeadEnd }[]> = { male: [], female: [] }
+  private fx = new Map<string, WireFxState>()
+  private readonly overlays = new Map<string, Overlay>()
+  /** Each lead's dash phase, kept while its overlay is rebuilt. */
+  private readonly phases = new Map<string, number>()
 
   constructor(private readonly group: Group) {}
 
@@ -146,6 +180,7 @@ export class WireLayer {
       this.draw(wire, a, b, lift)
     }
     for (const id of [...this.drawn.keys()]) if (!seen.has(id)) this.remove(id)
+    this.syncOverlays()
     for (const gender of genders)
       this.housings[gender]?.set(
         this.placed[gender].map(({ key, end }) => housingPose(end, lift(key)))
@@ -155,6 +190,35 @@ export class WireLayer {
   /** Moves the ends being inserted to their current lift, and their wires with them. */
   animate(doc: CircuitDoc, lift: (key: string) => number): void {
     this.update(doc, lift)
+  }
+
+  /** Sets what the leads' overlays show; a lead absent from `fx` shows nothing. */
+  setFx(fx: Map<string, WireFxState>): void {
+    this.fx = fx
+    this.syncOverlays()
+  }
+
+  /** Moves the dashes on by `dt` seconds; whether any lead still has current flowing. */
+  step(dt: number): boolean {
+    let flowing = false
+    for (const [id, o] of this.overlays) {
+      if (!o.rate) continue
+      flowing = true
+      const phase = ((this.phases.get(id) ?? 0) + o.rate * dt) % 1
+      this.phases.set(id, phase)
+      o.phase.value = phase
+    }
+    return flowing
+  }
+
+  /** What each lead's overlay shows (tests): the current and the dashes' speed in mm/s. */
+  flowReport(): Record<string, { amps: number; mmPerS: number }> {
+    return Object.fromEntries(
+      [...this.overlays].map(([id, o]) => [
+        id,
+        { amps: this.fx.get(id)?.amps ?? 0, mmPerS: o.rate * DASH_PERIOD_MM }
+      ])
+    )
   }
 
   /** The polyline a lead is drawn along. */
@@ -200,6 +264,7 @@ export class WireLayer {
   /** Frees the GPU side; the next update draws everything again. */
   dispose(): void {
     for (const id of [...this.drawn.keys()]) this.remove(id)
+    for (const id of [...this.overlays.keys()]) this.removeOverlay(id)
     for (const gender of ['male', 'female'] as const) this.housings[gender]?.dispose()
     this.housings.male = this.housings.female = null
     materials.forEach((m) => m.dispose())
@@ -228,7 +293,64 @@ export class WireLayer {
     return { at: new Vector3(0, along, 0).applyMatrix4(housingPose(end, lift)), dir: end.axis }
   }
 
+  /** Builds, updates and frees the overlay of each drawn lead from `fx`. */
+  private syncOverlays(): void {
+    for (const [id, drawn] of this.drawn) {
+      const state = this.fx.get(id)
+      const flowing = !!state && Math.abs(state.amps) >= VISIBLE_A
+      if (!state || (!flowing && !state.tint)) {
+        this.removeOverlay(id)
+        continue
+      }
+      let o = this.overlays.get(id)
+      if (!o) o = this.addOverlay(id, drawn)
+      o.flow.value = flowing ? 1 : 0
+      o.rate = flowing
+        ? Math.sign(state.amps) *
+          (Math.min(Math.abs(state.amps) * 1000 * DASH_MM_PER_S_PER_MA, DASH_MAX_MM_PER_S) /
+            DASH_PERIOD_MM)
+        : 0
+      o.tintAmount.value = state.tint ? TINT_ALPHA : 0
+      if (state.tint) o.tint.value.copy(state.tint)
+    }
+    for (const id of [...this.overlays.keys()]) if (!this.drawn.has(id)) this.removeOverlay(id)
+  }
+
+  private addOverlay(id: string, drawn: Drawn): Overlay {
+    const phase = uniform(this.phases.get(id) ?? 0)
+    const repeat = uniform(new CatmullRomCurve3(drawn.points).getLength() / DASH_PERIOD_MM)
+    const flow = uniform(0)
+    const tint = uniform(new Color())
+    const tintAmount = uniform(0)
+    // A ramp that rises along the lead and drops sharply: its sharp edge leads, so the direction
+    // reads even in a still picture.
+    const f = fract(uv().x.mul(repeat).sub(phase))
+    const dash = f
+      .mul(2)
+      .mul(float(1).sub(step(0.5, f)))
+      .mul(flow)
+    const material = new MeshBasicNodeMaterial({ transparent: true, depthWrite: false })
+    material.colorNode = mix(tint, vec3(DASH_COLOR.r, DASH_COLOR.g, DASH_COLOR.b), dash.clamp())
+    material.opacityNode = max(tintAmount, dash.mul(0.95))
+    const mesh = new Mesh(leadGeometry(drawn.points, RADIUS_MM * OVERLAY_SCALE), material)
+    mesh.renderOrder = 1
+    this.group.add(mesh)
+    const o: Overlay = { mesh, material, phase, flow, tint, tintAmount, rate: 0 }
+    this.overlays.set(id, o)
+    return o
+  }
+
+  private removeOverlay(id: string): void {
+    const o = this.overlays.get(id)
+    if (!o) return
+    this.group.remove(o.mesh)
+    o.mesh.geometry.dispose()
+    o.material.dispose()
+    this.overlays.delete(id)
+  }
+
   private remove(id: string): void {
+    this.removeOverlay(id)
     const drawn = this.drawn.get(id)
     if (!drawn) return
     this.group.remove(drawn.mesh)

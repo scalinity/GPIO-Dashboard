@@ -4,8 +4,10 @@
 import { create } from 'zustand'
 import { partDef } from '../core/defs/parts'
 import type { CircuitDoc } from '../core/model/types'
+import { erc, type Issue } from '../core/erc/erc'
 import { validateDoc, type Problem } from '../core/ops/validate'
 import type { EnvValue } from '../core/sim/behavior'
+import { simChecks } from '../core/sim/checks'
 import type { GpioState } from '../core/sim/circuit'
 import type { ProbeSignature } from '../core/sim/probe'
 import type { SimRequest, SimResponse } from '../workers/simHost'
@@ -47,6 +49,18 @@ interface WorkbenchState {
   check(): void
   runInSim(timeScale: number): void
   stopCode(): void
+}
+
+const ercOf = new WeakMap<CircuitDoc, Issue[]>()
+const SEVERITY = { error: 0, warning: 1, info: 2 }
+
+/** The document's ERC and the checks that read a snapshot, errors first (as SimHost reports). */
+function issuesFor(doc: CircuitDoc, snapshot: SimState['snapshot']): Issue[] {
+  let rules = ercOf.get(doc)
+  if (!rules) ercOf.set(doc, (rules = erc(doc, partDef)))
+  return [...rules, ...simChecks(doc, partDef, snapshot)].sort(
+    (a, b) => SEVERITY[a.severity] - SEVERITY[b.severity]
+  )
 }
 
 async function send(req: SimRequest) {
@@ -174,9 +188,9 @@ onPython((r) => {
   else if (r.type === 'output')
     useWorkbench.setState({ codeOutput: [...state.codeOutput, r.text].slice(-500) })
   else if (r.type === 'state') {
-    useWorkbench.setState({
-      sim: { type: 'state', snapshot: r.snapshot, reads: r.reads, issues: state.sim?.issues ?? [] }
-    })
+    // A running program moves currents, so the checks that read them run on each snapshot.
+    const issues = state.doc ? issuesFor(state.doc, r.snapshot) : (state.sim?.issues ?? [])
+    useWorkbench.setState({ sim: { type: 'state', snapshot: r.snapshot, reads: r.reads, issues } })
   } else {
     useWorkbench.setState({ codeStatus: r.error ? 'error' : 'done', codeError: r.error })
   }

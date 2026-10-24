@@ -13,10 +13,23 @@ export type Tool = 'select' | 'wire'
 
 export type DrawerTab = 'code' | 'erc' | 'sim' | 'steps' | 'board'
 
+/** A right click on a T-board GPIO pin: the pin and where the menu opens (client pixels). */
+export interface PinMenu {
+  bcm: number
+  x: number
+  y: number
+}
+
 interface StudioState {
   selection: Selection | null
   tool: Tool
+  /** The Inspect toggles (SPEC 11.5); `sense` shows Board Sense's tint once sensing runs. */
   labels: boolean
+  voltages: boolean
+  current: boolean
+  nets: boolean
+  sense: boolean
+  pinMenu: PinMenu | null
   /** The open drawer tab; null while the drawer is folded. */
   drawer: DrawerTab | null
   /** The document as the current drag would leave it, while that is legal. */
@@ -29,6 +42,11 @@ export const useStudio = create<StudioState>(() => ({
   selection: null,
   tool: 'select',
   labels: false,
+  voltages: false,
+  current: false,
+  nets: false,
+  sense: true,
+  pinMenu: null,
   drawer: null,
   preview: null,
   notice: null

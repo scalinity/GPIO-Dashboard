@@ -4,8 +4,10 @@
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useCallback, useRef } from 'react'
 import { AgXToneMapping, type WebGPURenderer } from 'three/webgpu'
+import type { GpioState } from '../core/sim/circuit'
 import type { CircuitDoc } from '../core/model/types'
 import { useStudio } from '../state/studioStore'
+import { useWorkbench } from '../state/workbenchStore'
 import Models from './Models'
 import { createRenderer } from './renderer'
 import Stage from './Stage'
@@ -26,13 +28,77 @@ function Frames({ view }: { view: StudioView }) {
   return null
 }
 
+const PIN_CHOICES: [string, GpioState][] = [
+  ['Output HIGH', { mode: 'out', level: true }],
+  ['Output LOW', { mode: 'out', level: false }],
+  ['Input, pull-up', { mode: 'in', pull: 'up' }],
+  ['Input, pull-down', { mode: 'in', pull: 'down' }],
+  ['Input, no pull', { mode: 'in', pull: 'off' }]
+]
+
+const sameState = (a: GpioState | undefined, b: GpioState) =>
+  !!a &&
+  a.mode === b.mode &&
+  (a.mode === 'out' ? a.level === (b as typeof a).level && !a.pwm : a.pull === (b as typeof a).pull)
+
+/**
+ * A T-board GPIO pin's menu (SPEC 11.5): drive or release the pin by hand while no program runs.
+ * It sits outside the element the orbit controls listen on, so its clicks reach it.
+ */
+function PinMenu() {
+  const menu = useStudio((s) => s.pinMenu)
+  const state = useWorkbench((s) => (menu ? s.gpio[menu.bcm] : undefined))
+  const running = useWorkbench((s) => s.codeStatus === 'running')
+  const setGpio = useWorkbench((s) => s.setGpio)
+  if (!menu) return null
+  const close = () => useStudio.setState({ pinMenu: null })
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-30"
+        onPointerDown={close}
+        onContextMenu={(e) => e.preventDefault()}
+      />
+      <div
+        role="menu"
+        aria-label={`GPIO${menu.bcm}`}
+        className="fixed z-40 card p-1 w-44"
+        style={{ left: menu.x, top: menu.y }}
+      >
+        <div className="px-2 py-1 text-xs font-mono text-gray-400">GPIO{menu.bcm}</div>
+        {running ? (
+          <p className="px-2 py-1 text-xs text-amber-300">
+            A program is running and owns the pins.
+          </p>
+        ) : (
+          PIN_CHOICES.map(([label, choice]) => (
+            <button
+              key={label}
+              role="menuitemradio"
+              aria-checked={sameState(state, choice)}
+              className={`w-full text-left rounded-btn px-2 py-1 text-xs text-gray-200 hover:bg-white/[0.06] ${sameState(state, choice) ? 'text-accent-light' : ''}`}
+              onClick={() => {
+                void setGpio(menu.bcm, choice)
+                close()
+              }}
+            >
+              {label}
+            </button>
+          ))
+        )}
+      </div>
+    </>
+  )
+}
+
 export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDoc }) {
   const tooltip = useRef<HTMLDivElement>(null)
   const labels = useRef<HTMLDivElement>(null)
+  const tags = useRef<HTMLDivElement>(null)
   const notice = useStudio((s) => s.notice)
   const attach = useCallback(
     (element: HTMLDivElement) => {
-      const detach = view.attach(element, tooltip.current!, labels.current!)
+      const detach = view.attach(element, tooltip.current!, labels.current!, tags.current!)
       if (import.meta.env.DEV) window.__studio = view
       return () => {
         detach()
@@ -65,6 +131,7 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
           <Frames view={view} />
         </Canvas>
         <div ref={labels} className="absolute inset-0 overflow-hidden pointer-events-none" />
+        <div ref={tags} className="absolute inset-0 overflow-hidden pointer-events-none" />
         <div
           ref={tooltip}
           hidden
@@ -72,6 +139,7 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
           className="absolute left-0 top-0 pointer-events-none rounded-btn bg-surface-900/90 border border-white/[0.06] px-2 py-1 text-xs text-gray-200 font-mono whitespace-nowrap"
         />
       </div>
+      <PinMenu />
       {notice && (
         <div
           role="status"

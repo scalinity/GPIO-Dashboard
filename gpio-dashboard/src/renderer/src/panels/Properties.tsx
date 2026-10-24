@@ -15,6 +15,7 @@ import { leadReach } from '../core/reach/reach'
 import { ohmsText, resistorBands } from '../core/steps/steps'
 import { circuit } from '../state/circuit'
 import { edit, useStudio } from '../state/studioStore'
+import { useWorkbench } from '../state/workbenchStore'
 import { suggestedColor } from '../studio/placement'
 import { INPUT_PROPS } from './inputs'
 
@@ -174,12 +175,15 @@ function Prop({
   name,
   schema,
   value,
-  set
+  set,
+  live
 }: {
   name: string
   schema: PropertySchema
   value: unknown
   set: (key: string, v: unknown) => void
+  /** While a program runs, an environment input goes to the simulation as it is dragged. */
+  live?: (key: string, v: unknown) => void
 }) {
   if (schema.type === 'enum')
     return (
@@ -203,25 +207,39 @@ function Prop({
           aria-label={schema.label}
           type="checkbox"
           checked={value === true}
-          onChange={(e) => set(name, e.target.checked)}
+          onChange={(e) => (INPUT_PROPS.has(name) && live ? live : set)(name, e.target.checked)}
         />
       </Row>
     )
   const unit = schema.unit ? ` (${schema.unit})` : ''
   if (INPUT_PROPS.has(name)) {
-    // An environment slider commits once, when it is let go.
+    const range = {
+      'aria-label': schema.label,
+      type: 'range',
+      className: 'w-28',
+      min: schema.min ?? 0,
+      max: schema.max ?? 100,
+      step: ((schema.max ?? 100) - (schema.min ?? 0)) / 200
+    } as const
+    // Simulating: the slider is an input to the running circuit, applied as it moves.
+    if (live)
+      return (
+        <Row label={`${schema.label}${unit}: ${Number(value).toFixed(1)}`}>
+          <input
+            {...range}
+            value={Number(value)}
+            onChange={(e) => live(name, Number(e.target.value))}
+          />
+        </Row>
+      )
+    // Otherwise it is a build choice, committed once when it is let go.
     const commit = (el: HTMLInputElement) =>
       Number(el.value) !== value && set(name, Number(el.value))
     return (
       <Row label={`${schema.label}${unit}: ${Number(value).toFixed(1)}`}>
         <input
+          {...range}
           key={String(value)}
-          aria-label={schema.label}
-          type="range"
-          className="w-28"
-          min={schema.min ?? 0}
-          max={schema.max ?? 100}
-          step={((schema.max ?? 100) - (schema.min ?? 0)) / 200}
           defaultValue={Number(value)}
           onPointerUp={(e) => commit(e.currentTarget)}
           onKeyUp={(e) => commit(e.currentTarget)}
@@ -236,17 +254,43 @@ function Prop({
   )
 }
 
+/** The ERC issues that name a part (a halo's reasons), with a way to the ERC tab. */
+function PartIssues({ part }: { part: PartInstance }) {
+  const issues = useWorkbench((s) => s.sim?.issues)
+  const mine = issues?.filter((i) => i.refs.includes(part.id)) ?? []
+  if (!mine.length) return null
+  return (
+    <div className="space-y-1 rounded-btn border border-red-500/30 p-2">
+      {mine.map((issue, i) => (
+        <p key={i} className="text-xs text-red-300">
+          <span className="font-mono">{issue.code}</span> {issue.message}
+        </p>
+      ))}
+      <button className="btn-ghost text-xs" onClick={() => useStudio.setState({ drawer: 'erc' })}>
+        Show in ERC
+      </button>
+    </div>
+  )
+}
+
 function PartProps({ part }: { part: PartInstance }) {
   const def = partDef(part.defId)
+  const running = useWorkbench((s) => s.codeStatus === 'running')
+  const env = useWorkbench((s) => s.env[part.id])
+  const setInput = useWorkbench((s) => s.setInput)
   const set = (key: string, value: unknown) =>
     edit(`Set ${part.id} ${def.properties[key]?.label ?? key}`, [
       { type: 'SetPartProps', id: part.id, props: { ...part.props, [key]: value } }
     ])
+  const live = running
+    ? (key: string, value: unknown) => void setInput(part.id, key, value as number | boolean)
+    : undefined
   return (
     <div className="space-y-2">
       <h3 className="text-sm text-gray-200">
         {part.id} · {def.name}
       </h3>
+      <PartIssues part={part} />
       {Object.entries(def.properties).map(([name, schema]) =>
         name === 'resistance' && def.sim.model === 'resistor' ? (
           <ResistorValue key={name} part={part} set={set} />
@@ -255,8 +299,13 @@ function PartProps({ part }: { part: PartInstance }) {
             key={name}
             name={name}
             schema={schema}
-            value={part.props[name] ?? schema.default}
+            value={
+              (running && INPUT_PROPS.has(name) ? env?.[name] : undefined) ??
+              part.props[name] ??
+              schema.default
+            }
             set={set}
+            live={live}
           />
         )
       )}

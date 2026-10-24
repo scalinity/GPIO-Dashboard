@@ -18,13 +18,16 @@ import {
 } from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { boardDef } from '../core/defs/boards'
+import { PI_HEADER } from '../core/defs/controllers'
 import { partDef } from '../core/defs/parts'
 import { holeKey, isValidHole, parseHoleKey } from '../core/geometry/breadboard'
 import { tboardPinHoles } from '../core/geometry/tboard'
 import type { CircuitDoc, Endpoint, Op } from '../core/model/types'
 import type { Problem } from '../core/ops/validate'
 import { circuit } from '../state/circuit'
+import { useSense } from '../state/senseStore'
 import { edit, type Selection, type Tool, useStudio } from '../state/studioStore'
+import { useWorkbench } from '../state/workbenchStore'
 import { BenchLayer } from './bench'
 import { bodyBox, pickBody, pointsBox } from './bodies'
 import { CameraTween, type Preset, presetView } from './camera'
@@ -39,14 +42,17 @@ import {
   type Proposal,
   propose
 } from './gestures'
+import { Halos } from './halos'
 import { Insertion, reseated } from './insertion'
 import { LabelLayer, labelsOf } from './labels'
 import { configureModels, disposeModels, onArrival } from './loaders'
 import { type Marker, Markers } from './markers'
+import { netMarkers, stripIndex } from './nets'
 import { type PartHandle, PartLayer } from './parts'
 import { hoverInfo, type HoverInfo, pickHole, pickModulePin } from './picking'
 import { holeFree, holeLegality, removePartOps, turned, turnedPart } from './placement'
 import { Post } from './renderer'
+import { SimVisuals, type VisualsReport } from './simvisuals'
 import { setStatus } from './status'
 import { WireLayer } from './wires'
 
@@ -89,6 +95,8 @@ export interface SceneReport {
   parts: Record<string, { body: boolean; leads: number }>
   /** Every part lead's end and male Dupont pin in a hole: off its hole's axis, and how deep. */
   leadEnds: { id: string; offAxisMm: number; depthMm: number }[]
+  /** What the simulation and Board Sense paint: glow, motion, flow, halos, tags, tints. */
+  sim: VisualsReport
 }
 
 /** A press on the canvas: what it selects as a click, and what it drags once it moves. */
@@ -119,6 +127,13 @@ export class StudioView {
   private readonly wires = new WireLayer(this.layers)
   private readonly bench = new BenchLayer(this.layers)
   private readonly parts = new PartLayer(this.layers, () => this.invalidate())
+  private readonly visuals = new SimVisuals(
+    this.parts,
+    this.wires,
+    new Halos(this.layers),
+    new Markers(this.layers, 0.12),
+    () => this.invalidate()
+  )
   private readonly insertion = new Insertion()
   /** The committed document last drawn: what a commit's insertion is measured against. */
   private committed: CircuitDoc | null = null
@@ -138,6 +153,10 @@ export class StudioView {
   private proposed = ''
   private pointerNow: Pointer | null = null
   private press: Press | null = null
+  /** A right button down on the canvas, until it is let go: a click opens a pin's menu. */
+  private rightPress: { x: number; y: number } | null = null
+  /** The momentary switch being held down in 3D. */
+  private held: string | null = null
 
   constructor() {
     this.controls.enableDamping = true
@@ -183,9 +202,13 @@ export class StudioView {
       this.wires.animate(this.drawnDoc(), lift)
       moving = true
     }
+    if (this.visuals.step(now)) moving = true
     this.post.render()
-    if (this.labels && this.canvas)
-      this.labels.project(this.camera, this.canvas.clientWidth, this.canvas.clientHeight)
+    if (this.canvas) {
+      const [w, h] = [this.canvas.clientWidth, this.canvas.clientHeight]
+      this.labels?.project(this.camera, w, h)
+      this.visuals.tags?.project(this.camera, w, h)
+    }
     const more = this.loop.tick(moving, now)
     this.hover.shownFrame ??= this.loop.frames
     if (!more || this.loop.frames % 30 === 0) {
@@ -278,14 +301,39 @@ export class StudioView {
       },
       copies: this.parts.copies(),
       parts: Object.fromEntries(doc.parts.map((p) => [p.id, this.parts.drawn(p.id)])),
-      leadEnds: [...this.parts.leadEnds(), ...this.wires.maleTips()]
+      leadEnds: [...this.parts.leadEnds(), ...this.wires.maleTips()],
+      sim: this.visuals.report()
     }
   }
 
+  /** Shows a net's strips and lead ends as hover does (the Nets list); null clears it. */
+  highlightNet(name: string | null): void {
+    const doc = circuit.getSnapshot()
+    const net = name ? circuit.engine.state.netlist.byName.get(name) : undefined
+    this.highlights.set(
+      net
+        ? netMarkers(
+            doc,
+            stripIndex(doc),
+            net,
+            { size: STRIP_SIZE_MM, color: STRIP_COLOR },
+            { size: WIRE_END_SIZE_MM, color: WIRE_END_COLOR }
+          )
+        : []
+    )
+    this.invalidate()
+  }
+
   /** Attaches input to the Studio's element; returns the detach. */
-  attach(element: HTMLElement, tooltip: HTMLElement, labels: HTMLElement): () => void {
+  attach(
+    element: HTMLElement,
+    tooltip: HTMLElement,
+    labels: HTMLElement,
+    tags: HTMLElement
+  ): () => void {
     this.tooltip = tooltip
     this.labels = new LabelLayer(labels)
+    this.visuals.tags = new LabelLayer(tags)
     this.controls.connect(element)
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
@@ -328,6 +376,24 @@ export class StudioView {
           now.preview !== before.preview
         )
           this.draw()
+        else if (
+          now.voltages !== before.voltages ||
+          now.current !== before.current ||
+          now.sense !== before.sense
+        )
+          this.syncVisuals()
+      }),
+      // The simulation's snapshots, the part inputs and the issues, and Board Sense's states.
+      useWorkbench.subscribe((now, before) => {
+        if (now.sim !== before.sim || now.env !== before.env) this.syncVisuals()
+      }),
+      useSense.subscribe((now, before) => {
+        if (
+          now.states !== before.states ||
+          now.mode !== before.mode ||
+          now.candidates !== before.candidates
+        )
+          this.syncVisuals()
       }),
       // A model, texture or the parts index arriving draws what was waiting on it.
       onArrival(() => this.draw())
@@ -351,8 +417,10 @@ export class StudioView {
       this.controls.disconnect()
       this.tooltip = null
       this.labels = null
+      this.visuals.tags = null
       // GPU resources go with the Studio (SPEC 10.8); a later attach draws them again.
       this.bench.dispose()
+      this.visuals.dispose()
       this.parts.dispose()
       this.wires.dispose()
       disposeModels()
@@ -373,7 +441,7 @@ export class StudioView {
   }
 
   /** The pointer's ray and what it is over, or null off the canvas. */
-  private pointerAt(e: PointerEvent): Pointer | null {
+  private pointerAt(e: MouseEvent): Pointer | null {
     if (!this.canvas) return null
     const rect = this.canvas.getBoundingClientRect()
     const [x, y] = [e.clientX - rect.left, e.clientY - rect.top]
@@ -453,11 +521,13 @@ export class StudioView {
   }
 
   private down(e: PointerEvent): void {
+    if (e.button === 2) this.rightPress = { x: e.clientX, y: e.clientY }
     if (e.button !== 0 || this.gesture?.kind === 'place') return
     const p = this.pointerAt(e)
     if (!p) return
     const wireTool = useStudio.getState().tool === 'wire'
     const { select, drag } = wireTool ? { select: null, drag: null } : this.pick(p)
+    if (select?.kind === 'part') this.pressSwitch(select.id)
     // The orbit controls ignore a press that drags something.
     if (drag) this.controls.enabled = false
     this.press = { x: e.clientX, y: e.clientY, select, drag, dragging: false }
@@ -468,6 +538,7 @@ export class StudioView {
     if (press?.drag && !press.dragging) {
       if (Math.hypot(e.clientX - press.x, e.clientY - press.y) <= CLICK_PX) return
       press.dragging = true
+      this.releaseSwitch()
       this.cancel()
       this.gesture = press.drag
     }
@@ -478,6 +549,11 @@ export class StudioView {
     const press = this.press
     this.press = null
     this.controls.enabled = true
+    this.releaseSwitch()
+    const right = this.rightPress
+    this.rightPress = null
+    if (e.button === 2 && right && Math.hypot(e.clientX - right.x, e.clientY - right.y) <= CLICK_PX)
+      this.pinMenu(e)
     if (this.gesture?.kind === 'place' || press?.dragging) {
       this.commit()
       this.cancel()
@@ -486,6 +562,42 @@ export class StudioView {
     if (!press || Math.hypot(e.clientX - press.x, e.clientY - press.y) > CLICK_PX) return
     if (useStudio.getState().tool === 'wire') this.wireClick(this.pointerAt(e))
     else useStudio.setState({ selection: press.select })
+  }
+
+  /**
+   * Simulate (SPEC 11.5): a press on a switch in 3D works it. A momentary tact switch is down while
+   * the button is; a retain-press one and a tilt switch change state on each click.
+   */
+  private pressSwitch(id: string): void {
+    const part = circuit.getSnapshot().parts.find((p) => p.id === id)
+    const def = part && partDef(part.defId)
+    if (!part || !def) return
+    const { env, setInput } = useWorkbench.getState()
+    const value = (key: string) => env[id]?.[key] ?? part.props[key] ?? def.properties[key]?.default
+    if (def.sim.model === 'tilt-switch') void setInput(id, 'tilted', value('tilted') !== true)
+    else if (def.sim.model === 'tact-switch') {
+      if (value('mode') === 'retain') void setInput(id, 'pressed', value('pressed') !== true)
+      else {
+        this.held = id
+        void setInput(id, 'pressed', true)
+      }
+    }
+  }
+
+  private releaseSwitch(): void {
+    if (!this.held) return
+    void useWorkbench.getState().setInput(this.held, 'pressed', false)
+    this.held = null
+  }
+
+  /** A right click on one of the T-board's GPIO pins opens its menu (Studio.tsx). */
+  private pinMenu(e: PointerEvent): void {
+    const hole = this.pointerAt(e)?.hole
+    const occupant = hole && circuit.engine.state.occupancy.get(holeKey(hole))?.occupant
+    const pin = occupant?.kind === 'tboard' ? PI_HEADER[occupant.pin - 1] : undefined
+    useStudio.setState({
+      pinMenu: pin?.bcm == null ? null : { bcm: pin.bcm, x: e.clientX, y: e.clientY }
+    })
   }
 
   /** The wire tool: the first click picks a free end, the second commits the lead. */
@@ -628,7 +740,29 @@ export class StudioView {
     if (box) this.selectionBox.matrix.copy(box)
     this.selectionBox.matrixWorldNeedsUpdate = true
     this.labels?.set(labels ? labelsOf(doc) : [])
+    this.syncVisuals()
     this.invalidate()
+  }
+
+  /** Brings the simulation's visuals onto the stores' present state. */
+  private syncVisuals(): void {
+    const { sim, env } = useWorkbench.getState()
+    const { voltages, current, sense } = useStudio.getState()
+    const board = useSense.getState()
+    this.visuals.sync({
+      doc: this.drawnDoc(),
+      snapshot: sim?.snapshot ?? null,
+      env,
+      issues: sim?.issues ?? [],
+      voltages,
+      current,
+      sense: {
+        on: sense && board.mode !== 'off',
+        states: board.states,
+        candidates: board.candidates,
+        findCauses: (pin) => void useSense.getState().findCauses(pin)
+      }
+    })
   }
 
   private pointer(e: PointerEvent | null): void {
