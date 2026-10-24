@@ -1,0 +1,620 @@
+{
+  "id": "shift-register",
+  "title": "Shift Register",
+  "order": 21,
+  "kitProject": null,
+  "tags": [],
+  "summary": "Drive eight LEDs from three GPIO pins with a 74HC595 shift register: send a byte one bit at a time, then latch it onto the outputs.",
+  "sources": {
+    "kit": null,
+    "datasheets": [
+      "https://www.ti.com/lit/ds/symlink/sn74hc595.pdf",
+      "https://www.kingbrightusa.com/images/catalog/SPEC/WP7113ID.pdf",
+      "https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "Byte 0xA5 lights LEDs 1, 3, 6 and 8 and no others",
+      "gpio": {
+        "17": { "mode": "out", "level": false },
+        "18": { "mode": "out", "level": false },
+        "27": { "mode": "out", "level": false }
+      },
+      "sequence": [
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        { "gpio": { "27": { "mode": "out", "level": false } } },
+        { "gpio": { "18": { "mode": "out", "level": true } } },
+        { "gpio": { "18": { "mode": "out", "level": false } } }
+      ],
+      "expect": [
+        {
+          "part": "U1",
+          "view": {
+            "storage": [true, false, true, false, false, true, false, true]
+          }
+        },
+        {
+          "die": "D1.D",
+          "currentA": { "min": 0.001, "max": 0.025 }
+        },
+        { "die": "D2.D", "currentA": { "max": 0.000001 } },
+        {
+          "die": "D3.D",
+          "currentA": { "min": 0.001, "max": 0.025 }
+        },
+        { "die": "D4.D", "currentA": { "max": 0.000001 } },
+        { "die": "D5.D", "currentA": { "max": 0.000001 } },
+        {
+          "die": "D6.D",
+          "currentA": { "min": 0.001, "max": 0.025 }
+        },
+        { "die": "D7.D", "currentA": { "max": 0.000001 } },
+        {
+          "die": "D8.D",
+          "currentA": { "min": 0.001, "max": 0.025 }
+        }
+      ]
+    },
+    {
+      "name": "Byte 0x01 lights LED 1 alone (bit 0 is QA)",
+      "gpio": {
+        "17": { "mode": "out", "level": false },
+        "18": { "mode": "out", "level": false },
+        "27": { "mode": "out", "level": false }
+      },
+      "sequence": [
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        { "gpio": { "27": { "mode": "out", "level": false } } },
+        { "gpio": { "18": { "mode": "out", "level": true } } },
+        { "gpio": { "18": { "mode": "out", "level": false } } }
+      ],
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": { "min": 0.001, "max": 0.025 }
+        },
+        { "die": "D2.D", "currentA": { "max": 0.000001 } },
+        { "die": "D3.D", "currentA": { "max": 0.000001 } },
+        { "die": "D4.D", "currentA": { "max": 0.000001 } },
+        { "die": "D5.D", "currentA": { "max": 0.000001 } },
+        { "die": "D6.D", "currentA": { "max": 0.000001 } },
+        { "die": "D7.D", "currentA": { "max": 0.000001 } },
+        { "die": "D8.D", "currentA": { "max": 0.000001 } }
+      ]
+    },
+    {
+      "name": "Byte 0x80 lights LED 8 alone (bit 7 is QH)",
+      "gpio": {
+        "17": { "mode": "out", "level": false },
+        "18": { "mode": "out", "level": false },
+        "27": { "mode": "out", "level": false }
+      },
+      "sequence": [
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        { "gpio": { "27": { "mode": "out", "level": false } } },
+        { "gpio": { "18": { "mode": "out", "level": true } } },
+        { "gpio": { "18": { "mode": "out", "level": false } } }
+      ],
+      "expect": [
+        { "die": "D1.D", "currentA": { "max": 0.000001 } },
+        { "die": "D2.D", "currentA": { "max": 0.000001 } },
+        { "die": "D3.D", "currentA": { "max": 0.000001 } },
+        { "die": "D4.D", "currentA": { "max": 0.000001 } },
+        { "die": "D5.D", "currentA": { "max": 0.000001 } },
+        { "die": "D6.D", "currentA": { "max": 0.000001 } },
+        { "die": "D7.D", "currentA": { "max": 0.000001 } },
+        {
+          "die": "D8.D",
+          "currentA": { "min": 0.001, "max": 0.025 }
+        }
+      ]
+    },
+    {
+      "name": "Byte 0xFF lights all eight LEDs, each output under its 6 mA rating",
+      "gpio": {
+        "17": { "mode": "out", "level": false },
+        "18": { "mode": "out", "level": false },
+        "27": { "mode": "out", "level": false }
+      },
+      "sequence": [
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        { "gpio": { "27": { "mode": "out", "level": false } } },
+        { "gpio": { "18": { "mode": "out", "level": true } } },
+        { "gpio": { "18": { "mode": "out", "level": false } } }
+      ],
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": { "min": 0.001, "max": 0.006 }
+        },
+        {
+          "die": "D2.D",
+          "currentA": { "min": 0.001, "max": 0.006 }
+        },
+        {
+          "die": "D3.D",
+          "currentA": { "min": 0.001, "max": 0.006 }
+        },
+        {
+          "die": "D4.D",
+          "currentA": { "min": 0.001, "max": 0.006 }
+        },
+        {
+          "die": "D5.D",
+          "currentA": { "min": 0.001, "max": 0.006 }
+        },
+        {
+          "die": "D6.D",
+          "currentA": { "min": 0.001, "max": 0.006 }
+        },
+        {
+          "die": "D7.D",
+          "currentA": { "min": 0.001, "max": 0.006 }
+        },
+        {
+          "die": "D8.D",
+          "currentA": { "min": 0.001, "max": 0.006 }
+        }
+      ]
+    },
+    {
+      "name": "Byte 0x00 leaves every LED dark",
+      "gpio": {
+        "17": { "mode": "out", "level": false },
+        "18": { "mode": "out", "level": false },
+        "27": { "mode": "out", "level": false }
+      },
+      "sequence": [
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        { "gpio": { "27": { "mode": "out", "level": false } } },
+        { "gpio": { "18": { "mode": "out", "level": true } } },
+        { "gpio": { "18": { "mode": "out", "level": false } } }
+      ],
+      "expect": [
+        { "die": "D1.D", "currentA": { "max": 0.000001 } },
+        { "die": "D2.D", "currentA": { "max": 0.000001 } },
+        { "die": "D3.D", "currentA": { "max": 0.000001 } },
+        { "die": "D4.D", "currentA": { "max": 0.000001 } },
+        { "die": "D5.D", "currentA": { "max": 0.000001 } },
+        { "die": "D6.D", "currentA": { "max": 0.000001 } },
+        { "die": "D7.D", "currentA": { "max": 0.000001 } },
+        { "die": "D8.D", "currentA": { "max": 0.000001 } }
+      ]
+    },
+    {
+      "name": "Shifting a new byte in without a latch pulse leaves the outputs unchanged",
+      "gpio": {
+        "17": { "mode": "out", "level": false },
+        "18": { "mode": "out", "level": false },
+        "27": { "mode": "out", "level": false }
+      },
+      "sequence": [
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        { "gpio": { "27": { "mode": "out", "level": false } } },
+        { "gpio": { "18": { "mode": "out", "level": true } } },
+        { "gpio": { "18": { "mode": "out", "level": false } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": true },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        {
+          "gpio": {
+            "17": { "mode": "out", "level": false },
+            "27": { "mode": "out", "level": false }
+          }
+        },
+        { "gpio": { "27": { "mode": "out", "level": true } } },
+        { "gpio": { "27": { "mode": "out", "level": false } } }
+      ],
+      "expect": [
+        {
+          "part": "U1",
+          "view": {
+            "storage": [true, true, true, true, false, false, false, false],
+            "shift": [false, false, false, false, true, true, true, true]
+          }
+        },
+        {
+          "die": "D1.D",
+          "currentA": { "min": 0.001, "max": 0.025 }
+        },
+        {
+          "die": "D2.D",
+          "currentA": { "min": 0.001, "max": 0.025 }
+        },
+        {
+          "die": "D3.D",
+          "currentA": { "min": 0.001, "max": 0.025 }
+        },
+        {
+          "die": "D4.D",
+          "currentA": { "min": 0.001, "max": 0.025 }
+        },
+        { "die": "D5.D", "currentA": { "max": 0.000001 } },
+        { "die": "D6.D", "currentA": { "max": 0.000001 } },
+        { "die": "D7.D", "currentA": { "max": 0.000001 } },
+        { "die": "D8.D", "currentA": { "max": 0.000001 } }
+      ]
+    }
+  ],
+  "checkpoints": []
+}

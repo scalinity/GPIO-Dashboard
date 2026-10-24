@@ -1,0 +1,317 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Ultrasonic Distance",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "ultrasonic"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "HC1",
+      "defId": "hc-sr04",
+      "props": {},
+      "placement": {
+        "pins": {
+          "VCC": null,
+          "TRIG": null,
+          "ECHO": null,
+          "GND": null
+        },
+        "offboardPose": {
+          "position": [
+            60,
+            75
+          ],
+          "rotationDeg": 0
+        }
+      }
+    },
+    {
+      "id": "R1",
+      "defId": "resistor",
+      "props": {
+        "resistance": 1000,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 30,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 34,
+            "col": "b"
+          }
+        }
+      }
+    },
+    {
+      "id": "R2",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 34,
+            "col": "c"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 38,
+            "col": "c"
+          }
+        }
+      }
+    },
+    {
+      "id": "R3",
+      "defId": "resistor",
+      "props": {
+        "resistance": 1000,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 38,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 42,
+            "col": "b"
+          }
+        }
+      }
+    },
+    {
+      "id": "R4",
+      "defId": "resistor",
+      "props": {
+        "resistance": 1000,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 42,
+            "col": "c"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 46,
+            "col": "c"
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "j"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "HC1",
+          "pin": "VCC"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "HC1",
+          "pin": "TRIG"
+        }
+      },
+      "color": "orange",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 30,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "HC1",
+          "pin": "ECHO"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "HC1",
+          "pin": "GND"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W5",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 38,
+          "col": "a"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W6",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 3,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 46,
+          "col": "a"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\nTRIG_PIN = 17  # BCM numbering: header pin 11 drives the module's TRIG\nECHO_PIN = 18  # header pin 12 reads ECHO through the resistor divider\nSPEED_CM_PER_S = 34300  # sound in air at about 20 C\nTIMEOUT_S = 0.05\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(TRIG_PIN, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(ECHO_PIN, GPIO.IN)\n\n\ndef wait_for(level, deadline):\n    \"\"\"Spin until ECHO reaches the level; False if the deadline passes first.\"\"\"\n    while GPIO.input(ECHO_PIN) != level:\n        if time.perf_counter() > deadline:\n            return False\n    return True\n\n\ndef measure_cm():\n    \"\"\"One distance in centimetres, or None when no echo comes back.\"\"\"\n    deadline = time.perf_counter() + TIMEOUT_S\n    if not wait_for(GPIO.LOW, deadline):  # a pulse from the last measurement is still running\n        return None\n    GPIO.output(TRIG_PIN, GPIO.HIGH)\n    time.sleep(0.00001)  # the module wants at least 10 us\n    GPIO.output(TRIG_PIN, GPIO.LOW)\n    if not wait_for(GPIO.HIGH, deadline):\n        return None\n    started = time.perf_counter()\n    if not wait_for(GPIO.LOW, deadline):\n        return None\n    # The echo covers the way there and back, so the distance is half of what the sound travelled.\n    return (time.perf_counter() - started) * SPEED_CM_PER_S / 2\n\n\ntry:\n    while True:\n        distance = measure_cm()\n        if distance is None:\n            print('No echo')\n        else:\n            print(f'Distance {distance:6.1f} cm')\n        time.sleep(0.3)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "HC1": {
+      "why": "The module sends a burst of ultrasound and raises ECHO for as long as the echo takes to return.",
+      "mistake": "Plugging the four pins in the wrong order: the silkscreen reads Vcc, Trig, Echo, Gnd."
+    },
+    "R1": {
+      "why": "R1 and R2 are the upper half of a divider that brings ECHO, which swings to 5 V, down to a level a 3.3 V pin can take."
+    },
+    "R3": {
+      "why": "R3 and R4 are the lower half of the divider, from the GPIO18 junction to ground."
+    },
+    "W1": {
+      "why": "The module needs 5 V; the Pi 5 V pin supplies its 15 mA."
+    },
+    "W2": {
+      "why": "TRIG is an input, and a 3.3 V pulse from GPIO17 is enough to start a measurement."
+    },
+    "W3": {
+      "why": "ECHO is a 5 V output, so it goes to the divider, never straight to a GPIO pin.",
+      "mistake": "Wiring ECHO straight to GPIO18: 5 V on a 3.3 V pin can damage the Pi."
+    },
+    "W5": {
+      "why": "GPIO18 reads the middle of the divider."
+    }
+  }
+}

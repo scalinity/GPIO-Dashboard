@@ -1,0 +1,205 @@
+{
+  "id": "tilt-switch",
+  "title": "Tilt Switch",
+  "order": 11,
+  "kitProject": "2.1.2",
+  "tags": [],
+  "summary": "Read a tilt switch on GPIO17 and show its state on a green and a red LED. Upright, the ball closes the switch and the pin reads LOW; tilted, the switch opens and the internal pull-up makes it HIGH.",
+  "sources": {
+    "kit": "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/2.1.2%20Tilt%20Switch.html",
+    "datasheets": [
+      "https://www.tme.com/Document/f1e6cedd8cb7feeb250b353b6213ec6c/SW-520D.pdf",
+      "https://www.kingbrightusa.com/images/catalog/SPEC/WP7113ID.pdf",
+      "https://www.kingbrightusa.com/images/catalog/SPEC/WP7113GD.pdf",
+      "https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "Upright, the ball closes S1 and the pin reads LOW, well below VIL",
+      "gpio": {
+        "17": {
+          "mode": "in",
+          "pull": "up"
+        }
+      },
+      "inputs": {
+        "S1": {
+          "tilted": false
+        }
+      },
+      "expect": [
+        {
+          "read": 17,
+          "is": "low"
+        },
+        {
+          "pin": "S1.2",
+          "volts": {
+            "max": 0.8
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tilted, S1 opens and the internal pull-up makes the pin read HIGH",
+      "gpio": {
+        "17": {
+          "mode": "in",
+          "pull": "up"
+        }
+      },
+      "inputs": {
+        "S1": {
+          "tilted": true
+        }
+      },
+      "expect": [
+        {
+          "read": 17,
+          "is": "high"
+        },
+        {
+          "pin": "S1.2",
+          "volts": {
+            "min": 3.2
+          }
+        }
+      ]
+    },
+    {
+      "name": "Without the internal pull-up an open S1 leaves the pin floating",
+      "gpio": {
+        "17": {
+          "mode": "in",
+          "pull": "off"
+        }
+      },
+      "inputs": {
+        "S1": {
+          "tilted": true
+        }
+      },
+      "expect": [
+        {
+          "read": 17,
+          "is": "floating"
+        }
+      ]
+    },
+    {
+      "name": "GPIO27 HIGH lights the green LED within its rating and leaves the red dark",
+      "gpio": {
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": true
+        }
+      },
+      "expect": [
+        {
+          "die": "D2.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.03
+          }
+        },
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "gpio": 27,
+          "currentA": {
+            "min": 0.001,
+            "max": 0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "GPIO22 HIGH lights the red LED within its rating and leaves the green dark",
+      "gpio": {
+        "22": {
+          "mode": "out",
+          "level": true
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.03
+          }
+        },
+        {
+          "die": "D2.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "gpio": 22,
+          "currentA": {
+            "min": 0.001,
+            "max": 0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "Both LED pins LOW leave both LEDs dark",
+      "gpio": {
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D2.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "kind": "toggle-led",
+      "afterStep": "W4",
+      "part": "D2",
+      "gpio": 27
+    },
+    {
+      "kind": "toggle-led",
+      "afterStep": "W2",
+      "part": "D1",
+      "gpio": 22
+    }
+  ]
+}

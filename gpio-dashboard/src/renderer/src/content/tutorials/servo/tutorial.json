@@ -1,0 +1,185 @@
+{
+  "id": "servo",
+  "title": "Servo",
+  "order": 22,
+  "kitProject": null,
+  "tags": ["needs parts not in the kit"],
+  "summary": "Turn an SG90 servo with a 50 Hz PWM signal on GPIO18. The pulse width sets the angle: 1 ms for one end, 1.5 ms for the middle and 2 ms for the other end.",
+  "sources": {
+    "kit": null,
+    "datasheets": [
+      "https://www.friendlywire.com/projects/ne555-servo-safe/SG90-datasheet.pdf",
+      "https://towerpro.com.tw/product/sg90-7/"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "Powered from 5 V with no signal, the servo is powered but not holding any position",
+      "gpio": {
+        "18": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "advanceS": 0.5,
+      "expect": [
+        {
+          "part": "SV1",
+          "view": {
+            "powered": true,
+            "holding": false,
+            "moving": false
+          }
+        },
+        {
+          "pin": "SV1.VCC",
+          "volts": {
+            "min": 4.9
+          }
+        },
+        {
+          "pin": "SV1.GND",
+          "volts": {
+            "max": 0.01
+          }
+        }
+      ]
+    },
+    {
+      "name": "A 1.5 ms pulse every 20 ms holds the horn at the middle, 0°",
+      "gpio": {
+        "18": {
+          "mode": "out",
+          "level": false,
+          "pwm": {
+            "frequencyHz": 50,
+            "duty": 0.075
+          }
+        }
+      },
+      "advanceS": 1,
+      "expect": [
+        {
+          "part": "SV1",
+          "view": {
+            "powered": true,
+            "holding": true,
+            "moving": false,
+            "angleDeg": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "A 1 ms pulse every 20 ms turns the horn to −90°",
+      "gpio": {
+        "18": {
+          "mode": "out",
+          "level": false,
+          "pwm": {
+            "frequencyHz": 50,
+            "duty": 0.05
+          }
+        }
+      },
+      "advanceS": 1,
+      "expect": [
+        {
+          "part": "SV1",
+          "view": {
+            "holding": true,
+            "moving": false,
+            "angleDeg": -90,
+            "targetDeg": -90
+          }
+        }
+      ]
+    },
+    {
+      "name": "A 2 ms pulse every 20 ms turns the horn to +90°",
+      "gpio": {
+        "18": {
+          "mode": "out",
+          "level": false,
+          "pwm": {
+            "frequencyHz": 50,
+            "duty": 0.1
+          }
+        }
+      },
+      "advanceS": 1,
+      "expect": [
+        {
+          "part": "SV1",
+          "view": {
+            "holding": true,
+            "moving": false,
+            "angleDeg": 90,
+            "targetDeg": 90
+          }
+        }
+      ]
+    },
+    {
+      "name": "When the pulses stop the servo goes slack where it was, no longer holding",
+      "gpio": {
+        "18": {
+          "mode": "out",
+          "level": false,
+          "pwm": {
+            "frequencyHz": 50,
+            "duty": 0.05
+          }
+        }
+      },
+      "advanceS": 1,
+      "sequence": [
+        {
+          "gpio": {
+            "18": {
+              "mode": "out",
+              "level": false
+            }
+          },
+          "advanceS": 0.2
+        }
+      ],
+      "expect": [
+        {
+          "part": "SV1",
+          "view": {
+            "holding": false,
+            "angleDeg": -90
+          }
+        }
+      ]
+    },
+    {
+      "name": "The signal input draws almost no current from GPIO18",
+      "gpio": {
+        "18": {
+          "mode": "out",
+          "level": false,
+          "pwm": {
+            "frequencyHz": 50,
+            "duty": 0.075
+          }
+        }
+      },
+      "advanceS": 0.5,
+      "expect": [
+        {
+          "gpio": 18,
+          "currentA": {
+            "min": -0.001,
+            "max": 0.001
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoints": []
+}

@@ -1,0 +1,253 @@
+{
+  "id": "potentiometer",
+  "title": "Potentiometer",
+  "order": 12,
+  "kitProject": "2.1.3",
+  "tags": [],
+  "summary": "Read a potentiometer through the kit's ADS7830 I2C module and use the reading to set the brightness of an LED on GPIO17.",
+  "sources": {
+    "kit": "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/2.1.3%20Potentiometer.html",
+    "datasheets": [
+      "https://www.ti.com/lit/ds/symlink/ads7830.pdf",
+      "http://www.taiwanalpha.com.tw/downloads?id=97&target=products",
+      "https://www.kingbrightusa.com/images/catalog/SPEC/WP7113ID.pdf",
+      "https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "The ADS7830 module runs from 3.3 V and answers at 0x48",
+      "inputs": {},
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [132]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 0,
+              "max": 255
+            }
+          ]
+        },
+        {
+          "pin": "U1.VCC",
+          "volts": {
+            "min": 3.28,
+            "max": 3.32
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wiper at 0 % reads 0 on A0",
+      "inputs": {
+        "R1": {
+          "wiper": 0
+        }
+      },
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [132]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 0,
+              "max": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Wiper at 25 % reads about a quarter of full scale",
+      "inputs": {
+        "R1": {
+          "wiper": 25
+        }
+      },
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [132]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 61,
+              "max": 65
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Wiper at 50 % reads about half of full scale",
+      "inputs": {
+        "R1": {
+          "wiper": 50
+        }
+      },
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [132]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 125,
+              "max": 129
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Wiper at 75 % reads about three quarters of full scale",
+      "inputs": {
+        "R1": {
+          "wiper": 75
+        }
+      },
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [132]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 189,
+              "max": 193
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Wiper at 100 % reads 255 on A0",
+      "inputs": {
+        "R1": {
+          "wiper": 100
+        }
+      },
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [132]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 253,
+              "max": 255
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GPIO17 LOW lights D1 with at least 1 mA, within its rating",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.03
+          }
+        },
+        {
+          "gpio": 17,
+          "currentA": {
+            "min": -0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "GPIO17 HIGH turns D1 off",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": true
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 0.000001
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "kind": "i2c-scan",
+      "afterStep": "W4",
+      "addresses": [72]
+    },
+    {
+      "kind": "toggle-led",
+      "afterStep": "W9",
+      "part": "D1",
+      "gpio": 17
+    }
+  ]
+}

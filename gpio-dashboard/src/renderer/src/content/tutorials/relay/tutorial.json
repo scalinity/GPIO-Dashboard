@@ -1,0 +1,185 @@
+{
+  "id": "relay",
+  "title": "Relay",
+  "order": 8,
+  "kitProject": "1.3.2",
+  "tags": [],
+  "summary": "Switch an LED circuit with a relay module. GPIO17 HIGH energises the coil, and after the relay's operate time the contact closes.",
+  "sources": {
+    "kit": "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.3.2%20Relay.html",
+    "datasheets": [
+      "https://www.circuitbasics.com/wp-content/uploads/2015/11/SRD-05VDC-SL-C-Datasheet.pdf",
+      "https://www.kingbrightusa.com/images/catalog/SPEC/WP7113ID.pdf",
+      "https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "S LOW: the relay rests on NC, powered but not driven, and D1 is dark",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "advanceS": 0.05,
+      "expect": [
+        {
+          "part": "K1",
+          "view": {
+            "powered": true,
+            "coilDriven": false,
+            "energised": false,
+            "contact": "NC"
+          }
+        },
+        {
+          "pin": "K1.COM",
+          "volts": {
+            "min": 4.9
+          }
+        },
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "S HIGH: 5 ms later the contact has not moved yet (the datasheet allows up to 10 ms)",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": true
+        }
+      },
+      "advanceS": 0.005,
+      "expect": [
+        {
+          "part": "K1",
+          "view": {
+            "coilDriven": true,
+            "energised": false,
+            "contact": "NC"
+          }
+        },
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "S HIGH: after the operate time COM joins NO and D1 lights within its rating",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": true
+        }
+      },
+      "advanceS": 0.02,
+      "expect": [
+        {
+          "part": "K1",
+          "view": {
+            "powered": true,
+            "coilDriven": true,
+            "energised": true,
+            "contact": "NO"
+          }
+        },
+        {
+          "die": "D1.D",
+          "currentA": {
+            "min": 0.005,
+            "max": 0.03
+          }
+        },
+        {
+          "gpio": 17,
+          "currentA": {
+            "min": 0.001,
+            "max": 0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "S back to LOW: after the release time the contact is on NC again and D1 is dark",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": true
+        }
+      },
+      "advanceS": 0.02,
+      "sequence": [
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            }
+          },
+          "advanceS": 0.01
+        }
+      ],
+      "expect": [
+        {
+          "part": "K1",
+          "view": {
+            "coilDriven": false,
+            "energised": false,
+            "contact": "NC"
+          }
+        },
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "S as a pulled-down input, as at power-up, leaves the relay released",
+      "gpio": {
+        "17": {
+          "mode": "in",
+          "pull": "down"
+        }
+      },
+      "advanceS": 0.05,
+      "expect": [
+        {
+          "part": "K1",
+          "view": {
+            "energised": false,
+            "contact": "NC"
+          }
+        },
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "kind": "toggle-led",
+      "afterStep": "W6",
+      "part": "D1",
+      "gpio": 17
+    }
+  ]
+}

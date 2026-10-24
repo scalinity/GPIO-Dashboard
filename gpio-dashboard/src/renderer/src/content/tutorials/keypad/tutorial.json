@@ -1,0 +1,321 @@
+{
+  "id": "keypad",
+  "title": "Keypad",
+  "order": 26,
+  "kitProject": null,
+  "tags": ["needs parts not in the kit"],
+  "summary": "Read a 4 by 4 membrane keypad by scanning its rows and columns on eight GPIO pins.",
+  "sources": {
+    "kit": null,
+    "datasheets": [
+      "https://protosupplies.com/product/membrane-keypad-4x4-matrix/",
+      "https://docs.sunfounder.com/projects/newton-lab-kit/en/latest/component/component_keypad.html"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "With no key held, no column reads HIGH whichever row is raised",
+      "inputs": {
+        "KP1": {
+          "pressedKeys": ""
+        }
+      },
+      "gpio": {
+        "5": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": true
+        },
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "23": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "24": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "25": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "read": 23,
+          "is": "low"
+        },
+        {
+          "read": 24,
+          "is": "low"
+        },
+        {
+          "read": 25,
+          "is": "low"
+        },
+        {
+          "read": 5,
+          "is": "low"
+        }
+      ]
+    },
+    {
+      "name": "Key 5 joins row 2 (GPIO18) to column 2 (GPIO24)",
+      "inputs": {
+        "KP1": {
+          "pressedKeys": "5"
+        }
+      },
+      "gpio": {
+        "5": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": true
+        },
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "23": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "24": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "25": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "read": 23,
+          "is": "low"
+        },
+        {
+          "read": 24,
+          "is": "high"
+        },
+        {
+          "read": 25,
+          "is": "low"
+        },
+        {
+          "read": 5,
+          "is": "low"
+        }
+      ]
+    },
+    {
+      "name": "Key 5 is not seen while another row (GPIO17) is raised",
+      "inputs": {
+        "KP1": {
+          "pressedKeys": "5"
+        }
+      },
+      "gpio": {
+        "5": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "17": {
+          "mode": "out",
+          "level": true
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "23": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "24": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "25": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "read": 23,
+          "is": "low"
+        },
+        {
+          "read": 24,
+          "is": "low"
+        },
+        {
+          "read": 25,
+          "is": "low"
+        },
+        {
+          "read": 5,
+          "is": "low"
+        }
+      ]
+    },
+    {
+      "name": "Key A joins row 1 (GPIO17) to column 4 (GPIO5)",
+      "inputs": {
+        "KP1": {
+          "pressedKeys": "A"
+        }
+      },
+      "gpio": {
+        "5": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "17": {
+          "mode": "out",
+          "level": true
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "23": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "24": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "25": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "read": 23,
+          "is": "low"
+        },
+        {
+          "read": 24,
+          "is": "low"
+        },
+        {
+          "read": 25,
+          "is": "low"
+        },
+        {
+          "read": 5,
+          "is": "high"
+        }
+      ]
+    },
+    {
+      "name": "Key # joins row 4 (GPIO22) to column 3 (GPIO25)",
+      "inputs": {
+        "KP1": {
+          "pressedKeys": "#"
+        }
+      },
+      "gpio": {
+        "5": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "22": {
+          "mode": "out",
+          "level": true
+        },
+        "23": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "24": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "25": {
+          "mode": "in",
+          "pull": "down"
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "read": 23,
+          "is": "low"
+        },
+        {
+          "read": 24,
+          "is": "low"
+        },
+        {
+          "read": 25,
+          "is": "high"
+        },
+        {
+          "read": 5,
+          "is": "low"
+        }
+      ]
+    }
+  ],
+  "checkpoints": []
+}

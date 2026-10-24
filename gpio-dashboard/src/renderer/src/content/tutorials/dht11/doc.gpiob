@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "DHT-11",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "dht11"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "DHT1",
+      "defId": "dht11-module",
+      "props": {},
+      "placement": {
+        "pins": {
+          "DATA": null,
+          "VCC": null,
+          "GND": null
+        },
+        "offboardPose": {
+          "position": [
+            60,
+            75
+          ],
+          "rotationDeg": 0
+        }
+      }
+    },
+    {
+      "id": "R1",
+      "defId": "resistor",
+      "props": {
+        "resistance": 10000,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 30,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 34,
+            "col": "b"
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 30,
+          "col": "a"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 34,
+          "col": "a"
+        }
+      },
+      "color": "orange",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 34,
+          "col": "c"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "DHT1",
+          "pin": "DATA"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "b"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "DHT1",
+          "pin": "VCC"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W5",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "DHT1",
+          "pin": "GND"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\nDATA_PIN = 17  # BCM numbering: header pin 11, the module's DATA (S) pin\nSTART_LOW_S = 0.02  # DATA is held low for at least 18 ms to wake the sensor\nFRAME_TIMEOUT_NS = 10_000_000\nTRIES = 15\n\nGPIO.setmode(GPIO.BCM)\n\n\ndef read_frame():\n    \"\"\"Ask the sensor for one reading; return (humidity, temperature) or None.\"\"\"\n    GPIO.setup(DATA_PIN, GPIO.OUT)\n    GPIO.output(DATA_PIN, GPIO.LOW)\n    time.sleep(START_LOW_S)\n    GPIO.setup(DATA_PIN, GPIO.IN)  # let go: the pull-up lifts DATA and the sensor answers\n\n    # Time how long DATA stays at each level until the frame ends or stalls. The first entry is\n    # the short wait before the reply, then 80 us low and 80 us high, then 40 bits, each a 50 us\n    # low followed by a high of about 27 us (a 0) or 70 us (a 1).\n    durations = []\n    level = GPIO.input(DATA_PIN)\n    since = time.perf_counter_ns()\n    deadline = since + FRAME_TIMEOUT_NS\n    while len(durations) < 83 and time.perf_counter_ns() < deadline:\n        now_level = GPIO.input(DATA_PIN)\n        if now_level != level:\n            now = time.perf_counter_ns()\n            durations.append(now - since)\n            level, since = now_level, now\n    if len(durations) < 83:\n        return None\n\n    bits = [1 if durations[4 + 2 * n] > 50_000 else 0 for n in range(40)]\n    frame = [int(''.join(str(b) for b in bits[i:i + 8]), 2) for i in range(0, 40, 8)]\n    humidity, _, temperature, _, checksum = frame\n    if (frame[0] + frame[1] + frame[2] + frame[3]) & 0xFF != checksum:\n        return None\n    return humidity, temperature\n\n\ntry:\n    cycle = 0\n    while True:\n        cycle += 1\n        reading = None\n        for _ in range(TRIES):\n            reading = read_frame()\n            if reading:\n                break\n            time.sleep(0.3)\n        if reading:\n            print(f'Cycle {cycle}: humidity {reading[0]} %, temperature {reading[1]} C')\n        else:\n            print(f'Cycle {cycle}: no valid reading')\n        time.sleep(2)  # the sensor needs at least 2 s between readings\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "DHT1": {
+      "why": "The module holds the sensor and its own resistor. The middle pin is the supply, S is the data pin and the marked end is ground.",
+      "mistake": "Swapping VCC and GND: the sensor gets reverse power and may be damaged."
+    },
+    "R1": {
+      "why": "A pull-up keeps DATA high while nobody is talking, which the single-wire protocol needs."
+    },
+    "W2": {
+      "why": "DATA goes to GPIO17, the pin the code uses to start and read the sensor."
+    },
+    "W4": {
+      "why": "The sensor takes 3.3 V here, the same level as the GPIO pin it talks to."
+    }
+  }
+}

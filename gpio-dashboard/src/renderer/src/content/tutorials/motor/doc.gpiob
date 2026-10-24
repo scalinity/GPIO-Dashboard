@@ -1,0 +1,417 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Motor",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "motor"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "U1",
+      "defId": "ic-l293d",
+      "props": {},
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 41,
+            "col": "e"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 42,
+            "col": "e"
+          },
+          "3": {
+            "board": "bb1",
+            "area": "main",
+            "row": 43,
+            "col": "e"
+          },
+          "4": {
+            "board": "bb1",
+            "area": "main",
+            "row": 44,
+            "col": "e"
+          },
+          "5": {
+            "board": "bb1",
+            "area": "main",
+            "row": 45,
+            "col": "e"
+          },
+          "6": {
+            "board": "bb1",
+            "area": "main",
+            "row": 46,
+            "col": "e"
+          },
+          "7": {
+            "board": "bb1",
+            "area": "main",
+            "row": 47,
+            "col": "e"
+          },
+          "8": {
+            "board": "bb1",
+            "area": "main",
+            "row": 48,
+            "col": "e"
+          },
+          "9": {
+            "board": "bb1",
+            "area": "main",
+            "row": 48,
+            "col": "f"
+          },
+          "10": {
+            "board": "bb1",
+            "area": "main",
+            "row": 47,
+            "col": "f"
+          },
+          "11": {
+            "board": "bb1",
+            "area": "main",
+            "row": 46,
+            "col": "f"
+          },
+          "12": {
+            "board": "bb1",
+            "area": "main",
+            "row": 45,
+            "col": "f"
+          },
+          "13": {
+            "board": "bb1",
+            "area": "main",
+            "row": 44,
+            "col": "f"
+          },
+          "14": {
+            "board": "bb1",
+            "area": "main",
+            "row": 43,
+            "col": "f"
+          },
+          "15": {
+            "board": "bb1",
+            "area": "main",
+            "row": 42,
+            "col": "f"
+          },
+          "16": {
+            "board": "bb1",
+            "area": "main",
+            "row": 41,
+            "col": "f"
+          }
+        }
+      }
+    },
+    {
+      "id": "M1",
+      "defId": "dc-motor",
+      "props": {},
+      "placement": {
+        "pins": {
+          "red": null,
+          "black": null
+        },
+        "offboardPose": {
+          "position": [
+            100,
+            -55
+          ],
+          "rotationDeg": 0
+        }
+      }
+    },
+    {
+      "id": "PM1",
+      "defId": "breadboard-power-module",
+      "props": {
+        "inputVoltage": 9,
+        "switchOn": true
+      },
+      "placement": {
+        "pins": {
+          "1": null,
+          "2": null,
+          "3": null,
+          "4": null,
+          "5": null,
+          "6": null,
+          "7": null,
+          "8": null
+        },
+        "offboardPose": {
+          "position": [
+            125,
+            -45
+          ],
+          "rotationDeg": 0
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 8,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 41,
+          "col": "a"
+        }
+      },
+      "color": "grey",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 7,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 42,
+          "col": "a"
+        }
+      },
+      "color": "orange",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 47,
+          "col": "a"
+        }
+      },
+      "color": "brown",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 45,
+          "col": "a"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W5",
+      "a": {
+        "pin": {
+          "part": "PM1",
+          "pin": "5"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 48,
+          "col": "a"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W6",
+      "a": {
+        "pin": {
+          "part": "PM1",
+          "pin": "7"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 41,
+          "col": "i"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W7",
+      "a": {
+        "pin": {
+          "part": "PM1",
+          "pin": "6"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 45,
+          "col": "b"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W8",
+      "a": {
+        "pin": {
+          "part": "M1",
+          "pin": "black"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 43,
+          "col": "b"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W9",
+      "a": {
+        "pin": {
+          "part": "M1",
+          "pin": "red"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 46,
+          "col": "b"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\nINPUT_A = 17  # BCM numbering: header pin 11, to the L293D's 2A input (pin 7)\nINPUT_B = 27  # header pin 13, to the L293D's 1A input (pin 2)\nENABLE = 22  # header pin 15, to the L293D's 1,2EN input (pin 1)\nRUN_SECONDS = 3\nSTOP_SECONDS = 3\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(INPUT_A, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(INPUT_B, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(ENABLE, GPIO.OUT, initial=GPIO.LOW)\n\n\ndef run(a_high, b_high):\n    # The L293D copies each input to its output while ENABLE is HIGH. Opposite levels put the\n    # supply across the motor, and swapping them reverses the current.\n    GPIO.output(INPUT_A, a_high)\n    GPIO.output(INPUT_B, b_high)\n    GPIO.output(ENABLE, GPIO.HIGH)\n\n\ndef stop():\n    # With ENABLE low the outputs let go of the motor and it coasts to a stop.\n    GPIO.output(ENABLE, GPIO.LOW)\n\n\ntry:\n    while True:\n        print('Running one way')\n        run(GPIO.HIGH, GPIO.LOW)\n        time.sleep(RUN_SECONDS)\n        print('Stopped')\n        stop()\n        time.sleep(STOP_SECONDS)\n        print('Running the other way')\n        run(GPIO.LOW, GPIO.HIGH)\n        time.sleep(RUN_SECONDS)\n        print('Stopped')\n        stop()\n        time.sleep(STOP_SECONDS)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    stop()\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "U1": {
+      "why": "The L293D is an H-bridge: it connects each motor lead to the motor supply or to GND depending on its input, so the Pi only has to supply the logic signals.",
+      "mistake": "The chip turned the wrong way round. Pin 1 is next to the notch, in row 41 column e."
+    },
+    "PM1": {
+      "why": "The power module’s 5 V output feeds the motor, so the motor’s current never passes through the Pi."
+    },
+    "W4": {
+      "why": "The Pi’s GND and the power module’s GND must meet, or the L293D inputs have no common reference."
+    },
+    "W5": {
+      "why": "VCC2, pin 8, is the supply the motor outputs switch."
+    },
+    "W6": {
+      "why": "VCC1, pin 16, is the chip’s logic supply and needs 4.5 V or more."
+    },
+    "W1": {
+      "why": "GPIO22 drives the enable input: HIGH lets the outputs drive, LOW releases the motor."
+    },
+    "W2": {
+      "why": "GPIO27 sets the level on one motor lead."
+    },
+    "W3": {
+      "why": "GPIO17 sets the level on the other motor lead."
+    }
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "id": "passive-buzzer",
+  "title": "Passive Buzzer",
+  "order": 6,
+  "kitProject": "1.2.2",
+  "tags": [],
+  "summary": "Play notes on a passive buzzer by sending a PWM square wave from GPIO17 through a PN2222 transistor. The frequency sets the pitch.",
+  "sources": {
+    "kit": "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.2.2%20Passive%20Buzzer.html",
+    "datasheets": [
+      "https://www.soberton.com/wp-content/uploads/2022/03/WT-1209T.pdf",
+      "https://www.megastar.com/content/pdfs/PN2222A-D.pdf",
+      "https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "GPIO17 LOW leaves the coil with no current",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "pin": "BZ1.+",
+          "volts": {
+            "min": 4.9
+          }
+        },
+        {
+          "pin": "BZ1.-",
+          "volts": {
+            "min": 4.9
+          }
+        }
+      ]
+    },
+    {
+      "name": "A steady HIGH puts almost the whole 5 V across the coil, within the pin's 16 mA",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": true
+        }
+      },
+      "expect": [
+        {
+          "pin": "BZ1.-",
+          "volts": {
+            "max": 0.3
+          }
+        },
+        {
+          "gpio": 17,
+          "currentA": {
+            "min": 0.001,
+            "max": 0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "A 440 Hz, 50 % PWM signal switches the coil on half the time",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": false,
+          "pwm": {
+            "frequencyHz": 440,
+            "duty": 0.5
+          }
+        }
+      },
+      "expect": [
+        {
+          "pin": "BZ1.-",
+          "volts": {
+            "min": 2.2,
+            "max": 2.9
+          }
+        },
+        {
+          "gpio": 17,
+          "currentA": {
+            "min": 0.0005,
+            "max": 0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "A 440 Hz, 10 % PWM signal switches the coil on a tenth of the time",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": false,
+          "pwm": {
+            "frequencyHz": 440,
+            "duty": 0.1
+          }
+        }
+      },
+      "expect": [
+        {
+          "pin": "BZ1.-",
+          "volts": {
+            "min": 4.2,
+            "max": 4.8
+          }
+        },
+        {
+          "gpio": 17,
+          "currentA": {
+            "min": 0.0001,
+            "max": 0.016
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoints": []
+}

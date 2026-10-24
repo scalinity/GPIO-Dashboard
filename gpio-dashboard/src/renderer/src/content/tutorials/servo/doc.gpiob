@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Servo",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "servo"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "SV1",
+      "defId": "sg90",
+      "props": {},
+      "placement": {
+        "pins": {
+          "GND": null,
+          "VCC": null,
+          "PWM": null
+        },
+        "offboardPose": {
+          "position": [
+            60,
+            -60
+          ],
+          "rotationDeg": 0
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "pin": {
+          "part": "SV1",
+          "pin": "VCC"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "i"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "pin": {
+          "part": "SV1",
+          "pin": "GND"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 3,
+          "col": "i"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "pin": {
+          "part": "SV1",
+          "pin": "PWM"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "i"
+        }
+      },
+      "color": "orange",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\nSERVO_PIN = 18  # BCM numbering: header pin 12, to the servo's signal wire\nFRAME_HZ = 50  # the servo expects a pulse every 20 ms\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(SERVO_PIN, GPIO.OUT, initial=GPIO.LOW)\nservo = GPIO.PWM(SERVO_PIN, FRAME_HZ)\n\n\ndef duty_for(angle):\n    # The SG90 centres on a 1.5 ms pulse and reaches its ends at about 1 ms and 2 ms,\n    # so -90..+90 degrees maps onto 1.0..2.0 ms of each 20 ms frame.\n    pulse_ms = 1.5 + angle / 180\n    return pulse_ms / 20 * 100\n\n\ndef move_to(angle):\n    servo.ChangeDutyCycle(duty_for(angle))\n    time.sleep(0.6)  # time to travel, at about 0.1 s per 60 degrees\n\n\nservo.start(duty_for(0))\ntime.sleep(0.6)\n\ntry:\n    while True:\n        for angle in (-90, 0, 90, 0):\n            print('Moving to', angle, 'degrees')\n            move_to(angle)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    servo.stop()\n    GPIO.output(SERVO_PIN, GPIO.LOW)\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "SV1": {
+      "why": "The servo’s plug has female sockets, so male–male leads go from its three sockets to the T-board strips.",
+      "mistake": "The plug turned round: brown (GND) must meet the first socket, red (VCC) the middle one and orange (signal) the last."
+    },
+    "W1": {
+      "why": "The red wire is the servo’s supply. It needs 4.8 V or more, so it comes from the 5 V pin."
+    },
+    "W3": {
+      "why": "GPIO18 carries the 50 Hz pulse train whose width sets the angle."
+    }
+  }
+}

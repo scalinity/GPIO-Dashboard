@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Passive Buzzer",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "passive-buzzer"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "BZ1",
+      "defId": "passive-buzzer",
+      "props": {},
+      "placement": {
+        "pins": {
+          "+": {
+            "board": "bb1",
+            "area": "main",
+            "row": 29,
+            "col": "j"
+          },
+          "-": {
+            "board": "bb1",
+            "area": "main",
+            "row": 32,
+            "col": "j"
+          }
+        }
+      }
+    },
+    {
+      "id": "Q1",
+      "defId": "pn2222",
+      "props": {},
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 36,
+            "col": "j"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 37,
+            "col": "j"
+          },
+          "3": {
+            "board": "bb1",
+            "area": "main",
+            "row": 38,
+            "col": "j"
+          }
+        }
+      }
+    },
+    {
+      "id": "R1",
+      "defId": "resistor",
+      "props": {
+        "resistance": 1000,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 37,
+            "col": "f"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 37,
+            "col": "d"
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 29,
+          "col": "h"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 32,
+          "col": "h"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 38,
+          "col": "i"
+        }
+      },
+      "color": "blue",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 36,
+          "col": "g"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "a"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 37,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\nBUZZER_PIN = 17  # BCM numbering: header pin 11, through R1 to the base of Q1\n\n# One octave of C major, in hertz.\nSCALE = [262, 294, 330, 349, 392, 440, 494, 523]\nNOTE_SECONDS = 0.3\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(BUZZER_PIN, GPIO.OUT, initial=GPIO.LOW)\nbuzzer = GPIO.PWM(BUZZER_PIN, SCALE[0])\n\n\ndef play(frequency):\n    # A square wave at the note's frequency, on for half of each cycle.\n    buzzer.ChangeFrequency(frequency)\n    buzzer.start(50)\n    time.sleep(NOTE_SECONDS)\n    # Stop between notes: a steady HIGH would put full current through the coil without a sound.\n    buzzer.stop()\n    time.sleep(0.05)\n\n\ntry:\n    while True:\n        for note in SCALE:\n            print('Playing', note, 'Hz')\n            play(note)\n        time.sleep(1)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    buzzer.stop()\n    GPIO.output(BUZZER_PIN, GPIO.LOW)\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "BZ1": {
+      "why": "A passive buzzer is a bare coil: it makes a tone only when the current through it switches on and off at that tone’s frequency.",
+      "mistake": "Holding GPIO17 HIGH instead of switching it: you hear only a click, and the coil draws current for nothing."
+    },
+    "Q1": {
+      "why": "The transistor carries the coil current so the GPIO pin supplies only the base current.",
+      "mistake": "Emitter, base and collector swapped. With the flat face toward you and the leads down, the order is E, B, C from the left."
+    },
+    "R1": {
+      "why": "The 1 kΩ resistor limits the base current to a few milliamps."
+    },
+    "W4": {
+      "why": "The PWM signal on GPIO17 switches Q1 on and off, and the buzzer follows at the same frequency."
+    }
+  }
+}

@@ -1,0 +1,345 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Tilt Switch",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "tilt-switch"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "S1",
+      "defId": "tilt-switch",
+      "props": {},
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 40,
+            "col": "c"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 41,
+            "col": "c"
+          }
+        }
+      }
+    },
+    {
+      "id": "R1",
+      "defId": "resistor",
+      "props": {
+        "resistance": 10000,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 40,
+            "col": "a"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 44,
+            "col": "a"
+          }
+        }
+      }
+    },
+    {
+      "id": "R2",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 29,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 25,
+            "col": "b"
+          }
+        }
+      }
+    },
+    {
+      "id": "D1",
+      "defId": "led",
+      "props": {
+        "color": "red",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 30,
+            "col": "c"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "main",
+            "row": 29,
+            "col": "c"
+          }
+        }
+      }
+    },
+    {
+      "id": "R3",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 35,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 31,
+            "col": "b"
+          }
+        }
+      }
+    },
+    {
+      "id": "D2",
+      "defId": "led",
+      "props": {
+        "color": "green",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 36,
+            "col": "c"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "main",
+            "row": 35,
+            "col": "c"
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 25,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "a"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 30,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 8,
+          "col": "a"
+        }
+      },
+      "color": "grey",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 31,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "b"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 36,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 7,
+          "col": "a"
+        }
+      },
+      "color": "orange",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W5",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 41,
+          "col": "e"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "color": "blue",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W6",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 44,
+          "col": "b"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "c"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\nTILT_PIN = 17  # BCM numbering: header pin 11, to the tilt switch\nGREEN_PIN = 27  # header pin 13, to the green LED's anode\nRED_PIN = 22  # header pin 15, to the red LED's anode\n\nGPIO.setmode(GPIO.BCM)\n# The switch connects the pin to GND (through R1) when its ball rests on both contacts. Nothing\n# pulls the pin up outside the Pi, so the internal pull-up is what makes it read HIGH when open.\nGPIO.setup(TILT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)\nGPIO.setup(GREEN_PIN, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(RED_PIN, GPIO.OUT, initial=GPIO.LOW)\n\n\ndef show(tilted):\n    GPIO.output(GREEN_PIN, GPIO.LOW if tilted else GPIO.HIGH)\n    GPIO.output(RED_PIN, GPIO.HIGH if tilted else GPIO.LOW)\n\n\ndef read_tilted():\n    # Two reads a few milliseconds apart, so the ball's bounce is not taken for a change.\n    first = GPIO.input(TILT_PIN)\n    time.sleep(0.01)\n    if GPIO.input(TILT_PIN) != first:\n        return None\n    return first == GPIO.HIGH\n\n\nlast = None\n\ntry:\n    while True:\n        tilted = read_tilted()\n        if tilted is not None and tilted != last:\n            show(tilted)\n            print('Tilt!' if tilted else 'Level again')\n            last = tilted\n        time.sleep(0.05)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.output(GREEN_PIN, GPIO.LOW)\n    GPIO.output(RED_PIN, GPIO.LOW)\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "S1": {
+      "why": "A metal ball inside rests on both contacts when the switch stands upright, and rolls off them when it is tilted.",
+      "mistake": "Looking for polarity: the two leads are interchangeable."
+    },
+    "R1": {
+      "why": "The resistor keeps the current small when the closed switch ties the pin to GND."
+    },
+    "D1": {
+      "why": "Red lights when GPIO22 is HIGH: the anode is on the pin and the cathode returns to GND through R2.",
+      "mistake": "The LED in backwards: it stays dark."
+    },
+    "D2": {
+      "why": "Green lights when GPIO27 is HIGH, the same way.",
+      "mistake": "The LED in backwards: it stays dark."
+    },
+    "W5": {
+      "why": "GPIO17 reads the switch. With the ball on the contacts it is pulled to GND, so it reads LOW; with the switch open the internal pull-up makes it HIGH."
+    }
+  }
+}

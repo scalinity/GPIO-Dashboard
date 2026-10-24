@@ -1,0 +1,629 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Adjustable Fan",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "adjustable-fan"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "U1",
+      "defId": "ads7830-module",
+      "props": {},
+      "placement": {
+        "pins": {
+          "A0": null,
+          "A1": null,
+          "A2": null,
+          "A3": null,
+          "A4": null,
+          "A5": null,
+          "A6": null,
+          "A7": null,
+          "VCC": null,
+          "SDA": null,
+          "SCL": null,
+          "GND": null
+        },
+        "offboardPose": {
+          "position": [
+            60,
+            75
+          ],
+          "rotationDeg": 0
+        }
+      }
+    },
+    {
+      "id": "R1",
+      "defId": "potentiometer-10k",
+      "props": {},
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 28,
+            "col": "c"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 30,
+            "col": "c"
+          },
+          "3": {
+            "board": "bb1",
+            "area": "main",
+            "row": 32,
+            "col": "c"
+          }
+        }
+      }
+    },
+    {
+      "id": "U2",
+      "defId": "ic-l293d",
+      "props": {},
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 40,
+            "col": "e"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 41,
+            "col": "e"
+          },
+          "3": {
+            "board": "bb1",
+            "area": "main",
+            "row": 42,
+            "col": "e"
+          },
+          "4": {
+            "board": "bb1",
+            "area": "main",
+            "row": 43,
+            "col": "e"
+          },
+          "5": {
+            "board": "bb1",
+            "area": "main",
+            "row": 44,
+            "col": "e"
+          },
+          "6": {
+            "board": "bb1",
+            "area": "main",
+            "row": 45,
+            "col": "e"
+          },
+          "7": {
+            "board": "bb1",
+            "area": "main",
+            "row": 46,
+            "col": "e"
+          },
+          "8": {
+            "board": "bb1",
+            "area": "main",
+            "row": 47,
+            "col": "e"
+          },
+          "9": {
+            "board": "bb1",
+            "area": "main",
+            "row": 47,
+            "col": "f"
+          },
+          "10": {
+            "board": "bb1",
+            "area": "main",
+            "row": 46,
+            "col": "f"
+          },
+          "11": {
+            "board": "bb1",
+            "area": "main",
+            "row": 45,
+            "col": "f"
+          },
+          "12": {
+            "board": "bb1",
+            "area": "main",
+            "row": 44,
+            "col": "f"
+          },
+          "13": {
+            "board": "bb1",
+            "area": "main",
+            "row": 43,
+            "col": "f"
+          },
+          "14": {
+            "board": "bb1",
+            "area": "main",
+            "row": 42,
+            "col": "f"
+          },
+          "15": {
+            "board": "bb1",
+            "area": "main",
+            "row": 41,
+            "col": "f"
+          },
+          "16": {
+            "board": "bb1",
+            "area": "main",
+            "row": 40,
+            "col": "f"
+          }
+        }
+      }
+    },
+    {
+      "id": "M1",
+      "defId": "dc-motor",
+      "props": {},
+      "placement": {
+        "pins": {
+          "red": null,
+          "black": null
+        },
+        "offboardPose": {
+          "position": [
+            110,
+            75
+          ],
+          "rotationDeg": 0
+        }
+      }
+    },
+    {
+      "id": "PS1",
+      "defId": "breadboard-power-module",
+      "props": {
+        "inputVoltage": 9,
+        "switchOn": true
+      },
+      "placement": {
+        "pins": {
+          "1": null,
+          "2": null,
+          "3": null,
+          "4": null,
+          "5": null,
+          "6": null,
+          "7": null,
+          "8": null
+        },
+        "offboardPose": {
+          "position": [
+            140,
+            75
+          ],
+          "rotationDeg": 0
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 32,
+          "col": "a"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 3,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 28,
+          "col": "a"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "b"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "VCC"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "GND"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W5",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 2,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "SDA"
+        }
+      },
+      "color": "blue",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W6",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 3,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "SCL"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W7",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 30,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "A0"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W8",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 8,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 40,
+          "col": "a"
+        }
+      },
+      "color": "blue",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W9",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 7,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 41,
+          "col": "a"
+        }
+      },
+      "color": "orange",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W10",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 46,
+          "col": "a"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W11",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 42,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "M1",
+          "pin": "red"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W12",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 45,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "M1",
+          "pin": "black"
+        }
+      },
+      "color": "brown",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W13",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 13,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 43,
+          "col": "a"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W14",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 47,
+          "col": "b"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "PS1",
+          "pin": "5"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W15",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 47,
+          "col": "c"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 40,
+          "col": "j"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W16",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 13,
+          "col": "b"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "PS1",
+          "pin": "2"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\nimport smbus\n\nIN1_PIN = 27  # BCM numbering: header pin 13, L293D input 1A\nIN2_PIN = 17  # header pin 11, L293D input 2A\nENABLE_PIN = 22  # header pin 15, L293D enable 1,2EN (PWM sets the speed)\nCHANNEL = 0  # the knob's wiper is on input A0\n\nADC_ADDRESS = 0x48  # the ADS7830 module on I2C bus 1 (SDA is GPIO2, SCL is GPIO3)\n\n# Command byte: SD = 1 (single-ended), C2-C0 choose the input, PD1-PD0 = 01 (converter on).\n# The select codes for A0 to A7 are not in binary order (ADS7830 datasheet, Table 2).\nSELECT = (0, 4, 1, 5, 2, 6, 3, 7)\n\nbus = smbus.SMBus(1)\n\n\ndef read_adc(channel):\n    \"\"\"One 8-bit reading: 0 for 0 V up to 255 for the module's 3.3 V supply.\"\"\"\n    command = 0x84 | (SELECT[channel] << 4)\n    return bus.read_byte_data(ADC_ADDRESS, command)\n\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(IN1_PIN, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(IN2_PIN, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(ENABLE_PIN, GPIO.OUT)\nspeed = GPIO.PWM(ENABLE_PIN, 1000)\nspeed.start(0)\n\n\ndef drive(value):\n    \"\"\"Spin the motor from a reading: stopped at 128, faster toward either end.\"\"\"\n    offset = value - 128\n    if offset > 0:\n        GPIO.output(IN1_PIN, GPIO.HIGH)\n        GPIO.output(IN2_PIN, GPIO.LOW)\n        direction = 'forward'\n    elif offset < 0:\n        GPIO.output(IN1_PIN, GPIO.LOW)\n        GPIO.output(IN2_PIN, GPIO.HIGH)\n        direction = 'backward'\n    else:\n        GPIO.output(IN1_PIN, GPIO.LOW)\n        GPIO.output(IN2_PIN, GPIO.LOW)\n        direction = 'stopped'\n    duty = min(100, abs(offset) * 100 / 128)\n    speed.ChangeDutyCycle(duty)\n    return direction, duty\n\n\ntry:\n    while True:\n        value = read_adc(CHANNEL)\n        direction, duty = drive(value)\n        print(f'ADC {value:3d}  {direction:8s}  duty {duty:3.0f} %')\n        time.sleep(0.2)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    speed.stop()\n    GPIO.cleanup()\n    bus.close()\n"
+  },
+  "buildStepAnnotations": {
+    "U1": {
+      "why": "The module turns the knob voltage into a number the Pi can read over I2C.",
+      "mistake": "Powering the module from 5 V. Its I2C pull-ups are unverified, so it runs from 3.3 V."
+    },
+    "R1": {
+      "why": "The wiper goes to A0; the code takes 128, the middle of the range, as the stop position."
+    },
+    "U2": {
+      "why": "The L293D switches the motor current. A GPIO pin cannot supply a motor, and the chip also has clamp diodes for the coil kick-back.",
+      "mistake": "Putting the chip in with the notch the wrong way round, which swaps every pin."
+    },
+    "PS1": {
+      "why": "The motor runs from the power module, not from the Pi, so motor current and noise stay off the Pi supply.",
+      "mistake": "Leaving its ground unconnected to the Pi ground: the logic signals then have no common reference."
+    },
+    "W8": {
+      "why": "GPIO22 drives the enable pin, so its PWM duty cycle sets the motor speed."
+    },
+    "W9": {
+      "why": "GPIO27 drives input 1A: HIGH here with 2A LOW turns the motor forward."
+    },
+    "W10": {
+      "why": "GPIO17 drives input 2A: HIGH here with 1A LOW turns the motor backward."
+    },
+    "W13": {
+      "why": "The chip logic shares the Pi ground, so the 3.3 V inputs mean something to it."
+    },
+    "W14": {
+      "why": "The motor supply, 5 V from the power module, feeds the chip motor pin VCC2."
+    },
+    "W15": {
+      "why": "The chip logic supply VCC1 needs 4.5 V or more, so it shares the same 5 V."
+    },
+    "W16": {
+      "why": "The power module ground joins the Pi ground so both supplies share one reference."
+    }
+  }
+}

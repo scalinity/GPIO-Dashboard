@@ -1,0 +1,248 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Keypad",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "keypad"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "KP1",
+      "defId": "keypad-4x4",
+      "props": {},
+      "placement": {
+        "pins": {
+          "R1": null,
+          "R2": null,
+          "R3": null,
+          "R4": null,
+          "C1": null,
+          "C2": null,
+          "C3": null,
+          "C4": null
+        },
+        "offboardPose": {
+          "position": [
+            60,
+            75
+          ],
+          "rotationDeg": 0
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "KP1",
+          "pin": "R1"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "j"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "KP1",
+          "pin": "R2"
+        }
+      },
+      "color": "orange",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 7,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "KP1",
+          "pin": "R3"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 8,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "KP1",
+          "pin": "R4"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W5",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 8,
+          "col": "j"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "KP1",
+          "pin": "C1"
+        }
+      },
+      "color": "blue",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W6",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 9,
+          "col": "j"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "KP1",
+          "pin": "C2"
+        }
+      },
+      "color": "violet",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W7",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 11,
+          "col": "j"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "KP1",
+          "pin": "C3"
+        }
+      },
+      "color": "grey",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W8",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 15,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "KP1",
+          "pin": "C4"
+        }
+      },
+      "color": "white",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\nROWS = [17, 18, 27, 22]  # BCM numbering: outputs to R1 to R4 (header pins 11, 12, 13, 15)\nCOLS = [23, 24, 25, 5]  # inputs from C1 to C4 (header pins 16, 18, 22, 29)\nKEYS = ['123A', '456B', '789C', '*0#D']  # one string per row, one character per column\n\nGPIO.setmode(GPIO.BCM)\nfor row in ROWS:\n    GPIO.setup(row, GPIO.OUT, initial=GPIO.LOW)\nfor col in COLS:\n    GPIO.setup(col, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)\n\n\ndef scan():\n    \"\"\"The key held down, or None. Each row is raised in turn and the columns are read.\"\"\"\n    for r, row in enumerate(ROWS):\n        GPIO.output(row, GPIO.HIGH)\n        found = None\n        for c, col in enumerate(COLS):\n            if GPIO.input(col) == GPIO.HIGH:\n                found = KEYS[r][c]\n        GPIO.output(row, GPIO.LOW)\n        if found:\n            return found\n    return None\n\n\ntry:\n    last = None\n    while True:\n        key = scan()\n        if key and key != last:\n            print(f'Key {key}')\n        last = key\n        time.sleep(0.05)  # also acts as a debounce\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "KP1": {
+      "why": "Each key joins one row line to one column line when pressed, so 8 wires read 16 keys.",
+      "mistake": "Putting the row and column wires on the wrong sockets: the keys then read as the wrong characters."
+    },
+    "W1": {
+      "why": "Row 1 is an output the code drives HIGH while it checks that row."
+    },
+    "W5": {
+      "why": "Column 1 is an input with a pull-down, so it reads HIGH only while a key joins it to a HIGH row."
+    }
+  }
+}

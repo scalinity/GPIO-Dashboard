@@ -1,0 +1,267 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "RGB LED",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "rgb-led"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "R1",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 26,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 26,
+            "col": "f"
+          }
+        }
+      }
+    },
+    {
+      "id": "R2",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 28,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 28,
+            "col": "f"
+          }
+        }
+      }
+    },
+    {
+      "id": "R3",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 29,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 29,
+            "col": "f"
+          }
+        }
+      }
+    },
+    {
+      "id": "D1",
+      "defId": "rgb-led-cc",
+      "props": {},
+      "placement": {
+        "pins": {
+          "R": {
+            "board": "bb1",
+            "area": "main",
+            "row": 26,
+            "col": "h"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "main",
+            "row": 27,
+            "col": "h"
+          },
+          "G": {
+            "board": "bb1",
+            "area": "main",
+            "row": 28,
+            "col": "h"
+          },
+          "B": {
+            "board": "bb1",
+            "area": "main",
+            "row": 29,
+            "col": "h"
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 26,
+          "col": "a"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 28,
+          "col": "a"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 7,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 29,
+          "col": "a"
+        }
+      },
+      "color": "blue",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 3,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 27,
+          "col": "j"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\nRED_PIN = 17    # BCM numbering: header pin 11\nGREEN_PIN = 18  # header pin 12\nBLUE_PIN = 27   # header pin 13\nPWM_HZ = 2000\n\n# Each colour is a (red, green, blue) triple of brightness values from 0 to 255.\nCOLOURS = [\n    (\"red\", (255, 0, 0)),\n    (\"green\", (0, 255, 0)),\n    (\"blue\", (0, 0, 255)),\n    (\"yellow\", (255, 255, 0)),\n    (\"purple\", (255, 0, 255)),\n    (\"cyan\", (0, 255, 255)),\n]\n\nGPIO.setmode(GPIO.BCM)\n# The LED's common cathode is on GND, so a HIGH pin lights its colour and LOW keeps it dark.\nGPIO.setup(RED_PIN, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(GREEN_PIN, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(BLUE_PIN, GPIO.OUT, initial=GPIO.LOW)\n\nred = GPIO.PWM(RED_PIN, PWM_HZ)\ngreen = GPIO.PWM(GREEN_PIN, PWM_HZ)\nblue = GPIO.PWM(BLUE_PIN, PWM_HZ)\nfor channel in (red, green, blue):\n    channel.start(0)\n\n\ndef show(r, g, b):\n    \"\"\"Set the LED colour from three 0-255 brightness values.\"\"\"\n    red.ChangeDutyCycle(r * 100 / 255)\n    green.ChangeDutyCycle(g * 100 / 255)\n    blue.ChangeDutyCycle(b * 100 / 255)\n\n\ntry:\n    while True:\n        for name, (r, g, b) in COLOURS:\n            print(\"Showing\", name)\n            show(r, g, b)\n            time.sleep(0.5)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    for channel in (red, green, blue):\n        channel.stop()\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "R1": {
+      "why": "Each colour has its own resistor, because the three dies in the LED need separate current limits."
+    },
+    "D1": {
+      "why": "The four leads are red, the common cathode (the longest lead), green and blue, in that order.",
+      "mistake": "Treating the longest lead as an end lead. It is the second one, and it goes to GND, not to a GPIO."
+    },
+    "W1": {
+      "why": "GPIO17 drives the red die through R1. HIGH lights it."
+    },
+    "W2": {
+      "why": "GPIO18 drives the green die through R2."
+    },
+    "W3": {
+      "why": "GPIO27 drives the blue die through R3."
+    },
+    "W4": {
+      "why": "The common cathode returns all three currents to GND.",
+      "mistake": "Leaving the cathode unconnected: none of the colours light."
+    }
+  }
+}

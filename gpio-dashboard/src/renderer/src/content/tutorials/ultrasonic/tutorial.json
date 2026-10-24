@@ -1,0 +1,223 @@
+{
+  "id": "ultrasonic",
+  "title": "Ultrasonic Distance",
+  "order": 25,
+  "kitProject": null,
+  "tags": ["needs parts not in the kit"],
+  "summary": "Measure distance with an HC-SR04: a pulse on GPIO17 triggers it and GPIO18 times the echo, which reaches the Pi through a resistor divider because ECHO is a 5 V signal.",
+  "sources": {
+    "kit": null,
+    "datasheets": [
+      "https://cdn.sparkfun.com/datasheets/Sensors/Proximity/HCSR04.pdf",
+      "https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "The module runs from 5 V and ECHO idles low at the GPIO18 pin",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "in",
+          "pull": "off"
+        }
+      },
+      "advanceS": 0.001,
+      "expect": [
+        {
+          "pin": "HC1.VCC",
+          "volts": {
+            "min": 4.98,
+            "max": 5.02
+          }
+        },
+        {
+          "pin": "HC1.ECHO",
+          "volts": {
+            "max": 0.1
+          }
+        },
+        {
+          "read": 18,
+          "is": "low"
+        }
+      ]
+    },
+    {
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "in",
+          "pull": "off"
+        }
+      },
+      "advanceS": 0.001,
+      "sequence": [
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": true
+            }
+          },
+          "advanceS": 0.00002
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            }
+          },
+          "advanceS": 0.0005
+        }
+      ],
+      "name": "With ECHO at its 5 V high the divider output stays at or below 3.3 V",
+      "expect": [
+        {
+          "part": "HC1",
+          "view": {
+            "echo": true
+          }
+        },
+        {
+          "pin": "HC1.ECHO",
+          "volts": {
+            "min": 4.5
+          }
+        },
+        {
+          "pin": "R2.2",
+          "volts": {
+            "min": 2.5,
+            "max": 3.3
+          }
+        },
+        {
+          "read": 18,
+          "is": "high"
+        }
+      ]
+    },
+    {
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "in",
+          "pull": "off"
+        }
+      },
+      "advanceS": 0.001,
+      "sequence": [
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": true
+            }
+          },
+          "advanceS": 0.00002
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            }
+          },
+          "advanceS": 0.0025
+        }
+      ],
+      "name": "A target at 30 cm ends the echo within 2.5 ms: GPIO18 is back LOW",
+      "inputs": {
+        "HC1": {
+          "distanceCm": 30
+        }
+      },
+      "expect": [
+        {
+          "part": "HC1",
+          "view": {
+            "distanceCm": 30,
+            "echo": false
+          }
+        },
+        {
+          "read": 18,
+          "is": "low"
+        }
+      ]
+    },
+    {
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "in",
+          "pull": "off"
+        }
+      },
+      "advanceS": 0.001,
+      "sequence": [
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": true
+            }
+          },
+          "advanceS": 0.00002
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            }
+          },
+          "advanceS": 0.003
+        }
+      ],
+      "name": "A target at 100 cm keeps the echo HIGH past 3 ms",
+      "inputs": {
+        "HC1": {
+          "distanceCm": 100
+        }
+      },
+      "expect": [
+        {
+          "part": "HC1",
+          "view": {
+            "distanceCm": 100,
+            "echo": true
+          }
+        },
+        {
+          "read": 18,
+          "is": "high"
+        },
+        {
+          "pin": "R2.2",
+          "volts": {
+            "max": 3.3
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoints": []
+}

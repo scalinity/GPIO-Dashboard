@@ -1,0 +1,203 @@
+{
+  "id": "pir",
+  "title": "PIR Motion Sensor",
+  "order": 24,
+  "kitProject": null,
+  "tags": ["needs parts not in the kit"],
+  "summary": "Detect movement with an HC-SR501 PIR module on GPIO17 and light an alert LED from GPIO18. The module needs about a minute to settle after power-up.",
+  "sources": {
+    "kit": null,
+    "datasheets": [
+      "https://electronilab.co/wp-content/uploads/2013/12/HC-SR501.pdf",
+      "https://www.kingbrightusa.com/images/catalog/SPEC/WP7113ID.pdf",
+      "https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "During the warm-up OUT stays LOW even with movement in view",
+      "gpio": {
+        "17": {
+          "mode": "in",
+          "pull": "down"
+        }
+      },
+      "inputs": {
+        "U1": {
+          "motion": true
+        }
+      },
+      "advanceS": 30,
+      "expect": [
+        {
+          "part": "U1",
+          "view": {
+            "powered": true,
+            "initialising": true,
+            "out": false
+          }
+        },
+        {
+          "read": 17,
+          "is": "low"
+        }
+      ]
+    },
+    {
+      "name": "After the warm-up, with nothing moving, OUT is LOW",
+      "gpio": {
+        "17": {
+          "mode": "in",
+          "pull": "down"
+        }
+      },
+      "inputs": {
+        "U1": {
+          "motion": false
+        }
+      },
+      "advanceS": 61,
+      "expect": [
+        {
+          "part": "U1",
+          "view": {
+            "initialising": false,
+            "out": false,
+            "blocked": false
+          }
+        },
+        {
+          "read": 17,
+          "is": "low"
+        }
+      ]
+    },
+    {
+      "name": "After the warm-up, movement raises OUT to 3.3 V, safe for GPIO17, and it reads HIGH",
+      "gpio": {
+        "17": {
+          "mode": "in",
+          "pull": "down"
+        }
+      },
+      "inputs": {
+        "U1": {
+          "motion": true
+        }
+      },
+      "advanceS": 61,
+      "expect": [
+        {
+          "part": "U1",
+          "view": {
+            "initialising": false,
+            "out": true
+          }
+        },
+        {
+          "pin": "U1.OUT",
+          "volts": {
+            "min": 3,
+            "max": 3.4
+          }
+        },
+        {
+          "read": 17,
+          "is": "high"
+        }
+      ]
+    },
+    {
+      "name": "When the movement stops OUT falls after the hold time, then the sensor is blocked briefly",
+      "gpio": {
+        "17": {
+          "mode": "in",
+          "pull": "down"
+        }
+      },
+      "inputs": {
+        "U1": {
+          "motion": true
+        }
+      },
+      "advanceS": 62,
+      "sequence": [
+        {
+          "inputs": {
+            "U1": {
+              "motion": false
+            }
+          },
+          "gpio": {},
+          "advanceS": 6
+        }
+      ],
+      "expect": [
+        {
+          "part": "U1",
+          "view": {
+            "out": false,
+            "blocked": true
+          }
+        },
+        {
+          "read": 17,
+          "is": "low"
+        }
+      ]
+    },
+    {
+      "name": "GPIO18 HIGH lights the alert LED within its rating",
+      "gpio": {
+        "18": {
+          "mode": "out",
+          "level": true
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.03
+          }
+        },
+        {
+          "gpio": 18,
+          "currentA": {
+            "min": 0.001,
+            "max": 0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "GPIO18 LOW turns the alert LED off",
+      "gpio": {
+        "18": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "kind": "toggle-led",
+      "afterStep": "W5",
+      "part": "D1",
+      "gpio": 18
+    }
+  ]
+}
