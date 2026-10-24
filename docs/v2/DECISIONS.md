@@ -252,8 +252,8 @@ decision and consequences. Numbering is stable; superseded records say so.
   - The kit's own leads are F-M ×10 and F-F ×10, plus a "65 Jumper Wire" set. The user's
     T-board kit adds M-M ×10 and M-F ×10, 200 mm.
   - Dot matrix: common-anode 788BS (project 1.1.3). 7-segment: common cathode (1.1.4).
-    RGB LED: common cathode, inferred from project 1.1.2's wiring and code; no page
-    states it.
+    RGB LED: common cathode. SunFounder's components documentation states it ("We use
+    the common cathode one"), and project 1.1.2's wiring agrees.
   - LED colours red, yellow, green, white, blue; the size isn't stated anywhere.
 - **Decision.**
   - The library keeps every part SPEC 7 lists, so S8050, S8550, ADC0834 and ADS1115
@@ -267,3 +267,38 @@ decision and consequences. Numbering is stable; superseded records say so.
     is not confirmed from the photo, so it gets no lead kind until it is.
 - **Consequences.** M4's audit cites the kit's real part in every finding. The D8 fix uses
   the PN2222 with the kit's base resistor, not the S8050 the spec assumed.
+
+## ADR-0012 Simulator model parameters come from one datasheet point per part
+
+- **Context.** SPEC 9 asks for diodes and LEDs "with per-color parameters fitted to the
+  datasheet Vf at the rated If", and BJTs "with the datasheet β".
+  - A datasheet gives one typical (Vf, If) point per die. A Shockley diode with series
+    resistance has three unknowns (IS, N, RS), so one point can't fix them all.
+  - BJT datasheets give an hFE range at a test point, not one β.
+  - ngspice 47 floors a diode's IS at 1e-28 A (`showmod` reports `is 1e-28` for a card
+    that says 8.3e-30). With N = 2, a 3.3 V InGaN die fits to IS ≈ 1e-29, so ngspice
+    silently simulates a different diode. That made the blue and white LED fixtures differ
+    by 3.5%.
+- **Decision.**
+  - Diodes fix N and RS per family and solve IS so the curve passes exactly through the
+    datasheet's typical point (`core/sim/fit.ts`):
+    - LEDs with a typical Vf below 2.6 V (AlGaInP, GaAsP, GaP: red, yellow, the kit's
+      2.0 V green): N = 2, RS = 2 Ω.
+    - LEDs at or above 2.6 V (InGaN: blue, white, true green): N = 3, RS = 2 Ω. InGaN
+      junctions show ideality factors well above 2 (Shah et al., J. Appl. Phys. 94, 2627
+      (2003)), so N = 2 was wrong for them as well as below ngspice's floor.
+    - Rectifiers (1N4007): N = 2, RS = 0.05 Ω, fitted at the Fig. 4 typical Vf at 1 A.
+    - The family is chosen from the datasheet Vf, not the colour name, because the kit's
+      5 mm green LED (2.0 V) and the RGB LED's green die (3.2 V) are different chemistries.
+  - BJTs: Ebers–Moll transport model with IS = 1e-14 A and BR = 1; β is the geometric
+    mean of the datasheet's hFE range (PN2222: √(100·300) ≈ 173).
+  - A driven GPIO is a Thévenin source. Its resistance is the RP1 table's VOH margin over
+    the typical IOH at the drive strength (ADR-0009; 42.1 Ω high at the default 4 mA).
+- **Consequences.**
+  - `scripts/reference/ngspice_fixtures.py` applies the same rules and records the
+    parameters it gave ngspice. `core/sim/ngspice.test.ts` checks that `fit.ts` reproduces
+    them, and that every fixture matches ngspice within ±2%.
+  - A part whose fit would put IS under 1e-28 A shows up as a fixture failure, not as a
+    quiet mismatch.
+  - Currents away from the datasheet point are a model, not a measurement. The Inspect
+    panel labels them "simulated".
