@@ -43,9 +43,15 @@ export function runAssertion(doc: CircuitDoc, defs: PartDefs, a: Assertion): str
     }
     if (step.advanceS > 0) session.advanceTo((t += step.advanceS))
   }
+  return [...failures, ...expectationFailures(session, a.expect)]
+}
+
+/** Which of `expect` do not hold on the session now; an empty list means all hold. */
+export function expectationFailures(session: SimSession, expect: Assertion['expect']): string[] {
   const snap = session.snapshot()
-  if (snap.error) return [...failures, `simulation error: ${snap.error}`]
-  for (const e of a.expect) {
+  if (snap.error) return [`simulation error: ${snap.error}`]
+  const failures: string[] = []
+  for (const e of expect) {
     if ('die' in e) {
       const die = snap.dies[e.die]
       if (!die) failures.push(`no LED die ${e.die}`)

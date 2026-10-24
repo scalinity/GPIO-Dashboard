@@ -1,4 +1,5 @@
-import { resolve } from 'path'
+import { createReadStream, readFileSync } from 'fs'
+import { join, resolve } from 'path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -23,6 +24,40 @@ function crossOriginIsolation() {
   }
 }
 
+// Pyodide runs from local files, never a CDN (SPEC 13.2). The worker bundles pyodide.mjs; these
+// are the files loadPyodide fetches from its indexURL, served at /pyodide/ in dev and emitted
+// into the build so the app embeds them.
+const PYODIDE_DIR = resolve('node_modules/pyodide')
+const PYODIDE_FILES = {
+  'pyodide.asm.mjs': 'text/javascript',
+  'pyodide.asm.wasm': 'application/wasm',
+  'python_stdlib.zip': 'application/zip',
+  'pyodide-lock.json': 'application/json'
+}
+
+function pyodideAssets() {
+  return {
+    name: 'pyodide-assets',
+    configureServer(server) {
+      server.middlewares.use('/pyodide/', (req, res, next) => {
+        const file = req.url.slice(1).split('?')[0]
+        if (!(file in PYODIDE_FILES)) return next()
+        res.setHeader('Content-Type', PYODIDE_FILES[file])
+        createReadStream(join(PYODIDE_DIR, file)).pipe(res)
+      })
+    },
+    generateBundle() {
+      for (const file of Object.keys(PYODIDE_FILES)) {
+        this.emitFile({
+          type: 'asset',
+          fileName: `pyodide/${file}`,
+          source: readFileSync(join(PYODIDE_DIR, file))
+        })
+      }
+    }
+  }
+}
+
 export default defineConfig({
   root: 'src/renderer',
   clearScreen: false,
@@ -31,7 +66,9 @@ export default defineConfig({
       '@renderer': resolve('src/renderer/src')
     }
   },
-  plugins: [react(), crossOriginIsolation()],
+  plugins: [react(), crossOriginIsolation(), pyodideAssets()],
+  optimizeDeps: { exclude: ['pyodide'] },
+  worker: { format: 'es' },
   server: {
     port: 5173,
     strictPort: true

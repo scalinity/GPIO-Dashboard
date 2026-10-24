@@ -400,3 +400,39 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** The repository's license is the owner's choice. If it ever becomes
   GPL-3.0-compatible, the kit's code could be used directly with attribution. Until then,
   nothing in this repo is copied from it.
+
+## ADR-0017 Code in the loop: Python and the circuit share one worker, in virtual time
+
+- **Context.** SPEC 13.2: Pyodide runs the project's Python against the simulator, with
+  RPi.GPIO, gpiozero and smbus shims, Atomics-based sleep, and a selectable time scale.
+  RPi.GPIO calls are synchronous: `GPIO.input()` must return a level at once. A worker
+  running Python cannot receive messages until the program yields.
+- **Decision.**
+  - `pyodide.worker` hosts its own `SimSession` of the circuit. Every shim call is a direct
+    call into `workers/bridge.ts`, with no cross-worker round trip.
+  - **Virtual time.** `time.sleep(dt)` advances the circuit's clock by dt. Every shim call
+    costs 5 µs of virtual time (an RPi.GPIO call on a Pi 5 is on the order of microseconds),
+    so a polling loop advances the clock. `time.time()`, `monotonic()` and `perf_counter()`
+    return virtual time, so code that times a pulse (HC-SR04 ECHO) measures the circuit's
+    pulse.
+  - **Pacing.** The worker waits dt ÷ time scale of real time per sleep, with
+    `Atomics.wait` in slices of at most 20 ms. "As fast as possible" skips the wait.
+  - **The UI reaches a running program through shared memory.** Stop sets Pyodide's
+    interrupt buffer, which raises `KeyboardInterrupt` as Ctrl+C does on the Pi. Part inputs
+    (buttons, sliders) are written as JSON to a shared buffer, with a counter the bridge
+    checks on every call.
+  - The shims match the Pi's behaviour where a program can see it: RPi.GPIO's errors and
+    constants, gpiozero's pull-up defaults, and smbus raising `OSError` with Linux's errno
+    121 (Pyodide's own table says 147). gpiozero's background `blink()` and `beep()` run as
+    PWM, since there are no threads.
+  - **Code checks.** `workers/codeCheck.ts` runs a tutorial's own code with each
+    assertion's part inputs held, samples the circuit at every sleep, and passes when the
+    assertion's expectations all hold at some sample (I2C reads are left to the program).
+    This is the M5 exit check, with no per-tutorial run specification.
+  - Pyodide 314.0.7 (Python 3.14) is bundled from npm, never a CDN. A Vite plugin serves
+    its runtime files at `/pyodide/` in dev and emits them into the build.
+- **Consequences.**
+  - Simulated time runs only while the program calls the shims or sleeps; a pure-compute
+    loop does not advance it.
+  - Native extensions (the kit's `dht_c_driver.so`) cannot run in the browser. Tutorials
+    use pure-Python code paths, which ADR-0016 requires anyway.
