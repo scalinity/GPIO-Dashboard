@@ -82,6 +82,6 @@ describe('audit coverage', () => {
     )
     expect(open.map((r) => `${r[0]}: ${r[7]}`)).toEqual([])
     const scheduled = rows.filter((r) => r[7]!.startsWith('Scheduled')).map((r) => r[0])
-    expect(scheduled).toEqual(['D14'])
+    expect(scheduled).toEqual([])
   })
 })
