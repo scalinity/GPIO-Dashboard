@@ -46,7 +46,13 @@ async function attempt(action: () => Promise<void>) {
   }
 }
 
+/** While an assistant turn owns the document, no other document may replace it. */
+function unlocked() {
+  if (circuit.locked) throw new Error('Claude is working on the circuit. Stop it first.')
+}
+
 async function open(id: string | null, raw: unknown) {
+  unlocked()
   const doc = migrate(raw)
   const workbench = useWorkbench.getState()
   await workbench.open(id ?? doc.meta.name, doc)
@@ -70,12 +76,14 @@ function commitCode() {
 
 export const newProject = () =>
   attempt(async () => {
+    unlocked()
     await useWorkbench.getState().open('new', newDoc('Untitled', new Date().toISOString()))
     useProject.setState({ id: null })
   })
 
 export const openFile = () =>
   attempt(async () => {
+    unlocked()
     const raw = await importProject()
     if (raw !== null) await open(null, raw)
   })

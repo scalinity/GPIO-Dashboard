@@ -86,6 +86,11 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   probe: null,
   error: null,
   async open(source, doc) {
+    // While an assistant turn owns the document, it stays open (SPEC 11.8).
+    if (circuit.locked) {
+      set({ error: 'Claude is working on the circuit. Stop it to open another one.' })
+      return
+    }
     const problems = validateDoc(doc, partDef)
     set({
       source,

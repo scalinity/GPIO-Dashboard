@@ -117,4 +117,89 @@ describe('CircuitStore', () => {
     expect(s.getSnapshot().meta.name).toBe('Opened')
     expect(s.canUndo).toBe(false)
   })
+
+  const turn = (s: CircuitStore, id: string, rows: number[]) => {
+    for (const row of rows)
+      s.dispatch({
+        author: 'assistant',
+        label: `Lead at ${row}`,
+        assistantTurnId: id,
+        ops: [{ type: 'AddWire', wire: wire(`W${row}`, at(row, 'a'), at(row + 20, 'a')) }]
+      })
+  }
+
+  it('undoes and redoes an assistant turn as one group, in one change', () => {
+    const s = store()
+    s.dispatch({
+      author: 'user',
+      label: 'Mine',
+      ops: [{ type: 'AddWire', wire: wire('W0', at(40, 'a'), at(41, 'a')) }]
+    })
+    const mine = s.getSnapshot()
+    turn(s, 'turn-1', [30, 31, 32])
+    const built = s.getSnapshot()
+    let notified = 0
+    s.subscribe(() => notified++)
+    expect(s.lastTurnId).toBe('turn-1')
+    expect(s.undo()?.label).toBe('Lead at 30')
+    expect(s.getSnapshot()).toStrictEqual(mine)
+    expect(notified).toBe(1)
+    expect(s.redo()?.label).toBe('Lead at 32')
+    expect(s.getSnapshot()).toStrictEqual(built)
+    expect(notified).toBe(2)
+    s.undo()
+    s.undo()
+    expect(s.getSnapshot().wires).toEqual([])
+  })
+
+  it('keeps two turns as two groups', () => {
+    const s = store()
+    turn(s, 'turn-1', [30])
+    const first = s.getSnapshot()
+    turn(s, 'turn-2', [31, 32])
+    s.undo()
+    expect(s.getSnapshot()).toStrictEqual(first)
+    expect(s.lastTurnId).toBe('turn-1')
+  })
+
+  it('undoes a turn only while it is the latest change', () => {
+    const s = store()
+    turn(s, 'turn-1', [30, 31])
+    s.dispatch({
+      author: 'user',
+      label: 'After',
+      ops: [{ type: 'AddWire', wire: wire('W9', at(40, 'a'), at(41, 'a')) }]
+    })
+    const after = s.getSnapshot()
+    expect(s.undoTurn('turn-1')).toBe(0)
+    expect(s.getSnapshot()).toBe(after)
+  })
+
+  it('while locked to a turn, commits only that turn and refuses every other change', () => {
+    const s = store()
+    s.dispatch({
+      author: 'user',
+      label: 'Mine',
+      ops: [{ type: 'AddWire', wire: wire('W0', at(40, 'a'), at(41, 'a')) }]
+    })
+    s.lock('turn-1')
+    expect(s.locked).toBe(true)
+    turn(s, 'turn-1', [30])
+    const during = s.getSnapshot()
+    const user = s.dispatch({
+      author: 'user',
+      label: 'By hand',
+      ops: [{ type: 'AddWire', wire: wire('W8', at(55, 'a'), at(56, 'a')) }]
+    })
+    expect(!user.ok && user.problems[0]!.code).toBe('LOCKED')
+    turn(s, 'turn-2', [33])
+    expect(s.undo()).toBeNull()
+    expect(s.redo()).toBeNull()
+    expect(s.open(emptyDoc()).ok).toBe(false)
+    expect(s.undoTurn('turn-2')).toBe(0)
+    expect(s.getSnapshot()).toBe(during)
+    s.unlock()
+    expect(s.undoTurn('turn-1')).toBe(1)
+    expect(s.getSnapshot().wires.map((w) => w.id)).toEqual(['W0'])
+  })
 })
