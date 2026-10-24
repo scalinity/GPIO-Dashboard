@@ -1320,7 +1320,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   Opening a tutorial seats all of it at once.
 
 
-## ADR-B4-1 Lead currents are derived from the snapshot by Kirchhoff's law
+## ADR-0052 Lead currents are derived from the snapshot by Kirchhoff's law
 
 - **Context.** SPEC 11.5 asks for dashes along each lead whose speed follows its current. The simulator
   solves one node per net (core/sim/circuit.ts), so a lead has no current of its own, and the
@@ -1347,7 +1347,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - A snapshot with per-pin currents would replace this (core request B4-A in the lane report). The
     resistive formulas are the one place the Studio repeats the simulator's models.
 
-## ADR-B4-2 The sim-driven visuals are one layer that writes through the part handles
+## ADR-0053 The sim-driven visuals are one layer that writes through the part handles
 
 - **Context.** SPEC 10.6 and 11.5: parts glow and move from simulation state; the scene renders
   continuously only while something animates (SPEC 10.2); a still scene renders no frames.
@@ -1373,7 +1373,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** `view.report().sim` reads back what was applied (lit nodes, channel values, lead
   speeds, halos, tags, tint counts, LCD lines) for the e2e tests.
 
-## ADR-B4-3 A node's extra transform is in millimetres about the node's origin; a copy can have its own texture
+## ADR-0054 A node's extra transform is in millimetres about the node's origin; a copy can have its own texture
 
 - **Context.** ADR-0047's handle composed a node's extra transform after the node's whole matrix,
   which for a quantized mesh node includes its scale: a plunger node has scale 1.75, so a travel of
@@ -1391,7 +1391,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** A copy with a texture is one more draw call and one more material, for the LCD
   only. A model with a per-copy texture on many copies would want an atlas instead.
 
-## ADR-B4-4 The LCD draws the HD44780's display RAM into the module's screen quad
+## ADR-0055 The LCD draws the HD44780's display RAM into the module's screen quad
 
 - **Context.** SPEC 10.6: characters from the HD44780 model, drawn into the `lcd-screen` texture. The
   model exposes the 16 x 2 window's character codes, CGRAM, the cursor and the backlight (`view()`).
@@ -1407,7 +1407,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** The katakana and symbols of the A00 ROM are not drawn. The blank-glass texture
   in the model's file is replaced, not blended.
 
-## ADR-B4-5 Inspect: toggles, the Nets list, and a read-only Board Sense overlay
+## ADR-0056 Inspect: toggles, the Nets list, and a read-only Board Sense overlay
 
 - **Context.** SPEC 11.2 and 11.5 list Labels, Voltages, Current flow, Nets (a list suffices, SPEC 21)
   and the Board Sense overlay; Live Pi state belongs to M11.
@@ -1427,7 +1427,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     or hides the tint, and it only has an effect while sensing runs.
 - **Consequences.** The overlay is silent when `senseStore.mode` is `off`.
 
-## ADR-B4-6 Playing the circuit: switches in 3D, sliders in Properties, a pin menu
+## ADR-0057 Playing the circuit: switches in 3D, sliders in Properties, a pin menu
 
 - **Context.** SPEC 11.5: during Simulate, click switches, drag sliders, toggle GPIOs from the T-board
   pin's context menu when no code runs; everything clickable outside the orbit controls' element.
@@ -1447,7 +1447,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     document, and the netlist ERC once per document, so the ERC tab and the halos follow the run.
 - **Consequences.** Pressing a switch while editing also works the simulation, which is harmless.
 
-## ADR-B4-7 A part over its rating gets a halo and its issue in Properties
+## ADR-0058 A part over its rating gets a halo and its issue in Properties
 
 - **Context.** SPEC 11.5: a warning halo linked to its ERC issue.
 - **Decision.** Parts named in the `refs` of an issue with a rating code (`LED_NO_LIMIT`, from both the
@@ -1457,7 +1457,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** Issues that name GPIOs (`PIN_OVERCURRENT`, `OVERVOLTAGE_GPIO`) have no part to
   halo. More codes join by adding them to `RATING_CODES`.
 
-## ADR-B4-8 Modelling choices of the visuals
+## ADR-0059 Modelling choices of the visuals
 
 - **Context.** The datasheets give no on-screen travel, swing or speed, and the models are drawn
   at rest.
