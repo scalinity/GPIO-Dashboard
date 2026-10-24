@@ -131,11 +131,24 @@ const RULES: Rule[] = [
     // Module outputs at more than 3.6 V, or I2C pull-ups to a 5 V supply.
     for (const part of ctx.doc.parts) {
       const def = ctx.defs(part.defId)
-      const high = Number(def.sim.params.outputHighV ?? NaN)
+      // A module output's high level: the pin's own figure, the part's, or else its supply,
+      // since a logic output swings to the rail that powers the module.
+      const supplyPin = def.pins.find((p) => p.role === 'power')
+      const supplyNet = supplyPin && ctx.netOf(part.id, supplyPin.id)
+      const supplyV = supplyNet?.names.includes('5V')
+        ? 5
+        : supplyNet?.names.includes('3V3')
+          ? 3.3
+          : NaN
       for (const pin of def.pins) {
         const net = ctx.netOf(part.id, pin.id)
         if (!net || !gpioNames(net).length) continue
-        if (pin.electricalType === 'output' && high > 3.6) {
+        const high = Number(
+          def.sim.params[`${pin.id.toLowerCase()}OutputHighV`] ??
+            def.sim.params.outputHighV ??
+            supplyV
+        )
+        if (pin.electricalType === 'output' && def.footprint.kind === 'offboard' && high > 3.6) {
           issues.push({
             code: 'OVERVOLTAGE_GPIO',
             severity: 'error',
@@ -145,12 +158,10 @@ const RULES: Rule[] = [
           })
         }
       }
-      const vcc = def.pins.find((p) => p.role === 'power')
-      if (
-        def.sim.params.i2cPullupTo === 'VCC' &&
-        vcc &&
-        ctx.netOf(part.id, vcc.id)?.names.includes('5V')
-      ) {
+      // i2cPullupTo names the module's own supply pin that its I2C pull-ups go to.
+      const pullTo = def.sim.params.i2cPullupTo
+      const vcc = typeof pullTo === 'string' ? def.pins.find((p) => p.id === pullTo) : undefined
+      if (vcc && ctx.netOf(part.id, vcc.id)?.names.includes('5V')) {
         const bus = def.pins.filter(
           (p) =>
             /^(SDA|SCL)$/i.test(p.id) &&

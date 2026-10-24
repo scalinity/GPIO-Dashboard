@@ -1,0 +1,100 @@
+{
+  "id": "relay-module-5v",
+  "name": "5 V relay module (SRD-05VDC-SL-C)",
+  "category": "module",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "S",
+      "label": "S (signal input)",
+      "role": "signal",
+      "electricalType": "input",
+      "offsetPitch": [0, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "+",
+      "label": "+ (5 V supply)",
+      "role": "power",
+      "electricalType": "power-in",
+      "offsetPitch": [1, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "-",
+      "label": "- (ground)",
+      "role": "ground",
+      "electricalType": "power-in",
+      "offsetPitch": [2, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "NC",
+      "label": "NC (normally closed, screw terminal)",
+      "role": "contact",
+      "electricalType": "passive",
+      "offsetPitch": [0, 10],
+      "connector": "female-socket"
+    },
+    {
+      "id": "COM",
+      "label": "COM (common, screw terminal)",
+      "role": "contact",
+      "electricalType": "passive",
+      "offsetPitch": [2, 10],
+      "connector": "female-socket"
+    },
+    {
+      "id": "NO",
+      "label": "NO (normally open, screw terminal)",
+      "role": "contact",
+      "electricalType": "passive",
+      "offsetPitch": [4, 10],
+      "connector": "female-socket"
+    }
+  ],
+  "internalConnections": [],
+  "footprint": { "kind": "offboard" },
+  "sim": {
+    "model": "relay-module",
+    "params": {
+      "coilV": 5,
+      "coilOhm": 70,
+      "coilMa": 71.4,
+      "pickUpMaxV": 3.75,
+      "dropOutMinV": 0.5,
+      "maxCoilV": 6,
+      "operateMaxMs": 10,
+      "releaseMaxMs": 5,
+      "contactMaxOhm": 0.1,
+      "contactMax28VdcA": 7,
+      "contactMax125VacA": 10,
+      "contactMax240VacA": 7
+    }
+  },
+  "properties": {},
+  "bodyMm": [34, 27, 17],
+  "geometry": {
+    "family": "module",
+    "params": {
+      "boardLengthMm": 34,
+      "boardWidthMm": 27,
+      "relayLengthMm": 19.1,
+      "relayWidthMm": 15.5,
+      "relayHeightMm": 15.3,
+      "headerPins": 3,
+      "headerPitchMm": 2.54,
+      "screwTerminals": 3,
+      "screwTerminalPitchMm": 5
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://www.circuitbasics.com/wp-content/uploads/2015/11/SRD-05VDC-SL-C-Datasheet.pdf",
+      "https://www.tinytronics.nl/product_files/000971_Songle-SRD-datasheet.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.3.2%20Relay.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "FORM: the kit's relay is a MODULE, not a bare relay. SunFounder's component list shows 'Relay Module x1': a black board carrying a blue Songle SRD-05VDC-SL-C relay, a 3-screw terminal block, a 3-pin male header marked S, + and -, an SMD transistor Q1, resistor R1, diode D1 and an indicator LED D2 (silkscreen read from SunFounder's component photo). SunFounder's Relay page states the module 'includes all necessary components (resistors, diodes, and transistors)' and an indicator LED, and it is wired with female-male Dupont leads to the header (S to GPIO17, + to 5 V, - to ground, from its diagram 1.3.4.png) and with plain wire ends in the screw terminals. No datasheet or schematic exists for the board itself, so the driver circuit and the logic polarity of S are not documented here. SunFounder's page is inconsistent on polarity: its text says 'LOW = relay closed' while its Python sample prints 'LED ON' when it drives GPIO17 HIGH, with the LED wired through the NO contact, which suggests that HIGH energises the coil. This is not confirmed, so no polarity parameter is recorded; check the module with a meter or the LED before the sim assumes one. Terminals: the diagram connects the 5 V supply to the middle terminal (COM) and the LED branch to the bottom one (NO), so the order is NC, COM, NO from the top. A screw terminal clamps the bare or male end of a lead, so the three are modelled as 'female-socket' (they take the male end of a male-male lead); the header pins are 'male-pin'. The offsets of the screw terminals (5 mm pitch, about 10 header pitches from the header) are layout hints scaled from SunFounder's photo, not datasheet values. COIL AND CONTACT VALUES are from the Songle SRD datasheet (ISO9002 sheet, hosted by Circuit Basics, opened): 05 VDC high-sensitivity coil, 71.4 mA, 70 ohm +/-10 percent, about 0.36 W, pull-in 75 percent of nominal maximum (3.75 V), drop-out 10 percent minimum (0.5 V), maximum allowable voltage 120 percent (6 V), operate time 10 ms max, release time 5 ms max, contact resistance 100 mohm max. Contact capacity for FORM C, resistive: 7 A at 28 VDC, 10 A at 125 VAC, 7 A at 240 VAC (form A is higher at 10 A 28 VDC). Conflicts: the relay body in SunFounder's photo is printed 10A 250VAC, 10A 125VAC, 10A 30VDC, 10A 28VDC. Songle's newer SRD(T73) sheet (tinytronics.nl copy, read through a search extract) lists 69.4 ohm, 130 percent overdrive and contact ratings of 7A/10A/15A at 250VAC/28VDC, and distributors quote 15 A. The lowest figures, from the form C table of the sheet that was opened, are used because contact rating is a safety limit. Never switch mains voltage with this part in a build unless the contact rating on the physical relay is checked. Board size 34 x 27 mm is scaled from SunFounder's Fritzing part using its breadboard hole pitch; the height is the relay's 15.3 mm maximum (Songle drawing: 19.1 x 15.5 x 15.3 mm maximum) plus an assumed 1.6 mm board. These are estimates for collision checks only."
+  }
+}

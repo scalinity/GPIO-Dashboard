@@ -1,0 +1,116 @@
+{
+  "id": "keypad-4x4",
+  "name": "4x4 membrane matrix keypad (8-pin female connector)",
+  "category": "switch",
+  "kitTags": ["not in kit"],
+  "pins": [
+    {
+      "id": "R1",
+      "label": "R1",
+      "role": "switch",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0],
+      "connector": "female-socket"
+    },
+    {
+      "id": "R2",
+      "label": "R2",
+      "role": "switch",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0],
+      "connector": "female-socket"
+    },
+    {
+      "id": "R3",
+      "label": "R3",
+      "role": "switch",
+      "electricalType": "passive",
+      "offsetPitch": [2, 0],
+      "connector": "female-socket"
+    },
+    {
+      "id": "R4",
+      "label": "R4",
+      "role": "switch",
+      "electricalType": "passive",
+      "offsetPitch": [3, 0],
+      "connector": "female-socket"
+    },
+    {
+      "id": "C1",
+      "label": "C1",
+      "role": "switch",
+      "electricalType": "passive",
+      "offsetPitch": [4, 0],
+      "connector": "female-socket"
+    },
+    {
+      "id": "C2",
+      "label": "C2",
+      "role": "switch",
+      "electricalType": "passive",
+      "offsetPitch": [5, 0],
+      "connector": "female-socket"
+    },
+    {
+      "id": "C3",
+      "label": "C3",
+      "role": "switch",
+      "electricalType": "passive",
+      "offsetPitch": [6, 0],
+      "connector": "female-socket"
+    },
+    {
+      "id": "C4",
+      "label": "C4",
+      "role": "switch",
+      "electricalType": "passive",
+      "offsetPitch": [7, 0],
+      "connector": "female-socket"
+    }
+  ],
+  "internalConnections": [],
+  "footprint": { "kind": "offboard" },
+  "sim": {
+    "model": "keypad-4x4",
+    "params": {
+      "rows": 4,
+      "columns": 4,
+      "keyLayout": "123A456B789C*0#D",
+      "rowPins": "R1,R2,R3,R4",
+      "columnPins": "C1,C2,C3,C4",
+      "keyBridges": "each key joins its row pin to its column pin",
+      "diodes": false,
+      "pressedResistanceMinOhm": 60,
+      "pressedResistanceMaxOhm": 90,
+      "contactResistanceMaxOhm": 100,
+      "contactBounceMaxMs": 5,
+      "onBoardPullups": false
+    }
+  },
+  "properties": {},
+  "bodyMm": [77, 70, 1.3],
+  "geometry": {
+    "family": "module",
+    "params": {
+      "variant": "membrane-keypad-4x4",
+      "keypadLengthMm": 77,
+      "keypadWidthMm": 70,
+      "keypadThicknessMm": 1.3,
+      "cableLengthMm": 86,
+      "connectorPins": 8,
+      "connectorPitchMm": 2.54
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://docs.sunfounder.com/projects/newton-lab-kit/en/latest/component/component_keypad.html",
+      "https://docs.sunfounder.com/projects/newton-lab-kit/en/latest/_images/keypad314.png",
+      "https://protosupplies.com/product/membrane-keypad-4x4-matrix/",
+      "https://www.open-electronics.org/product/4x4-membrane-keypad-16-keys/",
+      "https://www.adafruit.com/product/3844",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/index.html"
+    ],
+    "notes": "KIT: no keypad in the SunFounder Basic Starter Kit table of contents or Component List photo, so 'not in kit'. PIN ORDER AND MATRIX: the SunFounder schematic image (keypad314.png) shows the 8-pin header labelled R1 R2 R3 R4 C1 C2 C3 C4 left to right, key rows 1-2-3-A on R1, 4-5-6-B on R2, 7-8-9-C on R3, *-0-#-D on R4, and columns 1-4-7-* on C1, 2-5-8-0 on C2, 3-6-9-# on C3, A-B-C-D on C4; each key is a plain switch from its row line to its column line, with no diodes. Adafruit 3844 also says 'Starting from the left there are four row pins, and then to the right are the four column pins'; protosupplies says the row pins are on the left looking at the front and carry a dark strip near the connector. CONNECTOR GENDER: protosupplies describes the cable as ending in 'a standard 2.54mm (0.1 in) pitch 1x8 female header', so the pins are female sockets and a male-male lead goes into each socket (SPEC 6.5). The SunFounder photo shows only the keypad front, so SunFounder's own keypad connector could not be confirmed from a photo; Adafruit 3844 is a different build (a loose header is supplied for soldering, its caption says 'male header') and its tail is not modelled. CONTACTS: protosupplies reports about 60-90 ohm between the row and column pins of a pressed key; Adafruit lists contact resistance under 100 ohm; Open Electronics lists contact bounce 5 ms or less. There is no pull-up or pull-down on the keypad (SunFounder: pull-up or pull-down resistors must be added to the input wires). SIZE CONFLICT: Open Electronics gives 77 x 70 x 1.3 mm with an 86 mm cable (connector included); protosupplies gives 78 x 70 mm and 84 mm; Adafruit 3844 gives 69.0 x 65.5 x 9.7 mm (a different build); the Open Electronics numbers are used. NOT VERIFIED: the voltage and current rating of the contacts (the opened pages give none; Open Electronics lists insulation resistance 100 MOhm at 100 V)."
+  }
+}

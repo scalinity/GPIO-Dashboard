@@ -1,0 +1,64 @@
+{
+  "id": "dc-motor",
+  "name": "DC motor with fan blade (130 size)",
+  "category": "actuator",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "red",
+      "label": "Red lead",
+      "role": "passive",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "black",
+      "label": "Black lead",
+      "role": "passive",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0],
+      "connector": "male-pin"
+    }
+  ],
+  "internalConnections": [],
+  "footprint": { "kind": "offboard" },
+  "sim": {
+    "model": "dc-motor",
+    "params": {
+      "ratedV": 6,
+      "operatingMinV": 4.5,
+      "operatingMaxV": 9,
+      "noLoadMa": 70,
+      "noLoadRpm": 9100,
+      "noLoadRpmTol": 1800,
+      "loadedMa": 250,
+      "loadedRpm": 4500,
+      "loadedRpmTol": 1500,
+      "loadedTorqueGcm": 10,
+      "startTorqueGcm": 20,
+      "startV": 2,
+      "stallMa": 500
+    }
+  },
+  "properties": {},
+  "bodyMm": [27.5, 20, 15],
+  "geometry": {
+    "family": "motor",
+    "params": {
+      "bodyLengthMm": 27.5,
+      "bodyWidthMm": 20,
+      "bodyHeightMm": 15,
+      "shaftLengthMm": 8,
+      "shaftDiaMm": 2
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://components101.com/sites/default/files/component_datasheet/Toy%20DC%20motor%20Datasheet.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.3.1%20Motor.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "The kit ships one 'Motor & Fan': a metal-can motor of the common 130 size (SunFounder's Motor page shows a 130-style can with a white end cap and two solder lugs) with two wire leads, one red and one black, plus a separate three-blade plastic fan blade (white blades on a yellow hub) for the shaft. SunFounder gives no motor datasheet. The values below are from the 130-size toy/hobby motor sheet (Adafruit product 711 text, read from the components101.com copy), the closest published datasheet for a 130 motor with breadboard-friendly wires; they are not confirmed for the kit's unbranded unit. Sheet values: rated 6.0 VDC, working range 4.5 to 9 VDC (stated in its description), no-load current 70 mA max, no-load speed 9100 +/-1800 rpm, loaded current 250 mA max and loaded speed 4500 +/-1500 rpm at the 10 g*cm rated load, starting torque 20 g*cm, starting voltage 2.0, stall current 500 mA max (the sheet does not say at which voltage), body 27.5 x 20 x 15 mm, shaft 8 mm long and 2 mm dia, weight 17.5 g. The datasheet gives NO terminal resistance or inductance, so none is recorded: measure the kit's motor with a multimeter. The kit runs it at 5 V from the power module through an L293D (SunFounder's Motor page), which is inside the sheet's 4.5 to 9 V range but below the 6 V rating, so speed will be lower than the no-load figure. Ratings of 130-size motors differ widely between models, so do not reuse these numbers for a different 130 motor. Connectors: in SunFounder's component photo each lead ends in a black Dupont-style housing with a thin metal male pin sticking out, so both pins are 'male-pin'. In real use those pins plug straight into breadboard holes; the app's off-board model joins an off-board pin to a hole through a lead, so a male-female Dupont lead stands in for that direct plug until a pre-wired-lead footprint exists. Direction of rotation for a given polarity is not specified by any source read; the leads are not polarised electrically. The fan blade (SunFounder's component photo, no dimensions given anywhere) spins with the shaft; its diameter is unknown and is not modelled here."
+  }
+}

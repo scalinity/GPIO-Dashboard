@@ -23,6 +23,8 @@ interface Inventory {
 const inventory: Inventory = raw
 
 const PART_IDS = new Set([
+  'pn2222',
+  'ads7830-module',
   'resistor',
   'led',
   'rgb-led-cc',
@@ -128,7 +130,7 @@ describe('inventory structure', () => {
 describe('inventory contents as transcribed', () => {
   // [name, quantity, partId] exactly as read from the kit's component list image.
   const distinctive: [string, number | null, string | null][] = [
-    ['ADS7830 Module', 1, null],
+    ['ADS7830 Module', 1, 'ads7830-module'],
     ['20mm Dot Matrix Module', 1, 'led-matrix-8x8'],
     ['Relay Module', 1, 'relay-module-5v'],
     ['Resistor 10kΩ', 10, 'resistor'],
@@ -150,7 +152,7 @@ describe('inventory contents as transcribed', () => {
     ['9V Battery Connector', 1, null],
     ['1N4007', 2, 'diode-1n4007'],
     ['L293D', 1, 'ic-l293d'],
-    ['PN2222', 2, null],
+    ['PN2222', 2, 'pn2222'],
     ['1 Dight 7-segment Display', 1, 'seven-segment-cc'],
     ['Potentiometer (10k)', 1, 'potentiometer-10k'],
     ['74HC595', 2, 'ic-74hc595'],

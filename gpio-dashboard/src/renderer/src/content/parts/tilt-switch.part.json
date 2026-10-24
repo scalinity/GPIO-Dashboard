@@ -1,0 +1,65 @@
+{
+  "id": "tilt-switch",
+  "name": "Ball tilt switch (SW-520D)",
+  "category": "switch",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "Lead 1",
+      "role": "switch",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "Lead 2",
+      "role": "switch",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": { "kind": "rigid" },
+  "sim": {
+    "model": "tilt-switch",
+    "params": {
+      "ratedMaxV": 12,
+      "maxCurrentMa": 5,
+      "contactMaxOhm": 10,
+      "insulationMinOhm": 10000000,
+      "conductionMs": 2,
+      "capacitancePf": 5
+    }
+  },
+  "properties": {
+    "tilted": {
+      "type": "boolean",
+      "label": "Tilted (ball off the contacts, circuit open)",
+      "default": false
+    }
+  },
+  "bodyMm": [5.2, 5.2, 11.5],
+  "geometry": {
+    "family": "tilt-switch",
+    "params": {
+      "bodyDiaMm": 5.2,
+      "bodyLengthMm": 11.5,
+      "leadLengthMm": 8,
+      "leadDiaMm": 0.6,
+      "leadSpacingMm": 2.4,
+      "ballDiaMm": 3.5
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://www.tme.com/Document/f1e6cedd8cb7feeb250b353b6213ec6c/SW-520D.pdf",
+      "https://www.100y.com.tw/pdf_file/50-SW-520D.pdf",
+      "https://www.gbeelee.com/show-332-1972-1.html",
+      "https://docs.sunfounder.com/projects/vincent-kit/en/latest/_sources/components/component_tilt_switch.rst.txt",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/2.1.2%20Tilt%20Switch.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "Datasheet: Bailin (Beelee) SW-520 roll ball switch, model SW-520D, 2 pages (the copy linked from SunFounder's tilt-switch component page in its Vincent kit docs, read from the mirrors funduino.de/DL/SW-520D.pdf and 3v3.com.ua/data/files/SW-520D.PDF because tme.com serves a bot check). Page 2 drawing: body dia 5.2 mm, body length 11.5 mm, ball dia 3.5 +/-0.05 mm, lead dia 0.6 +/-0.05 mm, lead length 8 +/-1 mm, lead spacing 2.4 mm. The lead spacing is 1 pitch within 0.14 mm, so the part is rigid with the leads at [0,0] and [1,0]; the datasheet gives no bend allowance, so it is not a flex-2lead part. The two leads are not polarised. Page 1: contact rating 12 V, contact resistance below 10 ohm, insulation resistance above 10 MOhm, capacitance 5 pF. Distributor datasheet 100y.com.tw: 12 V, 5 mA, conduction time 2 ms, closed resistance below 10 ohm, open above 10 MOhm. The 5 mA limit is from that sheet only; the Bailin sheet gives no current limit. Conflicts: the manufacturer's web page gbeelee.com lists 1-6 V, 2 uA to 10 mA and closed resistance below 30 ohm. The lower voltage and current limits are the safer reading for a 3.3 V GPIO circuit. The ON/OFF angle is also inconsistent: Bailin's text says 10 degrees, its figure says 45 degrees, and the gbeelee page says 15 degrees. The sim therefore treats 'tilted' as a boolean with no angle. Behaviour: the switch is closed (ball resting on both contacts) when the leads point down and open when tilted far enough, which matches SunFounder's Tilt Switch page (upright = closed, tilted = open); 'tilted' = true means open. SunFounder's component list shows the SW-520D body ('Thermistor x1, Tilt Switch x1'). Its Fritzing diagram seats the leads in two adjacent rows of the same column."
+  }
+}

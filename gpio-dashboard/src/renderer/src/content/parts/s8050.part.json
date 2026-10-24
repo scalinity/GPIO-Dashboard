@@ -1,0 +1,83 @@
+{
+  "id": "s8050",
+  "name": "S8050 NPN transistor (TO-92)",
+  "category": "semiconductor",
+  "kitTags": ["not in kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "Emitter",
+      "role": "emitter",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "Base",
+      "role": "base",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0]
+    },
+    {
+      "id": "3",
+      "label": "Collector",
+      "role": "collector",
+      "electricalType": "passive",
+      "offsetPitch": [2, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": { "kind": "rigid" },
+  "sim": {
+    "model": "npn",
+    "params": {
+      "hfeMin": 85,
+      "hfeMax": 300,
+      "hfeTestIcMa": 50,
+      "hfeTestVceV": 1,
+      "hfeAt500MaMin": 50,
+      "hfeClassB": "85-150",
+      "hfeClassC": "120-200",
+      "hfeClassD": "160-300",
+      "vceSatMaxV": 0.6,
+      "vceSatTestIcMa": 500,
+      "vceSatTestIbMa": 50,
+      "vbeSatMaxV": 1.2,
+      "vbeOnTypV": 0.66,
+      "vbeOnMaxV": 1,
+      "icMaxMa": 500,
+      "vceoV": 25,
+      "vcboV": 40,
+      "veboV": 5,
+      "pdMaxW": 0.625
+    }
+  },
+  "properties": {},
+  "bodyMm": [4.7, 3.7, 4.7],
+  "geometry": {
+    "family": "to92",
+    "params": {
+      "bodyWidthMm": 4.7,
+      "bodyDepthMm": 3.7,
+      "bodyHeightMm": 4.7,
+      "leadDiaMaxMm": 0.55,
+      "leadLengthMinMm": 12.7,
+      "leadSpanStraightMm": 2.54,
+      "leadSpanBentMinMm": 4.4,
+      "leadSpanBentMaxMm": 5.6
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://www.mccsemi.com/pdf/products/S8050%28TO-92%29-V1.pdf",
+      "https://www.jscj-elec.com/uploads/pdf/20221020/S8050%20TO-92%20V2.pdf",
+      "https://www.unisonic.com.tw/uploadfiles/836/part_no_pdf/S8050.pdf",
+      "https://datasheet.lcsc.com/datasheet/pdf/541fa6ab42df1ff840043c6d270257b1.pdf?productCode=C717453",
+      "https://mirshem.ru/wp-content/uploads/2021/09/Foshan-Blue-Rocket-Electronics-S8050.pdf",
+      "https://file.huaqiu.com/web2/M00/46/63/poYBAGKUIbuADMJ5AAs-mDuHOpo930.pdf",
+      "https://docs.sunfounder.com/projects/kepler-kit/en/latest/pyproject/py_transistor.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "Not in the SunFounder Basic Starter Kit for Raspberry Pi: its component list shows 'PN2222 x2' and no S8050 or S8550 (see the pn2222 part). SunFounder's Kepler kit does ship S8050 and S8550 (docs page 2.15), and the spec lists both as library parts. PIN ORDER CONFLICT between makers: Micro Commercial Components (MCC) S8050 rev 3-1-01012019 (drawing opened), Jiangsu Changjing (JSCJ) S8050 rev 2.0 (opened), and the Unisonic (UTC) and LGE S8050 sheets (text read through a search extract) all give TO-92 pin 1 emitter, pin 2 base, pin 3 collector. Foshan Blue Rocket Electronics S8050 (rev E March 2016 and rev F May 2021) gives pin 1 COLLECTOR, pin 2 base, pin 3 EMITTER, the reverse. This file follows the majority and MCC (E, B, C), with the flat face toward the viewer and leads down, pin 1 on the left; at rotation 0 the flat face points toward column a. A Blue Rocket part would be wired backwards if placed from this definition, so check the maker's datasheet or the part's marking before trusting the pin order. Electrical values follow the MCC sheet: hFE(1) 85 to 300 at IC 50 mA, VCE 1 V, with classes B 85-150, C 120-200 and D 160-300; hFE(2) at least 50 at 500 mA; VCE(sat) max 0.6 V and VBE(sat) max 1.2 V at 500 mA/50 mA; IC 500 mA; VCEO 25 V, VCBO 40 V, VEBO 5 V; 625 mW. MCC gives no VBE(on); the 0.66 V typical and 1.0 V maximum (VCE 1 V, IC 10 mA) are the Blue Rocket S8050 values, which onsemi's SS8550 sheet matches for the PNP twin, and UTC also lists a 1.0 V maximum. Ratings differ by maker, so the sim must not treat them as universal: JSCJ hFE(1) 85 to 400, UTC VCEO 20 V and IC 700 mA, Blue Rocket IC 800 mA and VEBO 6 V, onsemi/Fairchild SS8050 IC 1.5 A. The most restrictive plausible reading is the MCC column used here. Dimensions (MCC): body 4.30 to 4.70 wide, 3.30 to 3.70 deep and 4.30 to 4.70 tall (maxima used), leads 0.38 to 0.55 dia and at least 12.70 long. Outer-lead span is 2.42 to 2.67 mm for straight leads and 4.40 to 5.60 mm for the bent form; in a breadboard the leads are spread to the 2.54 mm grid, so the offsets are [0,0], [1,0], [2,0]."
+  }
+}

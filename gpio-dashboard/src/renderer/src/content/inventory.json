@@ -8,16 +8,32 @@
       "retrieved": "2026-10-24"
     },
     "items": [
-      { "name": "T-shape Extension Board", "quantity": 1, "partId": null },
-      { "name": "GPIO Cable", "quantity": 1, "partId": null },
-      { "name": "830 Tie-Points Breadboard", "quantity": 1, "partId": null },
+      {
+        "name": "T-shape Extension Board",
+        "quantity": 1,
+        "partId": null
+      },
+      {
+        "name": "GPIO Cable",
+        "quantity": 1,
+        "partId": null
+      },
+      {
+        "name": "830 Tie-Points Breadboard",
+        "quantity": 1,
+        "partId": null
+      },
       {
         "name": "ADS7830 Module",
         "quantity": 1,
-        "partId": null,
+        "partId": "ads7830-module",
         "notes": "LAFVIN-branded I2C ADC board; a different chip from the ADS1115 in the part library"
       },
-      { "name": "LED Bar Graph", "quantity": 1, "partId": "bar-graph-10" },
+      {
+        "name": "LED Bar Graph",
+        "quantity": 1,
+        "partId": "bar-graph-10"
+      },
       {
         "name": "20mm Dot Matrix Module",
         "quantity": 1,
@@ -30,11 +46,31 @@
         "partId": "relay-module-5v",
         "notes": "relay board with screw terminals and an indicator LED, not a bare relay; the project page photo shows SRD-05VDC-SL-C"
       },
-      { "name": "Resistor 10kΩ", "quantity": 10, "partId": "resistor" },
-      { "name": "Resistor 220Ω", "quantity": 20, "partId": "resistor" },
-      { "name": "Resistor 1kΩ", "quantity": 10, "partId": "resistor" },
-      { "name": "Passive Buzzer", "quantity": 1, "partId": "passive-buzzer" },
-      { "name": "Active Buzzer", "quantity": 1, "partId": "active-buzzer" },
+      {
+        "name": "Resistor 10kΩ",
+        "quantity": 10,
+        "partId": "resistor"
+      },
+      {
+        "name": "Resistor 220Ω",
+        "quantity": 20,
+        "partId": "resistor"
+      },
+      {
+        "name": "Resistor 1kΩ",
+        "quantity": 10,
+        "partId": "resistor"
+      },
+      {
+        "name": "Passive Buzzer",
+        "quantity": 1,
+        "partId": "passive-buzzer"
+      },
+      {
+        "name": "Active Buzzer",
+        "quantity": 1,
+        "partId": "active-buzzer"
+      },
       {
         "name": "Motor & Fan",
         "quantity": 1,
@@ -47,7 +83,11 @@
         "partId": null,
         "notes": "no project page in the docs uses it"
       },
-      { "name": "Photoresistor", "quantity": 2, "partId": "ldr" },
+      {
+        "name": "Photoresistor",
+        "quantity": 2,
+        "partId": "ldr"
+      },
       {
         "name": "LED-RGB",
         "quantity": 1,
@@ -116,18 +156,26 @@
         "leadKind": "dupont-ff",
         "notes": "length not stated"
       },
-      { "name": "9V Battery Connector", "quantity": 1, "partId": null },
+      {
+        "name": "9V Battery Connector",
+        "quantity": 1,
+        "partId": null
+      },
       {
         "name": "1N4007",
         "quantity": 2,
         "partId": "diode-1n4007",
         "notes": "no project page in the docs uses it"
       },
-      { "name": "L293D", "quantity": 1, "partId": "ic-l293d" },
+      {
+        "name": "L293D",
+        "quantity": 1,
+        "partId": "ic-l293d"
+      },
       {
         "name": "PN2222",
         "quantity": 2,
-        "partId": null,
+        "partId": "pn2222",
         "notes": "NPN transistor in a TO-92 body; the buzzer pages show a PN2222A. The kit has no S8050 or S8550"
       },
       {
@@ -136,9 +184,21 @@
         "partId": "seven-segment-cc",
         "notes": "printed with the spelling Dight; the photo shows CL5611AH and the 1.1.4 page says common cathode (a code comment on that page says common anode, but its segment codes are active high)"
       },
-      { "name": "Potentiometer (10k)", "quantity": 1, "partId": "potentiometer-10k" },
-      { "name": "74HC595", "quantity": 2, "partId": "ic-74hc595" },
-      { "name": "Power Supply Module", "quantity": 1, "partId": "breadboard-power-module" },
+      {
+        "name": "Potentiometer (10k)",
+        "quantity": 1,
+        "partId": "potentiometer-10k"
+      },
+      {
+        "name": "74HC595",
+        "quantity": 2,
+        "partId": "ic-74hc595"
+      },
+      {
+        "name": "Power Supply Module",
+        "quantity": 1,
+        "partId": "breadboard-power-module"
+      },
       {
         "name": "DHT11 Temperature and Humidity Module",
         "quantity": 1,
@@ -165,8 +225,16 @@
       "note": "User's kit; listing photo docs/v2/3D Reference Images/T-Cobbler and BreadBoard/Ribbon and BreadBoard.jpg"
     },
     "items": [
-      { "name": "40-pin rainbow ribbon cable, 200 mm", "quantity": 1, "partId": null },
-      { "name": "T-type GPIO extension board", "quantity": 1, "partId": null },
+      {
+        "name": "40-pin rainbow ribbon cable, 200 mm",
+        "quantity": 1,
+        "partId": null
+      },
+      {
+        "name": "T-type GPIO extension board",
+        "quantity": 1,
+        "partId": null
+      },
       {
         "name": "830-point breadboard",
         "quantity": 1,

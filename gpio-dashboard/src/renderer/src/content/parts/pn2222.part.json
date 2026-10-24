@@ -1,0 +1,79 @@
+{
+  "id": "pn2222",
+  "name": "PN2222A NPN transistor (TO-92)",
+  "category": "semiconductor",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "Emitter",
+      "role": "emitter",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "Base",
+      "role": "base",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0]
+    },
+    {
+      "id": "3",
+      "label": "Collector",
+      "role": "collector",
+      "electricalType": "passive",
+      "offsetPitch": [2, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": { "kind": "rigid" },
+  "sim": {
+    "model": "npn",
+    "params": {
+      "hfeMin": 100,
+      "hfeMax": 300,
+      "hfeTestIcMa": 150,
+      "hfeTestVceV": 10,
+      "hfeAt1MaMin": 50,
+      "hfeAt500MaMin": 40,
+      "vceSatMaxV": 0.3,
+      "vceSatTestIcMa": 150,
+      "vceSatTestIbMa": 15,
+      "vceSatMaxAt500MaV": 1,
+      "vbeSatMinV": 0.6,
+      "vbeSatMaxV": 1.2,
+      "vbeSatMaxAt500MaV": 2,
+      "icMaxMa": 600,
+      "vceoV": 40,
+      "vcboV": 75,
+      "veboV": 6,
+      "pdMaxW": 0.625
+    }
+  },
+  "properties": {},
+  "bodyMm": [5.2, 4.19, 5.33],
+  "geometry": {
+    "family": "to92",
+    "params": {
+      "bodyWidthMm": 5.2,
+      "bodyDepthMm": 4.19,
+      "bodyHeightMm": 5.33,
+      "leadPitchMm": 1.27,
+      "leadWidthMm": 0.56,
+      "leadLengthMaxMm": 15.62,
+      "leadLengthMinMm": 13.2
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://www.megastar.com/content/pdfs/PN2222A-D.pdf",
+      "https://www.rectron.com/public/product_datasheets/pn2222a.pdf",
+      "https://www.onsemi.com/download/data-sheet/pdf/pn2222-d.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.2.1%20Active%20Buzzer.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.2.2%20Passive%20Buzzer.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "This is the transistor in the SunFounder Basic Starter Kit: its component list reads 'PN2222 x2', and the Active Buzzer and Passive Buzzer pages show '1*PN2222 Transistor' with the body marked PN2222A. The S8050 and S8550 that older SunFounder kits use are not in this kit. Pin order, ratings and dimensions come from the onsemi (ex-Fairchild) PN2222A datasheet, rev 1.1.0, July 2014 (read from the megastar.com copy because onsemi.com blocks scripted downloads). Its cover picture of the TO-92 is marked 'E B C'. The pin-configuration table in its package drawing (figure 1, note D) shows that TO-92 itself comes in several bipolar pin orders, with pin 1/2/3 = E/B/C for variant 92, E/C/B for 94, B/E/C for 96, C/B/E for 97 and C/E/B for 98; the 'E B C' cover picture selects variant 92. Orientation: flat face toward the viewer, leads down, pin 1 on the left. At rotation 0 the flat face points toward column a (the bottom edge of the board as it reads with row 1 on the left). Rectron's PN2222A datasheet (bottom view, flat side up: E left, B middle, C right) and onsemi's PN2222 datasheet (1 emitter, 2 base, 3 collector) agree, so there is no pin-order conflict for this part; the conflict is with S8050/S8550, see those files. SunFounder's Fritzing diagram (1.2.1.png) wires the left pin to ground, the middle to the 1 kohm base resistor and the right to the buzzer, which is E, B, C. The kit's body marking shows 'JX' beside PN2222A, which is not a maker whose datasheet was found, so the datasheet is the onsemi one. Values (onsemi/Fairchild): hFE 100 to 300 at IC 150 mA, VCE 10 V; hFE min 50 at 1 mA and 40 at 500 mA (VCE 10 V); VCE(sat) max 0.3 V at 150 mA/15 mA and 1.0 V at 500 mA/50 mA; VBE(sat) 0.6 to 1.2 V at 150 mA/15 mA and max 2.0 V at 500 mA/50 mA; VCEO 40 V, VCBO 75 V, VEBO 6 V; total dissipation 625 mW. The datasheet gives no VBE(on). Conflict on collector current: onsemi/Fairchild PN2222A lists IC 1.0 A absolute maximum (and says 'up to 500 mA' for switching), Rectron's PN2222A lists 0.6 A, and the onsemi PN2222 lists 600 mA. The lower 600 mA is used. Dimensions: body 4.32 to 5.20 wide, 3.05 to 4.19 deep and 4.32 to 5.33 tall (maxima are used for bodyMm); leads 0.36 to 0.56 wide, 13.20 to 15.62 long, 1.27 mm apart (2.54 mm across the outer two). In a breadboard the middle lead is spread to the 2.54 mm grid, so the offsets are [0,0], [1,0], [2,0]."
+  }
+}

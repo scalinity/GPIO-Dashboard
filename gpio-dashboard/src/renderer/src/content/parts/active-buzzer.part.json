@@ -1,0 +1,59 @@
+{
+  "id": "active-buzzer",
+  "name": "Active buzzer (12 mm, 5 V)",
+  "category": "audio",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "+",
+      "label": "+ (long lead)",
+      "role": "positive",
+      "electricalType": "power-in",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "-",
+      "label": "- (short lead)",
+      "role": "negative",
+      "electricalType": "passive",
+      "offsetPitch": [3, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": { "kind": "rigid" },
+  "sim": {
+    "model": "active-buzzer",
+    "params": {
+      "ratedV": 5,
+      "operatingMinV": 4,
+      "operatingMaxV": 8,
+      "currentMa": 30,
+      "resonantHz": 2300,
+      "resonantTolHz": 300,
+      "soundMinDb": 85
+    }
+  },
+  "properties": {},
+  "bodyMm": [12, 12, 9.5],
+  "geometry": {
+    "family": "buzzer",
+    "params": {
+      "bodyDiaMm": 12,
+      "heightMm": 9.5,
+      "leadPitchMm": 7.6,
+      "leadDiaMm": 0.6,
+      "leadLengthMm": 6
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://stacktronics.com/wp-content/uploads/2024/12/TMB12A05.pdf",
+      "https://jlcpcb.com/api/file/downloadByFileSystemAccessId/8588887651348844544",
+      "https://img.hebeifangdi.com/dev/pdf/20230714/F0072_A3BA_TMB12A05.pdf",
+      "https://file1.huaqiu.com/web3/M00/34/06/wKgZO2jo3uSAO9YtAAgL_OvG3eY221.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.2.1%20Active%20Buzzer.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "The kit's buzzer is an unbranded 12 mm, 9.5 mm tall, 2-pin magnetic buzzer with a built-in oscillator (the sealed black bottom SunFounder describes) and a sticker 'REMOVE SEAL AFTER WASHING'. SunFounder gives no datasheet. The closest published datasheet is the Huawha TMB12A05 12 x 9.5 mm active magnetic buzzer, so its numbers are used, but they are not confirmed for the kit's own unit. Primary sheet: TMB12A05 approval sheet (stacktronics.com copy, opened, page 2): rated 5 V, operating 4 to 8 V, rated current at most 30 mA, at least 85 dB at 10 cm, resonant frequency 2300 +/-300 Hz, diameter 12 +/-0.2, height 9.5 +/-0.2, lead pitch 7.6 mm, lead dia 0.6 mm, lead length 6.0 mm. Conflicts between TMB12A05 sheets: Huawha's 2023 product specification (JLCPCB copy, read through a text extract) gives operating 3 to 7 V, 2400 +/-300 Hz and at least 95 dB; its 2021 specification (hebeifangdi.com copy, text extract) gives 3 to 8 V and 2700 +/-300 Hz; a third supplier (XHXDZ) gives 3 to 6 V and 2500 +/-100 Hz. All agree on 5 V rated and at most 30 mA. The primary sheet's 4 V lower limit is used; SunFounder's text says it feeds the buzzer from 3.3 V, which is below that limit but inside the 3 to 7 V sheet, and its Fritzing wiring diagram (1.2.1.png) actually takes the buzzer supply from the T-board 5V0 pin, so the sim should warn rather than refuse below 4 V. SunFounder's page text also reverses the polarity (it says the positive pin goes to the transistor collector and the negative to 3.3 V). Its diagram, like any low-side NPN switch, puts the + lead on the supply and the - lead on the collector. Polarity: the longer lead is + and the body is marked +, per SunFounder's page. Grid mapping: the 7.6 mm lead pitch is 3.0 pitches within 0.02 mm; SunFounder's diagram seats the leads 3 rows apart in the same column, so offsets are [0,0] and [3,0], rigid."
+  }
+}

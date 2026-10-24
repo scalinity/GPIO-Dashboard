@@ -1,0 +1,85 @@
+{
+  "id": "tact-switch-6mm",
+  "name": "6 mm tactile switch (4-pin)",
+  "category": "switch",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "Terminal 1",
+      "role": "switch",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "Terminal 2",
+      "role": "switch",
+      "electricalType": "passive",
+      "offsetPitch": [0, 3]
+    },
+    {
+      "id": "3",
+      "label": "Terminal 3",
+      "role": "switch",
+      "electricalType": "passive",
+      "offsetPitch": [2, 0]
+    },
+    {
+      "id": "4",
+      "label": "Terminal 4",
+      "role": "switch",
+      "electricalType": "passive",
+      "offsetPitch": [2, 3]
+    }
+  ],
+  "internalConnections": [
+    ["1", "2"],
+    ["3", "4"]
+  ],
+  "footprint": { "kind": "rigid", "straddleTrench": true },
+  "sim": {
+    "model": "tact-switch",
+    "params": {
+      "contactMaxOhm": 0.1,
+      "ratedMaxV": 12,
+      "ratedMaxMa": 50,
+      "insulationMinOhm": 100000000,
+      "bounceMaxMs": 5
+    }
+  },
+  "properties": {
+    "mode": {
+      "type": "enum",
+      "label": "Mode",
+      "options": ["momentary", "retain"],
+      "default": "momentary"
+    }
+  },
+  "bodyMm": [6, 6, 4.3],
+  "geometry": {
+    "family": "tact-switch",
+    "params": {
+      "bodyWidthMm": 6,
+      "bodyDepthMm": 6,
+      "heightMm": 4.3,
+      "bodyHeightMm": 3.4,
+      "plungerDiaMm": 3.5,
+      "terminalPitchLongMm": 6.5,
+      "terminalPitchShortMm": 4.5,
+      "terminalLengthBelowMm": 3.5,
+      "terminalWidthMm": 0.7,
+      "terminalThicknessMm": 0.3,
+      "pcbHoleDiaMm": 1
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://omronfs.omron.com/en_US/ecb/products/pdf/en-b3f.pdf",
+      "https://www.farnell.com/datasheets/2630667.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/2.1.1%20Button.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "Reference datasheet: Omron B3F, section Dimensions, 6 x 6 mm standard flat plunger type (B3F-1000), page 4. Terminal numbers 1-4 and the internal connections are from its 'Terminal Arrangement/Internal Connections (Top View)' drawing: terminals 4 and 3 are joined, terminals 2 and 1 are joined, and the switch bridges those two pairs. The joined terminals are the ones 6.5 mm apart (opposite sides of the body). The terminals 4.5 mm apart are NOT joined. Omron notes that no terminal numbers are printed on the switch. PCB hole pattern 6.5 +/-0.1 x 4.5 +/-0.1 mm, 1 mm drill; body 6 x 6 mm, overall height 4.3 +/-0.2 mm (body 3.4 mm), plunger 3.5 mm dia, terminal 0.7 x 0.3 mm, 3.5 mm below the body. Multicomp MCDTS6 (Farnell) shows the same topology (T1-T2 joined, T3-T4 joined, switch between) and the same 6.5 x 4.5 mm hole pattern. Electrical values: Omron lists 1 to 50 mA at 3 to 24 VDC resistive, 100 mOhm max initial contact resistance, 100 MOhm min insulation, 5 ms max bounce; Multicomp lists 50 mA at 12 VDC and 100 mOhm max. The lower 12 V is used here. Datasheet to grid: the pins are 6.5 x 4.5 mm apart, off the 2.54 mm grid. SunFounder's Fritzing diagram for the Button project (2.1.1.png) seats the switch across the centre trench in columns e and f, on two rows 2 apart (rows 35 and 37). The 6.5 mm axis therefore goes across the trench (3 pitches = 7.62 mm) and the 4.5 mm axis goes along the rows (2 pitches = 5.08 mm). This is the only orientation that fits, because 4.5 mm cannot reach from e to f. The bent terminal feet (6.5 +/-0.5 mm in Omron's side view) flex to absorb the 1.1 mm and 0.6 mm differences. Offsets are [along rows, across columns]: terminal 1 [0,0], terminal 2 [0,3], terminal 3 [2,0], terminal 4 [2,3]. This is the datasheet top view turned 90 degrees clockwise, with no mirroring. As a result the joined pairs lie across the trench: terminals 1 and 2 tie columns e and f of one row together, terminals 3 and 4 do the same two rows away, and pressing the switch connects those two rows (this matches SunFounder's wiring of GPIO18 on row 35 above the trench and ground on row 37 below it). Kit unit: SunFounder lists 'Button x5' and gives no datasheet; its Button page only says the two pins on each side are connected, without saying which pins form a side, and its Fritzing seating does not distinguish the two readings. Omron's drawing is used as the reference for the standard 6 x 6 mm footprint. The kit switch's height (4.3 mm here; Multicomp and Omron also offer 5, 7 and 9.5 mm) and its always-connected pairs are not confirmed and should be checked with a meter."
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "id": "joystick-module",
+  "name": "Dual-axis analog joystick module (5-pin)",
+  "category": "module",
+  "kitTags": ["not in kit"],
+  "pins": [
+    {
+      "id": "GND",
+      "label": "GND",
+      "role": "ground",
+      "electricalType": "power-in",
+      "offsetPitch": [0, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "VCC",
+      "label": "+5V",
+      "role": "power",
+      "electricalType": "power-in",
+      "offsetPitch": [1, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "VRX",
+      "label": "VRX",
+      "role": "analog-out",
+      "electricalType": "output",
+      "offsetPitch": [2, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "VRY",
+      "label": "VRY",
+      "role": "analog-out",
+      "electricalType": "output",
+      "offsetPitch": [3, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "SW",
+      "label": "SW",
+      "role": "switch",
+      "electricalType": "passive",
+      "offsetPitch": [4, 0],
+      "connector": "male-pin"
+    }
+  ],
+  "internalConnections": [],
+  "footprint": { "kind": "offboard" },
+  "sim": {
+    "model": "joystick",
+    "params": {
+      "vccMinV": 3.3,
+      "vccMaxV": 5,
+      "analogOutLowV": 0,
+      "analogOutHighLevel": "VCC",
+      "analogOutRestFraction": 0.5,
+      "swWiring": "pressed connects SW to GND, released leaves SW floating",
+      "swOnBoardPullup": false
+    }
+  },
+  "properties": {
+    "x": { "type": "number", "label": "X axis", "unit": "%", "min": 0, "max": 100, "default": 50 },
+    "y": { "type": "number", "label": "Y axis", "unit": "%", "min": 0, "max": 100, "default": 50 },
+    "pressed": { "type": "boolean", "label": "Button pressed", "default": false }
+  },
+  "bodyMm": [34, 26, 32],
+  "geometry": {
+    "family": "module",
+    "params": {
+      "variant": "ky-023-joystick",
+      "boardLengthMm": 34,
+      "boardWidthMm": 26,
+      "headerPins": 5,
+      "headerPitchMm": 2.54,
+      "mountingHoles": 4,
+      "mountingHoleSpanLongApproxMm": 26.7,
+      "mountingHoleSpanShortApproxMm": 20.8
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://docs.sunfounder.com/projects/umsk/en/latest/01_components_basic/09-component_joystick.html",
+      "https://docs.sunfounder.com/projects/umsk/en/latest/_images/09_joystick_schematic.png",
+      "https://docs.sunfounder.com/projects/umsk/en/latest/_images/09_joystick.png",
+      "https://asset.conrad.com/media10/add/160267/c1/-/en/001707629DS01/datasheet-1707629-joy-it-ky023jm-1-pcs-compatible-with-development-kits-raspberry-pi-pcduino-banana-pi-arduino.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/index.html"
+    ],
+    "notes": "KIT: no joystick lesson or part in the SunFounder Basic Starter Kit table of contents or Component List photo, so 'not in kit'. PIN ORDER: the SunFounder module photo (09_joystick.png) shows a 5-pin male header printed GND, +5V, VRX, VRY, SW from top to bottom. SCHEMATIC: the SunFounder schematic (09_joystick_schematic.png) shows two potentiometers each wired between +5V (VCC) and GND with wipers VRX and VRY, and the push switch wired from SW to GND with no resistor on SW; the photo shows an empty pad labelled R1 (unpopulated pull-up position). The SunFounder page says 'The pushbutton switch outputs a floating signal by default' and 'a pull-up resistor is needed', so swOnBoardPullup is false: the reader must enable a pull-up. SUPPLY CONFLICT: SunFounder says 'Supply Voltage: 3.3V or 5V' and prints +5V on the pin; the Joy-IT KY-023 datasheet says 'Operating voltage 3.3 V' and 'Voltage range (output) 0 - 5V'; the range 3.3-5 V is used. The analog outputs span 0 V to the supply (SunFounder 'changes from 0 to VCC', about half of VCC at rest), so at 5 V supply VRX and VRY reach 5 V and need a divider before a 3.3 V GPIO or ADC input. SIZE CONFLICT: SunFounder gives PCB 34 x 26 mm; the Joy-IT datasheet gives 34 x 39 x 26 mm (order unclear); reseller listings seen in a search (not opened) give 34 x 26 x 32 mm; the 32 mm height is used. Mounting hole spans are measured from the SunFounder photo using the 34 mm board length as the scale (+-0.5 mm). NOT VERIFIED: the potentiometer resistance (reseller text says 10 kOhm per axis; no opened datasheet states it), so it is not recorded in sim params."
+  }
+}

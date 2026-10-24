@@ -1,0 +1,87 @@
+{
+  "id": "hc-sr501",
+  "name": "HC-SR501 PIR motion sensor module",
+  "category": "sensor",
+  "kitTags": ["not in kit"],
+  "pins": [
+    {
+      "id": "VCC",
+      "label": "VCC",
+      "role": "power",
+      "electricalType": "power-in",
+      "offsetPitch": [0, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "OUT",
+      "label": "OUT",
+      "role": "logic-out",
+      "electricalType": "output",
+      "offsetPitch": [1, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "GND",
+      "label": "GND",
+      "role": "ground",
+      "electricalType": "power-in",
+      "offsetPitch": [2, 0],
+      "connector": "male-pin"
+    }
+  ],
+  "internalConnections": [],
+  "footprint": { "kind": "offboard" },
+  "sim": {
+    "model": "hc-sr501",
+    "params": {
+      "vccMinV": 4.5,
+      "vccMaxV": 20,
+      "vccTypicalV": 5,
+      "outputHighV": 3.3,
+      "outputLowV": 0,
+      "quiescentCurrentMaxUa": 50,
+      "delayMinS": 5,
+      "delayMaxS": 200,
+      "blockTimeS": 2.5,
+      "startupInitS": 60,
+      "triggerJumper": "L = non-repeatable trigger, H = repeatable trigger",
+      "triggerModeDefault": "H",
+      "senseDistanceMinM": 3,
+      "senseDistanceMaxM": 7,
+      "senseAngleDeg": 100,
+      "workingTempMinC": -15,
+      "workingTempMaxC": 70
+    }
+  },
+  "properties": {
+    "motion": { "type": "boolean", "label": "Motion in view", "default": false }
+  },
+  "bodyMm": [32, 24, 30],
+  "geometry": {
+    "family": "module",
+    "params": {
+      "variant": "hc-sr501",
+      "boardLengthMm": 32,
+      "boardWidthMm": 24,
+      "heightMm": 30,
+      "lensDiameterMm": 23,
+      "mountingHoleSpacingMm": 28,
+      "mountingHoleScrew": "M2",
+      "headerPins": 3,
+      "headerPitchMm": 2.54
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://electronilab.co/wp-content/uploads/2013/12/HC-SR501.pdf",
+      "https://digsys.upc.edu/csd/chips/comp/HC_SR501.PDF",
+      "https://static.rapidonline.com/pdf/74-1108_v2.pdf",
+      "https://mysii.gorriens.net/arduino/pdf/hc-sr501_pir_sensor_eng.pdf",
+      "https://docs.sunfounder.com/projects/umsk/en/latest/01_components_basic/12-component_pir_motion.html",
+      "https://docs.sunfounder.com/projects/ultimate-sensor-kit/en/latest/_images/13_pir_module_back.png",
+      "https://components101.com/hc-sr501-pir-sensor",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/index.html"
+    ],
+    "notes": "KIT: no PIR lesson or part in the SunFounder Basic Starter Kit table of contents or Component List photo, so 'not in kit'. There is no single manufacturer datasheet; the numbers below come from the ElecFreaks-labelled 'Specification' PDF (2011-6-3, electronilab copy) and the other copies listed, which disagree in places. PIN ORDER: the SunFounder back-of-board drawing prints VCC, OUT, GND left to right along the pin edge; components101 lists pin 1 Vcc, 2 Dout, 3 Ground. Seen from the lens side the AZ-Delivery guide draws the same pins GND, OUT, VCC top to bottom. The header is recorded as male pins, but no opened source shows the header from the side: this gender is NOT VERIFIED from a photo (the SunFounder drawing shows square pin positions). SUPPLY CONFLICT: the ElecFreaks sheet, the upc.edu copy and components101 say DC 4.5-20 V; the Rapid Online sheet, SunFounder and the second table of the upc.edu copy say 5-20 V; 4.5 V is used as the minimum. OUTPUT: high 3.3 V, low 0 V in every copy ('TTL output: 3.3V, 0V'), so the output is safe for a 3.3 V GPIO even when the module runs from 5 V. The module has a regulator on board (the AZ-Delivery guide describes bypassing it to run from 3.3 V by removing jumper J1 and feeding pin H; that mod is not modelled). QUIESCENT CURRENT: less than 50 uA (ElecFreaks, Rapid copy); Rapid and AZ-Delivery list 65 mA 'power consumption'. DELAY CONFLICT: the ElecFreaks spec table says 5-200 s, the same sheet's adjustment note says about 5 s to about 300 s, the upc.edu second table says 5-300 s (about 0.3 s to 5 min), SunFounder says 5-200 s; 5-200 s is used. BLOCK TIME CONFLICT: ElecFreaks, upc.edu and Rapid say 2.5 s by default (can be set from 0 s up to tens of seconds); SunFounder says 8 s; the AZ-Delivery guide says 2.5 s up to 10 s; 2.5 s is used. TRIGGER MODES: jumper L = non-repeatable trigger (output goes low after the delay even if there is motion), H = repeatable trigger (the delay restarts on each movement); ElecFreaks says the default is repeatable, components101 says repeatable is the default. The SunFounder back drawing labels the three-pin jumper block L at the top and H at the bottom with the shunt on one pair. TWO POTENTIOMETERS: delay adjustment and distance adjustment (SunFounder drawing; ElecFreaks 'Dimensions and Adjustment'): clockwise on the distance pot raises the sensing distance to about 7 m, anticlockwise lowers it to about 3 m; clockwise on the delay pot lengthens the delay (about 300 s per the note) and anticlockwise shortens it (about 5 s). START-UP: about one minute of initialisation after power-up during which the output can pulse 0-3 times (ElecFreaks, SunFounder). ANGLE CONFLICT: ElecFreaks table '<100 degree cone angle' (its range figure also shows 100 deg); the upc.edu table '<110 deg'; Rapid, SunFounder and components101 '<120 deg' or 'about 120 deg'; 100 deg is used. RANGE: within 7 m. TEMPERATURE: -15 to +70 C. SIZE: board 32 x 24 mm (ElecFreaks, Rapid, SunFounder), lens diameter 23 mm, screw spacing 28 mm for M2 (Rapid Online); the 30 mm overall height is from the AZ-Delivery guide ('33 x 25 x 30 mm', which includes the lens and the components); the 28 mm screw spacing and the lens height are not shown in the ElecFreaks sheet."
+  }
+}
