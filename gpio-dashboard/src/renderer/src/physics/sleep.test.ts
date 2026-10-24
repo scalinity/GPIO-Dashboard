@@ -91,12 +91,13 @@ function scenes(): Scene[] {
   }
   {
     const world = newWorld(TABLE, BOARD)
-    const { a, b } = crossingPair(world)
+    const { a, b, bEnds } = crossingPair(world)
+    const from = bEnds[0]
     out.push({
       name: 'two crossing leads',
       world,
       bodies: [a, b],
-      nudges: [{ id: b, end: 0, from: at(0, -18, BOARD_TOP), to: at(2, -18, BOARD_TOP) }]
+      nudges: [{ id: b, end: 0, from, to: at(2, -18, from.position[2], from.rotation) }]
     })
   }
   {
@@ -139,13 +140,13 @@ function scenes(): Scene[] {
   }
   {
     const world = newWorld(TABLE, BOARD)
-    const far = at(0, 150, 12, FLIP)
+    const far = at(0, 175, 1, FLIP)
     const id = world.addRibbon({ a: at(0, -10, BOARD_TOP + 0.5), b: far })
     out.push({
       name: 'a ribbon over the breadboard edge',
       world,
       bodies: [id],
-      nudges: [{ id, end: 1, from: far, to: at(4, 148, 12, FLIP) }]
+      nudges: [{ id, end: 1, from: far, to: at(4, 173, 1, FLIP) }]
     })
   }
   {

@@ -8,21 +8,23 @@ import {
   BOARD,
   BOARD_TOP,
   FLIP,
+  HANG,
   HOUSING,
   TABLE,
   WIRE_R,
   at,
-  boxShape,
   cableOverlap,
   crossingPair,
   depthIntoBox,
   dist,
+  hangOver,
   newWorld,
   pathLength,
   place,
   rodIntoRibbon,
   run,
   sdBox,
+  sheetIntoBox,
   wire,
   yaw
 } from './testkit'
@@ -162,23 +164,10 @@ describe('clamped ends', () => {
 
 describe('contacts', () => {
   it('lead over a part: nothing reaches more than 0.5 mm into the table, board or part', () => {
-    // A wall across the board, taller than the housing tips, so the lead has to ride over it.
+    // A wall across the board, risen under a hanging lead that would hang lower without it.
     const part: Box = { c: [0, 0, BOARD_TOP + 7], h: [5, 26, 7] }
-    const world = newWorld(TABLE, BOARD, part)
-    const top = BOARD_TOP + HOUSING
-    const id = world.addLead({
-      a: at(-30, 0, BOARD_TOP),
-      b: at(30, 0, BOARD_TOP),
-      lengthMm: 72,
-      guess: [
-        [-30, 0, top],
-        [-14, 0, top - 3],
-        [-5.5, 0, part.c[2] + part.h[2] + 1],
-        [5.5, 0, part.c[2] + part.h[2] + 1],
-        [14, 0, top - 3],
-        [30, 0, top]
-      ]
-    })
+    const world = newWorld(TABLE, BOARD)
+    const id = hangOver(world, part).lead
     run(world, 300)
     const pts = wire(world, id)
     const depths = [TABLE, BOARD, part].map((b) => depthIntoBox(pts, WIRE_R, b))
@@ -186,29 +175,18 @@ describe('contacts', () => {
       `lead over part: table ${depths[0]!.toFixed(3)}, board ${depths[1]!.toFixed(3)}, part ${depths[2]!.toFixed(3)} mm`
     )
     for (const d of depths) expect(d).toBeLessThanOrEqual(0.5)
-    // It really rests on the part: the wire is above its top and within 0.5 mm of touching it.
-    expect(Math.max(...pts.map((p) => p[2]))).toBeGreaterThan(part.c[2] + part.h[2])
+    // It really rests on the part: over the wall the wire is above its top, and within 0.5 mm of
+    // touching it.
+    const over = pts.filter((p) => Math.abs(p[0]) < part.h[0])
+    expect(Math.min(...over.map((p) => p[2]))).toBeGreaterThan(part.c[2] + part.h[2])
     expect(depths[2]).toBeGreaterThan(-0.5)
   })
 
   it('a lead lying across a part thinner than its particle spacing does not cut through it', () => {
     // A 2.4 mm wall: two particles can straddle it, so only segment contacts can find it.
     const part: Box = { c: [0, 0, BOARD_TOP + 7], h: [1.2, 26, 7] }
-    const world = newWorld(TABLE, BOARD, part)
-    const top = BOARD_TOP + HOUSING
-    const id = world.addLead({
-      a: at(-30, 0, BOARD_TOP),
-      b: at(30, 0, BOARD_TOP),
-      lengthMm: 72,
-      guess: [
-        [-30, 0, top],
-        [-14, 0, top - 3],
-        [-1.5, 0, part.c[2] + part.h[2] + 1],
-        [1.5, 0, part.c[2] + part.h[2] + 1],
-        [14, 0, top - 3],
-        [30, 0, top]
-      ]
-    })
+    const world = newWorld(TABLE, BOARD)
+    const id = hangOver(world, part).lead
     run(world, 300)
     const depth = depthIntoBox(wire(world, id), WIRE_R, part)
     console.info(`lead across a thin wall: ${depth.toFixed(3)} mm into the part`)
@@ -257,7 +235,12 @@ describe('contacts', () => {
     const world = newWorld(TABLE)
     const ribbon = world.addRibbon({ a: at(0, -95, 14), b: at(0, 95, 14, FLIP) })
     run(world, 250)
-    const lead = world.addLead({ a: at(-45, 0, 0), b: at(45, 0, 0), lengthMm: 110 })
+    // Hung across the taut ribbon, 90 mm apart: on its own it would hang about 4 mm lower.
+    const lead = world.addLead({
+      a: at(-45, 0, HANG, FLIP),
+      b: at(45, 0, HANG, FLIP),
+      wireMm: 130
+    })
     run(world, 300)
     const depth = rodIntoRibbon(world, lead, ribbon)
     console.info(`lead over ribbon: depth ${depth.toFixed(3)} mm`)
@@ -267,9 +250,9 @@ describe('contacts', () => {
 
   it('ribbon over the breadboard edge: no particle reaches more than 0.5 mm into board or table', () => {
     const world = newWorld(TABLE, BOARD)
-    // The near socket lies on the board and the far one is out on the table: the ribbon runs over
-    // the board's edge and down to the table.
-    const id = world.addRibbon({ a: at(0, -10, BOARD_TOP + 0.5), b: at(0, 150, 12, FLIP) })
+    // The near socket lies on the board and the far one is out on the table, near enough the
+    // ribbon's reach that it cannot arch clear: it runs over the board's edge and down to the table.
+    const id = world.addRibbon({ a: at(0, -10, BOARD_TOP + 0.5), b: at(0, 175, 1, FLIP) })
     run(world, 400)
     const { rows, columns } = world.info(id)
     const p = world.positions(id)
@@ -297,16 +280,19 @@ describe('contacts', () => {
 
 describe('dragging', () => {
   it('the far socket dragged across the board: the ribbon never reaches more than 0.5 mm in', () => {
+    // Both sockets lie on the table either side of the board, 193 mm apart: the ribbon has 6 mm more
+    // than the way over the board takes, so it lies on the board between them.
     const world = newWorld(TABLE, BOARD)
-    const id = world.addRibbon({ a: at(0, -90, 16), b: at(-70, 60, 22, FLIP) })
+    const id = world.addRibbon({ a: at(0, -99, 1), b: at(-25, 94, 1, FLIP) })
     run(world, 250)
     const { rows, columns } = world.info(id)
     const R = ribbonData.thicknessMm / 2
     let worst = -Infinity
+    let board = -Infinity
     for (let f = 0; f <= 180; f++) {
-      // 0.8 mm a frame, about 50 mm/s, along the board and back up over its edge.
+      // Up to 0.9 mm a frame, about 50 mm/s, across and back: the ribbon slides along the board.
       const t = f / 180
-      world.setAnchor(id, 1, at(-70 + 140 * t, 60 - 70 * Math.sin(Math.PI * t), 22, FLIP))
+      world.setAnchor(id, 1, at(-25 * Math.cos(Math.PI * 2 * t), 94, 1, FLIP))
       world.step()
       const p = world.positions(id)
       for (let r = 2; r < rows - 2; r++) {
@@ -319,11 +305,13 @@ describe('dragging', () => {
           worst = Math.max(worst, R - sdBox(q, BOARD), R - sdBox(q, TABLE))
         }
       }
+      // The sheet rests on the board's edges, between particles: measured on the sheet itself.
+      if (f % 10 === 0) board = Math.max(board, sheetIntoBox(world, id, BOARD))
     }
     console.info(`far socket dragged across the board: worst penetration ${worst.toFixed(3)} mm`)
     expect(worst).toBeLessThanOrEqual(0.5)
     // The ribbon does touch the board during the drag.
-    expect(worst).toBeGreaterThan(-0.5)
+    expect(board).toBeGreaterThan(-0.5)
     expect(Array.from(world.positions(id)).every(Number.isFinite)).toBe(true)
   })
 })
@@ -432,13 +420,11 @@ describe('sleep', () => {
   })
 
   it('a lead resting on a part wakes and falls when the part is dragged away', () => {
-    // A wall across the board, so the lead has to go over it.
+    // A wall across the board, risen under a hanging lead that would hang lower on its own: only
+    // the part holds its middle up.
     const part: Box = { c: [0, 0, BOARD_TOP + 7], h: [3, 26, 7] }
     const world = newWorld(TABLE, BOARD)
-    const partId = world.addCollider(boxShape(part), at(...part.c))
-    // A lead long enough to lie on the board on its own (90 mm between holes 60 mm apart): only
-    // the part holds its middle up.
-    const id = world.addLead({ a: at(-30, 0, BOARD_TOP), b: at(30, 0, BOARD_TOP), lengthMm: 90 })
+    const { lead: id, wall: partId } = hangOver(world, part)
     run(world, 400)
     expect(world.isAsleep(id)).toBe(true)
     const middle = () => wire(world, id)[Math.floor(wire(world, id).length / 2)]![2]
@@ -456,7 +442,7 @@ describe('sleep', () => {
 
   it('touching leads share an island and sleep together; separate leads do not', () => {
     const world = newWorld(TABLE, BOARD)
-    const { a, b } = crossingPair(world)
+    const { a, b, aEnds } = crossingPair(world)
     const far = world.addLead({ a: at(-300, 0, 0), b: at(-240, 0, 0), lengthMm: 90 })
     run(world, 300)
     expect(cableOverlap(wire(world, a), WIRE_R, wire(world, b), WIRE_R)).toBeGreaterThan(-0.5)
@@ -465,7 +451,7 @@ describe('sleep', () => {
     // Waking one wakes its island but not the far lead.
     run(world, 200)
     expect(world.isAsleep(far)).toBe(true)
-    world.setAnchor(a, 0, at(-29, 0, BOARD_TOP))
+    world.setAnchor(a, 0, at(-29, 0, aEnds[0].position[2], FLIP))
     expect(world.isAsleep(a)).toBe(false)
     expect(world.isAsleep(b)).toBe(false)
     expect(world.isAsleep(far)).toBe(true)
@@ -725,8 +711,7 @@ describe('world bookkeeping', () => {
   it('removing a collider lets what rested on it fall', () => {
     const part: Box = { c: [0, 0, BOARD_TOP + 7], h: [3, 26, 7] }
     const world = newWorld(TABLE, BOARD)
-    const partId = world.addCollider(boxShape(part), at(...part.c))
-    const id = world.addLead({ a: at(-30, 0, BOARD_TOP), b: at(30, 0, BOARD_TOP), lengthMm: 90 })
+    const { lead: id, wall: partId } = hangOver(world, part)
     run(world, 400)
     const middle = () => wire(world, id)[Math.floor(wire(world, id).length / 2)]![2]
     const held = middle()

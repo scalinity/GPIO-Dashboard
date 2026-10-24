@@ -10,6 +10,8 @@ export interface Pool {
   x: Float64Array
   xp: Float64Array
   w: Float64Array
+  /** Set for each particle a collider contact moved this substep (CableWorld.weighPressed). */
+  pressed: Uint8Array
 }
 
 export interface Collider {
@@ -89,6 +91,7 @@ function resolve(
     x[i3 + 2] = x[i3 + 2]! + f * nz
   }
   if (!slide) return
+  for (let k = 0; k < count; k++) if (cc[k] !== 0) pool.pressed[ci[k]!] = 1
   // Friction: relative motion of the two contact points since the substep began.
   let rx = -dbx,
     ry = -dby,

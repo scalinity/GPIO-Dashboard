@@ -10,13 +10,15 @@ export interface Constraints {
   dLat2: Float64Array
   dAlong: Float64Array
   dRest: Float64Array
-  /** Curvature constraints |x_a - 2 x_b + x_c| = 0 (bending). */
+  /** Curvature constraints x_a - 2 x_b + x_c = 0 (bending), along a chain (factorBending). */
   cA: Int32Array
   cB: Int32Array
   cC: Int32Array
   cAlpha: Float64Array
-  /** Per constraint: -1 / (w_a + 4 w_b + w_c + alpha / h^2), or 0 when nothing in it can move. */
-  cInv: Float64Array
+  /** LDL^T factors of the bending system: L's two sub-diagonals and 1 / D, per constraint. */
+  bL1: Float64Array
+  bL2: Float64Array
+  bD: Float64Array
   /** Long-range attachments: particle lI stays within lMax * scale of the clamped particle lA. */
   lI: Int32Array
   lA: Int32Array
@@ -64,10 +66,13 @@ export interface Body extends Constraints {
   /** Position of this body's primitives in the world-wide primitive lists. */
   segStart: number
   triStart: number
-  /** Route hints: a particle pulled softly toward each target. */
+  /** Route hints: a particle pulled softly toward each target, and its own inverse mass. */
   hintI: Int32Array
   hintTarget: Float64Array
   hintCount: number
+  hintW: Float64Array
+  /** Whether the bending factors were found with pressed particles' weights (weighPressed). */
+  pressFactor: boolean
   /** Over-span: the clamped particles bounding the free span, and its rest length. */
   exitA: number
   exitB: number
@@ -122,7 +127,7 @@ export interface Spec {
   radius: number
   x0: Float64Array
   w: Float64Array
-  constraints: Omit<Constraints, 'dRest' | 'gTarget' | 'cInv'>
+  constraints: Omit<Constraints, 'dRest' | 'gTarget' | 'bL1' | 'bL2' | 'bD'>
   rig: { innerA: number; innerB: number; lateral: Float64Array } | null
   segI: Int32Array
   segJ: Int32Array

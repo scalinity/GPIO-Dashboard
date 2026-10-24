@@ -7,44 +7,20 @@ import ribbonData from '../content/controllers/ribbon.json'
 import { rng } from './math'
 import { turnWidthAxis } from './ribbon'
 import { exit, triangleBox } from './strips'
-import { BOARD, BOARD_TOP, FLIP, TABLE, at, dist, newWorld, run, sdBox } from './testkit'
+import {
+  BOARD,
+  BOARD_TOP,
+  FLIP,
+  TABLE,
+  at,
+  dist,
+  newWorld,
+  run,
+  saggingRibbon,
+  sheetIntoBox
+} from './testkit'
 import type { Box } from './testkit'
-import type { BodyId, Vec3 } from './types'
-import type { CableWorld } from './world'
-
-const HALF_THICKNESS = ribbonData.thicknessMm / 2
-
-/** Deepest the ribbon's surface (its cells, sampled every ~0.5 mm) reaches into the box. */
-function sheetIntoBox(world: CableWorld, id: BodyId, box: Box): number {
-  const { rows, columns } = world.info(id)
-  const P = world.positions(id)
-  const pt = (r: number, c: number): Vec3 => {
-    const i = (r * columns + c) * 3
-    return [P[i]!, P[i + 1]!, P[i + 2]!]
-  }
-  const N = 8
-  let worst = -Infinity
-  const tris = (r: number, c: number): Vec3[][] => [
-    [pt(r, c), pt(r + 1, c), pt(r + 1, c + 1)],
-    [pt(r, c), pt(r + 1, c + 1), pt(r, c + 1)]
-  ]
-  for (let r = 0; r + 1 < rows; r++) {
-    for (let c = 0; c + 1 < columns; c++) {
-      for (const [a, b, d] of tris(r, c)) {
-        for (let i = 0; i <= N; i++) {
-          for (let j = 0; i + j <= N; j++) {
-            const u = i / N,
-              v = j / N,
-              t = 1 - u - v
-            const q = [0, 1, 2].map((k) => t * a![k]! + u * b![k]! + v * d![k]!)
-            worst = Math.max(worst, HALF_THICKNESS - sdBox(q, box))
-          }
-        }
-      }
-    }
-  }
-  return worst
-}
+import type { Vec3 } from './types'
 
 describe('ribbon strips', () => {
   it('a ribbon laid across a housing that fits between its particles does not sink onto it', () => {
@@ -59,7 +35,8 @@ describe('ribbon strips', () => {
       const housing: Box = { c: [hx, hy, BOARD_TOP + 6], h: [1.27, 1.27, 6] }
       const world = newWorld(TABLE, BOARD)
       world.addCollider({ kind: 'box', halfExtents: housing.h }, at(...housing.c))
-      const id = world.addRibbon({ a: at(0, -50, 30), b: at(0, 50, 30, FLIP) })
+      // Sagging to 18 mm on its own, so the housing (12 mm tall on the board) holds it up.
+      const id = saggingRibbon(world, 52)
       run(world, 500)
       const depth = sheetIntoBox(world, id, housing)
       const board = sheetIntoBox(world, id, BOARD)
@@ -97,7 +74,7 @@ describe('ribbon strips', () => {
 
   it('a housing stood up through a settled ribbon pushes the sheet clear', () => {
     const world = newWorld(TABLE, BOARD)
-    const id = world.addRibbon({ a: at(0, -50, 30), b: at(0, 50, 30, FLIP) })
+    const id = saggingRibbon(world, 52)
     run(world, 400)
     // A housing appears under the middle of the sheet, between its particles, and the sheet is
     // lifted off it.
@@ -127,12 +104,15 @@ describe('ribbon strips, any column count', () => {
         const box: Box = { c: [hx, hy, 2.22], h: [3.6, 4.25, 2.22] }
         const world = newWorld(TABLE)
         world.addCollider({ kind: 'box', halfExtents: box.h }, at(...box.c))
-        const id = world.addRibbon({ a: at(0, -70, 12), b: at(0, 70, 12, FLIP), columns })
+        // Sagging to about 2 mm on its own: the box holds the sheet up where it stands under it.
+        const id = saggingRibbon(world, 36, columns)
         run(world, 400)
         const depth = sheetIntoBox(world, id, box)
         const table = sheetIntoBox(world, id, TABLE)
         expect(depth).toBeLessThanOrEqual(0.5)
         expect(table).toBeLessThanOrEqual(0.5)
+        // The box in the middle is under the sag, and the sheet rests on it.
+        if (hx === 4.2) expect(depth).toBeGreaterThan(-0.5)
       }
     }
   })

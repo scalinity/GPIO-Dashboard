@@ -4,41 +4,118 @@
 import type { Body } from './body'
 
 /**
- * Bending as the length of the discrete curvature vector C = |a - 2b + c|, which is linear in the
- * turning angle (a skip-one distance constraint is quadratic in it, and nearly free for gentle
- * bends). With segment length s the bending energy is (EI / s) theta^2 / 2 for k = EI / s^3.
- * Every constraint's gradient is q/|q| on a and c and -2q/|q| on b, so its multiplier step
- * -|q| / (sum w |grad|^2 + alpha / h^2) turns into a displacement along q itself: no square root
- * and no division is needed once cInv = -1 / (w_a + 4 w_b + w_c + alpha / h^2) is known.
+ * Bending along a chain is the discrete curvature vector C_k = x_k - 2 x_(k+1) + x_(k+2) held at
+ * zero with compliance alpha_k = s^3 / EI: its energy |C|^2 / (2 alpha) is EI theta^2 / (2 s) for
+ * a turn of theta at a joint, the elastic rod's. C is linear in the positions, so J is constant and
+ * the XPBD system of all of a chain's bending constraints together,
+ *   (J W J^T + alpha / h^2) lambda = -C(x),
+ * is exact rather than linearised, is the same matrix for x, y and z, and is pentadiagonal
+ * (constraint k shares two particles with k + 1 and one with k + 2). Its LDL^T factors depend
+ * only on the inverse masses, the compliances and the substep, so they are found once per body
+ * (`factorBending`) and each substep is a forward and a back substitution with three right-hand
+ * sides: O(n), exact, and the whole chain's stiffness acts at once. One Gauss-Seidel sweep a
+ * substep carried a joint's correction one particle along, so a realistic EI saturated a few
+ * particles above the housing (ADR-0076).
+ *
+ * The constraints must form a chain: constraint k acts on pool particles p + k, p + k + 1 and
+ * p + k + 2 for p = cA[0].
  */
-export function solveCurvature(x: Float64Array, w: Float64Array, b: Body) {
-  const { cA, cB, cC, cInv } = b
-  const n = cA.length
-  // One symmetric sweep (forward, then back): a one-way sweep carries a directional bias that
-  // bends the wire's shape and keeps piles creeping; alternating the direction per substep did too.
-  for (let s = 0; s < 2 * n; s++) {
-    const k = s < n ? s : 2 * n - 1 - s
-    const f = cInv[k]!
-    if (f === 0) continue
-    const a3 = cA[k]! * 3,
-      m3 = cB[k]! * 3,
-      c3 = cC[k]! * 3
-    const qx = x[a3]! - 2 * x[m3]! + x[c3]!,
-      qy = x[a3 + 1]! - 2 * x[m3 + 1]! + x[c3 + 1]!,
-      qz = x[a3 + 2]! - 2 * x[m3 + 2]! + x[c3 + 2]!
-    if (qx * qx + qy * qy + qz * qz < 1e-18) continue
-    const wa = w[cA[k]!]! * f,
-      wm = 2 * w[cB[k]!]! * f,
-      wc = w[cC[k]!]! * f
-    x[a3] = x[a3]! + wa * qx
-    x[a3 + 1] = x[a3 + 1]! + wa * qy
-    x[a3 + 2] = x[a3 + 2]! + wa * qz
-    x[m3] = x[m3]! - wm * qx
-    x[m3 + 1] = x[m3 + 1]! - wm * qy
-    x[m3 + 2] = x[m3 + 2]! - wm * qz
-    x[c3] = x[c3]! + wc * qx
-    x[c3 + 1] = x[c3 + 1]! + wc * qy
-    x[c3 + 2] = x[c3 + 2]! + wc * qz
+export function factorBending(w: Float64Array, b: Body, invH2: number) {
+  const { cA, cB, cC, cAlpha, bL1, bL2, bD } = b
+  const m = cA.length
+  const p = m > 0 ? cA[0]! : 0
+  let d1 = 0,
+    d2 = 0
+  for (let k = 0; k < m; k++) {
+    if (cA[k] !== p + k || cB[k] !== p + k + 1 || cC[k] !== p + k + 2) {
+      throw new RangeError('bending constraints must run along a chain')
+    }
+    const wa = w[p + k]!,
+      wb = w[p + k + 1]!,
+      wc = w[p + k + 2]!
+    // Row k of J W J^T + alpha~: diagonal, and its couplings to rows k - 1 and k - 2.
+    const diag = wa + 4 * wb + wc + cAlpha[k]! * invH2
+    const sub1 = k > 0 ? -2 * w[p + k]! - 2 * w[p + k + 1]! : 0
+    const sub2 = k > 1 ? w[p + k]! : 0
+    const l2 = k > 1 ? sub2 / d2 : 0
+    const l1 = k > 0 ? (sub1 - l2 * (k > 1 ? bL1[k - 1]! : 0) * d2) / d1 : 0
+    const d = diag - l1 * l1 * d1 - l2 * l2 * d2
+    bL1[k] = l1
+    bL2[k] = l2
+    bD[k] = 1 / d
+    d2 = d1
+    d1 = d
+  }
+}
+
+// Work arrays of the bending solve: the three right-hand sides, then the three multipliers.
+let bx = new Float64Array(256)
+let by = new Float64Array(256)
+let bz = new Float64Array(256)
+
+/** One exact XPBD projection of a chain's bending constraints (see `factorBending`). */
+export function solveBending(x: Float64Array, w: Float64Array, b: Body) {
+  const { cA, bL1, bL2, bD } = b
+  const m = cA.length
+  if (m === 0) return
+  if (bx.length < m) {
+    bx = new Float64Array(2 * m)
+    by = new Float64Array(2 * m)
+    bz = new Float64Array(2 * m)
+  }
+  const p3 = cA[0]! * 3
+  // Forward: L y = -C.
+  let x1 = 0,
+    y1 = 0,
+    z1 = 0,
+    x2 = 0,
+    y2 = 0,
+    z2 = 0
+  for (let k = 0, i = p3; k < m; k++, i += 3) {
+    const l1 = bL1[k]!,
+      l2 = bL2[k]!
+    const rx = 2 * x[i + 3]! - x[i]! - x[i + 6]! - l1 * x1 - l2 * x2
+    const ry = 2 * x[i + 4]! - x[i + 1]! - x[i + 7]! - l1 * y1 - l2 * y2
+    const rz = 2 * x[i + 5]! - x[i + 2]! - x[i + 8]! - l1 * z1 - l2 * z2
+    bx[k] = rx
+    by[k] = ry
+    bz[k] = rz
+    x2 = x1
+    y2 = y1
+    z2 = z1
+    x1 = rx
+    y1 = ry
+    z1 = rz
+  }
+  // Back: L^T lambda = D^-1 y, and each particle's move W J^T lambda as soon as its three
+  // multipliers are known (particle p + k + 2 is the last of constraint k, the middle of k + 1 and
+  // the first of k + 2).
+  x1 = y1 = z1 = x2 = y2 = z2 = 0
+  for (let k = m - 1; k >= -2; k--) {
+    let lx = 0,
+      ly = 0,
+      lz = 0
+    if (k >= 0) {
+      const d = bD[k]!
+      const l1 = k + 1 < m ? bL1[k + 1]! : 0
+      const l2 = k + 2 < m ? bL2[k + 2]! : 0
+      lx = bx[k]! * d - l1 * x1 - l2 * x2
+      ly = by[k]! * d - l1 * y1 - l2 * y2
+      lz = bz[k]! * d - l1 * z1 - l2 * z2
+    }
+    const j3 = p3 + 3 * (k + 2)
+    const wj = w[cA[0]! + k + 2]!
+    if (wj !== 0) {
+      x[j3] = x[j3]! + wj * (x2 - 2 * x1 + lx)
+      x[j3 + 1] = x[j3 + 1]! + wj * (y2 - 2 * y1 + ly)
+      x[j3 + 2] = x[j3 + 2]! + wj * (z2 - 2 * z1 + lz)
+    }
+    x2 = x1
+    y2 = y1
+    z2 = z1
+    x1 = lx
+    y1 = ly
+    z1 = lz
   }
 }
 

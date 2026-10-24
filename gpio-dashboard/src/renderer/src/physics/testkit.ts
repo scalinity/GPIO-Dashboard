@@ -81,37 +81,67 @@ export function depthIntoBox(pts: ArrayLike<number>[], radius: number, b: Box): 
 }
 
 /**
- * Two leads lying on the board, one across the other: both start from design curves that run low
- * along the board, and the second crosses the first, so it rests on it there.
+ * How high the housings of a hanging lead are, mm: they point down from there, so the lead's slack
+ * hangs below them. A lead as stiff as a real one stands up out of a hole and arches over anything
+ * lower than its arch (MATERIAL.leadEI), so the scenes that need a lead resting on something hang
+ * it over that thing instead.
+ */
+export const HANG = 60
+
+/**
+ * Two hanging 200 mm leads (165 mm of wire), one across the other: the second hangs 30 mm higher at
+ * first, clear of the first, and is lowered over 30 frames to where it would hang about 0.3 mm
+ * lower than the first on its own, so it comes to rest on it. Between leads this stiff the contact
+ * holds up to about 2 mm of bending between the two (the ADR on solving bending directly); this
+ * scene stays well inside that.
  */
 export function crossingPair(world: CableWorld) {
-  const top = BOARD_TOP + HOUSING
-  const floor = BOARD_TOP + WIRE_R
-  const a = world.addLead({
-    a: at(-30, 0, BOARD_TOP),
-    b: at(30, 0, BOARD_TOP),
-    lengthMm: 72,
-    guess: [
-      [-30, 0, top],
-      [-22, 0, floor],
-      [22, 0, floor],
-      [30, 0, top]
-    ]
-  })
-  const b = world.addLead({
-    a: at(0, -18, BOARD_TOP),
-    b: at(0, 18, BOARD_TOP),
-    lengthMm: 50,
-    guess: [
-      [0, -18, top],
-      [0, -12, floor],
-      [0, -1.5, floor + 2 * WIRE_R],
-      [0, 1.5, floor + 2 * WIRE_R],
-      [0, 12, floor],
-      [0, 18, top]
-    ]
-  })
-  return { a, b }
+  const aEnds: [Pose, Pose] = [at(-30, 0, 110, FLIP), at(30, 0, 110, FLIP)]
+  const bEnds = (z: number): [Pose, Pose] => [at(0, -18, z, FLIP), at(0, 18, z, FLIP)]
+  const a = world.addLead({ a: aEnds[0], b: aEnds[1], wireMm: 165 })
+  const [b0, b1] = bEnds(144)
+  const b = world.addLead({ a: b0, b: b1, wireMm: 165 })
+  world.settle(300)
+  for (let f = 1; f <= 30; f++) {
+    const [e0, e1] = bEnds(144 - f)
+    world.setAnchor(b, 0, e0)
+    world.setAnchor(b, 1, e1)
+    world.step()
+  }
+  return { a, b, aEnds, bEnds: bEnds(114) }
+}
+
+/**
+ * A lead of 102 mm hung from housings 60 mm apart, and a wall that rises out of the board under it
+ * to its place (top 22.5 mm), lifting the lead about 10 mm above where it hangs on its own, so the
+ * lead's weight rests on the wall. The wall rises over 30 frames: a lead started over it from a
+ * guess falls to its own shape faster than the broad phase expects, and passes through.
+ */
+export function hangOver(world: CableWorld, wall: Box) {
+  const lead = world.addLead({ a: at(-30, 0, HANG, FLIP), b: at(30, 0, HANG, FLIP), wireMm: 102 })
+  world.settle(300)
+  const rise = 2 * wall.h[2]
+  const below = (t: number) => at(wall.c[0], wall.c[1], wall.c[2] - rise * (1 - t))
+  const id = world.addCollider(boxShape(wall), below(0))
+  for (let f = 1; f <= 30; f++) {
+    world.setColliderPose(id, below(f / 30))
+    world.step()
+  }
+  return { lead, wall: id }
+}
+
+/**
+ * A ribbon between two sockets 185 mm apart at height z, facing each other, started sagging 34 mm
+ * between them: a centreline about as long as its free span, which is near where a ribbon this
+ * stiff comes to rest (it settles 0.2 mm lower). Started from the default arch it would stay arched
+ * above whatever is under it.
+ */
+export function saggingRibbon(world: CableWorld, z: number, columns?: number) {
+  const guess: Vec3[] = []
+  for (let k = 0; k <= 16; k++) {
+    guess.push([0, -87.5 + (175 * k) / 16, z - 33.6 * Math.sin((Math.PI * k) / 16) ** 2])
+  }
+  return world.addRibbon({ a: at(0, -92.5, z), b: at(0, 92.5, z, FLIP), guess, columns })
 }
 
 export const TABLE: Box = { c: [0, 0, -10], h: [600, 600, 10] }
@@ -169,6 +199,38 @@ export function rodIntoRibbon(world: CableWorld, rod: BodyId, ribbon: BodyId): n
             const q = [0, 1, 2].map((x) => pts[i]![x]! + (pts[i + 1]![x]! - pts[i]![x]!) * t)
             const d2 = closestPointTriangle(q[0]!, q[1]!, q[2]!, ...a, ...b, ...d, s)
             worst = Math.max(worst, reach - Math.sqrt(d2))
+          }
+        }
+      }
+    }
+  }
+  return worst
+}
+
+/** Deepest the ribbon's surface (its cells, sampled every ~0.5 mm) reaches into the box. */
+export function sheetIntoBox(world: CableWorld, id: BodyId, box: Box): number {
+  const { rows, columns } = world.info(id)
+  const P = world.positions(id)
+  const pt = (r: number, c: number): Vec3 => {
+    const i = (r * columns + c) * 3
+    return [P[i]!, P[i + 1]!, P[i + 2]!]
+  }
+  const N = 8
+  let worst = -Infinity
+  const tris = (r: number, c: number): Vec3[][] => [
+    [pt(r, c), pt(r + 1, c), pt(r + 1, c + 1)],
+    [pt(r, c), pt(r + 1, c + 1), pt(r, c + 1)]
+  ]
+  for (let r = 0; r + 1 < rows; r++) {
+    for (let c = 0; c + 1 < columns; c++) {
+      for (const [a, b, d] of tris(r, c)) {
+        for (let i = 0; i <= N; i++) {
+          for (let j = 0; i + j <= N; j++) {
+            const u = i / N,
+              v = j / N,
+              t = 1 - u - v
+            const q = [0, 1, 2].map((k) => t * a![k]! + u * b![k]! + v * d![k]!)
+            worst = Math.max(worst, ribbonData.thicknessMm / 2 - sdBox(q, box))
           }
         }
       }

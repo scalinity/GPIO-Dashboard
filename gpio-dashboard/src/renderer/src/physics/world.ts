@@ -4,7 +4,14 @@
 // order from seeded inputs, so the same calls in the same runtime give the same positions.
 import type { Body, Spec } from './body'
 import { buildJumper, buildLead, buildRibbon } from './builders'
-import { solveChain, solveCurvature, solveGoals, solveLongRange, straighten } from './constraints'
+import {
+  factorBending,
+  solveBending,
+  solveChain,
+  solveGoals,
+  solveLongRange,
+  straighten
+} from './constraints'
 import {
   gapParticleCollider,
   gapPointTriangle,
@@ -69,9 +76,18 @@ const WAKE_MOVE = SLEEP_SPEED * FRAME_DT
  * a real creep (a drift) still shows at the same 0.5 mm/s.
  */
 const SLEEP_WINDOW = 10
-/** Route hints pull softly: about 0.4 mm of give under a whole lead's weight. */
-const HINT_ALPHA = 1e-4
+/**
+ * Route hints pull softly: 0.1 mm of give under a whole lead's weight, and about 0.6 mm where a
+ * hint bends a lead well out of its own shape (cables.test, route hints).
+ */
+const HINT_ALPHA = 3e-5
 const MAX_HINTS = 3
+/**
+ * A particle a collider pushed in the last substep weighs this many times its mass in the next
+ * substep's bending and stretch solves (a power of two, so the weight comes back exactly). See
+ * `weighPressed`.
+ */
+const PRESS_MASS = 16
 /** Where along a rod segment it is tested against ribbon triangles (spacing 1.5 mm at 3 mm). */
 const SAMPLES = [0.25, 0.75]
 const DEFAULT_MAX_PARTICLES = 8192
@@ -173,6 +189,7 @@ export class CableWorld {
   private readonly xe: Float64Array
   private readonly xf: Float64Array
   private readonly w: Float64Array
+  private readonly pressed: Uint8Array
   private readonly render: Float32Array
   private readonly pool: Pool
   private bodies: Body[] = []
@@ -217,7 +234,8 @@ export class CableWorld {
     this.w = new Float64Array(this.cap)
     this.render = new Float32Array(3 * this.cap)
     this.ring = new Float64Array(SLEEP_WINDOW * 3 * this.cap)
-    this.pool = { x: this.x, xp: this.xp, w: this.w }
+    this.pressed = new Uint8Array(this.cap)
+    this.pool = { x: this.x, xp: this.xp, w: this.w, pressed: this.pressed }
     this.frameMs = options.profile ? new Float64Array(PHASES.length) : null
   }
 
@@ -354,15 +372,12 @@ export class CableWorld {
     for (let k = 0; k < dRest.length; k++) {
       dRest[k] = Math.sqrt(c.dLat2[k]! + c.dAlong[k]! * c.dAlong[k]!)
     }
-    const invH2 = (this.substeps / FRAME_DT) ** 2
-    const cInv = new Float64Array(c.cA.length)
-    for (let k = 0; k < cInv.length; k++) {
-      const wsum = this.w[c.cA[k]!]! + 4 * this.w[c.cB[k]!]! + this.w[c.cC[k]!]!
-      cInv[k] = wsum > 0 ? -1 / (wsum + c.cAlpha[k]! * invH2) : 0
-    }
+    const m = c.cA.length
     const body: Body = {
       ...c,
-      cInv,
+      bL1: new Float64Array(m),
+      bL2: new Float64Array(m),
+      bD: new Float64Array(m),
       dRest,
       gTarget: new Float64Array(3 * c.gI.length),
       id: this.nextId++,
@@ -385,6 +400,8 @@ export class CableWorld {
       triStart: 0,
       hintI: new Int32Array(MAX_HINTS),
       hintTarget: new Float64Array(3 * MAX_HINTS),
+      hintW: new Float64Array(MAX_HINTS),
+      pressFactor: false,
       hintCount: 0,
       exitA: spec.exitA + first,
       exitB: spec.exitB + first,
@@ -415,6 +432,7 @@ export class CableWorld {
       hi: new Float64Array(3)
     }
     body.island = body.id
+    factorBending(this.w, body, (this.substeps / FRAME_DT) ** 2)
     this.count += spec.n
     this.bodies.push(body)
     this.primDirty = true
@@ -437,6 +455,7 @@ export class CableWorld {
       arr.copyWithin(3 * first, 3 * (first + n), 3 * this.count)
     }
     this.w.copyWithin(first, first + n, this.count)
+    this.pressed.copyWithin(first, first + n, this.count)
     this.count -= n
     for (let k = i; k < this.bodies.length; k++) {
       const b = this.bodies[k]!
@@ -491,7 +510,57 @@ export class CableWorld {
       b.hintI[k] = i
     })
     b.hintCount = pts.length
-    if (changed) this.wake(b)
+    if (!changed) return
+    this.weighHints(b, true)
+    factorBending(this.w, b, (this.substeps / FRAME_DT) ** 2)
+    this.weighHints(b, false)
+    this.wake(b)
+  }
+
+  /**
+   * Mass scaling for contact (Macklin et al., "Unified Particle Physics for Real-Time
+   * Applications", SIGGRAPH 2014, section 5.1, after the shock propagation of Guendelman et al.
+   * 2003). Bending is solved over the whole chain at once and contacts after it, so a stiff lead
+   * pressed against a part was bent back into it by nearly the whole of what the contact had just
+   * pushed out, every substep: a wall rising under a hung lead went through it once the lift passed
+   * 4 mm, and a 2.4 mm wall at 2 mm. Made heavier in the next substep's rod solves, the particles a
+   * collider pushed stay where it put them and the rest of the rod bends around them. At rest it
+   * changes nothing: a particle's weight scales its share of the corrections, not their balance.
+   * Contacts between cables are left out: marked the same way, a settled pile of leads never slept.
+   * `on` scales the weights and reports whether any was pressed; `off` restores them.
+   */
+  private weighPressed(b: Body, on: boolean): boolean {
+    const { w, pressed } = this
+    const end = b.first + b.n
+    let any = false
+    // A ribbon's rod solves move its row centres only, which nothing touches.
+    for (let i = b.rig ? b.rig.qStart : b.first; i < end; i++) {
+      if (pressed[i] === 0) continue
+      any = true
+      w[i] = on ? w[i]! / PRESS_MASS : w[i]! * PRESS_MASS
+    }
+    return any
+  }
+
+  /**
+   * A route hint is the energy (h^2 / 2 alpha) |x - target|^2 on one particle, so in the substep's
+   * implicit solve it is the same as that particle weighing h^2 / alpha more, at the target-weighted
+   * prediction `solveGoals` moves it to. The bending and stretch solves that follow take it at that
+   * weight (`on`), so a hint holds against a stiff lead instead of being undone by them; `off` puts
+   * the weights back.
+   */
+  private weighHints(b: Body, on: boolean) {
+    const { w } = this
+    const extra = (FRAME_DT / this.substeps) ** 2 / HINT_ALPHA
+    if (on) {
+      for (let k = 0; k < b.hintCount; k++) {
+        const i = b.hintI[k]!
+        b.hintW[k] = w[i]!
+        w[i] = 1 / (1 / w[i]! + extra)
+      }
+    } else {
+      for (let k = b.hintCount - 1; k >= 0; k--) w[b.hintI[k]!] = b.hintW[k]!
+    }
   }
 
   /** Where end `e` of the body measures its span from, in the table frame (target pose). */
@@ -1159,15 +1228,26 @@ export class CableWorld {
     for (const b of awake) {
       if (b.rig) gatherRows(x, b)
       // Softest first, so the stiffest constraints have the last word in the substep.
-      if (b.hintCount > 0) solveGoals(x, w, b.hintI, b.hintTarget, b.hintCount, HINT_ALPHA, invH2)
-      solveCurvature(x, w, b)
+      if (b.hintCount > 0) {
+        solveGoals(x, w, b.hintI, b.hintTarget, b.hintCount, HINT_ALPHA, invH2)
+        this.weighHints(b, true)
+      }
+      const pressed = this.weighPressed(b, true)
+      if (pressed || b.pressFactor) {
+        factorBending(w, b, invH2)
+        b.pressFactor = pressed
+      }
+      solveBending(x, w, b)
       if (b.gI.length > 0) solveGoals(x, w, b.gI, b.gTarget, b.gI.length, b.gAlpha, invH2)
       solveChain(x, w, b)
+      if (pressed) this.weighPressed(b, false)
+      if (b.hintCount > 0) this.weighHints(b, false)
       solveLongRange(x, w, b)
       if (b.scale > 1 + 1e-9) straighten(x, b)
       if (b.rig) layRows(x, b)
     }
     this.lap(CHAINS)
+    for (const b of awake) this.pressed.fill(0, b.first, b.first + b.n)
     this.measure(awake)
     // Cables first, then surfaces: what a pile rests on has the last word, so a stack settles
     // instead of creeping. The order is the same every substep; alternating it kept piles awake.
