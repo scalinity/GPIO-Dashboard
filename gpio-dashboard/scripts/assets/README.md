@@ -266,7 +266,7 @@ the odd pins'). `idc-socket`: `body` (with the bump) and `strain-relief`. The Du
 `ribbon` has textures only: `build.ts` encodes the PNGs its script saves with `ktx create`, and
 `assets:check --rebuild` compares the lookup exactly and the ridge map by SSIM.
 
-## Displays, ICs and off-board modules (ADR-A3b)
+## Displays, ICs and off-board modules (ADR-0043 to ADR-0046)
 
 Twenty-one parts in seven families, built by `dip.py`, `seven_segment.py`, `bar_graph.py`,
 `dot_matrix.py`, `motor.py` and `module.py`. They use `partkit.py` and add `devicekit.py` (tapered

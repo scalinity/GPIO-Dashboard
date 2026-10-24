@@ -448,7 +448,7 @@ interface PartEntry {
   /** This file's triangle cap, where it needs more than its family's. */
   triangles?: number
   bytes?: number
-  /** A manufacturer's STEP this model starts from (ADR-A3b). */
+  /** A manufacturer's STEP this model starts from (ADR-0043 to ADR-0046). */
   step?: Asset['step']
 }
 
@@ -471,7 +471,7 @@ const PARTS: PartEntry[] = [
   { family: 'potentiometer', defId: 'potentiometer-10k' },
   { family: 'buzzer', defId: 'active-buzzer' },
   { family: 'buzzer', defId: 'passive-buzzer' },
-  // Displays, ICs and off-board modules (ADR-A3b).
+  // Displays, ICs and off-board modules (ADR-0043 to ADR-0046).
   ...['ic-74hc595', 'ic-adc0834', 'ic-l293d'].map((defId) => ({
     family: 'dip',
     defId,
