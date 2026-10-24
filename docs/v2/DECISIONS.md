@@ -231,3 +231,32 @@ decision and consequences. Numbering is stable; superseded records say so.
   proxy test (`live_count_tokens_through_the_real_proxy_path`, run 2026-10-23 with the key
   loaded into that test process only) returned 200 with `input_tokens`. So Bearer works
   for this key, and this key doesn't need the header.
+
+## ADR-0011 The kit's actual parts govern, where they differ from the spec's list
+
+- **Context.** The SunFounder component list image (`component_list.html`, `Basic_List.jpg`,
+  SHA-256 `5799cd52a286ef0327295427df619711f528a4879f07ef709ea5cd5aaf04eda1`, transcribed
+  into `content/inventory.json`) differs from SPEC 7's kit list:
+  - Transistors are **PN2222** (×2; PN2222A on the buzzer pages), not S8050/S8550. The
+    SPEC's D8 note ("the kit design uses an S8050 with a 1 kΩ base resistor") names the
+    wrong transistor.
+  - The ADC is an **ADS7830 I2C module**, not an ADC0834. The Potentiometer,
+    Photoresistor and Adjustable Fan projects use it.
+  - The kit's own leads are F-M ×10 and F-F ×10, plus a "65 Jumper Wire" set. The user's
+    T-board kit adds M-M ×10 and M-F ×10, 200 mm.
+  - Dot matrix: common-anode 788BS (project 1.1.3). 7-segment: common cathode (1.1.4).
+    RGB LED: common cathode, inferred from project 1.1.2's wiring and code; no page
+    states it.
+  - LED colours red, yellow, green, white, blue; the size isn't stated anywhere.
+- **Decision.**
+  - The library keeps every part SPEC 7 lists, so S8050, S8550, ADC0834 and ADS1115
+    stay, tagged "not in kit".
+  - It adds the kit's real parts: `pn2222` and `ads7830-module`.
+  - Tutorials, and the assistant's inventory preference, use what the kit contains.
+  - Where SunFounder's own pages disagree with each other, the page text that states the
+    kit's part wins over code comments, and the conflict is recorded in the part's
+    provenance notes.
+  - The "65 Jumper Wire" set is recorded as kit inventory. Whether it is solid or flexible
+    is not confirmed from the photo, so it gets no lead kind until it is.
+- **Consequences.** M4's audit cites the kit's real part in every finding. The D8 fix uses
+  the PN2222 with the kit's base resistor, not the S8050 the spec assumed.
