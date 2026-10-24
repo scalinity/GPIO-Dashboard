@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Blinking LED",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "blinking-led"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "R1",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 30,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 34,
+            "col": "b"
+          }
+        }
+      }
+    },
+    {
+      "id": "D1",
+      "defId": "led",
+      "props": {
+        "color": "red",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 34,
+            "col": "c"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "main",
+            "row": 35,
+            "col": "c"
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 30,
+          "col": "a"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 35,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\nLED_PIN = 17  # BCM numbering: header pin 11\n\nGPIO.setmode(GPIO.BCM)\n# The LED's cathode is on GPIO17, so HIGH keeps it dark and LOW lights it.\nGPIO.setup(LED_PIN, GPIO.OUT, initial=GPIO.HIGH)\n\ntry:\n    while True:\n        GPIO.output(LED_PIN, GPIO.LOW)\n        print('LED on')\n        time.sleep(0.5)\n        GPIO.output(LED_PIN, GPIO.HIGH)\n        print('LED off')\n        time.sleep(0.5)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.output(LED_PIN, GPIO.HIGH)\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "R1": {
+      "why": "The resistor sets the LED current; without it the LED and the GPIO would carry far more than their ratings."
+    },
+    "D1": {
+      "why": "Current flows from anode to cathode only.",
+      "mistake": "The LED in backwards: it stays dark whatever the code does."
+    },
+    "W2": {
+      "why": "The cathode goes to GPIO17, so the LED lights when the code drives GPIO17 LOW."
+    }
+  }
+}

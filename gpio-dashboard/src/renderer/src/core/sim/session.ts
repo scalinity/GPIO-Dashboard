@@ -86,6 +86,37 @@ export class SimSession {
     return ((node === 0 ? 0 : x[node - 1]!) - this.v(node)) / testA
   }
 
+  /**
+   * The I2C device at `address` on the Pi's bus: its SDA and SCL pins must share nets with GPIO2
+   * and GPIO3, as on the board. A device off the bus, or unpowered, does not answer.
+   */
+  private i2cDevice(address: number) {
+    const c = this.circuit
+    const sda = c.gpioNodes.get(2)
+    const scl = c.gpioNodes.get(3)
+    for (const { part, behavior, pinNode } of c.behaviors) {
+      if (!behavior.i2c || behavior.i2c.address() !== address) continue
+      const pins = c.defs(c.doc.parts.find((p) => p.id === part)!.defId).pins
+      const node = (label: string) => pinNode.get(pins.find((p) => p.label === label)?.id ?? '')
+      if (node('SDA') === sda && node('SCL') === scl) return behavior.i2c
+    }
+    return null
+  }
+
+  /** A write transaction (smbus); false is a NACK. Behaviours settle at the current time after it. */
+  i2cWrite(address: number, bytes: number[]): boolean {
+    const ok = this.i2cDevice(address)?.write(bytes) ?? false
+    this.settle()
+    return ok
+  }
+
+  /** A read transaction (smbus); null is a NACK. */
+  i2cRead(address: number, count: number): number[] | null {
+    const bytes = this.i2cDevice(address)?.read(count) ?? null
+    this.settle()
+    return bytes
+  }
+
   /** Runs behaviour timers and listened PWM edges up to t, settling at each, then at t. */
   advanceTo(t: number) {
     if (t < this.t) throw new Error(`Time runs forward: ${t} < ${this.t}`)

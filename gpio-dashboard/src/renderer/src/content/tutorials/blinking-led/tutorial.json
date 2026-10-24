@@ -1,0 +1,34 @@
+{
+  "id": "blinking-led",
+  "title": "Blinking LED",
+  "order": 1,
+  "kitProject": "1.1.1",
+  "tags": [],
+  "summary": "Blink an LED from GPIO17. The LED sits between 3.3 V and the pin, so it lights when the pin goes LOW.",
+  "sources": {
+    "kit": "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.1.1%20Blinking_LED.html",
+    "datasheets": [
+      "https://www.kingbrightusa.com/images/catalog/SPEC/WP7113ID.pdf",
+      "https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "GPIO17 LOW lights D1 with at least 1 mA, within its rating",
+      "gpio": { "17": { "mode": "out", "level": false } },
+      "expect": [
+        { "die": "D1.D", "currentA": { "min": 0.001, "max": 0.03 } },
+        { "gpio": 17, "currentA": { "min": -0.016 } }
+      ]
+    },
+    {
+      "name": "GPIO17 HIGH turns D1 off",
+      "gpio": { "17": { "mode": "out", "level": true } },
+      "expect": [{ "die": "D1.D", "currentA": { "max": 1e-6 } }]
+    }
+  ],
+  "checkpoints": [{ "kind": "toggle-led", "afterStep": "W2", "part": "D1", "gpio": 17 }]
+}
