@@ -688,8 +688,8 @@ decision and consequences. Numbering is stable; superseded records say so.
   `useSyncExternalStore`, and hover reads nets from its ConnectivityEngine.
 - **Consequences.** A document that breaks placement rules opens in the Workbench, which lists
   its problems, but not in the Studio, which keeps the previous document (`CircuitStore`
-  rejects it anyway). The Workbench still reads its own copy until its panels move into the
-  Studio drawer (M7).
+  rejects it anyway). The Workbench follows every committed change to the app's document
+  (ADR-0034).
 
 ## ADR-0028 End-to-end tests run in headless Chromium on the GPU, on their own port
 
@@ -840,7 +840,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   entries. Each build merges into `index.json`, so lanes' entries combine; a clash is two
   entries for one file, resolved by rebuilding.
 
-## ADR-B3-1 Studio gestures propose ops; circuitStore.check() judges them
+## ADR-0033 Studio gestures propose ops; circuitStore.check() judges them
 
 - **Context.** SPEC 11.3 asks for drag-placing with a green/red glow per footprint hole, a wire
   tool that offers only legal targets, and live moves of boards, the Pi, the T-board, modules,
@@ -866,7 +866,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   end must be a free hole (nothing in it, not under the T-board). Nothing renders while still:
   a proposal is recomputed only when its ops change, and every change requests frames.
 
-## ADR-B3-2 The Workbench follows the app's document; code joins it on leaving the editor
+## ADR-0034 The Workbench follows the app's document; code joins it on leaving the editor
 
 - **Context.** ADR-0027 left `workbenchStore.doc` set only by `open()`, so Studio edits never
   reached the sim or ERC, and the Code panel's program lived outside the document.
@@ -881,7 +881,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** ERC, the sim, Build Steps and Board Sense's expectations follow every commit,
   undo and redo. Running Python keeps the document it started with until it is run again.
 
-## ADR-B3-3 Placing and moving by hand
+## ADR-0035 Placing and moving by hand
 
 - **Context.** SPEC 11.3: flexible two-lead parts are placed by anchor plus span; boards, the
   Pi, the T-board and modules move by dragging; lead ends are draggable. The orbit controls also
@@ -897,7 +897,7 @@ decision and consequences. Numbering is stable; superseded records say so.
 - **Consequences.** Moving a board carries everything plugged into it for free, since parts and
   leads name holes on it. Moves that the rules refuse glow red and are not committed.
 
-## ADR-B3-4 Projects in the app data folder; tutorials stay templates
+## ADR-0036 Projects in the app data folder; tutorials stay templates
 
 - **Context.** SPEC 11.9: `.gpiob` files in the app data folder with a gallery, Save As and Open
   through Rust's native dialogs, tutorials as read-only templates, forking in M10.
