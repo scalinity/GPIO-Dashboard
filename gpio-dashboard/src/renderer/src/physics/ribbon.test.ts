@@ -1,4 +1,4 @@
-// The ribbon against colliders thinner than its particle spacing (ADR-0061, ADR-P2 strips): a
+// The ribbon against colliders thinner than its particle spacing (ADR-0061, ADR-0075): a
 // Dupont housing 2.54 mm wide, a 1.6 mm PCB edge. Its grid is 5 mm along and 8.5 mm across, so a
 // particle-only test lets the sheet pass between the particles. The checks measure the sheet itself:
 // every cell of the grid, sampled finely, against the box.

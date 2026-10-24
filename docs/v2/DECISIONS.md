@@ -1835,7 +1835,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   (three runs). On release the lead's slack takes that settled shape at once rather than
   staying where the drag left it.
 
-## ADR-P2-1 Contacts are solved in one canonical order, with the push on any particle capped
+## ADR-0072 Contacts are solved in one canonical order, with the push on any particle capped
 
 - **Context.** ADR-0063 left a dense pile of 40 leads awake for more than 5 s, and ADR-0062
   tried friction between cables to settle it, without success. The cause was the order. The
@@ -1867,9 +1867,9 @@ decision and consequences. Numbering is stable; superseded records say so.
     layouts in sleep.test.ts and not for every layout.
   - Hash order no longer matters, so the pair search may change without changing results.
 
-## ADR-P2-2 Sleep: speed over ten frames, sleepers woken only by moving bodies
+## ADR-0073 Sleep: speed over ten frames, sleepers woken only by moving bodies
 
-- **Context.** After ADR-P2-1 some piles still rang by microns: a 0.0126 mm cycle of three
+- **Context.** After ADR-0072 some piles still rang by microns: a 0.0126 mm cycle of three
   frames, a 0.15 mm cycle of five in a stack where a taut lead is pressed on another against
   the board (corrections of 0.2 to 0.35 mm a substep that cancel). Frame to frame that is 1 to
   16 mm/s. The integrator also found, replaying the seven-segment tutorial, that an awake body
@@ -1898,7 +1898,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - ADR-0063's numbers (45 frames for a lead alone, 85 from a design curve) hold; its 5 s pile
     does not.
 
-## ADR-P2-3 Contact pairs carry their gap and the solvers skip what cannot touch
+## ADR-0074 Contact pairs carry their gap and the solvers skip what cannot touch
 
 - **Context.** SPEC 10.8 gives the physics 4 ms a frame for the heaviest scene. ADR-0062's
   pair list held 3000 to 13000 cable pairs, of which 300 to 800 were within 0.1 mm, each read,
@@ -1946,7 +1946,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   radius by 0.45 mm), 10 substeps (tests pass, but the sheet then sinks 1.1 mm into a plate
   edge it is dragged over).
 
-## ADR-P2-4 The ribbon's sheet is tested against boxes a strip at a time
+## ADR-0075 The ribbon's sheet is tested against boxes a strip at a time
 
 - **Context.** ADR-0061's ribbon contacts act on grid particles, 5 mm apart along and 8.5 mm
   across. The Pi's micro-HDMI housing (7.19 mm wide), a Dupont housing (2.54), a PCB edge
@@ -1970,11 +1970,11 @@ decision and consequences. Numbering is stable; superseded records say so.
   dragged socket, and a housing raised through a settled ribbon stay within 0.0 mm of the
   box (1.1 to 1.2 mm with particles alone); a 7.19 mm box is cleared at 5, 7 and 9 columns,
   and no integrator physics flow reports the ribbon inside a collider any more (the one that
-  still fails does so on a pointer offset, ADR-P2-5). The push is along the shallowest
+  still fails does so on a pointer offset, ADR-0076). The push is along the shallowest
   separating axis, not necessarily the one a viewer would choose, for a collider that pierces
   a strip's interior with no corner behind it.
 
-## ADR-P2-5 Bending stiffness: leads 2 N mm^2, ribbon 50, and why not more
+## ADR-0076 Bending stiffness: leads 2 N mm^2, ribbon 50, and why not more
 
 - **Context.** `leadEI` was 3e4 g mm^3/s^2 (0.03 N mm^2), two to three orders under a real
   stranded 26-28 AWG jumper (copper strands and a soft PVC jacket: 1 to 25 N mm^2), and the
@@ -2006,7 +2006,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     fits the pointer now landing on a lead. It is a pointer offset in the test, not a solver
     defect.
 
-## ADR-P2-6 A lead's length is the wire between its housings
+## ADR-0077 A lead's length is the wire between its housings
 
 - **Context.** ADR-0042 settled that a lead's listing length (200 mm) runs tip to tip, and that
   the wire between the housing exits is `wireLengthMm(length, kind)`: 165 mm for a male-male
