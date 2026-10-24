@@ -181,3 +181,17 @@ Open threads:
 - LCD1602 tutorial waits for an I2C level-shifter part (branch `held/lcd1602-tutorial`, local only).
 - HIL items in `docs/v2/HIL_CHECKLIST.md`.
 - Theory templates have no arithmetic, so derived values (a divider's ratio) are written out in a few theory files.
+
+## M6 Board Sense — in progress (2026-10-24)
+
+Protocol (fixed; agent and app build to it): app → agent `sense_start {config:{pins,settleUs,periodMs}}`, `sense_stop`, `sense_pause` (agent replies `sense_paused` once every line is released), `sense_resume`; agent → app `sense_sweep {data:{t,pins,skipped,bias:{pin:{up,down}},pairs:{a:{up:{b:0|1},down:{b:0|1}}}}}` with raw levels only, `sense_event {data:{kind:'error',message}}`. The agent only measures; all interpretation is in `core/sense`.
+
+| Task | Status | Verified / notes |
+|------|--------|------------------|
+| 6.1 sense.py | in progress | Sonnet subagent ("sense-agent", worktree): sweeps, safety rules each with a fake-gpiod test, libgpiod v2 findings, agent.py routing, `AGENT_FILES` |
+| 6.2 transport | done | db7cdbe: `sense_start/stop/pause/resume` (pause waits ≤ 1 s for the ack, waiter registered before sending), `gpio:sense` (timestamp-only repeats dropped), `gpio:sense-event`; 4 new cargo tests (90 total) |
+| 6.3 run waits for sense_paused | todo | `state/runStore.ts`: when sensing is on, call `sense_pause`; no ack → refuse the run with the reason; resume after the run |
+| 6.4 reconciliation | done | c041f43 `core/sense/{sense,candidates,mockAgent}.ts`: states, settling over two sweeps, events, candidates ranked with ties. Tests on SPEC 18 fixtures 1, 3, 4, 5 (three faults, true cause in top 3), 6 (Blinking LED unobserved). Observability fixed: tied bias, or another GPIO following both up and down (ADR-0013) |
+| 6.5 Board tab + walkthrough | todo | Workbench Board tab: sensing toggle (UI handler only), skipped pins with reasons, per-net states, event log, divergences with candidates and holes, fixture-check walkthrough; mock e2e against `mockSweep` |
+| 6.6 presence spike | todo | ADR keep/drop; no hardware here, so the spike's measurement goes to HIL_CHECKLIST |
+| 6.7 HIL fixtures | todo | add SPEC 18 fixtures 1–7 with exact holes to HIL_CHECKLIST.md |
