@@ -1182,6 +1182,9 @@ export class StudioView {
       building: build.on && build.index < build.steps.length,
       buildMode: build.on
     })
+    // An explanation left open for a badge that has gone is closed, so it does not reopen on its own.
+    if (studio.badge && !badges.some((b) => b.id === studio.badge))
+      useStudio.setState({ badge: null })
     const doc = this.base()
     const nl = this.conn().netlist
     const index = stripIndex(doc)

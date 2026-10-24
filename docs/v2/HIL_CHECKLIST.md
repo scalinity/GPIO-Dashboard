@@ -233,6 +233,113 @@ and **Find likely causes** should list the true fault among the top three:
 Presence sensing needs a timing spike on the Pi (ADR-0018). It is not part of this build.
 
 
+## Hardware twin (M11)
+
+The browser flows in `e2e/hardware.spec.ts` prove the app's reading of telemetry, scans and runs
+against a mock Pi. These items need the real Pi, the kit, or your hands. Several drive a pin; do
+them with only the parts each one names on the bench. Record the results in `docs/v2/hil/`.
+
+### Automated flows on the real Pi (reads only; none drives or probes a pin)
+
+- [ ] **The three HIL flows pass against the Pi.** Prerequisites: your SSH key logs in as the Pi's
+  user without a prompt, the Pi is already in `~/.ssh/known_hosts`, and `i2c-tools` is installed.
+  From `gpio-dashboard/`, run
+  `PI_HOST=<host> PI_USER=<user> PI_KEY=<private key file> E2E_PORT=<free port> npx playwright test e2e/hil.spec.ts`.
+  Expect the three "against the real Pi" tests to pass, and "HIL: ran the flows against <host>".
+  They read `pinctrl get`, run `i2cdetect -y 1`, and upload, run and stop a script that only prints.
+  Record the pass count and the Pi's OS release. They do not use the Pi agent or the Rust tunnel;
+  the next item covers those.
+
+### Live Pi state in the app window
+
+Use `npm run dev` (the Tauri window) with the agent deployed and running. Toggle Inspect → Live Pi
+state. If the window cannot be seen (the screen is locked), say so in the result.
+
+- [ ] **Telemetry reaches the twin through the tunnel (D18).** Connect, Deploy agent, open the
+  Blinking LED tutorial in the Studio, switch Live Pi state on. Expect the T-board's GPIO strips to
+  take pale colours within a second (inputs: pale yellow high, pale blue low), the Inspect list to
+  show the pins, and hovering a GPIO17 strip hole to end its tooltip with "Pi: input, low" or "high".
+  Record the tooltip text and a screenshot.
+- [ ] **Outputs light the bench from the real pin.** Build the Blinking LED (HIGH keeps the LED dark,
+  LOW lights it) and Run on Pi. Expect GPIO17's strip to swing between orange (high) and blue (low),
+  and the 3D LED to glow when the real LED does, within about a quarter of a second. Record any lag
+  or any moment the two disagree. Then run the Breathing LED: the 3D LED flickers where the real one
+  fades (10 Hz sampling cannot show a duty cycle); note what you see.
+- [ ] **A pull change reaches the twin.** Run the Button tutorial. Expect GPIO18 to change from
+  "input, low" to "input, high, pull-up" when the program sets its pull-up. Confirms the telemetry
+  store now reports a pull change without a level change.
+- [ ] **The alternate function is named.** On the Pi, `pinctrl get 2`, with I2C enabled
+  (`sudo raspi-config`, Interface Options, I2C) and then disabled. Enabled it should read
+  `a3 pu | hi // GPIO2 = SDA1`; the Inspect list should say "alternate SDA1, high" and the pin
+  should be violet. Record both `pinctrl` lines.
+- [ ] **I2C off raises a badge.** Open the Adjustable Fan tutorial (an ADS7830 on GPIO2 and GPIO3), Live
+  Pi state on, I2C disabled in raspi-config. Within about a second a red-orange badge "GPIO2 is not
+  an I2C pin right now" (and one for GPIO3) should stand over each net. Click one: the card names
+  `raspi-config` and the part. Enable I2C: the badges go and the card closes.
+- [ ] **An output on a pin the circuit reads raises a badge.** Open the Button tutorial in the Studio
+  (do not build it) with the T-board's GPIO18 strip empty, and Live Pi state on. On the Pi, run
+  `pinctrl set 18 op dh`; this drives GPIO18, so make sure nothing is wired to it. Within about a
+  second a red badge "GPIO18 is driven as an output" should appear, and its card should say the Pi
+  drives it HIGH and that SW1 is on the net. Then `pinctrl set 18 ip pd` to give the pin back: the
+  badge and card go. Record the card's text.
+- [ ] **Board Sense's diverged net gets a badge.** With the fixture 3 circuit (below) built with one
+  fault (W1 one row off), Board Sense on, and the fixture as the twin: a red badge over GPIO18 says
+  Board Sense sees a missing path; its card lists the three likeliest causes with their holes, the
+  true fault among them.
+- [ ] **Idle costs nothing.** With Live Pi state on and the telemetry unchanged for a few seconds, the
+  dev overlay's "frames rendered while idle" stays at 0 once the scene settles. Record the overlay.
+- [ ] **Header pin visibility.** Look at the Pi's header from the Top and Iso presets. The IDC socket
+  covers the header pins in Iso, so note whether any tinted header pin is visible in any view
+  (ADR-T11-2); the T-board strips are the paint you can rely on.
+
+### Build Mode checkpoints on the bench
+
+Each checkpoint appears only on the step that completes its wiring, and runs only when you click
+its button. Build the tutorial step by step with Build Mode and check that the card is absent
+before that step.
+
+- [ ] **I2C scan finds the module.** Build the Potentiometer (or Photoresistor, Thermistor, Adjustable
+  Fan) as far as the ADS7830's four leads, VCC to 3V3, GND to GND, SDA to GPIO2, SCL to GPIO3. At the
+  step the card appears on (W4), click "Scan the I2C bus". Expect "Found a device at 0x48 on bus 1".
+  Record `i2cdetect -y 1` from a shell for comparison. If the module answers at another address, note
+  it: the part definition says 0x48, and another vendor's module is reported at 0x4B.
+- [ ] **I2C scan names what is wrong.** Pull the SDA lead and scan again: expect "Nothing answered at
+  0x48 (the bus is empty)" with the SDA, power and raspi-config causes. Disable I2C and scan: expect
+  the same message with the raspi-config cause (or the `i2cdetect` error text on a Pi without
+  `i2c-tools`).
+- [ ] **Press the button, rest to pressed.** Build the Button as far as W5 (SW1 to GPIO18 and ground).
+  Click "Watch GPIO18" with no program running. Expect "GPIO18 reads HIGH at rest. Press and hold SW1
+  now." (the 10 kΩ pull-up holds it), then, on pressing, "GPIO18 went HIGH to LOW when SW1 was
+  pressed." Record both messages and whether the pin's pull in the Inspect list was "none".
+- [ ] **A button turned a quarter turn is caught.** Rotate SW1 90° in its holes so GPIO18 is held at
+  ground, and watch again: after about 1.5 s expect "GPIO18 reads LOW with SW1 released; it should
+  read HIGH." with "pins 1–2 are always connected" first among the causes. Put it back and watch
+  again: it passes.
+- [ ] **Press with the program running.** Run the Button program, then watch GPIO18: the pin is an input
+  and the card behaves as above. Stop on Pi, then watch: same.
+- [ ] **Toggle LED lights it.** Build the Blinking LED. On its last step click "Toggle D1 on GPIO17".
+  Expect the run to upload `/tmp/gpio_dashboard/project_checkpoint-D1-gpio17.py`, the LED to light
+  three times (1 s on, 1 s off), then "The run is over. The Pi drove GPIO17 high and low. Did the LED
+  light and go dark three times?". Answer yes: "You saw D1 light on GPIO17." After it, `pinctrl get 17`
+  on the Pi should read an input (`ip`): the script handed the pin back. Record the run's output lines.
+- [ ] **Toggle LED with a wrong LED.** Turn the LED round and run it again, answering no: expect the
+  causes to start with the LED's polarity and its hole (the anode, "longer leg").
+- [ ] **Each toggle works on its own circuit.** Run the Toggle checkpoint on: the RGB LED (three
+  toggles, GPIO17, GPIO18 and GPIO27, each lighting one colour), the Relay (the relay clicks and its LED lights; the
+  toggle drives the S pin), the Tilt Switch (D1 on GPIO22, then D2 on GPIO27), the PIR (D1 on GPIO18),
+  the LED Bar Graph and Flowing LEDs (the first three LEDs). Record any that does not light and the
+  pin it used.
+- [ ] **ERC still gates the toggle.** In a document with a SHORT_SUPPLY error, click Toggle: the dialog
+  lists the error and nothing uploads until "Run anyway". Cancel it: nothing runs and the card is
+  ready again.
+- [ ] **Stop ends a toggle.** Click Toggle, then Stop on Pi during the run: the LED goes dark, the pin
+  returns to an input (`pinctrl get 17`), and the card asks what you saw.
+- [ ] **Board Sense pauses for a toggle.** With Board Sense on the Pi, click Toggle: sensing pauses
+  (the Board tab shows it stopped sweeping) before the upload, and resumes after the run.
+- [ ] **No checkpoint runs by itself.** Step through a whole build with the Pi connected and watch the
+  terminal and `pinctrl get`: nothing runs and no pin changes except when you click a checkpoint's
+  button.
+
 ## Not shipped, pending a part
 
 - The LCD1602 tutorial needs a bidirectional I2C level shifter between the 5 V backpack and

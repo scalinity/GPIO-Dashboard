@@ -216,8 +216,16 @@ test.describe('divergence badges', () => {
     expect(await badges(page)).toEqual([])
     await pi.pins({ bcm: 18, direction: 'OUT', level: 'HIGH' })
     await expect.poll(() => badges(page)).toHaveLength(1)
+    await page.getByRole('button', { name: 'GPIO18 is driven as an output' }).click()
+    const explanation = page.getByRole('dialog', { name: 'GPIO18 is driven as an output' })
+    await expect(explanation).toBeVisible()
     await pi.pins({ bcm: 18, direction: 'IN', level: 'HIGH', pull: 'UP' })
     await expect.poll(() => badges(page)).toEqual([])
+    // Its explanation goes with it, and does not come back by itself.
+    await expect(explanation).toBeHidden()
+    await pi.pins({ bcm: 18, direction: 'OUT', level: 'HIGH' })
+    await expect.poll(() => badges(page)).toHaveLength(1)
+    await expect(explanation).toBeHidden()
   })
 
   test('flags I2C that is off for a module wired to GPIO2 and GPIO3', async ({ page }) => {

@@ -3225,3 +3225,169 @@ declare it.
   - Neither opt-in tutorial has a step in `FORMERLY_CONFIRMED`. Four-digit-seven-segment's four
     seen steps (W30 to W33) are checked only when `FULL_PROBE=1`; two of its boards that stalled
     (steps 45 and 48) are solved on every run by `buildSteps.test.ts`.
+
+## ADR-T11-1 Live Pi state is the telemetry store, seen through the connection
+
+- **Context.** SPEC 11.2 and 14.4 want the Pi's pins on the bench. Telemetry already reaches the app:
+  the agent sends `gpio_state` about ten times a second, `ws.rs` drops a frame identical to the last,
+  and `store/gpioStore.js` keeps the pins. The Rust side sends nothing for a state that has not
+  changed, so a subscriber that starts late sees nothing until a pin moves: a feed started by the
+  Inspect toggle would start empty.
+- **Decision.**
+  - `state/liveStore.ts` (`useLive`) reads `gpioStore` rather than listening to the bridge again. A pin
+    is `{ bcm, level, direction: in | out | alt | none, pull, function, consumer }`, where `function`
+    is the alternate function pinctrl names ("SDA1") and null for a plain GPIO. A pin whose state did
+    not change keeps its object, and a frame that changes nothing publishes nothing.
+  - It holds pins only while `ssh` is `connected` and the agent `running`. When either goes, the
+    store and `gpioStore` are emptied (`clearPins`), so a new connection never starts from the last
+    one's frame. Nothing is polled and no command is sent.
+  - `gpioStore` now treats a changed pull or alternate function as news. Before, a program setting a
+    pull-up, or I2C being turned on, changed neither level nor direction and was dropped.
+    `store/gpioStore.d.ts` types it for the TypeScript callers.
+- **Consequences.** The twin and the Monitor page see the same telemetry. PWM and fast toggling show as
+  whatever the 10 Hz sampling catches: a duty cycle is not visible, and an LED on a PWM pin flickers
+  between its lit and dark states.
+
+## ADR-T11-2 The bench is painted from the pins, and lit by a simulation of its own
+
+- **Context.** SPEC 11.5 asks for "Live Pi state" as an Inspect toggle that tints the header pins and the
+  T-board strips from telemetry, and lights LEDs and other outputs from the real pin levels in place of
+  the simulation's. It is read only, and a still scene renders no frame.
+- **Decision.**
+  - `studio/livepins.ts` (`LivePins`) colours each GPIO's header pin (`BenchLayer.setPiPin`) and the five
+    holes of its T-board strip (a `Markers` set lifted 0.2 mm, 1.4 mm squares, smaller than Board
+    Sense's 2 mm tint so both read on one strip). An output is saturated and an input pale; warm is
+    high and cool is low; an alternate function is violet whatever its level; a pin with no function
+    is left bare. The key is in the Inspect panel, with the pins that matter to the document (wired,
+    driven or alternate) and their state in words. Hovering a strip adds "Pi: output, low" to its
+    tooltip. Each sync compares a key of the pins' colours and the board placement with the last and
+    does nothing when they match, so repeated telemetry draws no frame (an e2e test counts them).
+  - `state/liveSim.ts` runs the open document in a sim worker of its own with every pin set as the Pi
+    reports it: an output at its level, and any other pin (an alternate function too) as an input
+    with the pull pinctrl shows. While the toggle is on and the Pi is there, `view.syncVisuals` feeds
+    SimVisuals that snapshot (and its issues) instead of the Workbench's, so LEDs glow, parts move and
+    current dashes run from the real pins. The Workbench's own simulation, its GPIO states and the Sim
+    panel are untouched. Pin changes queue and only the newest state is solved, since each request
+    costs a solve and an ERC pass.
+  - A bench shown as built so far (Build Mode in progress) keeps its pins painted but nothing glows
+    and no badge shows, as for Board Sense's tint (ADR-0109).
+- **Consequences.** Inputs the real world drives (a button held, a sensor) are not known to the
+  simulation, so they sit at their defaults in the lit bench; the pins' own colours show their real
+  levels. The Pi's header pins sit under the ribbon's IDC socket in the iso view; the strips are the
+  readable part.
+
+## ADR-T11-3 Telemetry divergences: four kinds, held for 600 ms
+
+- **Context.** SPEC 14.4 compares live pins with what the document and its code expect: an output
+  driven where the netlist says input, or a level the simulation says cannot happen.
+- **Decision.** `state/liveCheck.ts` is a pure comparison; `state/liveDivergence.ts` keeps it current
+  while the toggle is on and shows a divergence once it has held 600 ms, because pins change between
+  two frames when a program starts or ends. What a pin should be is the code's word if it names the
+  pin (`codePins`), else what is wired to its net through series resistors, switches and LEDs: a
+  switch contact or a part's output pin is read; a part's input pin, a transistor base or an LED is
+  driven. Four kinds, each with a plain reason and likely cause:
+  - **drives-input** (error): the Pi drives a pin the circuit reads (a button, a sensor).
+  - **not-driven** (warning): a program has run 3 s and a pin its code drives is still an input.
+  - **wrong-function** (warning): an I2C part on GPIO2 or GPIO3 whose pin has no SDA or SCL function
+    (I2C is off), or a plain GPIO with an alternate function (serial console, an overlay).
+  - **impossible-level** (warning): an input reads the other level from the live simulation, and the
+    net has no switch, sensor or part output on it that could change it.
+- **Not done.** A switch's orientation ("GPIO18 expected HIGH while SW1 is released but reads LOW") is
+  not a continuous check: the app cannot know whether the button is held. It is the press checkpoint
+  (ADR-T11-6), which asks for rest first and then the press.
+
+## ADR-T11-4 Badges are buttons outside the orbit element, and open a card
+
+- **Context.** SPEC 14.4 and 14.5 want divergences badged in 3D, each linking to its explanation, and
+  everything clickable outside the orbit controls' element (their pointer capture takes clicks).
+- **Decision.**
+  - `studio/badges.ts` (`BadgeLayer`) puts one `<button>` over each badge's net, positioned by the
+    camera each frame as the labels are, in a layer that is a sibling of the stage element, drawn
+    above it with `pointer-events: none` except on the buttons. Badges on one pin stand side by side.
+    A badge sits at the net's first part pin, else its first lead end, else its strip.
+  - `state/badges.ts` makes them: from telemetry divergences (while Live Pi state is on, the Pi is
+    there, and the bench is not drawn as built so far) and from Board Sense's diverged nets (while its
+    overlay is on and sensing runs, outside Build Mode), the latter with up to three ranked causes and
+    their holes. Board Sense's diverged-net text tag stays; the badge is what opens the explanation.
+  - A click opens `BadgeCard` in `Studio.tsx`: what differs, the likeliest cause, the ranked causes,
+    the parts involved, and "Open the Board tab". It closes when its badge goes and does not reopen.
+- **Consequences.** An e2e test asserts the stage element holds no button and the badge sits inside
+  the canvas rectangle.
+
+## ADR-T11-5 A checkpoint hangs on the first step that completes what it checks
+
+- **Context.** SPEC 11.7 lets a step define a hardware checkpoint, and ADR-0115 left the slot empty,
+  to be filled from the tutorial's `checkpoints[].afterStep`. Those lists are written by hand, and
+  six checkpoints in five of them name a step before the circuit is complete (below): a check
+  offered then runs on a circuit with no return path. Projects, forks and assistant builds have no
+  list at all.
+- **Decision.** The rule is derived from the document (`state/checkpoints.ts`, `deriveCheckpoints`),
+  and the slot is `useBuild.plan` (the build's checkpoints) and `useBuild.checkpoints` (those on the
+  step in hand), in place of ADR-0115's single `checkpoint`. A checkpoint hangs on the first step
+  after which the board as built to that step has:
+  - **i2c-scan**: an I2C module (a part whose definition gives `i2cAddress`) with SDA on GPIO2, SCL on
+    GPIO3, VCC on 3V3 or 5V and GND on GND. The module's own address and its strap alternative
+    (`i2cAddressAlt`, for the LCD backpack) are accepted as any-of.
+  - **press**: a tact switch with a GPIO on one side (its terminals are joined in pairs) and a supply
+    or ground on the other, or a joystick whose SW is on a GPIO with its VCC and GND connected.
+  - **toggle-led**: an LED, RGB LED or LED bar pin with a GPIO at one end of its current path and a
+    supply or ground at the other, through series resistors only, or through a relay module's NO to
+    COM contacts, which the GPIO on the module's S pin closes. At most three per build, in the order
+    they complete, and never on GPIO0 to GPIO3 (the ID EEPROM, and the I2C bus with its board
+    pull-ups).
+  Because it reads the circuit, a half-built circuit offers nothing, and the card appears once the
+  wiring is there to check.
+- **Against the hand-written lists.** The rule agrees with every checkpoint a tutorial lists, by kind,
+  part and pin (a test holds that), and with 16 of the 22 on the step. In the other six the list is
+  earlier than the rule: tilt-switch (W4 and W2; the ground leads come after), potentiometer and
+  photoresistor (W9; the 3V3 lead W8 comes after), morse-code (W6 is step 8 of 12; the ground lead is
+  step 11) and joystick's press (W11; the module's ground is step 13). The bar graph and flowing LEDs
+  get three toggles where their lists give one. Those lists can be dropped or kept as notes; nothing
+  reads them.
+- **Consequences.** `Checkpoint` is still the tutorial schema's type, so a hand-written list can be
+  checked against `deriveCheckpoints`.
+
+## ADR-T11-6 How a checkpoint runs: one click, and what it touches
+
+- **Context.** SPEC 1 (principle 5) and 18: only the user's click runs code on the Pi or touches a
+  pin, and never the assistant.
+- **Decision.** `state/checkpointStore.ts` is called only by the buttons of the step card
+  (`panels/Checkpoints.tsx`); the assistant's tools cannot reach it (lint keeps `assistant/` off
+  `state/`). Opening a step, moving between steps and loading a project start nothing.
+  - **I2C scan** calls `ssh_i2c_scan(1)` and compares the addresses with the module's. A kernel-held
+    address (`UU`) counts as answering. A miss lists what answered instead and what to check; an
+    error (no `i2c-tools`) says so.
+  - **Press** touches nothing: it needs telemetry, asks the document's simulation what the pin reads
+    with the button released and pressed (with the pin's real pull), waits for the rest level, then
+    the pressed level. A pin that reads the pressed level for 1.5 s before any press fails with the
+    orientation cause from SPEC 14.4 ("pins 1–2 are always connected"). It gives up after 30 s, stops
+    when the step changes, and refuses a pin that is an output. Without a definite prediction any
+    change counts.
+  - **Toggle LED** asks the simulation which level lights the part (low for an LED between 3V3 and
+    the pin), generates a three-cycle program that drives that pin and gives it back
+    (`GPIO.cleanup(PIN)`), and passes it to `runStore.run` with the ERC of the document and that code:
+    the same upload to `/tmp/gpio_dashboard/project_checkpoint-<part>-gpio<n>.py`, Board Sense pause,
+    ERC override dialog and Stop as any run. It refuses a pin that has an alternate function, and a
+    start while another program runs. The Pi's telemetry during the run is reported ("drove GPIO17
+    high and low"), and the user's yes or no decides: a no lists the LED's polarity with its hole,
+    the series resistor, its return and the LED itself.
+- **Consequences.** A toggle drives a pin as an output, so what is wired to it on the bench matters:
+  the card says so before the click, and the ERC gate stands in for what the document knows.
+
+## ADR-T11-7 One set of hardware-in-the-loop flows, on a mock Pi or a real one
+
+- **Context.** SPEC 18 and 19 (M11): the automated HIL flows pass when the Pi is reachable, otherwise
+  against mocks, and are limited to flows that neither drive nor probe a pin.
+- **Decision.** `e2e/pi.ts` gives the page the same `window.api` either way. The mock records every
+  native call and lets a test push telemetry, an I2C result and the end of a run. The real adapter
+  (when `PI_HOST` is set; `PI_USER`, `PI_KEY` and `PI_SSH` are optional) forwards the calls to Node,
+  which runs `ssh` with key authentication and shared connections. It may run only `pinctrl get`,
+  `i2cdetect -y <bus>`, an upload of a `project_*.py` script, and `python3 -u` and `pkill -f` of it;
+  it refuses a script that mentions a GPIO library, a path outside `/tmp/gpio_dashboard`, an invalid
+  bus, and a cleanup that would set a pin. `e2e/pi.spec.ts` proves that against a stand-in `ssh` that
+  logs every command, and `e2e/hil.spec.ts` runs the three flows (telemetry through the tunnel, the
+  I2C scan from the checkpoint, a print-only run and stop) on the mock always and on the real Pi when
+  `PI_HOST` is set, with a skip note when it is not. Press, toggle and Board Sense need the user's
+  hands or drive a pin: they are on `docs/v2/HIL_CHECKLIST.md`.
+- **Consequences.** The tunnel, the agent and the Rust commands are still proved by the Rust tests and
+  the checklist; the browser flows prove the app's reading of what they return.
