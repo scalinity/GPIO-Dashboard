@@ -3398,3 +3398,150 @@ declare it.
   hands or drive a pin: they are on `docs/v2/HIL_CHECKLIST.md`.
 - **Consequences.** The tunnel, the agent and the Rust commands are still proved by the Rust tests and
   the checklist; the browser flows prove the app's reading of what they return.
+
+## ADR-F2-1 A part's lead tubes are kept while its board moves
+
+- **Context.** ADR-0082 left three binding buffers (80, 256 and 448 bytes) created about 6.4 times
+  each per frame and 19 vertex and index buffers created mapped at creation, and put the awake
+  scenes about 1.5 ms above the quiet ones in geometry and binding updates. The Mac session was
+  locked (`CGSSessionScreenIsLocked` = Yes), so the Tauri window would have drawn nothing; every
+  number in these ADRs is headless Chromium on the Metal GPU (the `chromium` channel, WebGPU), a
+  1200 x 800 viewport at a pixel ratio of 2 (a canvas of 1440 x 1321, against the window's
+  1376 x 1189), scripted drags of the first breadboard at 0.8 Hz and 40 px for 4 s after 1 s of
+  warm-up, every cable awake (`e2e/frameRate.spec.ts`, with the load average beside each figure).
+  The origin was found by counting `GPUDevice.createBuffer` calls (75 a frame on the four-digit
+  seven-segment, 13 on the LED dot matrix, 73 on the shift register) and tracing which attributes
+  were being created: the `position`, `normal` and `index` of plain meshes with 8-sided tubes,
+  16.8 meshes a frame. Not the cables (`Tube` refits in place, and so does `ribbonGeometry`): the
+  part leads. `PartLayer.drawLeads` keyed a part's lead mesh on its corners in scene coordinates, so
+  every pointer move of a dragged board rebuilt every lead of every part on it: `TubeGeometry`,
+  `mergeGeometries`, a new geometry with new attributes (a buffer mapped at creation each, the 1.0 ms
+  of `getMappedRange` in ADR-0082's trace), a new `Mesh` and with it a new render object and
+  bindings in the colour pass and in the shadow pass. Dragging the Pi or a module created none.
+- **Decision.** The corners are taken in the body's pose (the frame the part's model is placed in)
+  and compared with the drawn lead's within 1 um; equal, the mesh keeps its geometry and only its
+  position and rotation follow the body. A rigid move of the board carries the part and its holes
+  together, so it leaves the corners as they were. A part with no model has no body, and its stubs
+  are taken in the scene as before. The lead's end holes are refreshed on each draw, because
+  `leadEnds()` measures against them.
+- **Consequences.**
+  - GPU buffers created a frame during the board drag: 75 to 0, 13 to 0, 73 to 0.
+  - Main thread, mean ms a frame, three interleaved rounds each, before then after, with the main
+    thread slowed 3x through CDP (`Emulation.setCPUThrottlingRate`), which stands in for a slower
+    webview and brings the drag under the 60 Hz cap; load 4.6 to 10.7, the machine busier in this
+    batch. Four-digit seven-segment: 18.7 to 29.8 fps, `view.frame` 15.6 to 10.4, the render call
+    11.8 to 7.1, the pointer handler 13.8 to 7.1. LED dot matrix: 25.2 to 31.6 fps, 11.4 to 9.6,
+    8.3 to 6.8, 9.1 to 5.5. Shift register: 20.1 to 39.7 fps, 12.1 to 7.5, 10.2 to 5.5, 13.3 to 5.2.
+    Unthrottled the four-digit held the 60 Hz cap before and after (two rounds, load 4.7 to 5.1):
+    `view.frame` 4.3 to 3.0 ms and the render call 3.2 to 2.1.
+  - A lead's 8-gon is no longer turned by the world axes `TubeGeometry` takes its first normal from
+    but by the body's; no visible difference.
+  - Changing a part's pin holes (dragging the part, a leg, or a lead's end) still rebuilds its
+    leads, once per change of hole, not once per pixel.
+
+## ADR-F2-2 Part leads and pieces under 4 mm do not cast shadows
+
+- **Context.** ADR-0082 counted 145 of 151 meshes as shadow casters, each a draw, and a pass through
+  three's per-object path, in the shadow pass, which is redrawn every second frame. The key light's
+  map is 2048 texels over 900 mm: 0.44 mm a texel, softened over several. A part's lead is 0.5 mm
+  across, and many pieces of the part models are a few mm (colour bands, segment dots, matrix dots,
+  a seven-segment's decimal points). The Dupont leads are 1.0 mm and throw faint lines across the
+  boards in the Top view.
+- **Decision.** The lead mesh of a part (`PartLayer`) does not cast. A piece of a model drawn by
+  `ModelInstances` casts only when its bounding box, in the model's frame, is 4 mm or more along some
+  direction (`SHADOW_MIN_MM`). Boards, the Pi, the T-board, the bodies of parts, modules, the Dupont
+  leads and housings, the ribbon and the Pi's header pins still cast. The Dupont leads were tried
+  without a shadow too: they are 37 of the 145 casters in the heaviest scene, the saving was within
+  noise, and the Top view lost the faint lines they cast, so they keep theirs.
+- **Consequences.**
+  - Casters: 145 to 118 (four-digit seven-segment), 145 to 78 (LED dot matrix, whose 64 matrix dots
+    were casters), 88 to 66 (shift register).
+  - The main thread gains little. With every caster off (a test, not shipped) the render call fell
+    from 6.75 to 5.77 ms with the main thread slowed 3x (load 4.8 to 6.0): all of them cost about
+    0.33 ms of real time, so a third of them about 0.1. Three interleaved rounds with the thread
+    slowed 3x, before then after, load 4.0 to 4.9: the render call 6.6 to 6.6 (four-digit), 6.7 to
+    6.4 (dot matrix), 4.7 to 4.5 (shift register); `view.frame` 9.8 to 9.8, 9.5 to 9.3, 6.7 to 6.4.
+    Kept because it costs no look and shrinks the shadow pass; most of an object's cost is in
+    three's path for it, not in the draw.
+  - Look, from captures of the three tutorials at the Iso and Top presets and zoomed in, before and
+    after (1440 x 1321): the mean absolute difference was 0.01 to 0.24 of 255, with 0.002% to 0.14%
+    of pixels differing by more than 8 levels. Two captures of the unchanged build differ by 0.07 to
+    0.20 (0.02% to 0.19%), and by 1.9 (5%) in one zoomed view whose cables settled differently.
+    Nothing visible changed.
+
+## ADR-F2-3 The bloom is drawn only while something passes its threshold
+
+- **Context.** ADR-0082 measured the bloom at 4.3 to 4.8 ms of GPU pass time with nothing above its
+  threshold of 2 (twelve passes: a high pass, ten blurs and the composite). Three things in the
+  Studio can exceed 2 in scene-linear light: a part's emission (`glowOf`), a halo (its colour
+  reaches 3) and the dashes of a lead with current (2.5). The key light's highlights on metal
+  reach above 1 and not 2 (ADR-0067). No model carries an emissive material (every GLB was read).
+- **Decision.** `Post.setBloom(on)` leaves the bloom nodes out of the frame. Off: their strength goes
+  to 0, the frame that follows draws the composite as black, and then `updateBeforeType` is `NONE`,
+  so no pass is drawn. On: the strength and `FRAME` are back before the frame that needs them, so
+  the first lit frame already has its bloom. three reads `getUpdateBeforeType` on each update, so no
+  graph is rebuilt and no shader compiles. `view.frame` sets it from `SimVisuals.glowing`: a halo is
+  drawn, a lead carries current (`WireLayer.flowing`), or a part emits at least `BLOOM_GATE` =
+  `BLOOM_THRESHOLD / 2` in some channel, which leaves room for the light on the surface to be added
+  to it. The depth-of-field graph's own bloom is gated alike.
+- **Consequences.**
+  - The image does not change. The Blinking LED, dark: captured with the gate and with the bloom
+    forced on, the two are identical (maximum difference 0 of 255). Lit, before and after the
+    change: mean difference 0.08 of 255, the capture floor. The state follows the LED: off dark, on
+    lit, off dark again. An emission between the gate and the threshold turns the bloom on and adds
+    nothing visible, since the high pass is a smoothstep from 2 over luminance.
+  - GPU pass sum from timestamp queries, ten frames each, a still scene, three interleaved
+    repeats, load 4.5 to 5.1, the origin's build then this one: 43.8 to 10.6 ms (four-digit), 41.8 to
+    10.5 (dot matrix), 45.0 to 9.5 (shift register). Between the commit before the bloom change and
+    the one with it, measured after a drag: 43.0 to 9.2, 41.2 to 8.7, 45.3 to 9.4. The sums are
+    generous (ADR-0082) and the bloom's share is larger here than in the Tauri trace (4.3 to 4.8 of
+    11.4), so the window should show about 4 to 5 ms less. The main thread saves the encoding of
+    those passes: the render call 2.0 to 1.8, 2.0 to 1.8 and 1.4 to 1.3 ms (unthrottled, three
+    rounds, load 3.5 to 4.9).
+  - A new source of light over the gate must register in `SimVisuals.glowing`, or it will not bloom.
+
+## ADR-F2-4 The strip index is shared across a drag, and live pins repaint only when one is painted
+
+- **Context.** A profile of the drag (V8's sampling profiler over CDP, 4 s, four-digit seven-
+  segment) put `stripIndex` at 46 ms of self time, 0.19 ms a frame, with `LivePins.sync` and
+  `syncBadges` beside it in `draw`, which runs on every pointer move. `stripIndex` walks every hole
+  of every board and copied the strip's array for each hole. It was called by the badges (before
+  checking whether there are any), by the live pins (whose key held the boards' transforms, so a
+  moved board repainted the header and the strips and asked for a frame even with no pin to paint)
+  and by the voltage tags.
+- **Decision.** `stripIndex` keeps the last index while the boards' ids and models are the same (the
+  strips follow from which boards there are, not from where they stand), and builds each strip's
+  array once. `LivePins` has an empty key while no pin is painted, so a drag leaves it alone.
+- **Consequences.** `draw` fell from 248 to 186 ms of the profile. The pointer handler's mean time,
+  with the main thread slowed 3x, three rounds each, load 4.3 to 5.9: 6.5 to 5.8 ms (four-digit),
+  5.3 to 4.9 (dot matrix), 4.6 to 4.1 (shift register), with 31.5 to 32.0, 34.4 to 35.0 and 41.2 to
+  42.6 fps. Callers read the index and do not change it.
+
+## ADR-F2-5 Render bundles are not used, and where the frame goes now
+
+- **Context.** ADR-0082 listed a render bundle for the static boards and models as a lever. three
+  0.186 has `BundleGroup` (the WebGPU backend records a `GPURenderBundle` per camera and render
+  context). Its replay path still runs, for each object, `needsRefresh`, `nodes.updateBefore`,
+  `geometries.updateForRender`, `nodes.updateForRender`, `bindings.updateForRender` and
+  `updateAfter`: of ADR-0082's 15.7 us an object, 11.6 (bindings 4.8, geometries 5.0, nodes 1.8)
+  stay; what it spares is `RenderObjects.get` and the draw, 4.1, with the WebGPU calls (2.0 ms of
+  ADR-0082's frame for all 150 meshes).
+- **Decision.** Not used. A `BundleGroup` holding the table and the sweep (alone, and with the Pi),
+  put into the scene under the full pipeline, throws "Cannot read properties of null (reading
+  'isDepthTexture')" in `WebGPUTextureUtils.updateSampler`, called from `Bindings._createBindings`
+  for a shadow receiver, on every frame, and the frame then takes 0.4 s (1.3 s with the main thread
+  slowed 3x). 0.186's bundle path does not give a receiver recorded in a bundle the shadow map with
+  this pipeline (a shadow-casting key light, `builtinAOContext`). What a bundle could save here is
+  the Pi and the stage, a fifth of the meshes at most: about 0.2 ms of a frame.
+- **Where the frame goes now** (main thread, 4 s of a four-digit drag, CPU profile, load 4 to 7;
+  headless Chromium's figures, whose `view.frame` ADR-0082's Tauri frames exceeded by about
+  2.8 times): the render call 1.8 ms (the geometry pass over about 150 objects, the shadow pass on
+  every second frame, the TRAA, GTAO and bloom nodes, and the cable tubes' buffer uploads, 0.5 ms);
+  the refit of 37 tubes 0.8 ms (`Tube.fit` 0.7); the pointer handler 1.7 ms, in which the engine's
+  netlist for the preview (0.65) and the document check (0.3) are core's; React's development
+  build 2.3 to 3.0 ms, in which the part library, redrawn on every preview (0.8 to 1.2 ms), is not in
+  the Studio's files. About 45% of the run was idle.
+- **Consequences.** Left undone, each costing more look or code than it saves: one merged mesh for
+  all the Dupont tubes (it would save 37 draws and uploads, and would need per-vertex colour, the
+  taut tint and the flow overlay on a shared geometry); skipping the refit of a sleeping lead whose
+  ends have not moved (it saves nothing in a board drag, where every lead is awake).

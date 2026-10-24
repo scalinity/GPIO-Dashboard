@@ -351,6 +351,56 @@ before that step.
   terminal and `pinctrl get`: nothing runs and no pin changes except when you click a checkpoint's
   button.
 
+### Studio frame rate in the app window (M12)
+
+SPEC 10.8 and acceptance 9 ask for at least 60 fps on the tutorial scenes with physics awake and the
+full post stack. The webview caps at 60. Use `npm run dev` (the Tauri window); the screen must be
+unlocked, because a locked session reports the webview hidden and the Studio draws nothing (if it is
+locked, write that in the result instead of a number). Close other heavy apps first: ADR-0082's
+55 to 58 fps was measured beside one at 240% CPU. Run `uptime` and record its load average with
+every number. The dev overlay (bottom right, on by default in `npm run dev`; Cmd+Shift+D hides and
+shows it) is the instrument:
+
+- `frames`: "N · last run X fps". X is the rate over the latest run of consecutive frames, once it
+  has more than 16 frames; it is held after the run ends.
+- `frame cost`: "render call A ms · gpu passes B ms". A is the main thread's mean time in the
+  render call over the last 30 frames. B is the GPU's pass time for one frame, from timestamp
+  queries; each pass is timed from its first stage to its last and waits on the one before it, so
+  read it as a comparison, not as the frame's GPU time. Both refresh every 30 frames, so read them
+  after at least a second of moving.
+- `physics step`: the worker's mean step; it stays under 4 ms.
+
+- [ ] **A dragged board holds 60 fps on the three heaviest tutorials.** Open the Four-Digit
+  Seven-Segment tutorial in the Studio and wait until the scene is still (the overlay's frame count
+  stops rising). Click a free spot on a breadboard, away from any lead or part, to select the board.
+  Press on the same spot and, holding the button, move the board back and forth about 40 pixels each way,
+  once or twice a second, for 5 to 10 seconds, so every cable is awake. Read `last run`,
+  `frame cost` and `physics step` while you are still moving, then let go. Repeat the drag three
+  times, then the same for LED Dot Matrix and Shift Register. Record, for each tutorial, the three
+  `last run` readings, A and B, and `uptime`. Expect `last run` of 58 or more (ADR-0082 recorded
+  55 to 58 on the first); A and B below ADR-0082's 11.1 and 11.3 ms for the first tutorial, B by
+  about 4 ms for the bloom pass that no longer runs here. A reading under 55 fps with A above about
+  8 ms means the main thread is still the limit: say which other apps were running.
+- [ ] **Letting go ends the frames.** After each drag the cables settle; the frame count stops rising
+  within about 2 seconds and stays put. Record any scene that keeps drawing.
+- [ ] **A lit LED still blooms, and a dark scene draws no bloom.** Open Blinking LED, switch Simulate
+  on, and watch D1 light: it should glow as before. Read B while it is lit and again while it is
+  dark (Stop, or the half of each second the LED is off); B should be several ms lower in the dark.
+  Look at the scene while it is dark: nothing should glow, and no halo should appear or vanish as
+  the LED comes on.
+- [ ] **No change to the look.** Compare the Iso preset of any tutorial with the same view from a
+  build of the commit before this change if you have one: part leads and the small pieces on the
+  parts (colour bands, segment and matrix dots) no longer cast shadows, which should not be visible
+  from the bench.
+
+When the screen is locked, `FRAME_RATE=1 E2E_PORT=<free port> npx playwright test e2e/frameRate.spec.ts`
+(from `gpio-dashboard/`) drags the same boards in headless Chromium on the Metal GPU and prints the
+frame rate, the main thread's time per frame, the GPU buffers created per frame and the GPU pass
+sum. `FRAME_RATE_THROTTLE=3` slows the main thread threefold, which stands in for a slower webview;
+`FRAME_RATE_BASES` takes several dev servers (for example one on a checkout of an earlier commit) and
+interleaves them, and `FRAME_RATE_PROFILE=1` prints the CPU profile. Those numbers are not the Tauri
+window's.
+
 ## Not shipped, pending a part
 
 - The LCD1602 tutorial needs a bidirectional I2C level shifter between the 5 V backpack and

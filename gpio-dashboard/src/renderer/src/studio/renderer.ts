@@ -167,7 +167,7 @@ export class Post {
   /**
    * Whether anything in the scene passes the bloom's threshold. While nothing does, its twelve
    * passes (4 to 5 ms of GPU time) would add black, so the node is left out of the frame; the
-   * image is the same. It is drawn again from the frame that asks for it (ADR-F2-4).
+   * image is the same. It is drawn again from the frame that asks for it.
    */
   setBloom(on: boolean): void {
     if (on === this.bloom) return
