@@ -32,14 +32,9 @@ export default function AiChatPanel({ tutorial }) {
   const [showKeyInput, setShowKeyInput] = useState(false)
 
   useEffect(() => {
-    const result = window.api?.ai?.hasApiKey()
-    if (result && typeof result.then === 'function') {
-      result
-        .then((res) => setHasApiKey(res?.hasKey ?? false))
-        .catch(() => setHasApiKey(false))
-    } else {
-      setHasApiKey(false)
-    }
+    Promise.resolve(window.api?.ai?.hasApiKey?.())
+      .then((res) => setHasApiKey(res?.hasKey ?? false))
+      .catch(() => setHasApiKey(false))
   }, [])
 
   const isRunning = executionStatus === 'running' || executionStatus === 'deploying'
@@ -107,16 +102,18 @@ export default function AiChatPanel({ tutorial }) {
         <Sparkles className="w-3.5 h-3.5 text-accent-light" />
         <span className="text-gray-300 font-medium">AI Assistant</span>
         <span className="ml-auto text-gray-500">
-          {aiPanelOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          {aiPanelOpen ? (
+            <ChevronUp className="w-3.5 h-3.5" />
+          ) : (
+            <ChevronDown className="w-3.5 h-3.5" />
+          )}
         </span>
       </button>
 
       {aiPanelOpen && (
         <div className="mt-2 rounded-card bg-white/[0.02] border border-white/[0.06] p-3 space-y-3">
           {/* Loading state */}
-          {hasApiKey === null && (
-            <p className="text-[11px] text-gray-500">Loading...</p>
-          )}
+          {hasApiKey === null && <p className="text-[11px] text-gray-500">Loading...</p>}
 
           {/* No API key state */}
           {hasApiKey === false && !showKeyInput ? (
@@ -206,8 +203,13 @@ export default function AiChatPanel({ tutorial }) {
 
               {/* Error banner */}
               {aiError && (
-                <div className="flex items-start gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-card px-3 py-2" role="alert">
-                  <span className="flex-1">{typeof aiError === 'string' ? aiError.slice(0, 300) : 'An error occurred'}</span>
+                <div
+                  className="flex items-start gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-card px-3 py-2"
+                  role="alert"
+                >
+                  <span className="flex-1">
+                    {typeof aiError === 'string' ? aiError.slice(0, 300) : 'An error occurred'}
+                  </span>
                   <button onClick={dismissError} className="shrink-0 p-0.5 hover:text-red-300">
                     <X className="w-3 h-3" />
                   </button>

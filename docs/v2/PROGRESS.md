@@ -38,10 +38,10 @@ Environment facts a fresh session needs:
 |------|--------|------------------|
 | 0.1 BASELINE.md | done | see file |
 | 0.9 T-board geometry ADR | done | ADR-0004; `scripts/reference/tboard_photo_measure.py` → aspect 1.0022, row spacing 6.013 pitch |
-| 0.2 lint green | todo | ADR-0003 |
-| 0.3 TS strict + typecheck | todo | |
-| 0.4 ESLint boundary rules | todo | |
-| 0.5 Vitest in npm test | todo | |
-| 0.6 VERSIONS.md | todo | |
+| 0.2 lint green | done | `npm run lint` → 0 errors, 167 warnings (baseline 134 errors, 174 warnings) |
+| 0.3 TS strict + typecheck | done | `npm run typecheck` → exit 0 (TS 6.0.3, ADR-0007) |
+| 0.4 ESLint boundary rules | done | `boundaries.test.ts`: 25 cases pass (rules exist as errors; forbidden imports and window.api rejected; native/anthropic and core allowed) |
+| 0.5 Vitest in npm test | done | `npm test` → node 7/7 + Vitest 25/25 |
+| 0.6 VERSIONS.md | done | docs/VERSIONS.md |
 | 0.7 COOP/COEP + CSP | todo | |
 | 0.8 WebGPU probe in the Tauri window | todo | |

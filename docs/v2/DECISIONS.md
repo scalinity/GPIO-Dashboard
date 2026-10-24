@@ -125,3 +125,15 @@ decision and consequences. Numbering is stable; superseded records say so.
   Baseline components that are kept unchanged keep their existing hooks.
 - **Consequences.** Side effects are tied to the event or element that causes them, which
   also keeps the on-demand render loop easy to reason about (SPEC 10.2).
+
+## ADR-0007 TypeScript 6.0.3, not 7.x
+
+- **Context.** "Latest stable" for TypeScript is 7.0.2, the Go-native compiler released
+  2026-07-08. typescript-eslint 8.72.0, the latest, declares the peer range
+  `typescript >=4.8.4 <6.1.0`. The SPEC 4.5 boundary rules have to parse `.ts` files
+  through it.
+- **Options.** (a) TS 7 for `tsc` and an unsupported TS for ESLint. (b) TS 6.0.3 for both.
+- **Decision.** (b). TypeScript 6.0.3 is the newest release that typescript-eslint
+  supports.
+- **Consequences.** One compiler serves typecheck and lint. Revisit when typescript-eslint
+  supports 7.x.

@@ -24,7 +24,6 @@ const RAIL_LEN = RAIL_END - RAIL_X
 const NUM_HOLES = 30
 
 // Landscape Y positions: columns map to Y via (BOARD_WIDTH - colX)
-const COL_J_Y = BOARD_WIDTH - colX(9) // ~94
 const COL_A_Y = BOARD_WIDTH - colX(0) // ~340
 const TOP_RAIL_Y = 35
 const BOTTOM_RAIL_Y = COL_A_Y + 40

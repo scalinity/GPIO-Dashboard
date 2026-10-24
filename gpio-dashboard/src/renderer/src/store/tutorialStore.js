@@ -85,12 +85,20 @@ const useTutorialStore = create((set, get) => ({
 
   setAiModel: (model) => {
     set({ aiModel: model })
-    try { window.api.settings.set('ai.model', model) } catch {}
+    try {
+      window.api.settings.set('ai.model', model)
+    } catch {
+      // Persisting the choice is best effort; the in-memory value already changed.
+    }
   },
 
   setAiThinkingLevel: (level) => {
     set({ aiThinkingLevel: level })
-    try { window.api.settings.set('ai.thinkingLevel', level) } catch {}
+    try {
+      window.api.settings.set('ai.thinkingLevel', level)
+    } catch {
+      // Persisting the choice is best effort; the in-memory value already changed.
+    }
   },
 
   toggleAiPanel: () => set((state) => ({ aiPanelOpen: !state.aiPanelOpen })),
@@ -117,7 +125,9 @@ const useTutorialStore = create((set, get) => ({
       if (model) updates.aiModel = model
       if (thinkingLevel) updates.aiThinkingLevel = thinkingLevel
       if (Object.keys(updates).length) set(updates)
-    } catch {}
+    } catch {
+      // Missing settings keep the defaults.
+    }
   },
 
   showWiring: (tutorialId) =>
