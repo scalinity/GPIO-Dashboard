@@ -2021,3 +2021,143 @@ decision and consequences. Numbering is stable; superseded records say so.
   rest), the male-female and female-female figures to 170.5 and 176, and the taut flag to
   reach.ts's rule at its threshold. `lengthMm: 200` would rest a lead at 200 mm of wire: the
   physics host's `addLead` call should pass `wireMm: wireLengthMm(wire.lengthMm, wire.kind)`.
+
+## ADR-P3-1 Bending is solved directly along each chain
+
+- **Context.** ADR-0060 solves a chain's stretch constraints together but its bending by one
+  symmetric Gauss-Seidel sweep a substep, and ADR-0076 found that above about 1e6 g mm^3/s^2 a
+  lead's EI changes no shape. Measured on the solver as it stood (Node; a 200 mm lead, 165 mm of
+  wire, between holes 60 mm apart on the board, at `leadEI` 2e6): the wire stays within 30 degrees
+  of vertical for 3.0 mm above each housing (the one joint `housingBendFactor` stiffened), its
+  apex is 16.8 mm above the board, 30 of its wire particles lie off the board's edge below its top
+  (on the table), and its resting shape at 12 and at 48 substeps differs by up to 33.6 mm (apex
+  16.8 against 30.4): the iteration set the stiffness, not EI. In dense piles 1 and 2, 39 and 40
+  of the 40 leads reached the table.
+- **Options.** (a) More sweeps near the housings (ADR-0076: 44% more bending work, one scene slept
+  in 2.2 s). (b) More substeps (36 lifted the stub to 24 mm at three times the cost). (c) Solve all
+  of a chain's bending constraints together, as its stretch constraints already are.
+- **Decision.** (c). Bending is the curvature vector C_k = x_k - 2 x_(k+1) + x_(k+2) held at zero
+  with compliance s^3 / EI, whose energy is EI theta^2 / 2s at a joint turned by theta. It is
+  linear in the positions, so the XPBD system (J W J^T + alpha / h^2) lambda = -C is exact, the
+  same for x, y and z, and pentadiagonal. Its LDL^T factors depend only on the inverse masses, the
+  compliances and the substep: they are found when a body is added and again when its weights
+  change (ADR-P3-3, ADR-P3-4). Each substep is a forward and a back substitution with three
+  right-hand sides, applying each particle's move as soon as its three multipliers are known
+  (`factorBending`, `solveBending` in constraints.ts). It is the banded case of Deul, Kugelstadt,
+  Weiler and Bender, "Direct Position-Based Solver for Stiff Rods" (Computer Graphics Forum
+  37(6), 2018): for linear constraints along a chain one solve is exact, with no Newton
+  iteration. The substep's order is unchanged. A body's bending constraints must run along a
+  chain; both builders' do, and `factorBending` refuses others. `housingBendFactor` is gone:
+  solved directly, the first joint holds at the wire's own stiffness.
+- **Consequences.**
+  - The same lead at `leadEI` 1e7 (ADR-P3-2): within 30 degrees of vertical for 52.8 mm above
+    each housing (within 10 degrees for 35.9), apex 78.8 mm above the board, nothing below its
+    housing exits, and 12 and 48 substeps rest within 0.63 mm of each other (leads.test.ts).
+    Between holes 20 mm apart: 64.6 mm and an apex of 85.1. Dense piles 1 and 2: mean apex 84.5
+    and 84.1 mm, no lead off the board. The first wire segment leaves its housing 0.5 degrees
+    from vertical (was 4.9).
+  - Node, heaviest scene (40 leads of 165 mm of wire plus the ribbon, perf.test.ts, M5 Pro, three
+    interleaved runs each, mean / p95 ms over the frames that did work):
+
+    | | before (ba8742d) | after |
+    |---|---|---|
+    | opening settle (offscreen) | 3.19 to 3.22 / 6.99 to 7.24 | 1.79 to 1.86 / 3.62 to 3.74 |
+    | dragging the ribbon's socket | 1.96 to 2.02 / 2.61 to 2.67 | 0.34 to 0.35 / 0.64 to 0.67 |
+    | moving the whole board | 2.77 to 2.80 / 2.93 to 3.06 | 1.53 to 1.57 / 1.62 to 1.73 |
+
+    Phases of the whole-board drag, before to after (mean ms): prepare 0.17 to 0.12, colliders
+    0.05 to 0.00, pairs 0.80 to 0.33, predict 0.14 to 0.14, chains 0.89 to 0.75, cables 0.32 to
+    0.11, surfaces 0.30 to 0.00, velocity 0.07 to 0.07, finish 0.04 to 0.03. The direct solve
+    costs less than the sweep did, and standing leads touch the board and each other far less.
+    The socket drag no longer wakes the leads: the ribbon no longer reaches them.
+  - Tauri window (`npm run dev`, 1200 x 800, WebGPU, the Studio's default post stack), the
+    4-Digit 7-Segment circuit opened as a project, bb1 dragged back and forth for 4 to 6 s with
+    every cable awake: the worker's step 1.82 to 1.85 ms mean and 4.2 to 7.3 ms longest (was 3.91
+    to 3.99 and 30.7 to 31.1); the last change on screen 0.91 to 0.93 s after release (1.14 s in
+    the one run timed before), from a 60 Hz screen recording with wall-clock stamps of the board
+    and its leads; the overlay's last run 53 to
+    62 fps, 56 on average over four runs (was 51 in both runs). The 60 fps budget is missed by
+    about what it was before, and the physics is not the cause: it runs in the worker at under
+    2 ms a step. The machine was shared with other lanes' test runs (load average 3 to 4).
+  - Every scene in sleep.test.ts sleeps 38 to 41 frames (0.63 to 0.68 s) after its last input
+    (was 38 to 88), and the dense piles 42 to 81 frames after a drag (was 46 to 68). From their
+    design curves the dense piles take 114 to 126 frames (was 93 to 100); the test allows 150.
+
+## ADR-P3-2 Stiffness: leads 10 N mm^2 and the ribbon 400, from their copper
+
+- **Context.** ADR-0076 set leads to 2 N mm^2 and the ribbon to 50 because the sweep could carry
+  no more; at 1.5e8 the ribbon's row polyline bent hard at the clamps and measured 199.5 mm.
+- **Decision.** Estimate EI from the conductors. A stranded conductor's strands bend nearly
+  independently: Bruski, "Determination of the Bending Properties of Wire Rope Used in Cable
+  Barrier Systems" (Materials, 2020), measured a 3 x 7 steel rope at twice the sum of its 21
+  wires' own stiffness and a fifteenth of a solid section's. So a 7-strand conductor is about
+  7 x E pi d^4 / 64 with copper's E of 117 GPa: 10.5 N mm^2 for 28 AWG (7 x 0.127 mm) and 26 for
+  26 AWG (7 x 0.16 mm); a lead's 1 mm PVC jacket adds 0.5 to 2. `leadEI` is 1e7 (10 N mm^2), the
+  28 AWG end of `dupont.json`'s 26-28; at 2e7 the same lead's arch stands 0.7 mm higher, so the
+  choice within the range barely shows. `ribbonEI` is 4e8 (400 N mm^2): 40 such conductors on the
+  sheet's neutral plane are 420, and the 50.8 x 0.95 mm web 40 to 180 more.
+- **Consequences.**
+  - A lead stands about 160 mm before its own weight folds it ((7.8 EI / weight per mm)^(1/3)),
+    so a 200 mm lead between two holes stands as a loop: up out of each housing and over in an
+    arch (`lookdev/dupont-drape.png`).
+  - The ribbon leaves the T-board's socket in a broad arch and comes down into the Pi's
+    (`lookdev/ribbon-drape.png`); at 50 it folded into a tight U beside the Pi. The Studio
+    measures it at 200 mm (e2e) and every e2e flow passes.
+  - Test scenes that relied on a floppy cable sagging onto something are rebased so contact still
+    happens: two crossing leads hang from housings turned down, one lowered onto the other
+    (`crossingPair`); a lead hangs from turned-down housings and a wall rises under it
+    (`hangOver`: lead over a part, over a thin wall, resting on a part, a collider removed); a
+    lead hangs across a ribbon started sagging between its sockets (`saggingRibbon`, also under
+    the ribbon-strip scenes); the ribbon over the board's edge ends at (0, 175, 1); the dragged
+    ribbon's sockets lie on the table either side of the board, 197 mm apart.
+  - Between two leads this stiff a contact holds up to about 2 mm of bending of one against the
+    other: a lead lowered onto another to where it would hang 3.5 mm lower rests on it; at 4.3 mm
+    lower it passes through. Bending is solved before contacts, and the stiff chain puts back what
+    the contact pushed out. Scaling the pressed particles' mass for cable contacts too (as
+    ADR-P3-3 does for colliders) held both, but then no dense pile slept in 400 frames (particles
+    at 1.2 to 1.8 m/s), so it is left out. The dense piles and e2e scenes stay within 0.5 mm.
+  - Penetration, before to after: dense piles 0.15 to 0.27 mm, now -0.03 to 0.09; pile of five
+    -0.05, now 0.28 between leads; lead over a part 0.00, now 0.08; lead over the ribbon 0.02, now
+    0.08. The deepest in any e2e flow is now -0.25 (W1 against its own housing's box).
+
+## ADR-P3-3 A particle a collider pushed is sixteen times heavier in the next substep's rod solves
+
+- **Context.** Solved directly, a stiff lead pressed against a part was bent back into it each
+  substep by nearly the whole of what the contact had just pushed out. A wall rising under a hung
+  lead went through it once it had lifted the lead about 4 mm (5.4 mm deep); a 2.4 mm wall did at
+  2 mm (1.6 mm deep).
+- **Decision.** Mass scaling for contact, after Macklin, Muller, Chentanez and Kim, "Unified
+  Particle Physics for Real-Time Applications" (SIGGRAPH 2014, section 5.2), itself after the
+  shock propagation of Guendelman et al. 2003. A collider contact marks the particles it moved; in
+  the next substep they weigh 16 times their mass in the bending and stretch solves (16 so the
+  weight is restored exactly), the bending factors are found again whenever the set of pressed
+  particles changes or empties, and the weights are put back before the contacts. Cable-to-cable
+  contacts are not marked (ADR-P3-2).
+- **Consequences.** The wall rising 14 mm under a hung lead: 0.07 mm deep at the end. Lead over a
+  part 0.08 mm, across a 2.4 mm wall -0.01. At rest it changes nothing: a weight scales a
+  particle's share of the corrections, not their balance. Factors of 20 and 100 behaved as 16
+  did. A body that touches a collider pays one extra factorisation a substep, about the cost of a
+  solve.
+
+## ADR-P3-4 Route hints weigh in the solve, pick their particle by reach, and pull only as far as the wire reaches
+
+- **Context.** With stiff leads a hint applied before the bending solve was mostly undone by it
+  (cables.test: 1.85 mm from the target against 1.5 allowed). In the e2e route-hint flow on
+  Blinking LED the drag put a hint at (32.1, 22.9, 105.1), 186 mm of wire away through the two
+  housing exits for a 165 mm lead: bending, stretch and the hint never agreed, the lead moved about
+  4 mm every half second for as long as it was watched, and the scene never stopped drawing.
+- **Decision.**
+  - A hint is the energy (h^2 / 2 alpha) |x - target|^2 on one particle, the same as that particle
+    weighing h^2 / alpha more, so the bending and stretch solves take it at that weight
+    (`weighHints`) and the bending factors include it. `HINT_ALPHA` is 3e-5.
+  - The hinted particle is the one whose wire either side reaches the target with the same to
+    spare both ways, s = (L + |t - a| - |t - b|) / 2 along the wire, not the one nearest the
+    target's projection onto the chord: a standing lead does not follow the chord.
+  - Each frame the target is brought into the lens of points that particle can reach from both
+    exits (alternating projection onto the two balls, `reachHints`), so a target out of reach
+    pulls the lead as far as it goes and it comes to rest.
+- **Consequences.** cables.test: 0.61 mm from the target (0.63 before); a target 160 mm above a
+  165 mm lead sleeps in 51 frames with the lead 4.6 mm short of its highest reach. The e2e
+  route-hint drag now moves the grab sideways (60 px) instead of up: a standing lead is already
+  near the most height its wire allows, so a target dragged up from its stub is out of every
+  lead's reach. The reopened lead lies within 0.00 mm of where it was left.
