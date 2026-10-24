@@ -2,7 +2,9 @@
 // step is done, and the ranked likely causes when a step was done differently. Both are simulated
 // in a sim worker of Build Mode's own, one request at a time, so the Sim panel's worker and the
 // Workbench's document are untouched and the page never waits on a simulation. Build Mode only
-// reads the sweeps; it never starts, stops or configures sensing.
+// reads the sweeps; it never starts, stops or configures sensing. A board the simulator cannot
+// solve comes back as a signature with `unsolved` set and no observable net, never as an error, so
+// its step reads "not electrically verifiable" (core/sense/buildSteps).
 import type { CircuitDoc } from '../core/model/types'
 import { docUpTo } from '../core/sense/buildSteps'
 import type { Ranked } from '../core/sense/candidates'
