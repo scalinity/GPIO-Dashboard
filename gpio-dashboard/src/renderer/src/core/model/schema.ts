@@ -108,6 +108,7 @@ const simModel = z.enum([
   'sg90',
   'lcd1602-i2c',
   'ads1115',
+  'ads7830',
   'keypad-4x4',
   'joystick',
   'power-module',

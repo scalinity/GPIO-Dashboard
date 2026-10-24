@@ -456,10 +456,10 @@ describe('ads1115-module', () => {
 describe('ads7830-module (the kit ADC)', () => {
   const def = part('ads7830-module')
 
-  it('is in the kit and uses the ads1115 model as the closest available', () => {
-    // Kit Component List: "ADS7830 Module x1"; no ADS7830 sim model exists yet.
+  it('is in the kit and has its own sim model', () => {
+    // Kit Component List: "ADS7830 Module x1". TI SBAS302C: 8-bit, command-byte protocol.
     expect(def.kitTags).toEqual(['kit'])
-    expect(def.sim.model).toBe('ads1115')
+    expect(def.sim.model).toBe('ads7830')
   })
 
   it('lists A0-A7 then VCC, SDA, SCL, GND on male pins', () => {
