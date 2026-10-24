@@ -515,7 +515,8 @@ export class PartLayer {
     })
     const mesh = new Mesh(mergeGeometries(tubes), this.leadMaterial)
     tubes.forEach((t) => t.dispose())
-    mesh.castShadow = mesh.receiveShadow = true
+    // A lead is 0.5 mm thick, a texel of the key light's shadow map: it would only draw a smudge.
+    mesh.receiveShadow = true
     this.group.add(mesh)
     const next: Drawn = { mesh, diameter, local, at: new Vector3(), ends }
     this.pose(next, frame)

@@ -26,6 +26,8 @@ interface Piece {
   /** Its own name, its ancestors' and its material's: what a handle can call it. */
   names: Set<string>
   mesh: InstancedMesh
+  /** Whether the piece is big enough to cast a shadow (SHADOW_MIN_MM). */
+  casts: boolean
   /** Per-copy colour multiplies a white copy of the material; null until a copy is tinted. */
   tinted: boolean
   emission: InstancedBufferAttribute | null
@@ -37,6 +39,12 @@ interface Piece {
 
 const white = new Color(1, 1, 1)
 const ONE = new Vector3(1, 1, 1)
+/**
+ * A piece smaller than this in every direction (mm) casts no shadow. The key light's shadow map
+ * is 2048 texels over 900 mm, 0.44 mm a texel and softened over several: a smaller piece leaves
+ * a smudge inside the shadow of the body it sits on, and costs a draw in the shadow pass.
+ */
+const SHADOW_MIN_MM = 4
 /** A copy hidden from its instanced mesh while a mesh of its own draws it. */
 const HIDDEN = new Matrix4().makeScale(0, 0, 0)
 
@@ -72,11 +80,18 @@ export class ModelInstances {
         chain,
         names,
         mesh: null!,
+        casts: false,
         tinted: false,
         emission: null,
         owned: null,
         screens: new Map()
       }
+      source.geometry.computeBoundingBox()
+      const size = source.geometry
+        .boundingBox!.clone()
+        .applyMatrix4(this.local(piece, 0))
+        .getSize(new Vector3())
+      piece.casts = Math.max(size.x, size.y, size.z) >= SHADOW_MIN_MM
       piece.mesh = this.instanced(piece, capacity)
       this.pieces.push(piece)
     })
@@ -224,7 +239,8 @@ export class ModelInstances {
     const mesh = new InstancedMesh(piece.source.geometry, piece.source.material, capacity)
     mesh.name = piece.source.name
     mesh.count = 0
-    mesh.castShadow = mesh.receiveShadow = true
+    mesh.castShadow = piece.casts
+    mesh.receiveShadow = true
     piece.tinted = false
     piece.emission = null
     this.group.add(mesh)
