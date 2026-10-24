@@ -191,7 +191,8 @@ test.describe('cables on the DHT11 circuit', () => {
     const r = (await cables(page))!
     expect(r.cables.map((c) => c.key).sort()).toEqual(['W1', 'W2', 'W3', 'W4', 'W5', 'ribbon'])
     expect(r.cables.every((c) => c.asleep)).toBe(true)
-    expect(penetration(r).depth).toBeLessThanOrEqual(0.5)
+    const deepest = penetration(r)
+    expect(deepest.depth, deepest.where).toBeLessThanOrEqual(0.5)
     // Every lead ends where its housings are drawn.
     const report = await studio(page, (s) => s.report())
     expect(report.housings).toEqual({ male: 7, female: 3 })
