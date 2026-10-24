@@ -3170,7 +3170,8 @@ declare it.
 - **Decision.**
   - Every solve in `probeSignature` runs at the default tolerances and, if Newton does not
     converge, once more at `reltol` 1e-4 and `vntol` 1e-7. A reading is classified against 0.8 V and
-    2.0 V, so 0.1 mV on 1 V moves none across a threshold.
+    2.0 V and the pull range alone moves one by volts, so 0.1 mV on 1 V matters only to a reading
+    already on a threshold.
   - If that stalls too, `probeSignature` returns an unsolved signature instead of throwing: the
     probed and skipped pins as usual, every reading ambiguous, no net observable, and `unsolved`
     holding the reason. Any other error still throws.

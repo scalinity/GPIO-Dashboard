@@ -67,10 +67,10 @@ function agree<T extends string>(readings: T[], ambiguous: T): T {
 }
 
 /**
- * Tolerances for the retry of a solve that stalls. A reading is only classified against the
- * thresholds 0.8 V and 2.0 V, so 1e-4 relative (0.1 mV at 1 V) and 0.1 µV on a node move no
- * reading across a threshold, but they let Newton settle where an LED network rings under the
- * trapezoidal rule (ADR-S-2).
+ * Tolerances for the retry of a solve that stalls. A reading is classified against 0.8 V and
+ * 2.0 V and the pull range alone moves a reading by volts, so an error of 1e-4 relative (0.1 mV
+ * at 1 V) and 0.1 µV on a node matters only to a reading already on a threshold. An LED network
+ * rings under the trapezoidal rule and does not reach 1e-6; at these it settles (ADR-S-2).
  */
 const LOOSE: SolveOptions = { reltol: 1e-4, vntol: 1e-7 }
 
