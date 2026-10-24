@@ -14,6 +14,13 @@ import StudioPage from './pages/StudioPage'
 import DevOverlay from './dev/DevOverlay'
 import { useRun } from './state/runStore'
 
+// Dev only: `VITE_ASSISTANT_REPLAY=blink npm run dev` replays a recorded Claude turn in the app,
+// with no key and no network (state/assistantReplay.ts). Production builds drop this branch.
+if (import.meta.env.DEV && import.meta.env.VITE_ASSISTANT_REPLAY === 'blink') {
+  useUiStore.getState().setActiveTab('studio')
+  import('./state/assistantReplay').then((m) => m.replayOnLoad())
+}
+
 const PAGES = {
   connect: ConnectPage,
   pinout: PinoutPage,
