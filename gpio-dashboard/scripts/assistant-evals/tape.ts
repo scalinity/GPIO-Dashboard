@@ -319,3 +319,49 @@ export function sseUsage(sse: string): ResponseUsage {
   }
   return usage
 }
+
+/** How a tool's input arrived: the calls the model made and the `input_json_delta` events they took. */
+export interface InputDeltas {
+  calls: number
+  deltas: number
+}
+
+/**
+ * Per client tool, the calls in the accepted responses and the input_json_delta events each took.
+ * A tool streamed eagerly (eager_input_streaming) arrives in many small deltas, so the first
+ * ghost can be drawn before the call is complete; without it the API holds the input back and
+ * sends it whole, in one or two.
+ */
+export function inputDeltas(exchanges: readonly Exchange[]): Record<string, InputDeltas> {
+  const out: Record<string, InputDeltas> = {}
+  for (const e of exchanges) {
+    if (e.status !== 200 || !e.contentType.includes('text/event-stream')) continue
+    const names = new Map<number, string>()
+    for (const line of e.body.split('\n')) {
+      if (!line.startsWith('data: ')) continue
+      let event: {
+        type?: string
+        index?: number
+        content_block?: { type?: string; name?: string }
+        delta?: { type?: string }
+      }
+      try {
+        event = JSON.parse(line.slice(6))
+      } catch {
+        continue
+      }
+      if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
+        names.set(event.index ?? -1, event.content_block.name ?? '')
+        const entry = (out[event.content_block.name ?? ''] ??= { calls: 0, deltas: 0 })
+        entry.calls += 1
+      } else if (
+        event.type === 'content_block_delta' &&
+        event.delta?.type === 'input_json_delta' &&
+        names.has(event.index ?? -1)
+      ) {
+        out[names.get(event.index ?? -1)!]!.deltas += 1
+      }
+    }
+  }
+  return out
+}

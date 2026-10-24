@@ -5,6 +5,7 @@ import type Anthropic from '@anthropic-ai/sdk'
 import type { AssistantEvent } from '@renderer/assistant/loop'
 import { AssistantSession } from '@renderer/assistant/loop'
 import { addUsage, emptyUsage, type TokenUsage } from '@renderer/assistant/prices'
+import { ghostFor } from '@renderer/assistant/tools'
 import type { CircuitDoc } from '@renderer/core/model/types'
 import { check, genericChecks, type Call, type Check, type Run, type TurnRecord } from './checks'
 import { NodeContext, PythonRuntime, sameDoc, emptyEvalDoc } from './nodeContext'
@@ -21,6 +22,12 @@ export interface Outcome {
   seconds: number
   /** The first request's fallback, if the API refused the tool schemas. */
   notices: { code: string; message: string }[]
+  /**
+   * Per tool, the snapshots of its input that arrived before the call was complete, and how many
+   * of them were enough to draw a ghost. With eager input streaming this is what lets a preview
+   * appear before the model has finished the call.
+   */
+  partialInputs: Record<string, { snapshots: number; ghosts: number }>
 }
 
 const asText = (content: unknown): string =>
@@ -76,6 +83,7 @@ export async function execute(
   let cost: number | null = 0
   let requests = 0
   const notices: Outcome['notices'] = []
+  const partialInputs: Outcome['partialInputs'] = {}
 
   for (const [index, user] of prompt.turns.entries()) {
     const record: TurnRecord = {
@@ -113,6 +121,10 @@ export async function execute(
           if (e.complete) {
             const call = byId.get(e.id)
             if (call) call.input = e.input
+          } else if (e.input) {
+            const seen = (partialInputs[e.name] ??= { snapshots: 0, ghosts: 0 })
+            seen.snapshots += 1
+            if (ghostFor(e.name, e.input, ctx.getSnapshot(), ctx.partDef)) seen.ghosts += 1
           }
           break
         case 'tool-result': {
@@ -162,7 +174,8 @@ export async function execute(
     usage,
     costUsd: cost,
     seconds: (Date.now() - started) / 1000,
-    notices
+    notices,
+    partialInputs
   }
 }
 

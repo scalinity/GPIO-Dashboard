@@ -76,7 +76,7 @@ describe('run_code_in_sim', () => {
     expect(python.run(doc, partDef, 1).error).toMatch(/nothing_here_exists/)
   })
 
-  it('ends an event-driven program at once unless pause() waits (the app does not)', () => {
+  it('runs an event-driven program to the end of its time: pause() waits in virtual time', () => {
     const doc = parse(sampleBlink)
     doc.code.source = [
       'from signal import pause',
@@ -89,12 +89,9 @@ describe('run_code_in_sim', () => {
       '    led.off()',
       ''
     ].join('\n')
-    const asTheAppRuns = python.run(doc, partDef, 2)
-    expect(asTheAppRuns.events.at(-1)!.t).toBeLessThan(0.1)
-    const waiting = python.run(doc, partDef, 2, { virtualPause: true })
-    expect(waiting.events.at(-1)!.t).toBeGreaterThanOrEqual(2)
-    // The next run starts from the original again.
-    expect(python.run(doc, partDef, 2).events.at(-1)!.t).toBeLessThan(0.1)
+    expect(python.run(doc, partDef, 2).events.at(-1)!.t).toBeGreaterThanOrEqual(2)
+    // Each run starts from a fresh interpreter state.
+    expect(python.run(doc, partDef, 1).events.at(-1)!.t).toBeGreaterThanOrEqual(1)
   })
 })
 

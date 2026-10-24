@@ -54,21 +54,11 @@ export const CAPTURE_UNAVAILABLE =
 export interface RunOptions {
   inputs?: [part: string, key: string, value: EnvValue][]
   schedule?: { t: number; part: string; key: string; value: EnvValue }[]
-  /**
-   * Make signal.pause() wait in virtual time. In the app's Pyodide it returns at once, so a
-   * program that sets callbacks and then calls pause() (gpiozero's usual shape) ends at t = 0.
-   * The scores turn this on to judge the program itself; run_code_in_sim, which the model sees,
-   * does not, so the model gets what the app would give it.
-   */
-  virtualPause?: boolean
 }
 
 /** Virtual seconds a program has after its time is up to run its finally blocks. */
 const CLEANUP_S = 0.25
 const TIME_UP = 'simulated time is up'
-
-const VIRTUAL_PAUSE =
-  'import signal as _signal, time as _time\n_signal.pause = lambda: [_time.sleep(0.01) for _ in iter(int, 1)]\n'
 
 /** Pyodide with the simulator's shims, loaded once and shared by every prompt. */
 export class PythonRuntime {
@@ -86,10 +76,6 @@ export class PythonRuntime {
       stdout: (t) => out.push(t),
       stderr: (t) => err.push(t)
     })
-    // A run may replace signal.pause (see RunOptions.virtualPause); the next must find the original.
-    py.runPython(
-      'import signal as _signal\n_original_pause = getattr(_signal, "pause", None)\ndel _signal'
-    )
     return new PythonRuntime(py, out, err)
   }
 
@@ -101,12 +87,14 @@ export class PythonRuntime {
    * Runs `doc.code` for `seconds` of virtual time against the document's circuit. `inputs` are set
    * before it starts; `schedule` entries are applied as the program's clock reaches them.
    */
-  run(doc: CircuitDoc, defs: PartDefs, seconds: number, options: RunOptions = {}): SimRun {
+  run(
+    doc: CircuitDoc,
+    defs: PartDefs,
+    seconds: number,
+    options: RunOptions = {}
+  ): SimRun & { endedAt: number } {
     this.out.length = 0
     this.err.length = 0
-    this.py.runPython(
-      'import signal as _signal\nif _original_pause is None:\n    if hasattr(_signal, "pause"): del _signal.pause\nelse:\n    _signal.pause = _original_pause\ndel _signal'
-    )
     const bridge = new EventBridge(new SimSession(new Circuit(doc, defs, BEHAVIORS)))
     for (const [part, key, value] of options.inputs ?? []) bridge.setInput(part, key, value)
     const due = [...(options.schedule ?? [])].sort((a, b) => a.t - b.t)
@@ -140,7 +128,7 @@ export class PythonRuntime {
       runProgram(
         this.py,
         bridge,
-        options.virtualPause ? VIRTUAL_PAUSE + doc.code.source : doc.code.source,
+        doc.code.source,
         (s) => {
           bridge.sleep(s)
           stopIfDone()
@@ -156,7 +144,8 @@ export class PythonRuntime {
       stderr: this.err.join('\n'),
       error,
       events: bridge.events,
-      truncated: bridge.truncated
+      truncated: bridge.truncated,
+      endedAt: bridge.now()
     }
   }
 }
@@ -205,6 +194,10 @@ export class NodeContext implements AssistantContext {
   readonly highlightLog: { refs: string[]; note: string }[] = []
   readonly questions: { question: string; options: string[]; answer: string }[] = []
   readonly captures: ViewPreset[] = []
+  /** The part inputs `simulate` set, in order: a switch pressed, a distance, a wiper position. */
+  readonly inputLog: { part: string; key: string; value: EnvValue }[] = []
+  /** What each run_code_in_sim asked for and the virtual time the program reached. */
+  readonly runLog: { seconds: number; endedAt: number; events: number; error: string | null }[] = []
   sense: BoardSenseSnapshot
 
   private session: SimSession | null = null
@@ -246,6 +239,7 @@ export class NodeContext implements AssistantContext {
         else this.inputPins.delete(request.bcm)
       } else if (request.type === 'input') {
         this.session.setInput(request.part, request.key, request.value)
+        this.inputLog.push({ part: request.part, key: request.key, value: request.value })
       } else {
         this.session.advanceTo(request.t)
       }
@@ -264,8 +258,11 @@ export class NodeContext implements AssistantContext {
   }
 
   checkPython = async (source: string) => this.python.check(source)
-  runCodeInSim = async (doc: CircuitDoc, seconds: number) =>
-    this.python.run(doc, this.partDef, seconds)
+  runCodeInSim = async (doc: CircuitDoc, seconds: number): Promise<SimRun> => {
+    const { endedAt, ...run } = this.python.run(doc, this.partDef, seconds)
+    this.runLog.push({ seconds, endedAt, events: run.events.length, error: run.error })
+    return run
+  }
 
   captureView: AssistantContext['captureView'] = async (preset) => {
     this.captures.push(preset)

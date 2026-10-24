@@ -6,7 +6,7 @@ import { createClient, DEFAULT_MODEL } from '@renderer/assistant/client'
 import { AssistantSession } from '@renderer/assistant/loop'
 import { costUsd } from '@renderer/assistant/prices'
 import { readMessage } from '@renderer/assistant/stream'
-import { apiTools, TOOLS, webTools } from '@renderer/assistant/tools'
+import { apiTools, STRICT_TOOLS, TOOLS, webTools } from '@renderer/assistant/tools'
 import { NodeContext, type PythonRuntime } from './nodeContext'
 import { recordFetch, sseUsage, type Exchange } from './tape'
 
@@ -97,8 +97,8 @@ const firstRefusal = (r: Row[]) => r.find((row) => row.status !== 200)
 
 /**
  * Checks 1-3 in one two-turn conversation with the app's own tool set: is strict plus eager
- * accepted (and if not, which fallback ran), is the top-level cache_control accepted, does the
- * 20-strict-tool request compile, and do cache reads appear on the second request.
+ * accepted (and if not, which fallback ran), is the top-level cache_control accepted, and do
+ * cache reads appear on the second request.
  */
 export async function toolsAndCaching(
   live: typeof fetch,
@@ -151,11 +151,11 @@ export async function toolsAndCaching(
       costUsd: cost
     },
     {
-      id: 'strict-20',
-      question: 'Does the 20-strict-tool request compile?',
-      answer: table.some((r) => r.status === 200 && r.strict === 20),
-      summary: table.some((r) => r.status === 200 && r.strict === 20)
-        ? `Yes: a request with ${first?.strict} strict tools returned 200.`
+      id: 'strict-set',
+      question: `Does the first request, with ${STRICT_TOOLS.size} strict tools and eager streaming, compile?`,
+      answer: eagerAccepted,
+      summary: eagerAccepted
+        ? `Yes: request 1 carried ${first!.strict} strict tools and ${first!.eager} with eager_input_streaming and returned 200.`
         : `No. Requests: ${chain}. ${refused ? `Exactly: ${refused.error}` : ''}`,
       rows: table,
       costUsd: 0
@@ -365,15 +365,19 @@ export async function toolAcceptance(
   model: string
 ): Promise<{ checks: LiveCheck[]; web: { search: boolean; fetch: boolean } }> {
   const client = createClient(live).withOptions({ maxRetries: 0 })
-  const strictTools = apiTools({ eager: false, strict: true }) as ApiTool[]
+  // Every tool that takes parameters, strict: what the app sent before ADR-X9-1.
+  const eligible = new Set(TOOLS.filter((t) => t.strict).map((t) => t.name))
+  const asStrict = (names: ReadonlySet<string> | string[], eager: boolean) =>
+    apiTools({ eager, strict: false }).map((t): Anthropic.ToolUnion => {
+      const tool = t as ApiTool
+      return [...names].includes(tool.name) ? { ...tool, strict: true } : tool
+    })
   const mutates = TOOLS.filter((t) => t.mutates).map((t) => t.name)
-  let cost = 0
   const checks: LiveCheck[] = []
 
   // Eager streaming with no strict tool at all.
   const plainEager = apiTools({ eager: true, strict: false })
   const eager = await probe(client, model, plainEager)
-  cost += eager.costUsd
   checks.push({
     id: 'eager-plain',
     question: 'Are eager_input_streaming tools accepted when none is strict?',
@@ -387,10 +391,11 @@ export async function toolAcceptance(
 
   // Each strict tool alone.
   const alone: { name: string; result: Probe }[] = []
-  for (const tool of strictTools.filter((t) => t.strict)) {
-    alone.push({ name: tool.name, result: await probe(client, model, [tool]) })
+  for (const name of eligible) {
+    const tool = asStrict([name], false).find((t) => (t as ApiTool).name === name)!
+    alone.push({ name, result: await probe(client, model, [tool]) })
   }
-  cost += alone.reduce((sum, a) => sum + a.result.costUsd, 0)
+  const aloneCost = alone.reduce((sum, a) => sum + a.result.costUsd, 0)
   const refused = alone.filter((a) => !a.result.ok)
   checks.push({
     id: 'strict-alone',
@@ -403,85 +408,40 @@ export async function toolAcceptance(
           .join(', ')}.`
       : `Yes: all ${alone.length} compile alone.`,
     rows: [],
-    costUsd: 0
+    costUsd: aloneCost
   })
 
-  // Grow a set of strict tools in `order`, keeping each that still compiles; then send the whole
-  // 22-tool request with strict on that set and eager on every mutation tool.
-  const request = (strictSet: string[], eager: boolean) =>
-    apiTools({ eager, strict: false }).map((t): Anthropic.ToolUnion => {
-      const tool = t as ApiTool
-      return strictSet.includes(tool.name) ? { ...tool, strict: true } : tool
-    })
-  // `full`: each step sends the whole 22-tool request the app would send (the budget has proved
-  // to depend on more than the strict schemas alone), not just the strict tools.
-  const grow = async (order: string[], full: boolean) => {
-    const fits: string[] = []
-    const left: string[] = []
-    for (const name of order) {
-      const tool = strictTools.find((t) => t.name === name)
-      if (!tool || !alone.find((a) => a.name === name)?.result.ok) {
-        left.push(name)
-        continue
-      }
-      const grown = full
-        ? await probe(client, model, request([...fits, name], true))
-        : await probe(client, model, [
-            ...fits.map((n) => strictTools.find((t) => t.name === n)!),
-            tool
-          ])
-      cost += grown.costUsd
-      if (grown.ok) fits.push(name)
-      else left.push(name)
-    }
-    const whole = await probe(client, model, request(fits, true))
-    const wholeNoEager = await probe(client, model, request(fits, false))
-    cost += whole.costUsd + wholeNoEager.costUsd
-    return { fits, left, whole, wholeNoEager }
+  // All of them together, as the app sent them before: the whole 22-tool request.
+  const all = await probe(client, model, asStrict(eligible, true))
+  checks.push({
+    id: 'strict-all',
+    question: `Does the whole request compile with all ${eligible.size} parameterised tools strict?`,
+    answer: all.ok,
+    summary: all.ok
+      ? `Yes: ${eligible.size} strict tools and eager streaming on the ${mutates.length} mutation tools returned 200.`
+      : `No. Exactly: ${all.message}`,
+    rows: [],
+    costUsd: all.costUsd
+  })
+
+  // The app's set, then each remaining tool added to it in the whole request: is there room for
+  // more than the set the app sends? A refused probe costs nothing.
+  const set = await probe(client, model, asStrict(STRICT_TOOLS, true))
+  let roomCost = set.costUsd
+  const fits: string[] = []
+  for (const name of [...eligible].filter((n) => !STRICT_TOOLS.has(n))) {
+    const grown = await probe(client, model, asStrict([...STRICT_TOOLS, ...fits, name], true))
+    roomCost += grown.costUsd
+    if (grown.ok) fits.push(name)
   }
-  const appOrder = alone.map((a) => a.name)
-  // The mutation tools whose input is the most structured come first: they gain the most.
-  const byValue = [
-    'connect',
-    'place_part',
-    'place_tboard',
-    'move_part',
-    'set_part_props',
-    'set_wire_props',
-    'remove_part',
-    'remove_wire',
-    'add_board',
-    'write_code',
-    'define_custom_part',
-    'annotate_build_steps',
-    ...appOrder.filter((n) => !mutates.includes(n))
-  ]
-  for (const [id, label, order, full] of [
-    [
-      'strict-budget',
-      "the app's tool order, the strict tools alone in each probe",
-      appOrder,
-      false
-    ],
-    [
-      'strict-budget-by-value',
-      'mutation tools first, the whole tool list in each probe',
-      byValue,
-      true
-    ]
-  ] as const) {
-    const { fits, left, whole, wholeNoEager } = await grow([...order], full)
-    const said = (p: Probe) => (p.ok ? 'returned 200' : `was refused, exactly: ${p.message}`)
-    checks.push({
-      id,
-      question: `How many strict tools fit in one request (${label})?`,
-      answer: fits.length === alone.length,
-      summary: `${fits.length} of ${alone.length}, each added to the ones before if it still compiles: ${fits.join(', ') || 'none'}. Left plain: ${left.join(', ') || 'none'}. The full 22-tool request with strict on those ${fits.length} and eager on the ${mutates.length} mutation tools ${said(whole)}; the same without eager ${said(wholeNoEager)}.`,
-      rows: [],
-      costUsd: 0
-    })
-  }
-  checks.at(-1)!.costUsd = cost
+  checks.push({
+    id: 'strict-room',
+    question: `Is there room beyond the ${STRICT_TOOLS.size} strict tools the app sends?`,
+    answer: fits.length > 0,
+    summary: `The app's set (${[...STRICT_TOOLS].join(', ')}) with eager streaming on the ${mutates.length} mutation tools ${set.ok ? 'returned 200' : `was refused, exactly: ${set.message}`}. Added one at a time to the whole request, ${fits.length ? `these also fit: ${fits.join(', ')}` : 'none of the other tools fit'}.`,
+    rows: [],
+    costUsd: roomCost
+  })
 
   // The web tools, one at a time, called directly and with the default callers.
   const web: { name: string; tools: Anthropic.ToolUnion[] }[] = [

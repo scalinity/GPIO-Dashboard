@@ -6,6 +6,7 @@ import { assertNoSecret } from './files'
 import {
   canonical,
   fromStored,
+  inputDeltas,
   recordFetch,
   replayFetch,
   scrubExchange,
@@ -156,5 +157,44 @@ describe('replayFetch', () => {
     expect(sseUsage(await second.text()).stopReason).toBe('end_turn')
     expect(server.remaining()).toBe(0)
     await expect(server.fetch('x', { method: 'POST', body: '{}' })).rejects.toThrow(/re-record/)
+  })
+})
+
+describe('inputDeltas', () => {
+  it('counts the calls of each client tool and the input_json_delta events they took', () => {
+    const body = (events: object[]) => events.map((e) => `data: ${JSON.stringify(e)}`).join('\n\n')
+    const start = (index: number, name: string, type = 'tool_use') => ({
+      type: 'content_block_start',
+      index,
+      content_block: { type, name }
+    })
+    const delta = (index: number, type = 'input_json_delta') => ({
+      type: 'content_block_delta',
+      index,
+      delta: { type }
+    })
+    const exchange = (status: number, events: object[]): Exchange => ({
+      request: {},
+      status,
+      contentType: status === 200 ? 'text/event-stream' : 'application/json',
+      body: body(events)
+    })
+    expect(
+      inputDeltas([
+        exchange(200, [
+          start(0, 'place_part'),
+          delta(0),
+          delta(0),
+          delta(0),
+          start(1, 'web_search', 'server_tool_use'),
+          delta(1),
+          start(2, 'connect'),
+          delta(2),
+          delta(2, 'text_delta')
+        ]),
+        exchange(200, [start(0, 'place_part'), delta(0)]),
+        exchange(400, [start(0, 'place_part'), delta(0)])
+      ])
+    ).toEqual({ place_part: { calls: 2, deltas: 4 }, connect: { calls: 1, deltas: 1 } })
   })
 })

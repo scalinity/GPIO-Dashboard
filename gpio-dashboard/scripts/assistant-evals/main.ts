@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createClient, DEFAULT_MODEL } from '@renderer/assistant/client'
 import { costUsd } from '@renderer/assistant/prices'
+import { TOOLS } from '@renderer/assistant/tools'
 import { partDef } from '@renderer/core/defs/parts'
 import type { CircuitDoc } from '@renderer/core/model/types'
 import type { Check } from './checks'
@@ -30,7 +31,16 @@ import {
 import { PythonRuntime } from './nodeContext'
 import { PROMPTS, promptById, type EvalPrompt, type Seed } from './prompts'
 import { execute, score, type Outcome } from './runner'
-import { canonical, recordFetch, replayFetch, sseUsage, type Exchange, type Json } from './tape'
+import {
+  canonical,
+  inputDeltas,
+  recordFetch,
+  replayFetch,
+  sseUsage,
+  type Exchange,
+  type InputDeltas,
+  type Json
+} from './tape'
 
 export interface Args {
   argv: string[]
@@ -168,13 +178,18 @@ interface ResultRow {
   costUsd: number | null
   seconds: number
   notices: string[]
+  /** Per tool, its calls and the input_json_delta events they took. */
+  inputDeltas: Record<string, InputDeltas>
+  /** Per tool, the partial inputs that arrived before a call completed, and the ghosts they drew. */
+  partialInputs: Outcome['partialInputs']
 }
 
 function resultRow(
   prompt: EvalPrompt,
   outcome: Outcome,
   checks: Check[],
-  model: string
+  model: string,
+  exchanges: readonly Exchange[]
 ): ResultRow {
   return {
     id: prompt.id,
@@ -193,8 +208,37 @@ function resultRow(
     webSearches: outcome.usage.webSearches,
     costUsd: outcome.costUsd,
     seconds: Math.round(outcome.seconds),
-    notices: outcome.notices.map((n) => `${n.code}: ${n.message}`)
+    notices: outcome.notices.map((n) => `${n.code}: ${n.message}`),
+    inputDeltas: inputDeltas(exchanges),
+    partialInputs: outcome.partialInputs
   }
+}
+
+/** What simulate was told to press or move, and how far run_code_in_sim let the program run. */
+function describeObservations(ctx: Outcome['run']['ctx']): string {
+  const inputs = ctx.inputLog.map((i) => `${i.part}.${i.key}=${i.value}`)
+  const runs = ctx.runLog.map(
+    (r) => `${r.endedAt.toFixed(2)} of ${r.seconds} s${r.error ? ' (error)' : ''}`
+  )
+  return `simulate inputs: ${inputs.join(', ') || 'none'}; run_code_in_sim reached: ${runs.join(', ') || 'not run'}`
+}
+
+/** The partial inputs that came before a call was complete, as `place_part 7 (5 ghosts)`. */
+function describePartials(partials: Outcome['partialInputs']): string {
+  return (
+    Object.entries(partials)
+      .map(([name, p]) => `${name} ${p.snapshots} (${p.ghosts} ghost${p.ghosts === 1 ? '' : 's'})`)
+      .join(', ') || 'none'
+  )
+}
+
+/** The mutation tools' input deltas as one line: `place_part 12×9.4` is 12 calls of 9.4 deltas. */
+function describeDeltas(deltas: Record<string, InputDeltas>): string {
+  const mutating = new Set(TOOLS.filter((t) => t.mutates).map((t) => t.name))
+  return Object.entries(deltas)
+    .filter(([name]) => mutating.has(name))
+    .map(([name, d]) => `${name} ${d.calls}×${(d.deltas / d.calls).toFixed(1)}`)
+    .join(', ')
 }
 
 function writeTranscript(
@@ -232,6 +276,9 @@ function writeTranscript(
         transactions: t.result.transactions.length
       })),
       questions: run.ctx.questions,
+      partialInputs: outcome.partialInputs,
+      simulatedInputs: run.ctx.inputLog,
+      codeRuns: run.ctx.runLog,
       custom: (run.final.customParts ?? []).map((d) => ({
         id: d.id,
         name: d.name,
@@ -332,12 +379,6 @@ function replaceSavedCheck(check: LiveCheck, exact: string | null) {
   writeJson(LIVE_CHECKS_FILE, saved, exact)
 }
 
-/** What the last live checks found, or that nothing is known. */
-function savedWeb(): Web | null {
-  if (!existsSync(LIVE_CHECKS_FILE)) return null
-  return (JSON.parse(readFileSync(LIVE_CHECKS_FILE, 'utf8')) as { web: Web }).web
-}
-
 /** How often a request is sent again when the organization refuses web search. */
 const SEARCH_RESENDS = 15
 
@@ -345,15 +386,20 @@ const SEARCH_RESENDS = 15
 const SEARCH_REFUSED = /Web search is not enabled for this organization/
 
 /**
- * The SDK's placeholder bearer, replaced by the real key as the Rust proxy does in the app. When
- * the organization has web fetch but not web search, the search tool is taken out in transit,
- * after the tape has recorded the request as the loop built it.
+ * The SDK's placeholder bearer, replaced by the real key as the Rust proxy does in the app.
+ * With `--no-search`, or after `--wait-for-search` found search refused throughout, the search
+ * tool is taken out in transit, after the tape has recorded the request as the loop built it.
+ * Otherwise the loop meets the organization's refusal itself and drops the tool (ADR-X9-2).
  *
- * The organization's web search is refused for some requests and not for others, seconds apart. A
- * request carrying it that is refused that way is sent again, unchanged, as an HTTP proxy would;
- * the loop and the tape see only the answer that stuck. `resent` counts the repeats.
+ * With `--search`, a request carrying web search that is refused is sent again, unchanged, as an
+ * HTTP proxy would, so a run can record the search path; the loop and the tape see only the
+ * answer that stuck. `resent` counts the repeats.
  */
-function liveFetch(key: () => string, web: () => Web, resent: { count: number }): typeof fetch {
+function liveFetch(
+  key: () => string,
+  options: { dropSearch: () => boolean; resend: boolean },
+  resent: { count: number }
+): typeof fetch {
   return async (input, init) => {
     const headers = new Headers(init?.headers)
     headers.delete('x-api-key')
@@ -363,7 +409,7 @@ function liveFetch(key: () => string, web: () => Web, resent: { count: number })
     if (typeof body === 'string') {
       const request = JSON.parse(body) as { tools?: { name?: string }[] }
       carriesSearch = !!request.tools?.some((t) => t.name === 'web_search')
-      if (carriesSearch && web().fetch && !web().search) {
+      if (carriesSearch && options.dropSearch()) {
         request.tools = request.tools!.filter((t) => t.name !== 'web_search')
         body = JSON.stringify(request)
         carriesSearch = false
@@ -371,7 +417,8 @@ function liveFetch(key: () => string, web: () => Web, resent: { count: number })
     }
     for (let attempt = 1; ; attempt++) {
       const response = await fetch(input, { ...init, headers, body })
-      if (!carriesSearch || response.status !== 400 || attempt >= SEARCH_RESENDS) return response
+      if (!carriesSearch || !options.resend || response.status !== 400 || attempt >= SEARCH_RESENDS)
+        return response
       if (!SEARCH_REFUSED.test(await response.clone().text())) return response
       resent.count += 1
       await new Promise((resolve) => setTimeout(resolve, 2000))
@@ -386,10 +433,17 @@ async function runLive(
   selected: EvalPrompt[]
 ): Promise<number> {
   const exact = key()
-  let web: Web = savedWeb() ?? { search: true, fetch: true }
+  let web: Web = { search: true, fetch: true }
   if (flags.noSearch) web = { search: false, fetch: true }
   const resent = { count: 0 }
-  const live = liveFetch(key, () => web, resent)
+  const live = liveFetch(
+    key,
+    {
+      dropSearch: () => web.fetch && !web.search && (flags.noSearch || flags.waitForSearch > 0),
+      resend: flags.search || flags.waitForSearch > 0
+    },
+    resent
+  )
   let spent = 0
   console.log(`Live mode: ${flags.model}, budget ${money(flags.budgetUsd)}.`)
 
@@ -479,7 +533,7 @@ async function runLive(
         sdk: '1.3.0',
         expected: expectedOf(checks),
         notes: [
-          ...(useWeb && !web.search
+          ...(useWeb && !web.search && (flags.noSearch || flags.waitForSearch > 0)
             ? [
                 'web_search was removed from the tool list in transit: the organization has no web search'
               ]
@@ -495,11 +549,15 @@ async function runLive(
       exact
     )
     writeTranscript(prompt, outcome, checks, exact, flags.model)
-    const row = resultRow(prompt, outcome, checks, flags.model)
+    const row = resultRow(prompt, outcome, checks, flags.model, tape.exchanges)
     rowsOut.push(row)
     console.log(
       `    ${describeChecks(checks)}  ${outcome.requests} requests, ${row.toolCalls} tool calls, ${money(outcome.costUsd)}, ${row.seconds} s`
     )
+    console.log(`    input deltas per call (calls×deltas): ${describeDeltas(row.inputDeltas)}`)
+    console.log(`    partial inputs before completion: ${describePartials(row.partialInputs)}`)
+    console.log(`    ${describeObservations(outcome.run.ctx)}`)
+    for (const n of row.notices) console.log(`    notice ${n}`)
     for (const c of checks.filter((x) => !x.pass)) console.log(`      FAIL ${c.id}: ${c.detail}`)
   }
   console.log(`\nSpent ${money(spent)} of ${money(flags.budgetUsd)}.`)
@@ -552,14 +610,21 @@ async function runReplay(
       result.drift.length = 0
     }
     finished.set(prompt.id, result.outcome.run.final)
-    const recorded = loadFixture(prompt.id).run
-    rowsOut.push(resultRow(prompt, result.outcome, result.checks, recorded.model))
+    const recorded = loadFixture(prompt.id)
+    rowsOut.push(
+      resultRow(prompt, result.outcome, result.checks, recorded.run.model, recorded.exchanges)
+    )
     drifted.push(...result.drift.map((d) => `${prompt.id} ${d}`))
     console.log(
       `  ${prompt.id.padEnd(24)} ${describeChecks(result.checks)}  ${result.outcome.requests} requests${result.changedRequests ? `, ${result.changedRequests} request(s) differ from the recording` : ''}${result.unusedResponses ? `, ${result.unusedResponses} recorded response(s) unused` : ''}`
     )
     for (const c of result.checks.filter((x) => !x.pass))
       console.log(`      fail ${c.id}: ${c.detail}`)
+    console.log(`      input deltas (calls×deltas): ${describeDeltas(rowsOut.at(-1)!.inputDeltas)}`)
+    console.log(
+      `      partial inputs before completion: ${describePartials(rowsOut.at(-1)!.partialInputs)}`
+    )
+    console.log(`      ${describeObservations(result.outcome.run.ctx)}`)
   }
   if (rowsOut.length) writeJson(join(RESULTS, 'replay.json'), { prompts: rowsOut })
   if (drifted.length) {

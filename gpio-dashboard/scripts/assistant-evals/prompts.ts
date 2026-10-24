@@ -85,10 +85,7 @@ function runProgram(
   seconds: number,
   options: Parameters<NodeContext['python']['run']>[3] = {}
 ): PinTimeline {
-  const sim = run.ctx.python.run(run.final, run.ctx.partDef, seconds, {
-    virtualPause: true,
-    ...options
-  })
+  const sim = run.ctx.python.run(run.final, run.ctx.partDef, seconds, options)
   return { events: sim.events, error: sim.error, stdout: sim.stdout }
 }
 
