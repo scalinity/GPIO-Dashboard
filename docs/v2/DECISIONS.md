@@ -1479,7 +1479,7 @@ decision and consequences. Numbering is stable; superseded records say so.
     leads, so the direction reads in a still picture.
 - **Consequences.** A later look-dev pass can retune them without touching the plumbing.
 
-## ADR-P-1 Rods and the ribbon centreline are solved as chains, not by Gauss–Seidel sweeps
+## ADR-0060 Rods and the ribbon centreline are solved as chains, not by Gauss–Seidel sweeps
 
 - **Context.**
   - SPEC 10.5 asks for XPBD with small steps: 12 substeps a frame and one constraint
@@ -1511,7 +1511,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - Not tuned against the reference photos, which this build cannot read: every material
     constant is in `MATERIAL` (builders.ts) for that pass.
 
-## ADR-P-2 The ribbon is a centreline chain with rigid rows
+## ADR-0061 The ribbon is a centreline chain with rigid rows
 
 - **Context.** SPEC 10.5 describes a particle grid held by stretch and shear constraints.
   A 41 × 7 grid held that way, one pass per substep, reached 31% edge strain and 5% across
@@ -1519,7 +1519,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   a target of 0.5% stretch.
 - **Decision.** The grid stays the interface (rows × columns of particles, contacts and
   triangles on it) but each row rides on a centre particle. Per substep: row centres are the
-  mean of each free row; the centres form a chain solved like a lead (ADR-P-1: curvature,
+  mean of each free row; the centres form a chain solved like a lead (ADR-0060: curvature,
   `solveChain`, long-range attachments); the chain is kept in the plane between the two end
   frames; and every free row is laid out again from its centre, straight, with the true
   column spacing, turned by the two frames' width axes blended along the length. The first
@@ -1535,7 +1535,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - Row contacts are not rigid: a single-sided contact lifts the row's mean only, so an edge
     that meets a row at an angle is resolved over a few substeps.
 
-## ADR-P-3 Contacts: exact segment tests, hash broad phase, no cable-to-cable friction
+## ADR-0062 Contacts: exact segment tests, hash broad phase, no cable-to-cable friction
 
 - **Context.** SPEC 10.5 asks for particle contacts with box and capsule colliders,
   capsule–capsule and point–triangle tests in a spatial hash, and position-based friction
@@ -1565,7 +1565,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - A cable overlapping something at the start (a design curve drawn through a part) is
     pushed out over several frames, not in one.
 
-## ADR-P-4 Islands, sleep and wake
+## ADR-0063 Islands, sleep and wake
 
 - **Context.** SPEC 10.5: an island sleeps when every particle stays below 0.5 mm/s for 30
   frames; any anchor change wakes it; a lead resting on a part reacts when the part moves.
@@ -1590,7 +1590,7 @@ decision and consequences. Numbering is stable; superseded records say so.
   - Sleep is per island: `isAsleep(id)` reports the island's flag, and `islandOf(id)` labels
     it.
 
-## ADR-P-5 Over-span: the flag follows the reach rule, the relaxation follows the span
+## ADR-0064 Over-span: the flag follows the reach rule, the relaxation follows the span
 
 - **Context.** SPEC 10.5 and 16 require a lead or ribbon whose ends are farther apart than
   its length to relax into a straight, taut span and report itself taut, in agreement with
