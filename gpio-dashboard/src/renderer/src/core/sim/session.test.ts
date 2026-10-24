@@ -93,6 +93,15 @@ describe('button with pull-down', () => {
     expect(s.read(18)).toBe('low')
   })
 
+  it('reads an unpulled GPIO beside an LED as floating, without a convergence failure', () => {
+    // GPIO17 is the LED's cathode net in this circuit; with nothing driving it, it floats.
+    const d = blink()
+    const s = session(d)
+    s.setGpio(17, { mode: 'in', pull: 'off' })
+    expect(s.read(17)).toBe('floating')
+    expect(s.snapshot().error).toBeNull()
+  })
+
   it('reports a released button with no pull as floating, and the internal pulls as levels', () => {
     const d = button()
     d.parts = d.parts.filter((p) => p.id !== 'R1')

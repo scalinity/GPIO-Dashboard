@@ -74,16 +74,21 @@ export class SimSession {
     return v <= RP1.vilMaxV ? 'low' : v >= RP1.vihMinV ? 'high' : 'ambiguous'
   }
 
-  /** A node's resistance to the rest of the circuit, from its response to a 1 nA test current. */
+  /**
+   * A node's resistance to the rest of the circuit. A probe 1 V above the node's voltage, behind
+   * 1 GΩ, moves it by ΔV = R / (R + 1 GΩ): at most 1 V, so the solve converges even on a floating
+   * node next to a diode (a current probe would push such a node towards kilovolts).
+   */
   private theveninOhms(node: number): number {
-    const testA = 1e-9
-    // A 1000 V source behind 1 TΩ is a 1 nA current source to within 1e-12 S.
-    const probe = new TheveninSource(node, 0, testA * 1e12, 1e12)
+    const probeOhms = 1e9
+    const v0 = this.v(node)
+    const probe = new TheveninSource(node, 0, v0 + 1, probeOhms)
     const envOf = (part: string) => this.env.get(part)!
     const { x } = this.circuit.solve(this.instantaneous(), envOf, this.x, this.averagedPwm(), [
       probe
     ])
-    return ((node === 0 ? 0 : x[node - 1]!) - this.v(node)) / testA
+    const dv = (node === 0 ? 0 : x[node - 1]!) - v0
+    return dv >= 1 ? Infinity : (probeOhms * dv) / (1 - dv)
   }
 
   /**
