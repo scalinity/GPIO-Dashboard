@@ -33,7 +33,7 @@ const AGENT_FILES: [(&str, &[u8]); 7] = [
     ),
 ];
 
-fn remote_dir(ssh: &Ssh) -> Result<String, String> {
+pub(crate) fn remote_dir(ssh: &Ssh) -> Result<String, String> {
     let user = ssh
         .username()
         .ok_or("SSH manager has no configured username")?;
@@ -135,6 +135,14 @@ pub(crate) fn start_command(dir: &str) -> String {
     )
 }
 
+/// The Python a program runs with: the venv install.sh makes in the agent's directory `dir`
+/// when it is there (it holds gpiod 2 where apt's is 1.x, and rpi-lgpio where apt has no Pi 5
+/// backend for RPi.GPIO and gpiozero), else the system's.
+pub(crate) fn python_in(dir: &str) -> String {
+    let venv = shell_quote(&format!("{dir}/venv/bin/python3"));
+    format!("$([ -x {venv} ] && echo {venv} || echo python3)")
+}
+
 /// The remote command that stops the agent in `dir`; `then` runs after the kill. The
 /// `[a]` keeps the pattern from matching the shell that runs this very command.
 pub(crate) fn stop_command(dir: &str, then: &str) -> String {
@@ -176,6 +184,31 @@ mod tests {
             start.ends_with("> agent.log 2>&1 < /dev/null & }"),
             "{start}"
         );
+    }
+
+    #[test]
+    fn programs_run_with_the_agents_venv_python_when_there_is_one() {
+        let dir = std::env::temp_dir().join(format!("gpio-agent-python-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let dir_str = dir.to_str().unwrap();
+        let python = || {
+            let out = std::process::Command::new("sh")
+                .args(["-c", &format!("echo {}", python_in(dir_str))])
+                .output()
+                .unwrap();
+            String::from_utf8(out.stdout).unwrap().trim().to_string()
+        };
+        assert_eq!(python(), "python3");
+
+        let venv = dir.join("venv/bin");
+        std::fs::create_dir_all(&venv).unwrap();
+        std::fs::write(venv.join("python3"), "#!/bin/sh\n").unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(venv.join("python3"), std::fs::Permissions::from_mode(0o755))
+            .unwrap();
+        assert_eq!(python(), format!("{dir_str}/venv/bin/python3"));
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

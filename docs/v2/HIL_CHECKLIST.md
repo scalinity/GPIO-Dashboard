@@ -51,12 +51,15 @@ lacks, remains.
 
 ## Run on Pi
 
-- [ ] **A project runs and stops.** Open Blinking LED, Run on Pi: the LED blinks and output
+- [x] **A project runs and stops.** Open Blinking LED, Run on Pi: the LED blinks and output
   streams. Stop: the process ends on the Pi (`pgrep -f project_blinking-led.py` finds
   nothing).
-- [ ] **Stop returns the program's pins to inputs.** After Stop, `pinctrl get 17` on the Pi
+  Done 2026-10-25 with the Breathing LED (GPIO18; that Pi's GPIO17 belongs to another service):
+  it ran unmodified through the agent's venv (ADR-0138), and Stop ended it.
+- [x] **Stop returns the program's pins to inputs.** After Stop, `pinctrl get 17` on the Pi
   shows `ip pn`. Confirms that `pinctrl set` runs without `sudo` for the app's user. If it
   needs root, the cleanup command must change.
+  Done 2026-10-25: after Stop, GPIO18 read `ip pn`, set by the app's user without `sudo`.
 - [x] **ERC errors block a run.** Open a document with a SHORT_SUPPLY error (in the Workbench,
   wire 3V3 to GND). Run on Pi shows the override dialog and does nothing until "Run anyway".
   Done 2026-10-25 with the simulated-current errors (R1 at 10 Ω: PIN_OVERCURRENT, LED_NO_LIMIT).

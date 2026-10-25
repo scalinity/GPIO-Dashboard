@@ -3636,3 +3636,24 @@ declare it.
   script's header. Nothing in it comes from an external model, texture or HDRI. In `tauri dev` the
   Dock labels the unbundled binary by its file name, `gpio-dashboard`; the bundle shows "GPIO
   Dashboard" from `CFBundleName`.
+
+## ADR-0138 Programs run with the agent's venv Python, which gets rpi-lgpio where apt has no lgpio
+
+- **Context.** Tutorial programs and the Toggle LED checkpoint import RPi.GPIO or gpiozero. On a
+  Pi 5 both reach the header through lgpio: Raspberry Pi OS ships python3-lgpio and
+  python3-rpi-lgpio, and install.sh adds the latter when apt has it. Kali and Debian have neither,
+  their RPi.GPIO is the pre-RP1 0.7.1, and gpiozero falls back to it, so on the bench Pi (Kali,
+  Python 3.14) no tutorial could drive a pin. pip's lgpio 0.2.2.0 did not build either: its SWIG
+  interface calls Python 2's `PyInt_FromLong`, `PyInt_AsLong`, `PyInt_Check` and
+  `PyString_FromString`, which SWIG 4.3 stopped mapping to their Python 3 equivalents.
+- **Decision.** When neither the system Python nor the agent's venv can import lgpio, install.sh
+  makes the venv (with the system's packages visible, as for gpiod 2) and installs rpi-lgpio into
+  it, building lgpio with those four names defined to `PyLong_FromLong`, `PyLong_AsLong`,
+  `PyLong_Check` and `PyUnicode_FromString`. It installs swig, python3-dev and gcc for the build,
+  and only warns if the build fails. Run on Pi runs a program with the agent's venv Python when
+  there is one (`agent::python_in`, the same choice the agent's own start makes), else `python3`.
+- **Consequences.** On the bench Pi the deploy builds it in about 10 s, and the shipped Breathing
+  LED tutorial, unmodified, drove GPIO18 from Run on Pi (telemetry saw it pulse), and Stop returned
+  the pin to an input. RPi.GPIO and gpiozero in the venv shadow the system's for the app's programs
+  only; nothing outside `~/gpio-dashboard-agent` changes. On Raspberry Pi OS lgpio imports already,
+  so no venv is made for it.

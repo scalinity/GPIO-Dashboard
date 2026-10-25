@@ -45,6 +45,22 @@ if ! python3 -c 'import gpiod, sys; sys.exit(not hasattr(gpiod, "request_lines")
     fi
 fi
 
+# Programs import RPi.GPIO or gpiozero, and on a Pi 5 both drive pins through lgpio. Where apt has
+# none (Kali, Debian), rpi-lgpio goes into the venv, which Run on Pi uses when it exists. lgpio's
+# SWIG interface still calls Python 2's PyInt and PyString functions, which SWIG 4.3 stopped
+# mapping to Python 3, so the build maps the four it uses.
+if ! python3 -c 'import lgpio' 2>/dev/null && ! venv/bin/python3 -c 'import lgpio' 2>/dev/null; then
+    echo "  No lgpio for Python; installing rpi-lgpio into $(pwd)/venv..."
+    $SUDO apt-get install -y -qq swig python3-dev gcc >/dev/null 2>&1 || true
+    had_venv=$([ -d venv ] && echo 1 || echo 0)
+    if ! { [ -x venv/bin/python3 ] || python3 -m venv --system-site-packages venv; } ||
+        ! CFLAGS="-DPyInt_FromLong=PyLong_FromLong -DPyInt_AsLong=PyLong_AsLong -DPyInt_Check=PyLong_Check -DPyString_FromString=PyUnicode_FromString" \
+            venv/bin/pip install -q rpi-lgpio; then
+        [ "$had_venv" = 0 ] && rm -rf venv
+        echo "  WARNING: rpi-lgpio could not be installed. Programs that import RPi.GPIO or gpiozero cannot drive pins on a Pi 5."
+    fi
+fi
+
 # 3. Ensure pinctrl is available (provided by raspi-utils or raspberrypi-utils)
 echo "[3/5] Checking for pinctrl..."
 if ! command -v pinctrl &>/dev/null; then

@@ -421,7 +421,7 @@ fn stop_ends_a_running_tutorial_script_on_the_remote() {
             .unwrap();
 
         let runner = ssh.clone();
-        let command = crate::commands::tutorial_run_command(&file);
+        let command = crate::commands::tutorial_run_command(&file, None);
         let run_task =
             tauri::async_runtime::spawn(
                 async move { runner.execute_streaming(&command, None).await },
@@ -578,7 +578,7 @@ fn closing_the_channel_alone_leaves_a_quiet_script_running() {
     run(async {
         let (ssh, _) = connected("k_ed25519").await;
         let (file, remote) = upload_quiet_script(&ssh, "orphan").await;
-        let command = crate::commands::tutorial_run_command(&file);
+        let command = crate::commands::tutorial_run_command(&file, None);
         let result = ssh
             .execute_streaming(&command, Some(Duration::from_secs(1)))
             .await
