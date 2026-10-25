@@ -18,7 +18,7 @@
       "blender/partkit.py": "041c73af3746cbcb89435960a5fc4e19af8c61d8411d7679641d5664a1390ea4",
       "blender/devicekit.py": "5cbe22dc9c2d951e94336d88fbeff00b27d5ac701ad9aac55a7cae6858f82c29",
       "blender/modparts.py": "ce20bce52a769aa64c8a63e675c78afa2b6c99d696d7852bb97f2d3a3ad65c05",
-      "blender/mod_sensors.py": "da2805ebc730f48ca6e9db815f4007019896b0726a34569e73d28c54d47e9198",
+      "blender/mod_sensors.py": "a5c7d3edbf76e4858bc3eb70640c66f46a96657d8bc103b3d20793cf86b2bdb8",
       "blender/mod_ads.py": "a978bcc1bdc6f6a7d8fb4bc2f16f6100a88a478bcc6c3d4ba9bbc36c4528c899",
       "blender/mod_boards.py": "7ef1723cf0425cf4be9fdbfa9a526d37802b62213cc5176a3264cba63ad3c776",
       "blender/lib/__init__.py": "fde31da9f6d72b2297d6828833720649d7d25feab9e48e41ede38379551cb95a",
@@ -31,33 +31,21 @@
   "inputs": [
     {
       "path": "src/renderer/src/content/parts/dht11.part.json",
-      "sha256": "d64f33da81f3c67e1fd4fa300946b27f526239ba9725100c391d396fde6df15b"
+      "sha256": "de9608a0ff59d6c3341b4b4835891dfec574670f4ba3d3f0b448f52f9b992e20"
     }
   ],
   "sources": [],
-  "triangles": 14,
-  "bytes": 7404,
-  "textures": [
-    {
-      "name": "grille-grille",
-      "format": "ETC1S",
-      "size": [
-        256,
-        256
-      ],
-      "slots": [
-        "baseColorTexture"
-      ]
-    }
-  ],
+  "triangles": 474,
+  "bytes": 8408,
+  "textures": [],
   "budget": {
     "texturePx": [
       256,
       256
     ],
-    "triangles": 20,
-    "bytes": 12000,
+    "triangles": 570,
+    "bytes": 10100,
     "met": true
   },
-  "geometryHash": "e52c030d64dc2a1ef71925d07bc08671684986ce88c3a5cc62f550148c62349f"
+  "geometryHash": "f04ca4bd763426efc29f2b81e6ca6e066008b667f6abe033998f47e7b73a6cbd"
 }

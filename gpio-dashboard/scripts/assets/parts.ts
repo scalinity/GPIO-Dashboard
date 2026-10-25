@@ -193,8 +193,15 @@ const MODULES: Record<string, (p: Params, def: PartDefinition) => PartExpectatio
   'adafruit-1085-stemma-qt': (p) =>
     board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'boardHeightMm')),
   'lafvin-ads7830': (p) => board(num(p, 'boardLengthApproxMm'), num(p, 'boardWidthApproxMm'), ANY),
-  'dht11-3pin-breakout': (p) =>
-    board(num(p, 'boardLengthApproxMm'), num(p, 'boardWidthApproxMm'), ANY),
+  // The sensor lies on the board, its top end past the far edge; the right-angle header's pins
+  // leave the near edge along -y.
+  'dht11-3pin-breakout': (p, def) =>
+    board(
+      num(p, 'boardLengthApproxMm'),
+      num(p, 'boardWidthApproxMm') + num(p, 'sensorOverhangApproxMm'),
+      ANY,
+      { axes: Object.fromEntries(def.pins.map((q) => [q.id, [0, -1, 0] as Vec3])) }
+    ),
   // The bare sensor stands on a board; its 5.5 mm is its thickness, as its drawing says.
   'dht11-bare-4pin-sip': (p) => ({
     body: [
@@ -206,9 +213,14 @@ const MODULES: Record<string, (p: Params, def: PartDefinition) => PartExpectatio
     nodes: ['grille'],
     materials: []
   }),
-  'hc-sr04': (p) => board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'heightMm')),
+  // The right-angle header on the back leaves the near edge along -y.
+  'hc-sr04': (p, def) =>
+    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'heightMm'), {
+      axes: Object.fromEntries(def.pins.map((q) => [q.id, [0, -1, 0] as Vec3]))
+    }),
+  // The 32 mm runs along y, so that the header row (x) stands on the lens side's free end.
   'hc-sr501': (p) =>
-    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'heightMm'), { nodes: ['lens'] }),
+    board(num(p, 'boardWidthMm'), num(p, 'boardLengthMm'), num(p, 'heightMm'), { nodes: ['lens'] }),
   'breadboard-power-module': (p, def) =>
     board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), def.bodyMm[2]),
   'relay-module-5v': (p, def) =>
@@ -518,10 +530,16 @@ const PARTS: PartEntry[] = [
     triangles: 1300,
     bytes: 50_000
   },
-  { family: 'module', defId: 'dht11-module', texturePx: [512, 512], triangles: 350, bytes: 34_000 },
-  { family: 'module', defId: 'dht11', texturePx: [256, 256], triangles: 20, bytes: 12_000 },
-  { family: 'module', defId: 'hc-sr04', texturePx: [1024, 512], triangles: 700, bytes: 30_000 },
-  { family: 'module', defId: 'hc-sr501', texturePx: [512, 512], triangles: 1130, bytes: 30_000 },
+  {
+    family: 'module',
+    defId: 'dht11-module',
+    texturePx: [512, 512],
+    triangles: 1220,
+    bytes: 34_000
+  },
+  { family: 'module', defId: 'dht11', texturePx: [256, 256], triangles: 570, bytes: 10_100 },
+  { family: 'module', defId: 'hc-sr04', texturePx: [1024, 512], triangles: 3900, bytes: 89_500 },
+  { family: 'module', defId: 'hc-sr501', texturePx: [512, 512], triangles: 3960, bytes: 63_500 },
   {
     family: 'module',
     defId: 'joystick-module',

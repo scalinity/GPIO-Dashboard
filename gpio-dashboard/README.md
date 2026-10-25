@@ -207,7 +207,7 @@ Counted from the repository when this README was written; the commands in the So
 | Build steps, all tutorials | 411 | `buildSteps()` over every tutorial |
 | Simulation assertions, all tutorials | 157 | each `tutorial.json` `assertions` |
 | Library parts | 38 | `content/parts/*.part.json` |
-| 3D model files | 46 GLB (7 bench, 39 part), 10 MB | `public/models` |
+| 3D model files | 46 GLB (7 bench, 39 part), 11 MB | `public/models` |
 | ERC rules | 17 | `core/erc/erc.ts`, `core/sim/checks.ts` |
 | Device behaviour models | 15 | `core/sim/behaviors/` |
 | ngspice reference circuits | 22 | `core/sim/fixtures/ngspice.json` |
