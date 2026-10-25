@@ -1089,8 +1089,9 @@ decision and consequences. Numbering is stable; superseded records say so.
     baked from text and shapes; boards with a baked legend and male headers; the STEP helpers.
     `partkit.start()` takes an `add_args` for a family's own arguments.
   - Textures are allowed where a file's budget names a size: the DIPs' part-number marking, the
-    boards' silkscreen legend, the DHT11's grille, the relay's case top and terminal face, the
-    keypad's keys, the LCD's screen, the housings' socket holes. They are KTX2 (ETC1S), at most
+    boards' silkscreen legend (with the HC-SR04's transducer meshes and the DHT11 breakout's
+    resistor code mapped from it), the relay's case top and terminal face, the keypad's keys, the
+    LCD's screen, the housings' socket holes. They are KTX2 (ETC1S), at most
     1024 x 1024, and `assets:check` still demands none from a file whose budget names none. What
     is printed on a board has no geometry to be, and a 20 x 6 mm chip top is not worth a mesh
     per letter.
@@ -1120,25 +1121,32 @@ decision and consequences. Numbering is stable; superseded records say so.
     model's. `assets:check` measures each pin against the first within 0.05 mm, the 2.54 mm pitch
     of header neighbours, and the origin: the model's lowest x, y and z are 0, which
     `module.py` sets by moving every top-level node after the variant is drawn.
-  - Every header is straight, on the board's top face, pins up (6 mm above a 2.5 mm base, 1.5 mm
+  - A straight header is on the board's top face, pins up (6 mm above a 2.5 mm base, 1.5 mm
     tails below), so a female Dupont housing mates from above whichever side the real board
-    has it on. The module rests on the tails. The empties are at the pin tips, +z up.
+    has it on. The module rests on the tails. The empties are at the pin tips, +z up. The
+    HC-SR501's real header points down from its component side; the model stands it on the lens
+    side's free end, beside a mounting hole, and runs the board's 32 mm along y to make room.
+  - A right-angle header is drawn as the board has it, its pins along -y out of the board's near
+    edge, 6 mm past the base, with the empties at their tips pointing along -y: the HC-SR04's,
+    whose base is on the back (the module lies on its back and rests on the bent pins), and the
+    DHT11 breakout's, whose base is on top. A female housing slides on sideways.
   - Female connectors lie flat on the table with their sockets facing -y, away from the module:
     the keypad's 1 x 8 housing at the end of its 86 mm tail (flat, 0.35 mm), the SG90's 3-way
     housing at the end of its 250 mm cable (three 1.1 mm wires, straight), and the relay's three
     screw terminals, whose entries face out of the board's far edge (+y). `parts.ts` lists those
-    axes, and `assets:check` measures them within 1 degree.
+    axes and the right-angle headers', and `assets:check` measures them within 1 degree.
   - The servo's cable and the keypad's tail run along -y from the long side, not from the end
     the real part uses, because the definitions put the sockets in a row along x. The cable
     lengths are the definitions'; the motor's leads, which no source gives, are 100 mm.
   - The bare DHT11 is a rigid part: the origin on pin VDD's hole, empties down, and the housing
     2.0 mm above the board; its definition's 8 mm leads are the runtime's.
-  - The DHT11 breakout stands its sensor upright on the board (the sensor is 15.5 mm tall,
-    12 mm wide and 5.5 mm thick, as the Aosong drawing shows), so the definition's `bodyMm` height
-    of 5.5 mm is not the model's; `assets:check` compares that module's footprint only.
+  - The DHT11 breakout lays its sensor on its back, grille up (15.5 x 12 x 5.5 mm, as the Aosong
+    drawing shows), its legs bent down into the board and its top end 3.8 mm past the far edge, as
+    the kit's photographs show; `assets:check` compares that module's footprint, with the
+    overhang, only, because the board's size is read off a photo.
 - **Consequences.** A studio that rotates a module on the table rotates its pins with it. A
-  module whose real header is on the other side or edge looks different from its photo; the
-  README lists which. If a source later shows a header's real side, that module's script moves
+  module whose real header is on the other side or edge looks different from its photo (the
+  HC-SR501's); the README lists which. If a source later shows a header's real side, that module's script moves
   its header and its `axes` entry, and nothing else changes.
 
 ## ADR-0045 Two models come from Adafruit's STEP files; the others are drawn from their datasheets

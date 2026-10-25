@@ -300,15 +300,20 @@ body, which floats on its standoff, is 4.57 mm thick and `assets:check` expects 
 
 - *Origin.* The footprint's corner on the table: the model's lowest x, y and z are all 0 (checked
   to 0.05 mm). x runs along the header row, y across it, z up. A module with a header rests on its
-  pins' 1.5 mm tails; the keypad, servo and motor lie on the table.
+  pins' 1.5 mm tails, the HC-SR04 on its header's bent pins under its back and the HC-SR501 on the
+  capacitors and jumper under its board; the keypad, servo and motor lie on the table.
 - *Pins.* The module keeps its connector's layout: pin i is at pin 1 + `offsetPitch` * 2.54 mm
   (the relay's screw terminal block at its own 5 mm pitch), so the definition's offsets map straight
   onto the model. `assets:check` measures every pin's place relative to the first (0.05 mm) and the
   2.54 mm pitch of neighbouring header pins. The header pins are in the model, the plastic base and
   the metal pin in the node `pins`. `pin-<id>` is at the tip of each, +z up, where a female Dupont
   housing mates; the header is on the board's top face with its pins up whichever side the real
-  board's header is on, so that a housing can reach it. Three kinds differ, each listed in
-  `parts.ts` under `axes`:
+  board's header is on, so that a housing can reach it (the HC-SR501's real header points down from
+  its component side; the model stands it on the lens side's free end). Four kinds differ, each
+  listed in `parts.ts` under `axes`:
+  - the right-angle headers of the HC-SR04 (its base on the back) and the DHT11 breakout (its base
+    on top): the pins lie along -y out of the board's near edge, as on the boards, and so do the
+    empties' +z;
   - the relay's screw terminals `NC`, `COM` and `NO`: at the block's front face, +z along +y, out
     of the board's edge;
   - the keypad and the servo: the female housing at the end of a flat tail or a cable lies on the
@@ -316,12 +321,14 @@ body, which floats on its standoff, is 4.57 mm thick and `assets:check` expects 
   - the motor: two leads, each ending in a one-pin housing whose male pin sticks out along -y.
 - *Body.* A node `body` holds the board and what stands on it (the servo's case, the motor's can).
   `pins`, `cable` or `tail`, `connector` and the animated nodes are beside it. `bodyMm` describes
-  `body` (the servo's with its `horn`). The DHT11 breakout's `bodyMm` height is the sensor's 5.5 mm
-  thickness, which stands 15.5 mm tall on the board, so only its footprint is compared.
+  `body` (the servo's with its `horn`). The DHT11 breakout's sensor lies on its back on the board,
+  its top end `sensorOverhangApproxMm` past the far edge; the board's size is read off a photo, so
+  only its footprint, with the overhang, is compared. The HC-SR501 runs its 32 mm along y.
 - *Textures.* A board's solder-mask top carries its silkscreen legend as one KTX2 base-colour map
-  (UVs run over the board's outline). The DHT11's grille, the relay's case top and terminal face,
-  the keypad's keys, the LCD's screen and the housings' socket holes are small maps on panels of
-  their own. The ADS1115 also has the occlusion map baked from its STEP; no other module has one.
+  (UVs run over the board's outline). The HC-SR04's transducer meshes and the DHT11 breakout's
+  resistor code are drawn in that legend and mapped onto their tops from above. The relay's case top
+  and terminal face, the keypad's keys, the LCD's screen and the housings' socket holes are small
+  maps on panels of their own. The DHT11's vents are holes in its housing's front plate. The ADS1115 also has the occlusion map baked from its STEP; no other module has one.
 
 **Names the studio looks up** (all unique in a file):
 
@@ -330,13 +337,13 @@ body, which floats on its standoff, is 4.57 mm thick and `assets:check` expects 
 | the seven-segment displays | `seg-a` to `seg-g`, `seg-dp` | one mesh each; the four-digit display's are `seg-<d>-<a..g\|dp>`, d from 1 at the leftmost digit |
 | `bar-graph-10` | `bar-1` to `bar-10` | segment n is over pin n (LED n runs from pin n to pin 21 - n) |
 | `led-matrix-8x8` | `dot-<row>-<col>` | row 1 at the top (+y), column 1 at the left (-x), as the datasheet's top view |
-| `hc-sr501` | `lens` | the white dome |
+| `hc-sr501` | `lens` | the white Fresnel dome on its square base |
 | `relay-module-5v` | `lens`, `armature` | the indicator LED; the armature's pivot, hinged inside the case about core y |
 | `sg90` | `horn` | a pivot on the output shaft's axis; the horn's mesh is its child, at rest along x (1.5 ms) |
 | `dc-motor` | `rotor` | a pivot on the shaft's axis, turning about its own x axis; the shaft is its child |
 | `joystick-module` | `stick` | a pivot at the top of the thumbstick's base, for tilting |
 | `lcd1602-i2c` | `lcd-screen` | the character area, 56.2 x 11.5 mm (15 pitches and a character wide, a pitch and a character high, from the LCD-1602A datasheet), UVs 0 to 1 with glTF (0, 0) at the top left seen from above |
-| `dht11` | `grille` | the sensor's vents, a panel in front of the housing |
+| `dht11` | `grille` | the housing's perforated front plate, the vents |
 
 The animated and tilting nodes are empty pivots with a mesh child, not meshes: quantization moves a
 mesh node's origin to its bounding box's centre, which is not the axis of a horn, a shaft or a
@@ -354,4 +361,6 @@ licence text is in each manifest and the notice in each GLB's `asset.copyright`.
 are drawn in Blender from their datasheet drawings (Kingbright SA56-11EWA, CA56-12EWA and DC10EWA,
 Toplite TOP-CA-788BS, TI MPDI002C, Aosong DHT11, Elecfreaks HC-SR04, the LCD-1602A) or, where the
 definition's figures are approximate (the LAFVIN ADS7830, the power module, the relay module, the
-HC-SR501, the KY-023, the keypad, the SG90), from those figures. No unlicensed model is used.
+HC-SR501, the KY-023, the keypad, the SG90), from those figures. The DHT11 breakout, HC-SR04 and
+HC-SR501 also follow the product photographs their definitions list (component places, colours,
+legends). No unlicensed model is used and no photograph is in the repository.
