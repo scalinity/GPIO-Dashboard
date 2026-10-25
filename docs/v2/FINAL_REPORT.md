@@ -11,6 +11,10 @@ milestone's recorded exit suite say that instead.
 - Finished after every M12 lane had merged: the frame-rate lane (ADR-0127 to ADR-0131), the docs
   lane (the README rewrite that closes D16, and `docs/ARCHITECTURE.md`), and the fixes that followed
   them. The final acceptance run (appendix) ran at `21d1081` from 17:17 EDT on 2026-10-24.
+- Completed on 2026-10-25, before the merge (section 9): an independent review of the pull request
+  (GPT-6.1 Sol) and the fixes it led to (ADR-0132 to ADR-0135); the five Partly met items closed in
+  the Tauri window and on the real Pi, where a sixth defect showed (ADR-0136); the app icon
+  (ADR-0137). Statuses below are as of that round; the re-run of every suite is in the appendix.
 - The repository is public. No secret is in this report. The reference photos are not in the
   repository either (`docs/v2/reference/IMAGES.md` lists them by hash).
 
@@ -32,11 +36,11 @@ Tauri-window run.
 
 | | Result |
 |---|---|
-| SPEC 20 acceptance | 13 Met, 5 Partly met, 0 Not met (section 2) |
-| Partly met items | 9 (60 fps not shown in the Tauri window), 10 (real Pi), 12 (real Pi), 15 (look-dev gaps), 16 (README findings guarded by review) |
+| SPEC 20 acceptance | 18 Met, 0 Partly met, 0 Not met (section 2) |
+| Closed on 2026-10-25 | 9 (Tauri window), 10 and 12 (real Pi), 15 (look-dev retake), 16 (README tests); section 9 |
 | Defects | D1 to D18 closed: each with a named guard, D16 by the README rewrite and its review (section 4) |
-| Hardware work left for the user | 48 unticked items in `HIL_CHECKLIST.md` (section 5.1) |
-| Decisions recorded | 131 ADRs, ADR-0001 to ADR-0131, contiguous (section 6) |
+| Hardware work left for the user | 48 unticked items in `HIL_CHECKLIST.md`, each needing a built circuit or a Pi 5 GPIO library (section 5.1) |
+| Decisions recorded | 137 ADRs, ADR-0001 to ADR-0137, contiguous (section 6) |
 
 Test suites, re-run at `20b9ab8` for this report (commands and output in the appendix):
 
@@ -171,20 +175,20 @@ Labels e2e (`e2e/labels.spec.ts`) closed item 8's gap. Final acceptance run: app
 | 2 | Geometry and constants cited and tested | Met | A few assumptions recorded (below) |
 | 3 | Every tutorial: ERC, assertions, wiring text, code pins | Met | 26 tutorials; the LCD1602 is withheld |
 | 4 | D1 to D18 each guarded | Met | D16 is closed by review, as the item allows |
-| 5 | Assistant ghosts before input completes; fuzzed | Met | Ghosts not watched on a live stream in the Tauri window |
+| 5 | Assistant ghosts before input completes; fuzzed | Met | Watched live in the Tauri window on 2026-10-25 |
 | 6 | Parking-sensor eval ends ERC-clean | Met | Replay is a recording, not a new model call |
 | 7 | Undo of an assistant turn is deep-equal | Met | |
 | 8 | Hover in one frame; Labels, Voltages, Current | Met | Run in Chromium, not WKWebView |
-| 9 | WebGPU in the Tauri window, 60 fps, idle zero | Partly met | 60 fps not shown in the Tauri window since the M12 changes (session locked) |
-| 10 | Run on Pi works; ERC gates it | Partly met | Never run on a real Pi |
-| 11 | Secrets and safety | Met | The Settings key field not used with a real key in the real window |
-| 12 | Baseline suites green; features keep working | Partly met | Features proven against local sshd and mocks only |
+| 9 | WebGPU in the Tauri window, 60 fps, idle zero | Met | 60 fps on the four heaviest scenes in the Tauri window, 0 frames idle (2026-10-25) |
+| 10 | Run on Pi works; ERC gates it | Met | Run on the real Pi; the tutorials' own RPi.GPIO code needs a Pi 5 GPIO library that Pi's OS lacks |
+| 11 | Secrets and safety | Met | The real key read from the Keychain by the app (2026-10-25); the Settings field itself was not typed into |
+| 12 | Baseline suites green; features keep working | Met | Connect, deploy, telemetry, monitor, terminal, run and stop on the real Pi |
 | 13 | Cables physical in real time | Met | Tauri measurement is from M8 |
 | 14 | Assets reproducible | Met | |
-| 15 | Look fidelity (LOOKDEV.md) | Partly met | Two rows pass on data only; side-by-sides not committed |
-| 16 | Correctness audit complete | Partly met | README findings are guarded by review, not by tests |
+| 15 | Look fidelity (LOOKDEV.md) | Met | Retaken on the final render path; composites stay uncommitted by rule (vendor photos) |
+| 16 | Correctness audit complete | Met | Every README finding has a test (`readme.test.ts`) |
 | 17 | Wiring convention | Met | |
-| 18 | Board Sense | Met | Real-Pi behaviour is the user's to run |
+| 18 | Board Sense | Met | Run on the real Pi on 2026-10-25 (bare header; a built fixture is the user's) |
 
 ### Item 1. No lead or wire end outside a real hole or header pin
 
@@ -346,7 +350,8 @@ Assumed or unverified: all of this ran in Chromium, not WKWebView.
 
 ### Item 9. WebGPURenderer in the Tauri window, 60 fps, zero frames when static
 
-**Status: Partly met.** 60 fps on the heaviest scenes was not demonstrated in the Tauri window.
+**Status: Met (2026-10-25).** In the Tauri window the four heaviest scenes held 60 fps with physics awake
+and drew no frame while still (section 9). The text below is the record up to M12.
 
 What the repository shows:
 - Backend shown in the overlay: the dev overlay has a "renderer" row; `studio.spec.ts` "the dev
@@ -384,7 +389,10 @@ locked from M10 on, which hides the WKWebView, so the M12 numbers are headless. 
 
 ### Item 10. Run on Pi works for projects and tutorials; ERC errors block it unless overridden
 
-**Status: Partly met.**
+**Status: Met (2026-10-25)** on the real Pi through the app: the ERC gate, a project's upload, run,
+output and Stop, and a program driving a free pin (section 9). The tutorials' own programs were not
+run there: they import RPi.GPIO or gpiozero, which on that Pi's OS has no Pi 5 backend. The text
+below is the record up to M12.
 
 Evidence:
 - `state/runStore.test.ts` (6 tests) against a mocked native layer: uploads to
@@ -434,7 +442,9 @@ passed in the live suite. Section 5.3 covers adding the key.
 
 ### Item 12. Baseline suites stay green; connect, deploy, telemetry, pinout, monitor, terminal, run/stop keep working
 
-**Status: Partly met.**
+**Status: Met (2026-10-25).** Connect, deploy, telemetry, the twin, monitor, terminal, run and stop
+worked on the real Pi through the app's own UI and Rust side (section 9). The text below is the
+record up to M12.
 
 Evidence (all re-run today): `cargo test` 94 passed, 20 ignored; `live-tests.sh` 19 passed;
 `node --test` 7 passed; `npm run lint` 0 errors (the baseline had 134, greened by ADR-0003);
@@ -491,7 +501,11 @@ Adafruit STEP files) and needs Blender 5.2.2 and KTX-Software 4.4.2.
 
 ### Item 15. Look fidelity
 
-**Status: Partly met.**
+**Status: Met (2026-10-25).** D1 and D4 pass on views (the Dupont models in Blender, the solved lead
+lengths in the Studio), the look was retaken on the final render path in the Tauri window, and R2's
+Pi end is shown to be hidden under the ribbon's loop from every preset (`LOOKDEV.md`). The
+composites stay uncommitted: the photos are vendor images in a public repository (SPEC 2.2). The
+text below is the record up to M12.
 
 Evidence: `LOOKDEV.md` has 30 checklist rows; 29 read "pass 2026-10-24" and one (D1, Dupont
 housings) passes for the housing only. The captures in `docs/v2/lookdev/` (10 PNGs) are the Tauri
@@ -512,7 +526,9 @@ Gaps:
 
 ### Item 16. Correctness audit
 
-**Status: Partly met.** The README findings are closed against the M12 rewrite but guarded by review, not by tests.
+**Status: Met (2026-10-25).** `readme.test.ts` holds every README finding (readme-1 to readme-27) to
+the code, and its first run caught two stale counts (section 9). Before that: the README findings
+were closed against the M12 rewrite but guarded by review, not by tests.
 
 Evidence:
 - `AUDIT.md` has 242 finding rows (sections for the 26 rebuilt tutorials, the pins, depictions,
@@ -848,6 +864,12 @@ heading count.
 - ADR-0129 The bloom is drawn only while something passes its threshold
 - ADR-0130 The strip index is shared across a drag, and live pins repaint only when one is painted
 - ADR-0131 Render bundles are not used, and where the frame goes now
+- ADR-0132 The assistant's import boundary is an allowlist over every import form and script type
+- ADR-0133 Run on Pi is gated on the simulated currents of the program's worst-case drive
+- ADR-0134 Board Sense puts each pin's bias back before releasing it
+- ADR-0135 A known host's key of another algorithm is a changed key
+- ADR-0136 The agent's start command backgrounds only nohup
+- ADR-0137 The app icon is rendered in Blender and shipped both as Icon Composer and as icns
 
 ## 7. Commands
 
@@ -894,24 +916,71 @@ All 46 committed GLBs were built by headless Blender scripts. The pipeline start
 asset's manifest records the script hashes, the Blender version and the source hashes. A clean
 rebuild reproduces the geometry hashes exactly (item 14).
 
-What the docs say about the Blender MCP server, in full:
-- `SPEC.md` 3.3 and 10.3 make it optional: use it to explore looks in a live Blender session, port
-  everything kept into the scripts, prove it with a clean headless rebuild, and never use its
-  downloaders for generated or third-party models.
-- `BASELINE.md` (pre-flight, 2026-10-23): an MCP server named `blender` was configured in the
-  coding session, its offline tools (bundled API and manual search) loaded, but
-  `get_objects_summary` returned "Cannot connect to Blender at localhost:9876". No live Blender was
-  attached, and its tool set (`execute_blender_code`, `get_blendfile_summary_*`,
-  `render_viewport_to_path`, `search_api_docs`) is not the ahujasid add-on's tool set that SPEC 3.3
-  names. `PROGRESS.md` (pre-flight, step 5) repeats this.
-- No later entry in `PROGRESS.md`, `DECISIONS.md`, `LOOKDEV.md`, `VERSIONS.md` or `AUDIT.md`, and no
-  commit message, mentions using it. The asset ADRs (ADR-0020 to ADR-0024, ADR-0029 to ADR-0032,
-  ADR-0037 to ADR-0041, ADR-0043 to ADR-0046, ADR-0065 to ADR-0067) describe script-built assets,
-  and `scripts/assets/` contains no MCP dependency.
+Up to M12 the Blender MCP server was configured but never used: no live Blender was attached
+("Cannot connect to Blender at localhost:9876"), and nothing the build depends on came from it.
 
-So the repository records no use of the Blender MCP server. It cannot show what the working
-sessions of the individual lanes did with their own tools, only that nothing the build depends on
-came from one.
+On 2026-10-25 it was used against a live Blender 5.2.2. The official Blender Lab add-on (the same
+repository as the MCP server) was installed as an extension, and Blender was started with
+`--online-mode`, because the add-on starts its server only when online access is allowed (for that
+session; the saved preference is unchanged). Through it:
+- **The app icon** was modelled, lit, rendered and composited (ADR-0137); the session's steps were then
+  written into `scripts/icon/app_icon.py`, whose headless run reproduces the icon.
+- **An independent check of the shipped models.** Blender's importer does not read KTX2 textures,
+  so geometry-only copies were made with the repo's gltf-transform (meshopt decoded, textures
+  dropped) and imported: `bb-830.glb` measures 165.10 x 54.60 x 8.51 mm (datasheet 165.1 x 54.6 x
+  8.5), `pi5.glb` 88.50 x 57.63 x 18.97 mm (the 85 x 56 mm board with its ports' overhang),
+  `tboard.glb` 72.03 x 58.50 x 21.30 mm (the 58.5 mm shroud; the 57.7 mm bar plus 58.1 mm of
+  stem), and the Dupont ends as `LOOKDEV.md` D1 records.
+None of its generators or downloaders was used.
+
+## 9. Completion round (2026-10-25)
+
+**The review.** Two GPT-6.1 Sol reviewers (NativePeers, read-only) checked the native side and the
+renderer against the safety invariants. Nine findings were fixed, each with a test that failed
+before its fix: Board Sense left probed pins with its last bias (ADR-0134); a known host offering
+another key type was trusted as new (ADR-0135; also in `main`); a project could be saved larger
+than it can be read; the assistant's import boundary missed `import()` and `.js` files
+(ADR-0132); Run on Pi ignored the simulated-current ERC errors, so a 10 Ω LED resistor would have
+run with GPIO17 near 34 mA (ADR-0133); two quick sends could unlock the document mid-turn; undoing
+an added custom part dropped an empty `customParts`; and a Stop during upload still started the
+program. Two findings were against a stricter wording than the spec: SPEC 11.6 allows the "Run
+anyway" override, and ADR-0124's three per build counts toggle checkpoints, not their runs. A
+second review of the fixes found three gaps in them, fixed the same way: the boundary's static
+imports were still a denylist (now an allowlist, ADR-0132), a Stop during the key check did not end
+the send, and a run stopped during its upload could resume Board Sense under a newer run. A third
+check of those found that a newer run whose pause failed left sensing paused for good (now the last
+run holding sensing resumes it), that Stop could not end a send whose key check never answered (it
+now races the abort), and that TypeScript import types slipped past the boundary; all fixed with
+tests that fail without them (cf1c5d4, 8f017a3, 5d1540b).
+
+**The Tauri window.** The real app (`tauri dev`) was driven by fixed scenario files that a scratch
+Vite plugin outside the repository loads after each page load: there is no route that accepts
+code. Item 9: the frame-rate drag of `e2e/frameRate.spec.ts` on four scenes, three rounds each, at
+load average 10 to 16, gave 60 fps every time (the webview's cap), `view.frame` 1.7 to 3.2 ms mean
+(p95 at most 3.8), and no frame in 3 s of stillness. The window reported `crossOriginIsolated`,
+`SharedArrayBuffer`, a WebGPU adapter and working IPC.
+
+**The real Pi** (`hil/2026-10-25-real-pi.md`): a Pi 5 on Kali Rolling with other services, its
+owner's GPIO17 in use. Connect, Deploy & Start Agent, telemetry through the tunnel, the twin, Board
+Sense, Run on Pi (gate, a print-only program, a program driving the free GPIO26), the terminal,
+system information and the I2C checkpoint all ran through the app. The first deploy showed a
+defect no local test could: the agent's start command lasted as long as the agent on the Pi's
+OpenSSH, so no token came back and telemetry was refused (ADR-0136); fixed, the deploy takes 6 s.
+I2C was enabled on the Pi at its owner's request. Not run there: the tutorials' own programs and
+the Toggle LED checkpoint, which import RPi.GPIO; that Pi's OS has only the pre-RP1 RPi.GPIO 0.7.1,
+and pip's lgpio does not build for its Python 3.14.
+
+**The assistant, live.** The API key was added to the login Keychain under the app's own service and
+account (`com.gpio-dashboard`, `anthropic.apiKey`), read from `.env` into the shell's memory and
+handed to `security` on stdin, so it never appeared in a process list or a log; the item trusts the
+app's binaries. In the Tauri window `settings_has_anthropic_key` answered true without a prompt,
+and one turn on `claude-opus-5-5` at high effort ("a red LED and a 220 ohm resistor from GPIO27")
+took 41 s: the ghosts of R1 and D1 appeared at 27.7 s while their input streamed, the turn committed
+two parts and two wires with no error, and Undo all returned the document deep-equal to before.
+
+**Open threads added.** The agent's log is scrubbed of the token with `sed -i`, which replaces the
+file; the running agent keeps writing to the old one, so `agent.log` shows nothing after the
+token. In `tauri dev` the Dock names the unbundled binary `gpio-dashboard` (ADR-0137).
 
 ## Appendix: the final acceptance run
 

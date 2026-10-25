@@ -302,3 +302,27 @@ M11 exit suite (2026-10-24, at fbae85e): `cargo test` 94 passed / 20 ignored; `l
 Final acceptance run (2026-10-24 17:17 EDT, at 21d1081): `cargo test` 94 passed / 20 ignored; `live-tests.sh` 19/19; `npm test` node 7/7 + Vitest 2321 passed / 2 skipped; pi-agent 58 OK; lint 0 errors; typecheck clean; e2e 102 passed / 3 skipped (FRAME_RATE opt-in, two real-Pi flows); evals replay as recorded; `assets:check -- --rebuild` passed (every geometry hash exact, SSIM 1.0000, 556 checks); `npm run build` .app and .dmg (19.45 MiB).
 
 `docs/v2/FINAL_REPORT.md` finished (ac057fb): SPEC 20 — 13 Met, 5 Partly met (9 Tauri-window 60 fps, 10 and 12 real Pi, 15 look-dev gaps, 16 README findings guarded by review), 0 Not met; 131 ADRs. README rows for the frame rate updated (04fca8b). PR to main opened, not merged.
+
+## Completion round before the merge — done (2026-10-25)
+
+| Lane | Model | Scope | Status |
+|------|-------|-------|--------|
+| Review (native, renderer) | GPT-6.1 Sol, read-only (NativePeers) | PR #1 against the safety invariants | 10 findings: 8 fixed, 2 against a stricter wording than SPEC 11.6 and ADR-0124 |
+| Native fixes | Sonnet, worktree | Board Sense bias, host-key algorithm, project size | **merged** (14ffb98, 2a9e54d, ba52a86; ADR-0134, 0135) |
+| Renderer fixes | Sonnet, worktree | import boundary, sim-current Run gate, send lock, custom-part undo, Stop during upload | **merged** (c16e0aa…32e56f1; ADR-0132, 0133) |
+| README tests | Sonnet, in place | criterion 16 | **merged** (7f7271b): `readme.test.ts`, one test per audit row; caught 126→131 ADRs and 9→11 e2e files |
+| Fix review | GPT-6.1 Sol | the nine fix commits | 3 gaps, fixed by the integrator (6d59b38, f6780a6, 4065c34) |
+| Fix review 3 | GPT-6.1 Sol | those three | 2 major and 2 minor: fixed (cf1c5d4, 8f017a3, 5d1540b); `.mts`/`.cts` left out, as the repo has none |
+
+Integrator work, in the Tauri window and on the real Pi (`hil/2026-10-25-real-pi.md`):
+- Item 9: 60 fps on four scenes, three rounds, in the Tauri window at load 10 to 16; 0 frames idle.
+- Real Pi (Kali, Pi 5): connect, deploy, telemetry, twin, Board Sense, Run on Pi (gate, print-only,
+  GPIO26 drive), terminal, system information, I2C checkpoint. The first deploy timed out on the
+  Pi's OpenSSH: the agent start backgrounded a subshell holding the channel (75bad7e, ADR-0136).
+  I2C enabled on the Pi at the owner's request.
+- Assistant live in the window with the real key from the Keychain: ghosts during the stream, Undo
+  all deep-equal.
+- Look-dev: D1 via the Blender MCP (Dupont models), D4 in the Studio (37 leads within 0.49 mm of
+  165 mm), retakes on the final render path; R2's Pi end is hidden under the ribbon's loop.
+- Blender MCP: the official add-on installed and used against a live Blender (`--online-mode`) for
+  the app icon (f47aefe, ADR-0137; `scripts/icon/app_icon.py`) and an independent check of the GLBs.

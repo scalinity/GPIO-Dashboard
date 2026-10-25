@@ -3545,3 +3545,94 @@ declare it.
   all the Dupont tubes (it would save 37 draws and uploads, and would need per-vertex colour, the
   taut tint and the flow overlay on a shared geometry); skipping the refit of a sleeping lead whose
   ends have not moved (it saves nothing in a board drag, where every lead is awake).
+
+## ADR-0132 The assistant's import boundary is an allowlist over every import form and script type
+
+- **Context.** SPEC 4.5 limits assistant/ to core/, native/anthropic and the AssistantContext the
+  Claude panel injects. The lint rule matched only `*.{ts,tsx}`, and ESLint's `no-restricted-imports`
+  does not see `import()`. An independent review showed `await import('../native/ssh')` in a `.ts`
+  file and `export * from '../native/ssh'` in a `.js` file both passed lint and the boundary test.
+- **Decision.** The assistant/ block applies to `js, jsx, mjs, cjs, ts, tsx`. A local rule,
+  `assistant-boundary/imports`, resolves the specifier of every import declaration, export-from,
+  export-all and `import()` against the importing file, and allows only paths inside assistant/,
+  core/ or native/anthropic, and packages other than React, three, @react-three and @tauri-apps.
+  A second review showed the first version, which checked only `import()`, still let a static
+  import reach data/ or content/; a list of denied directories cannot cover what it does not name.
+  An `import()` specifier that is not a plain string literal cannot be checked and is rejected.
+- **Consequences.** `boundaries.test.ts` runs static imports, re-exports and dynamic imports through
+  every file type, TypeScript import types (`import('…').T`, a third review's finding) through
+  `.ts` and `.tsx`, and the reviewers' probes through ESLint. Not covered: `import.meta.glob`,
+  `require`, and `.mts` or `.cts` files, which the lint configuration does not read at all and the
+  repository does not have; core/ and physics/ keep the same blind spot for `import()`.
+
+## ADR-0133 Run on Pi is gated on the simulated currents of the program's worst-case drive
+
+- **Context.** SPEC 11.6 blocks Run on Pi on ERC errors unless the user overrides. PIN_OVERCURRENT,
+  RAIL_BUDGET and the current check of LED_NO_LIMIT are ERC errors computed from a simulation, and
+  `runOnPi` passed only the static ERC. The Blinking LED with R1 at 10 Ω uploaded and ran with
+  GPIO17 near 34 mA, over the 16 mA a pin may supply.
+- **Decision.** `driveChecks` simulates the document with every output or PWM pin the code sets up
+  driven HIGH, then all driven LOW, each in a fresh session, and keeps one issue per code and refs.
+  `runOnPi` adds them to the ERC issues, so the existing dialog lists and blocks them. A simulation
+  that fails adds none. "Run anyway" is unchanged.
+- **Consequences.** A click costs two small simulations on the main thread. Mixed levels (one pin
+  high into another driven low) are not simulated, and pins the code reader cannot resolve are not
+  driven. Checked on the real Pi: the 10 Ω case is blocked with PIN_OVERCURRENT on GPIO17 and
+  LED_NO_LIMIT on D1.
+
+## ADR-0134 Board Sense puts each pin's bias back before releasing it
+
+- **Context.** Releasing a libgpiod request keeps the last bias applied, so Board Sense left every
+  pin it had probed with the bias of its last step: a pin that was pull-up could end pull-down. The
+  test fake hid this by clearing a pin's bias on release.
+- **Decision.** Each sweep records the pull pinctrl reports for the pins it will claim. Before any
+  release (the end of a sweep, pause, stop, an error, and the per-pin trial requests when the kernel
+  refuses the batch) the held lines are reconfigured to those biases, still as inputs, and then
+  released, even if the restore fails. A pin whose pull pinctrl does not report is skipped with that
+  reason. Direction is not restored: only inputs and unconfigured pins are probed, and libgpiod has
+  no setting that returns a pin to unconfigured.
+- **Consequences.** On the real Pi a sweep of 23 pins left every one with the pull it had before
+  (pull-up on GPIO4 to GPIO8, pull-down on the rest); they read as inputs instead of unconfigured,
+  which is electrically the same. Pause and stop do one more reconfigure before the release.
+
+## ADR-0135 A known host's key of another algorithm is a changed key
+
+- **Context.** russh 0.64's `check_known_hosts_path` returns `Ok(false)` both for a host with no
+  entry and for one whose recorded keys are all of another algorithm. `verify_host_key` read every
+  `Ok(false)` as a new host and recorded the key, so a server presenting another key type was trusted
+  without a warning. This was in `main` before v2.
+- **Decision.** On `Ok(false)` the app reads the keys on file for that host and port. If there are
+  any, the presented key is refused with the same changed-key error as a mismatch of one algorithm,
+  and `known_hosts` is not modified. Only a host and port with no entry is learned on first use.
+- **Consequences.** A Pi that moves to another host-key type is refused until its old line is
+  deleted, as after a reinstall. Another port of the same host is still a new host.
+
+## ADR-0136 The agent's start command backgrounds only nohup
+
+- **Context.** `cd dir && nohup python3 agent.py > agent.log 2>&1 &` backgrounds the whole list in a
+  subshell that keeps the SSH channel's stdout and stderr open while the agent runs. On the Pi's
+  OpenSSH the exec then lasted as long as the agent: `agent_start` hit its 30 s timeout, returned no
+  token, and the telemetry socket connected without auth and was dropped every 5 s. macOS's sshd
+  returns at once, so the live test against the local sshd passed, and the bug showed only on the
+  first deploy to a real Pi.
+- **Decision.** `cd dir && { nohup … > agent.log 2>&1 < /dev/null & }`: only nohup goes to the
+  background, with every stream redirected.
+- **Consequences.** On the Pi the start command returns in 0.2 s and Deploy & Start Agent takes 6 s
+  instead of 53 s. A unit test holds the command's shape, with its reason, since the local sshd
+  cannot show the hang.
+
+## ADR-0137 The app icon is rendered in Blender and shipped both as Icon Composer and as icns
+
+- **Context.** The bundle still carried Electron's atom logo from before the move to Tauri, and the
+  Dock showed it. macOS 26 and later draw an app's icon from an Icon Composer asset named by
+  `CFBundleIconName`, and frame a legacy icns that does not provide one.
+- **Decision.** `scripts/icon/app_icon.py` models a breadboard with a lit green LED and a jumper,
+  renders it with Cycles, and composites it onto an 824 px superellipse on Apple's 1024 px grid with
+  a drop shadow and the LED's bloom, plus a foreground-only layer. `tauri icon` makes the PNGs, icns
+  and ico from the full render; `src-tauri/icons/AppIcon.icon` holds the layer and a fill, actool
+  compiles it to `Assets.car`, `bundle.macOS.files` copies that into Resources, and `src-tauri/
+  Info.plist` sets `CFBundleIconName`. Earlier macOS keeps `CFBundleIconFile` (icon.icns).
+- **Consequences.** Rebuilding the icon needs Blender and Xcode's actool; both steps are in the
+  script's header. Nothing in it comes from an external model, texture or HDRI. In `tauri dev` the
+  Dock labels the unbundled binary by its file name, `gpio-dashboard`; the bundle shows "GPIO
+  Dashboard" from `CFBundleName`.

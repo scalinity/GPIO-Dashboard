@@ -5,6 +5,10 @@ anything that drives or probes a pin, Board Sense, or a physical build (SPEC 18)
 says what to do, what to expect, and which part of the app it confirms. Record results in
 `docs/v2/hil/` (date, Pi OS version, outcome).
 
+Run on the real Pi on 2026-10-25: [`hil/2026-10-25-real-pi.md`](hil/2026-10-25-real-pi.md). Items it
+completed are ticked; everything that needs a built circuit, or a Pi 5 GPIO library the Pi's OS
+lacks, remains.
+
 ## Bench geometry
 
 - [ ] **3V3 (pin 1) is in column d.** Seat the T-board as the app shows (pin 1 in row 1,
@@ -25,19 +29,23 @@ says what to do, what to expect, and which part of the app it confirms. Record r
 
 ## Pi agent and monitor
 
-- [ ] **The agent installs and has the libgpiod 2 binding.** Press **Deploy agent** in the
+- [x] **The agent installs and has the libgpiod 2 binding.** Press **Deploy agent** in the
   dashboard. The install log should end with "Installation complete!". On Bookworm it should
   also say "apt's gpiod binding is 1.x; installing gpiod 2 into …/venv" with no warning after
   it; on Trixie it should say neither. Then on the Pi, `cd ~/gpio-dashboard-agent` and run
   `$([ -x venv/bin/python3 ] && echo venv/bin/python3 || echo python3) -c 'import gpiod;
   print(gpiod.__version__)'`; it should print 2.x. Record the OS release and that version
   (SPEC 14.5 asks for the binding version).
-- [ ] **Output pins appear in the Live Monitor.** Run any tutorial that drives an LED (Blinking
+  Done 2026-10-25 on Kali Rolling: apt's gpiod 2.2.0, no venv needed (`hil/2026-10-25-real-pi.md`).
+- [x] **Output pins appear in the Live Monitor.** Run any tutorial that drives an LED (Blinking
   LED). The Monitor should list GPIO17 as an output, with its level changing. Confirms the
   `pinctrl` parser fix for output lines (`op dh pd | hi`).
-- [ ] **gpiod enrichment finds the header chip.** With the agent running, a claimed line (for
+  Done 2026-10-25 with a libgpiod program on GPIO26 (telemetry saw OUT HIGH and LOW); the Blinking
+  LED's own program cannot drive pins on that Pi's OS (`hil/2026-10-25-real-pi.md`).
+- [x] **gpiod enrichment finds the header chip.** With the agent running, a claimed line (for
   example GPIO17 while a script holds it) shows its consumer name in the Monitor. Confirms that
   `_detect_chip` finds `pinctrl-rp1` by label on the installed kernel.
+  Done 2026-10-25: GPIO17, held by another service, shows consumer `lg`.
 - [ ] **System Info shows real values.** Temperature, memory, disk and uptime are filled in
   (not 0.0 °C, "--" or "NaNm").
 
@@ -49,8 +57,9 @@ says what to do, what to expect, and which part of the app it confirms. Record r
 - [ ] **Stop returns the program's pins to inputs.** After Stop, `pinctrl get 17` on the Pi
   shows `ip pn`. Confirms that `pinctrl set` runs without `sudo` for the app's user. If it
   needs root, the cleanup command must change.
-- [ ] **ERC errors block a run.** Open a document with a SHORT_SUPPLY error (in the Workbench,
+- [x] **ERC errors block a run.** Open a document with a SHORT_SUPPLY error (in the Workbench,
   wire 3V3 to GND). Run on Pi shows the override dialog and does nothing until "Run anyway".
+  Done 2026-10-25 with the simulated-current errors (R1 at 10 Ω: PIN_OVERCURRENT, LED_NO_LIMIT).
 
 ## Tutorials whose numbers come from stand-in datasheets
 
@@ -352,6 +361,12 @@ before that step.
   button.
 
 ### Studio frame rate in the app window (M12)
+
+Done 2026-10-25 in the Tauri window (WKWebView, WebGPU, 1168 x 734 at a pixel ratio of 2), with
+`e2e/frameRate.spec.ts`'s drag run inside the window at load average 10 to 16: four-digit
+seven-segment, LED dot matrix, shift register and Blinking LED each held 60 fps in all three
+rounds, `view.frame` 1.7 to 3.2 ms mean (p95 at most 3.8), and drew no frame in 3 s of stillness
+(`FINAL_REPORT.md`, item 9). The steps below remain for a run by hand.
 
 SPEC 10.8 and acceptance 9 ask for at least 60 fps on the tutorial scenes with physics awake and the
 full post stack. The webview caps at 60. Use `npm run dev` (the Tauri window); the screen must be

@@ -19,6 +19,14 @@ the Tauri window's own, 900 px wide, with the dev overlay hidden. `pi-top.png` (
 product brief's photograph) and `bench-iso.png` (the whole default bench) are in `lookdev/` too.
 Colours quoted are sRGB means over a patch of the capture, against the same patch of the photo.
 
+Retake of 2026-10-25 on the final render path (after ADR-0082 and ADR-0127 to ADR-0131), in the
+Tauri window at 1168 x 734 points: `bench-iso-2026-10-25.png` (the 4-Digit 7-Segment bench, iso
+preset) and `lead-focus-2026-10-25.png` (a lead's housing at the T-board, camera on the lead). Read
+against photos 1 and 3 they hold every row above: the red mask with dull tin pad cones, the yellow
+spacers, the grey shroud with the socket seated, vertical black housings, the ribbon's broad arch.
+The comparison is made by reading the capture and the photo side by side; the photos stay where they
+are and no composite is committed, because they are vendor images in a public repository (SPEC 2.2).
+
 ## Side-by-sides
 
 | Pair | Reference photo | Studio camera | Screenshot | Status |
@@ -58,7 +66,7 @@ Colours quoted are sRGB means over a patch of the capture, against the same patc
 | # | Check | Pass when | Status |
 |---|-------|-----------|--------|
 | R1 | Colour order | Brown, red, orange, yellow, green, blue, violet, grey, white, black, four times over; conductor 1 is brown (`ribbon.json`) | pass 2026-10-24: read in the render, and by `assets:check` |
-| R2 | Pin-1 edge | The brown conductor is on the socket's pin-1 side (by its triangle), and at the Pi it is on the edge away from the USB and Ethernet ports (SPEC 2.2, 6.4) | pass 2026-10-24 at the T-board in the render (the brown edge is by the socket's pin-1 triangle); at the Pi the edge away from the Ethernet and USB ports follows from ADR-0049's placement and was not re-read in a capture; the real cable is HIL (`HIL_CHECKLIST.md`) |
+| R2 | Pin-1 edge | The brown conductor is on the socket's pin-1 side (by its triangle), and at the Pi it is on the edge away from the USB and Ethernet ports (SPEC 2.2, 6.4) | pass 2026-10-24 at the T-board in the render (the brown edge is by the socket's pin-1 triangle); at the Pi the edge away from the Ethernet and USB ports follows from ADR-0049's placement; on 2026-10-25 the Pi's socket sits under the ribbon's rising loop (ADR-0050) from every camera preset, so it cannot be re-read in a capture, and the real cable is HIL (`HIL_CHECKLIST.md`) |
 | R3 | Sockets | Grey like the box header, with the strain-relief bar over the cable, the polarization bump, and the pin-1 triangle | pass 2026-10-24: grey, strain-relief bar, pin-1 triangle. The polarization bump now stands in the shroud's key slot (ADR-0065), so a seated socket hides it |
 | R4 | Surface and drape | Slightly glossy PVC with visible conductor ridges; 50.8 mm wide; bends only out of its plane, as a broad smooth sheet | pass 2026-10-24: surface and width as before; the drape is the solver's, `lookdev/ribbon-drape.png` (a new bench project, looking along the board at the Pi), against photo 1. Like photo 1's, the ribbon leaves the T-board's socket in one broad, smooth arch, a flat sheet bent only about its width, with no kink or twist; at the solver's earlier stiffness it folded into a tight U beside the Pi (ADR-0079). The arch ends differently because the sockets differ: photo 1's far socket stands free above the board and the cable loops back over it, while the bench's is seated on the Pi, so the ribbon comes down into it |
 
@@ -77,10 +85,10 @@ Colours quoted are sRGB means over a patch of the capture, against the same patc
 
 | # | Check | Pass when | Status |
 |---|-------|-----------|--------|
-| D1 | Housings | Black, 2.54 mm square in section and about 12 mm long; male pins silver with about 5.5 mm exposed; the female end open (`dupont.json`) | housing pass 2026-10-24; the male pin and the female mouth are not visible in a Studio view (a male stands in its hole, no female end is on the bench without a module), so they pass on `assets:check`'s measurement only |
+| D1 | Housings | Black, 2.54 mm square in section and about 12 mm long; male pins silver with about 5.5 mm exposed; the female end open (`dupont.json`) | pass 2026-10-25: housings as 2026-10-24. A seated end hides its pin and mouth by design, so the models were opened in Blender through the Blender MCP (geometry-only copies, `lookdev/dupont-ends-blender.png`): the male end is 2.54 x 2.54 x 17.5 mm, a 12 mm housing and 5.5 mm of exposed pin in a metallic tin (0.638, 0.638, 0.604); the female end is the 12 mm housing with its open mouth |
 | D2 | Wire | Satin PVC about 1.0 mm across; a bundle's colours in the order brown … black | pass 2026-10-24: the colours are the document's, shown brown to black in `dupont.png` |
 | D3 | Drape | A male housing in a hole stands vertical, and the lead leaves it upward and arcs naturally (SPEC 10.5) | pass 2026-10-24: `lookdev/dupont-drape.png` (the 4-Digit 7-Segment circuit as a project, iso camera, the solver's shapes). Every male housing stands vertical in its hole and its lead leaves it straight up, then arcs smoothly over the board to its other end; none sags off the board's edge onto the table, as all of them did before (ADR-0078). As in photo 3, the wire runs straight out of the housing along its axis for a few centimetres before it curves, with no kink at the strain relief. Not modelled: a real lead keeps a set where a hand has bent it, so a builder's dense circuit can be dressed lower and flatter than these elastic leads, which each stand at their own stiffness (10 N mm^2, ADR-0079) |
-| D4 | Length | 200 mm leads | pass 2026-10-24 on data: `dupont.json` lists 200 mm; no Studio view measures a lead's length |
+| D4 | Length | 200 mm leads | pass 2026-10-25 in the Studio: on the 4-Digit 7-Segment build in the Tauri window, all 37 leads resolve to 200 mm stock and a 165 mm wire (`leadReach`), and the solver's chains measure within 0.49 mm of 165 mm |
 
 ### Raspberry Pi 5 (official imagery)
 

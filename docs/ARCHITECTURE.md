@@ -380,11 +380,10 @@ The SSH password is a different case, kept as it was before v2: it is stored in 
   and `ssh`. The pages kept from version 1 call `window.api` directly.
 - **More workers than the plan names:** five simulation channels and a second Pyodide worker, for
   the assistant, Build Mode, the live twin and the checkpoints (ADR-0095, 0112, 0121, 0125).
-- **Open and unverified.** What the Pi and the bench must confirm is in
-  [`docs/v2/HIL_CHECKLIST.md`](v2/HIL_CHECKLIST.md); the frame rate on the heaviest tutorial under
-  physics, measured at 55 to 58 fps in the Tauri window before the M12 changes (ADR-0127 to
-  ADR-0131) and not yet measured there since, is recorded in [`docs/v2/PROGRESS.md`](v2/PROGRESS.md)
-  (M8, M12).
+- **Open and unverified.** What only a built circuit on the bench can confirm is in
+  [`docs/v2/HIL_CHECKLIST.md`](v2/HIL_CHECKLIST.md). The frame rate on the heaviest tutorials under
+  physics holds the Tauri window's 60 Hz cap after the M12 changes (ADR-0127 to ADR-0131), with no
+  frames drawn while still; the runs are in [`docs/v2/FINAL_REPORT.md`](v2/FINAL_REPORT.md), item 9.
 
 ## Decision index
 
