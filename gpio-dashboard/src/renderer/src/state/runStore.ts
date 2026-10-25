@@ -32,6 +32,9 @@ interface RunState {
 
 const MAX_LINES = 1000
 
+/** Bumped by every run and every Stop, so a run can tell that a Stop came after it began. */
+let latest = 0
+
 export const useRun = create<RunState>((set, get) => ({
   status: 'idle',
   filename: null,
@@ -58,6 +61,7 @@ export const useRun = create<RunState>((set, get) => ({
           .map((u) => u.bcm)
       )
     ]
+    const mine = (latest += 1)
     set({ blocked: null, status: 'deploying', filename: null, pins, output: [] })
     // Board Sense holds GPIO lines during a sweep; the program needs them (SPEC 14.5).
     if (!(await useSense.getState().pauseForRun())) {
@@ -69,9 +73,12 @@ export const useRun = create<RunState>((set, get) => ({
       return
     }
     try {
+      // A Stop that lands during the pause or the upload ends this run before the program starts.
+      if (mine !== latest) return
       const filename = scriptName(projectId)
       set({ filename })
       await uploadScript(filename, source)
+      if (mine !== latest) return
       set({ status: 'running' })
       await runScript(filename)
       set({ status: 'done' })
@@ -86,6 +93,7 @@ export const useRun = create<RunState>((set, get) => ({
     set({ blocked: null })
   },
   async stop() {
+    latest += 1
     const { filename, pins } = get()
     if (filename) await killScript(filename)
     // A killed program never runs its own cleanup; return its pins to unpulled inputs.

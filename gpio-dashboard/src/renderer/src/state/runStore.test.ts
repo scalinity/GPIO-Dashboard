@@ -1,6 +1,6 @@
 // Run on Pi is project-level and ERC-gated (SPEC 14.3; the run part of D14), against a mocked
 // native layer.
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TUTORIALS } from '../core/defs/tutorials'
 import type { Issue } from '../core/erc/erc'
 import type { CircuitDoc } from '../core/model/types'
@@ -9,6 +9,9 @@ import { useSense } from './senseStore'
 
 const calls: unknown[][] = []
 let pauseAck = true
+/** While set, the upload or the Board Sense pause waits for it (a slow link, a slow agent). */
+let uploadGate: Promise<void> | null
+let pauseGate: Promise<void> | null
 const error: Issue = {
   code: 'SHORT_SUPPLY',
   severity: 'error',
@@ -20,18 +23,28 @@ const error: Issue = {
 beforeEach(() => {
   calls.length = 0
   pauseAck = true
+  uploadGate = null
+  pauseGate = null
   useSense.setState({ mode: 'off' })
-  useRun.setState({ status: 'idle', filename: null, output: [], blocked: null })
+  useRun.setState({ status: 'idle', filename: null, pins: [], output: [], blocked: null })
   ;(globalThis as { window?: unknown }).window = {
     api: {
       ssh: {
-        scpBuffer: async (...args: unknown[]) => (calls.push(['scp', ...args]), { success: true }),
+        scpBuffer: async (...args: unknown[]) => {
+          calls.push(['scp', ...args])
+          await uploadGate
+          return { success: true }
+        },
         runTutorialScript: async (...args: unknown[]) => (calls.push(['run', ...args]), {}),
         killProcess: async (...args: unknown[]) => (calls.push(['kill', ...args]), {}),
         gpioCleanup: async (...args: unknown[]) => (calls.push(['cleanup', ...args]), {})
       },
       sense: {
-        pause: async () => (calls.push(['sense_pause']), { paused: pauseAck }),
+        pause: async () => {
+          calls.push(['sense_pause'])
+          await pauseGate
+          return { paused: pauseAck }
+        },
         resume: async () => (calls.push(['sense_resume']), { success: true })
       }
     }
@@ -66,6 +79,41 @@ describe('Run on Pi', () => {
       ['kill', 'project_p1.py'],
       ['cleanup', [17, 22, 27]]
     ])
+  })
+
+  const program = 'import RPi.GPIO as GPIO\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(17, GPIO.OUT)\n'
+
+  it('does not start a program whose upload was still pending when Stop was pressed', async () => {
+    let finishUpload!: () => void
+    uploadGate = new Promise<void>((resolve) => (finishUpload = resolve))
+    const running = useRun.getState().run('p1', program, [])
+    await vi.waitUntil(() => calls.length === 1)
+    await useRun.getState().stop()
+    finishUpload()
+    await running
+    expect(calls.map((c) => c[0])).toEqual(['scp', 'kill', 'cleanup'])
+    expect(useRun.getState().status).toBe('done')
+  })
+
+  it('does not upload or start a program when Stop was pressed during the Board Sense pause', async () => {
+    useSense.setState({ mode: 'pi' })
+    let finishPause!: () => void
+    pauseGate = new Promise<void>((resolve) => (finishPause = resolve))
+    const running = useRun.getState().run('p1', program, [])
+    await vi.waitUntil(() => calls.length === 1)
+    await useRun.getState().stop()
+    finishPause()
+    await running
+    // Sensing was paused for this run, so it is resumed even though the run never started.
+    expect(calls.map((c) => c[0])).toEqual(['sense_pause', 'cleanup', 'sense_resume'])
+    expect(useRun.getState().status).toBe('done')
+  })
+
+  it('still runs a program started after an earlier run was stopped', async () => {
+    await useRun.getState().stop()
+    await useRun.getState().run('p1', 'x', [])
+    expect(calls.map((c) => c[0])).toEqual(['scp', 'run'])
+    expect(useRun.getState().status).toBe('done')
   })
 
   it('refuses a project id that could escape the script directory', async () => {
