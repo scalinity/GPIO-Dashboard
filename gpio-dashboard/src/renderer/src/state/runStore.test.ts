@@ -11,6 +11,7 @@ const calls: unknown[][] = []
 let pauseAck = true
 /** While set, the upload or the Board Sense pause waits for it (a slow link, a slow agent). */
 let uploadGate: Promise<void> | null
+let runGate: Promise<void> | null = null
 let pauseGate: Promise<void> | null
 const error: Issue = {
   code: 'SHORT_SUPPLY',
@@ -24,6 +25,7 @@ beforeEach(() => {
   calls.length = 0
   pauseAck = true
   uploadGate = null
+  runGate = null
   pauseGate = null
   useSense.setState({ mode: 'off' })
   useRun.setState({ status: 'idle', filename: null, pins: [], output: [], blocked: null })
@@ -35,7 +37,11 @@ beforeEach(() => {
           await uploadGate
           return { success: true }
         },
-        runTutorialScript: async (...args: unknown[]) => (calls.push(['run', ...args]), {}),
+        runTutorialScript: async (...args: unknown[]) => {
+          calls.push(['run', ...args])
+          await runGate
+          return {}
+        },
         killProcess: async (...args: unknown[]) => (calls.push(['kill', ...args]), {}),
         gpioCleanup: async (...args: unknown[]) => (calls.push(['cleanup', ...args]), {})
       },
@@ -107,6 +113,27 @@ describe('Run on Pi', () => {
     // Sensing was paused for this run, so it is resumed even though the run never started.
     expect(calls.map((c) => c[0])).toEqual(['sense_pause', 'cleanup', 'sense_resume'])
     expect(useRun.getState().status).toBe('done')
+  })
+
+  it('leaves resuming Board Sense to a newer run when a stopped one finishes its upload', async () => {
+    useSense.setState({ mode: 'pi' })
+    let finishUpload!: () => void
+    uploadGate = new Promise<void>((resolve) => (finishUpload = resolve))
+    const first = useRun.getState().run('p1', program, [])
+    await vi.waitUntil(() => calls.some((c) => c[0] === 'scp'))
+    await useRun.getState().stop()
+    uploadGate = null
+    let finishSecond!: () => void
+    runGate = new Promise<void>((resolve) => (finishSecond = resolve))
+    const second = useRun.getState().run('p2', 'x', [])
+    await vi.waitUntil(() => calls.some((c) => c[0] === 'run'))
+    finishUpload()
+    await first
+    // The second program is running: sensing stays paused for it.
+    expect(calls.map((c) => c[0])).not.toContain('sense_resume')
+    finishSecond()
+    await second
+    expect(calls.map((c) => c[0]).filter((c) => c === 'sense_resume')).toHaveLength(1)
   })
 
   it('still runs a program started after an earlier run was stopped', async () => {
