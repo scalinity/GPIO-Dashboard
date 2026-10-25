@@ -313,6 +313,7 @@ Final acceptance run (2026-10-24 17:17 EDT, at 21d1081): `cargo test` 94 passed 
 | README tests | Sonnet, in place | criterion 16 | **merged** (7f7271b): `readme.test.ts`, one test per audit row; caught 126→131 ADRs and 9→11 e2e files |
 | Fix review | GPT-6.1 Sol | the nine fix commits | 3 gaps, fixed by the integrator (6d59b38, f6780a6, 4065c34) |
 | Fix review 3 | GPT-6.1 Sol | those three | 2 major and 2 minor: fixed (cf1c5d4, 8f017a3, 5d1540b); `.mts`/`.cts` left out, as the repo has none |
+| Fix review 4 | GPT-6.1 Sol | those three | 1 major (the Board Sense hold taken after the pause): fixed (dcc3e20); the review loop stops here, a narrower pre-existing IPC-ordering race recorded as an open thread |
 
 Integrator work, in the Tauri window and on the real Pi (`hil/2026-10-25-real-pi.md`):
 - Item 9: 60 fps on four scenes, three rounds, in the Tauri window at load 10 to 16; 0 frames idle.

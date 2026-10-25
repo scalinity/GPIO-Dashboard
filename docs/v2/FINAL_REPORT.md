@@ -951,7 +951,11 @@ the send, and a run stopped during its upload could resume Board Sense under a n
 check of those found that a newer run whose pause failed left sensing paused for good (now the last
 run holding sensing resumes it), that Stop could not end a send whose key check never answered (it
 now races the abort), and that TypeScript import types slipped past the boundary; all fixed with
-tests that fail without them (cf1c5d4, 8f017a3, 5d1540b).
+tests that fail without them (cf1c5d4, 8f017a3, 5d1540b). A fourth check found that counting the
+hold only once the pause was confirmed let a run ending meanwhile resume sensing under a newer run
+whose confirmation was still on its way; the hold is now taken before the pause, and a run whose
+pause is not confirmed gives it back like any other ending, so sensing is resumed after it too
+(dcc3e20).
 
 **The Tauri window.** The real app (`tauri dev`) was driven by fixed scenario files that a scratch
 Vite plugin outside the repository loads after each page load: there is no route that accepts
@@ -966,6 +970,8 @@ Sense, Run on Pi (gate, a print-only program, a program driving the free GPIO26)
 system information and the I2C checkpoint all ran through the app. The first deploy showed a
 defect no local test could: the agent's start command lasted as long as the agent on the Pi's
 OpenSSH, so no token came back and telemetry was refused (ADR-0136); fixed, the deploy takes 6 s.
+Quitting with Cmd+Q left the agent running on the Pi: macOS raises RunEvent::Exit there, never the
+ExitRequested the stop waited in; the stop now runs on Exit too, and the Pi is left with no agent.
 I2C was enabled on the Pi at its owner's request. Not run there: the tutorials' own programs and
 the Toggle LED checkpoint, which import RPi.GPIO; that Pi's OS has only the pre-RP1 RPi.GPIO 0.7.1,
 and pip's lgpio does not build for its Python 3.14.
@@ -980,7 +986,29 @@ two parts and two wires with no error, and Undo all returned the document deep-e
 
 **Open threads added.** The agent's log is scrubbed of the token with `sed -i`, which replaces the
 file; the running agent keeps writing to the old one, so `agent.log` shows nothing after the
-token. In `tauri dev` the Dock names the unbundled binary `gpio-dashboard` (ADR-0137).
+token. In `tauri dev` the Dock names the unbundled binary `gpio-dashboard` (ADR-0137). Tauri runs
+async commands concurrently, so a run started within milliseconds of another ending could have its
+`sense_pause` handled before the other's `sense_resume`; sending the sense commands one at a time,
+as the terminal's keystrokes are, would close that.
+
+## Appendix: the run before the merge (2026-10-25)
+
+Every suite from 5:54 PM EDT at 5d1540b, with the suites a later commit touched re-run at the
+merge head (dcc3e20 for the Board Sense hold, cebe145 for the quit): `cargo test`, Vitest and
+e2e again, and the release build.
+
+| Check | Result |
+|---|---|
+| `cargo test` | 98 passed, 0 failed, 20 ignored (the live tests); again at cebe145 |
+| `live-tests.sh` (local sshd) | 19 passed |
+| `npm test` | node 7/7; Vitest 2451 passed, 2 skipped (114 files), at cebe145 |
+| pi-agent (`unittest`, Python 3.14) | 64 OK |
+| `npm run lint` / `npm run typecheck` | 0 errors (35 prettier warnings in legacy JS) / clean |
+| e2e (Chromium, `E2E_PORT=5193`) | 102 passed, 3 skipped at 5d1540b; at cebe145 101 passed and one failed on a 5 s poll for the simulated LED at load average 17, then passed 18 of 18 (the file three times) on its own |
+| HIL e2e against the real Pi (`PI_HOST` set) | 6 passed: "ran the flows against 158.205.34.18" |
+| `npm run evals` (replay) | as recorded (the BMP280 web checks fail as recorded: web search is refused for the organization) |
+| `assets:check -- --rebuild` | passed: every geometry hash exact, SSIM 1.0000 |
+| `npm run build` at cebe145 | `GPIO Dashboard.app` 24.95 MiB, `GPIO Dashboard_1.0.0_aarch64.dmg` 22.05 MiB, with `Assets.car` and `CFBundleIconName`; installed as `/Applications/GPIO Dashboard.app`, whose Dock label reads "GPIO Dashboard" |
 
 ## Appendix: the final acceptance run
 
