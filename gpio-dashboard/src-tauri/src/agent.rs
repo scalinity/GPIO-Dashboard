@@ -123,12 +123,15 @@ pub async fn get_status(ssh: &Ssh) -> Result<Value, String> {
 
 /// The remote command that launches the agent from `dir`, with the venv install.sh makes
 /// when apt's gpiod binding is 1.x. The script is given by its full path so
-/// `stop_command` can find the process by that path.
+/// `stop_command` can find the process by that path. Only `nohup` goes to the background, with
+/// every stream redirected: backgrounding the whole `cd … && nohup …` list runs it in a subshell
+/// that holds the channel's output open, and on a Pi's OpenSSH the command then lasts as long as
+/// the agent does.
 pub(crate) fn start_command(dir: &str) -> String {
     let quoted_dir = shell_quote(dir);
     let script = shell_quote(&format!("{dir}/agent.py"));
     format!(
-        "cd {quoted_dir} && nohup $([ -x venv/bin/python3 ] && echo venv/bin/python3 || echo python3) {script} > agent.log 2>&1 &"
+        "cd {quoted_dir} && {{ nohup $([ -x venv/bin/python3 ] && echo venv/bin/python3 || echo python3) {script} > agent.log 2>&1 < /dev/null & }}"
     )
 }
 
@@ -159,6 +162,19 @@ mod tests {
         assert!(
             !stop.contains("/agent.py"),
             "the stop command must not contain the literal path"
+        );
+    }
+
+    #[test]
+    fn only_the_agent_goes_to_the_background_with_its_streams_redirected() {
+        let start = start_command("/home/pi/gpio-dashboard-agent");
+        assert!(
+            start.starts_with("cd '/home/pi/gpio-dashboard-agent' && { nohup "),
+            "{start}"
+        );
+        assert!(
+            start.ends_with("> agent.log 2>&1 < /dev/null & }"),
+            "{start}"
         );
     }
 
