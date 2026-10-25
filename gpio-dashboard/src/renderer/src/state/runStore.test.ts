@@ -136,6 +136,21 @@ describe('Run on Pi', () => {
     expect(calls.map((c) => c[0]).filter((c) => c === 'sense_resume')).toHaveLength(1)
   })
 
+  it('resumes Board Sense after a stopped run when the run after it could not pause sensing', async () => {
+    useSense.setState({ mode: 'pi' })
+    let finishUpload!: () => void
+    uploadGate = new Promise<void>((resolve) => (finishUpload = resolve))
+    const first = useRun.getState().run('p1', program, [])
+    await vi.waitUntil(() => calls.some((c) => c[0] === 'scp'))
+    await useRun.getState().stop()
+    uploadGate = null
+    pauseAck = false
+    await useRun.getState().run('p2', 'x', [])
+    finishUpload()
+    await first
+    expect(calls.map((c) => c[0]).filter((c) => c === 'sense_resume')).toHaveLength(1)
+  })
+
   it('still runs a program started after an earlier run was stopped', async () => {
     await useRun.getState().stop()
     await useRun.getState().run('p1', 'x', [])

@@ -34,8 +34,8 @@ const MAX_LINES = 1000
 
 /** Bumped by every run and every Stop, so a run can tell that a Stop came after it began. */
 let latest = 0
-/** Bumped by every run, so a run that a newer one followed leaves Board Sense to that one. */
-let newest = 0
+/** Runs that paused Board Sense and have not ended; the last of them to end resumes it. */
+let holders = 0
 
 export const useRun = create<RunState>((set, get) => ({
   status: 'idle',
@@ -64,7 +64,6 @@ export const useRun = create<RunState>((set, get) => ({
       )
     ]
     const mine = (latest += 1)
-    const ours = (newest += 1)
     set({ blocked: null, status: 'deploying', filename: null, pins, output: [] })
     // Board Sense holds GPIO lines during a sweep; the program needs them (SPEC 14.5).
     if (!(await useSense.getState().pauseForRun())) {
@@ -75,6 +74,7 @@ export const useRun = create<RunState>((set, get) => ({
       set({ status: 'error' })
       return
     }
+    holders += 1
     try {
       // A Stop that lands during the pause or the upload ends this run before the program starts.
       if (mine !== latest) return
@@ -89,8 +89,9 @@ export const useRun = create<RunState>((set, get) => ({
       get().addOutput({ stream: 'stderr', data: e instanceof Error ? e.message : String(e) })
       set({ status: 'error' })
     } finally {
-      // A newer run paused sensing for itself and resumes it when it ends.
-      if (ours === newest) await useSense.getState().resumeAfterRun()
+      // Another run may still be using the pins: the last one to end resumes sensing.
+      holders -= 1
+      if (holders === 0) await useSense.getState().resumeAfterRun()
     }
   },
   cancelBlocked() {
