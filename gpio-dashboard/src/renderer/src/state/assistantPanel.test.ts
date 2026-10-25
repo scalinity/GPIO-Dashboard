@@ -282,6 +282,23 @@ describe('a replayed turn through the store', () => {
     }
   })
 
+  it('a Stop during the key check ends the send: no request, and the document is left unlocked', async () => {
+    store.newConversation()
+    let resolveKey!: (value: boolean) => void
+    const served = scriptedFetch([{ blocks: [text('Done.')], stop: 'end_turn' }])
+    hold.hasKey = () => new Promise<boolean>((r) => (resolveKey = r))
+    hold.fetch = served.fetch
+    store.replaceFetchForDev(null)
+    const sent = store.send('first')
+    await vi.waitUntil(() => resolveKey !== undefined)
+    store.stop()
+    resolveKey(true)
+    await sent
+    expect(served.requests).toHaveLength(0)
+    expect(circuit.locked).toBe(false)
+    expect(store.useAssistant.getState().running).toBe(false)
+  })
+
   it('releases the claim when there is no key, so the next send is not refused', async () => {
     store.newConversation()
     hold.hasKey = async () => false

@@ -419,7 +419,9 @@ export async function send(text: string): Promise<void> {
   if (get().running) return
   // Claim the turn before the first await: `running` covers the key check, so a second send is
   // refused as one during a turn is, and the turn that locked the document is the one that unlocks.
+  // The controller exists from the claim too, so a Stop during the key check ends the send.
   set({ running: true })
+  const turn = (controller = new AbortController())
   let result: TurnResult | null = null
   try {
     if (!fetchOverride) {
@@ -441,15 +443,15 @@ export async function send(text: string): Promise<void> {
         return
       }
     }
+    if (turn.signal.aborted) return
     const s = session_()
-    controller = new AbortController()
     turnStart = circuit.getSnapshot()
     clearReview()
     useStudio.setState({ cue: null })
     push({ kind: 'user', id: itemId(), text: message })
     set({ thinking: true, draft: '' })
     const { model, effort } = get()
-    result = await s.runTurn(message, { onEvent, signal: controller.signal, model, effort })
+    result = await s.runTurn(message, { onEvent, signal: turn.signal, model, effort })
   } catch (e) {
     push({ kind: 'error', id: itemId(), text: e instanceof Error ? e.message : String(e) })
   } finally {
