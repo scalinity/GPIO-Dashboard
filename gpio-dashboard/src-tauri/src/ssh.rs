@@ -181,8 +181,17 @@ impl Utf8Stream {
     }
 }
 
-/// Trust on first use, like OpenSSH's `accept-new`: an unknown host's key is recorded in
-/// `known_hosts`, a known one must match, and a changed key is refused.
+fn changed_key_error(host: &str, port: u16, known_hosts: &Path, line: usize) -> String {
+    format!(
+        "The host key for {host}:{port} has changed since it was first saved ({}, line {line}). \
+         If that is expected, for example after reinstalling the Pi, delete that line and \
+         connect again; otherwise someone may be impersonating it.",
+        known_hosts.display()
+    )
+}
+
+/// Trust on first use, like OpenSSH's `accept-new`: a host:port with no entry in `known_hosts`
+/// has its key recorded, a known one must match, and a changed key is refused.
 fn verify_host_key(
     host: &str,
     port: u16,
@@ -194,14 +203,24 @@ fn verify_host_key(
     };
     match keys::check_known_hosts_path(host, port, key, known_hosts) {
         Ok(true) => Ok(()),
-        Ok(false) => keys::known_hosts::learn_known_hosts_path(host, port, key, known_hosts)
-            .map_err(|e| format!("Could not save the host key to {}: {e}", known_hosts.display())),
-        Err(keys::Error::KeyChanged { line }) => Err(format!(
-            "The host key for {host}:{port} has changed since it was first saved ({}, line {line}). \
-             If that is expected, for example after reinstalling the Pi, delete that line and \
-             connect again; otherwise someone may be impersonating it.",
-            known_hosts.display()
-        )),
+        // `false` also covers a key of another algorithm than the one on file, which is a changed
+        // key, not a new host.
+        Ok(false) => match keys::known_hosts::known_host_keys_path(host, port, known_hosts) {
+            Ok(on_file) => match on_file.first() {
+                Some((line, _)) => Err(changed_key_error(host, port, known_hosts, *line)),
+                None => keys::known_hosts::learn_known_hosts_path(host, port, key, known_hosts)
+                    .map_err(|e| {
+                        format!(
+                            "Could not save the host key to {}: {e}",
+                            known_hosts.display()
+                        )
+                    }),
+            },
+            Err(e) => Err(format!("Could not check {}: {e}", known_hosts.display())),
+        },
+        Err(keys::Error::KeyChanged { line }) => {
+            Err(changed_key_error(host, port, known_hosts, line))
+        }
         Err(e) => Err(format!("Could not check {}: {e}", known_hosts.display())),
     }
 }
@@ -825,5 +844,51 @@ mod tests {
         assert_eq!(shell_quote("plain"), "'plain'");
         assert_eq!(shell_quote("it's"), r"'it'\''s'");
         assert_eq!(shell_quote("a b; rm -rf /"), "'a b; rm -rf /'");
+    }
+
+    // Sample public keys from russh's and age's own tests: an Ed25519 key and an ECDSA P-256 key.
+    const ED25519: &str = "AAAAC3NzaC1lZDI1NTE5AAAAIJdD7y3aLq454yWBdwLWbieU1ebz9/cu7/QEXn9OIeZJ";
+    const ECDSA: &str = "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBHFliOyIZs1gxGF3fmDxFykQhE88wy6AKDGFBfn0R6ZuvRmENABZQa9+pj9hMki+LX0qDJbmHTiWDbYv/cmFt/Q=";
+
+    fn presented(key: &str) -> PublicKeyOrCertificate {
+        PublicKeyOrCertificate::PublicKey {
+            key: keys::parse_public_key_base64(key).unwrap(),
+            hash_alg: None,
+        }
+    }
+
+    fn temp_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("gpio-ssh-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        dir
+    }
+
+    #[test]
+    fn a_known_host_presenting_a_key_of_another_algorithm_is_refused() {
+        let dir = temp_dir("other-algorithm");
+        let known_hosts = dir.join("known_hosts");
+        verify_host_key("pi.local", 22, &known_hosts, &presented(ED25519)).unwrap();
+        verify_host_key("pi.local", 22, &known_hosts, &presented(ED25519)).unwrap();
+        let saved = std::fs::read_to_string(&known_hosts).unwrap();
+        assert!(saved.contains("pi.local ssh-ed25519 "), "{saved}");
+
+        let error = verify_host_key("pi.local", 22, &known_hosts, &presented(ECDSA)).unwrap_err();
+        assert!(error.contains("has changed"), "{error}");
+        assert_eq!(std::fs::read_to_string(&known_hosts).unwrap(), saved);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_host_and_port_with_no_entry_is_learned_whatever_the_algorithm() {
+        let dir = temp_dir("new-port");
+        let known_hosts = dir.join("known_hosts");
+        verify_host_key("pi.local", 22, &known_hosts, &presented(ED25519)).unwrap();
+        verify_host_key("pi.local", 2222, &known_hosts, &presented(ECDSA)).unwrap();
+        let saved = std::fs::read_to_string(&known_hosts).unwrap();
+        assert!(
+            saved.contains("[pi.local]:2222 ecdsa-sha2-nistp256 "),
+            "{saved}"
+        );
+        let _ = std::fs::remove_dir_all(dir);
     }
 }
