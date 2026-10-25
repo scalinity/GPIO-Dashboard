@@ -16,6 +16,10 @@ Safety rules, each guarded by a test in test_sense.py:
   function in pinctrl, or a gpiod consumer) are never requested.
 - Lines are released at the end of every sweep, and on pause, stop and error, before sense_paused
   is sent.
+- Releasing a request keeps the last bias applied, so each line is first put back to the pull pinctrl
+  showed before the sweep, and a pin whose pull pinctrl does not report is never requested. The
+  direction is not restored: only inputs and unconfigured pins are probed, and libgpiod has no
+  setting that puts a pin back to unconfigured.
 - Everything runs on the event loop and yields between steps, so a message such as sense_pause is
   handled between two steps and takes effect before the next one starts.
 
@@ -52,6 +56,7 @@ PERIOD_MS = (50, 60_000)
 
 OPPOSITE = {"up": "down", "down": "up"}
 BIAS = {"up": "PULL_UP", "down": "PULL_DOWN", "off": "DISABLED"}
+FOUND = {"UP": "up", "DOWN": "down", "NONE": "off"}  # pinctrl's pull, as the bias that restores it
 
 NEEDS_V2 = (
     "Board Sense needs the libgpiod 2.x Python binding. Raspberry Pi OS Trixie has it as apt "
@@ -121,6 +126,8 @@ def claim_reason(info):
         return f"line in use by {info.get('consumer') or 'another process'}"
     if info.get("direction") == "OUT":
         return "an output; sensing would change it"
+    if info.get("pull") not in FOUND:
+        return "pinctrl does not report its pull"
     return None
 
 
@@ -138,6 +145,8 @@ class Sensor:
         self._paused = False
         self._epoch = 0  # bumped by every pause and stop: a sweep from an older epoch is abandoned
         self._req = None
+        self._found = {}  # pin -> the bias it had before the sweep
+        self._restore = {}  # the held request's pins -> the bias to put back before releasing it
         self._out = []
         self._reported = set()
 
@@ -233,6 +242,7 @@ class Sensor:
                 skipped.append({"bcm": pin, "reason": reason})
             else:
                 pins.append(pin)
+        self._found = {pin: FOUND[state[str(pin)]["pull"]] for pin in pins}
         data = {"t": self._clock(), "pins": pins, "skipped": skipped, "bias": {}, "pairs": {}}
         try:
             for _ in self._steps(cfg, pins, data):
@@ -281,12 +291,14 @@ class Sensor:
         usable = []
         for pin in pins:
             try:
-                self._request({pin: "up"}).release()
-                usable.append(pin)
+                req = self._request({pin: "up"})
             except OSError as exc:
                 reason = f"cannot request line: {exc}"
                 data["skipped"].append({"bcm": pin, "reason": reason})
                 self._error(f"GPIO{pin}: {reason}")
+            else:
+                self._give_back(req, {pin: self._found[pin]})
+                usable.append(pin)
         if usable:
             self._set({pin: "up" for pin in usable})
         return usable
@@ -316,6 +328,7 @@ class Sensor:
         reconfigure would get libgpiod's default settings, which keep the direction and bias as is."""
         if self._req is None:
             self._req = self._request(pulls)
+            self._restore = {pin: self._found[pin] for pin in pulls}
         else:
             self._req.reconfigure_lines(self._config(pulls))
 
@@ -323,9 +336,17 @@ class Sensor:
         req, self._req = self._req, None
         if req is not None:
             try:
-                req.release()
+                self._give_back(req, self._restore)
             except Exception:
-                log.exception("Releasing GPIO lines failed")
+                log.exception("Restoring or releasing GPIO lines failed")
+
+    def _give_back(self, req, pulls):
+        """Puts each line back to its bias from before the sweep, then releases the request, which
+        would otherwise keep the last bias applied. The lines are released even if the restore fails."""
+        try:
+            req.reconfigure_lines(self._config(pulls))
+        finally:
+            req.release()
 
     def _error(self, message):
         """Queues an error event, once per message until the next start or resume."""

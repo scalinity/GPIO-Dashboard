@@ -147,9 +147,7 @@ def make_gpiod(board):
             if not self.live:
                 raise RuntimeError("request already released")
             self.live = False
-            board.held -= set(self.pins)
-            for pin in self.pins:
-                board.bias.pop(pin, None)
+            board.held -= set(self.pins)  # the pins keep the last bias applied: release does not restore
             board.log.append(("release", sorted(self.pins)))
 
     def request_lines(path, consumer=None, config=None):
@@ -217,15 +215,17 @@ def assert_acks_after_release(test, board):
 
 def free(pins):
     """pinctrl and gpiod state for pins nobody has claimed."""
-    return {str(pin): {"bcm": pin, "direction": "IN", "function": "GPIO", "used": False} for pin in pins}
+    return {
+        str(pin): {"bcm": pin, "direction": "IN", "pull": "NONE", "function": "GPIO", "used": False} for pin in pins
+    }
 
 
 def alt(pin, function="SDA1"):
-    return {"bcm": pin, "direction": "ALT", "function": function, "used": False}
+    return {"bcm": pin, "direction": "ALT", "pull": "NONE", "function": function, "used": False}
 
 
 def used(pin, consumer="gpiozero"):
-    return {"bcm": pin, "direction": "OUT", "function": "GPIO", "used": True, "consumer": consumer}
+    return {"bcm": pin, "direction": "OUT", "pull": "NONE", "function": "GPIO", "used": True, "consumer": consumer}
 
 
 class Bench:
@@ -353,7 +353,8 @@ class PairTest(BenchCase):
             ("read", {17: "off", 27: "up"}),
             ("reconfigure", both("up")), wait, ("reconfigure", {17: "off", 27: "down"}), wait,
             ("read", {17: "off", 27: "down"}),
-            ("release", [17, 27]),
+            # each pin's bias goes back to the pull pinctrl showed before the sweep, then release
+            ("reconfigure", both("off")), ("release", [17, 27]),
         ]
         self.assertEqual([short(entry) for entry in bench.board.log], expected)
 
@@ -419,6 +420,17 @@ class Exclusions(BenchCase):
         self.assertEqual(data["pins"], [4])
         self.assertEqual(data["skipped"][0]["bcm"], 5)
 
+    def test_a_pin_whose_pull_pinctrl_cannot_report_is_skipped(self):
+        # Without the pull it had, release could not leave the pin as found.
+        state = free(range(2, 28))
+        state["5"]["pull"] = "UNKNOWN"
+        del state["6"]["pull"]
+        bench = self.bench(state=state)
+        data = bench.sweep([4, 5, 6])[-1]
+        self.assertEqual(data["pins"], [4])
+        self.assertEqual([item["bcm"] for item in data["skipped"]], [5, 6])
+        self.assertEqual(bench.board.touched, {4})
+
     def test_a_sweep_with_no_free_pin_touches_nothing(self):
         bench = self.bench(state={})
         data = bench.sweep([4, 5])[-1]
@@ -436,6 +448,57 @@ class Exclusions(BenchCase):
         self.assertEqual([event["data"]["kind"] for event in events], ["error"])
         self.assertIn("GPIO5", events[0]["data"]["message"])
         assert_safe(self, bench.board)
+        assert_released(self, bench.board)
+
+
+class Restore(BenchCase):
+    """libgpiod's release keeps the last bias applied, so the sensor puts each pin's bias back first."""
+
+    FOUND = {4: ("UP", Bias.PULL_UP), 5: ("DOWN", Bias.PULL_DOWN), 6: ("NONE", Bias.DISABLED)}
+
+    def found_bench(self, board=None):
+        """A bench whose GPIO4-6 were pulled up, pulled down and floating before sensing. Returns it
+        with the bias each pin had."""
+        board = board or Board()
+        state = free(range(2, 28))
+        for pin, (pull, bias) in self.FOUND.items():
+            board.bias[pin] = bias
+            state[str(pin)]["pull"] = pull
+        return self.bench(board, state), dict(board.bias)
+
+    def test_a_sweep_leaves_each_pin_with_the_bias_it_had(self):
+        bench, before = self.found_bench()
+        bench.sweep([4, 5, 6])
+        self.assertEqual(bench.board.bias, before)
+        assert_safe(self, bench.board)
+        assert_released(self, bench.board)
+
+    def test_a_pause_or_stop_at_any_step_leaves_each_pin_with_the_bias_it_had(self):
+        for steps in range(1, 2 + 2 * 3 + 2):
+            with self.subTest(steps=steps):
+                bench, before = self.found_bench()
+                pause_after(self, bench, steps)
+                self.assertEqual(bench.board.bias, before)
+
+    def test_an_error_mid_sweep_leaves_each_pin_with_the_bias_it_had(self):
+        bench, before = self.found_bench(Board(read_fails_at=3))
+        bench.sweep([4, 5, 6])
+        self.assertEqual(bench.board.bias, before)
+
+    def test_the_trial_requests_for_a_refused_line_leave_each_pin_with_the_bias_it_had(self):
+        bench, before = self.found_bench(Board(busy=[5]))
+        data = bench.sweep([4, 5, 6])[-1]
+        self.assertEqual(data["pins"], [4, 6])
+        self.assertEqual(bench.board.bias, before)
+
+    def test_a_restore_that_fails_still_releases_the_lines(self):
+        bench, _ = self.found_bench()
+        cfg = bench.sensor._prepare({"pins": [4, 5, 6]})
+        sweep = bench.sensor._sweep(cfg, bench.state, bench.sensor._epoch)
+        next(sweep)  # the lines are held
+        failing = mock.patch.object(bench.sensor._req, "reconfigure_lines", side_effect=OSError(errno.EIO, "EIO"))
+        with failing, self.assertLogs("sense", "ERROR"):
+            bench.sensor._interrupt()
         assert_released(self, bench.board)
 
 
@@ -476,12 +539,12 @@ class PauseAndResume(AsyncBenchCase):
         before = len(bench.board.log)
         await bench.sensor.handle({"type": "sense_pause"})
         self.assertEqual(
-            [entry[0] for entry in bench.board.log[before:]], ["release", "send"],
-            "the only thing between the pause and its acknowledgement is the release",
+            [entry[0] for entry in bench.board.log[before:]], ["reconfigure", "release", "send"],
+            "the only things between the pause and its acknowledgement are the restore and the release",
         )
         for _ in range(20):
             await asyncio.sleep(0)
-        self.assertEqual(len(bench.board.log), before + 2, "a step ran after the pause")
+        self.assertEqual(len(bench.board.log), before + 3, "a step ran after the pause")
         self.assertEqual(bench.messages("sense_sweep"), [])
 
     async def test_a_pause_with_nothing_running_is_acknowledged(self):
