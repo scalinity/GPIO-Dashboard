@@ -131,6 +131,19 @@ describe('module boundary lint rules (SPEC 4.5)', () => {
     })
   })
 
+  it.each(['ts', 'tsx'])(
+    'rejects a TypeScript import type outside the boundary in assistant/*.%s',
+    async (ext) => {
+      const code = (spec: string) => `export type T = import('${spec}').RunStatus`
+      expect(await boundaryErrors(`assistant/probe.${ext}`, code('../state/runStore'))).not.toEqual(
+        []
+      )
+      expect(await boundaryErrors(`assistant/probe.${ext}`, code('../core/model/types'))).toEqual(
+        []
+      )
+    }
+  )
+
   it('resolves a dynamic import against the importing file, not against assistant/', async () => {
     const nested = (spec: string) =>
       boundaryErrors('assistant/tools/probe.ts', `export const l = () => import('${spec}')`)

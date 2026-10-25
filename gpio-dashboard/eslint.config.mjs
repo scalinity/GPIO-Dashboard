@@ -37,8 +37,9 @@ const NO_WINDOW_API = {
 }
 const DOM_GLOBALS = ['window', 'document', 'navigator', 'localStorage', 'sessionStorage']
 
-// SPEC 4.5's boundary for assistant/, as an allowlist: every import, re-export and import() must
-// resolve into assistant/, core/ or native/anthropic, or name a package outside UI_AND_NATIVE.
+// SPEC 4.5's boundary for assistant/, as an allowlist: every import, re-export, import() and
+// TypeScript import type must resolve into assistant/, core/ or native/anthropic, or name a package
+// outside UI_AND_NATIVE.
 // no-restricted-imports only denies what it lists and does not see import(). An import() whose
 // specifier is not a string literal cannot be checked, so it is rejected.
 const assistantImports = {
@@ -58,8 +59,7 @@ const assistantImports = {
     const bannedPackages = UI_AND_NATIVE.flatMap((rule) => rule.group)
     const isBanned = (spec) =>
       bannedPackages.some((g) => (g.endsWith('/*') ? spec.startsWith(g.slice(0, -1)) : spec === g))
-    const check = (node) => {
-      const { source } = node
+    const check = (node, source = node.source) => {
       if (!source) return
       if (source.type !== 'Literal' || typeof source.value !== 'string') {
         context.report({ node, messageId: 'unchecked' })
@@ -85,7 +85,8 @@ const assistantImports = {
       ImportDeclaration: check,
       ExportAllDeclaration: check,
       ExportNamedDeclaration: check,
-      ImportExpression: check
+      ImportExpression: check,
+      TSImportType: (node) => check(node, node.source ?? node.argument?.literal ?? node.argument)
     }
   }
 }
