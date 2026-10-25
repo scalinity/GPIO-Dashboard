@@ -30,6 +30,24 @@ export function toTable(t: Transform2D, [x, y]: Vec2): Vec2 {
   ]
 }
 
+/**
+ * What an off-board module laid at `points` (its footprint's corners, table frame) rests on: the
+ * top of the highest board under any of them, else the table (0).
+ */
+export function restHeightMm(doc: CircuitDoc, points: Vec2[]): number {
+  let top = 0
+  for (const board of doc.boards) {
+    const { lengthMm, widthMm, heightMm } = boardDef(board.defId).body
+    const r = (board.transform.rotationDeg * Math.PI) / 180
+    for (const [x, y] of points) {
+      const [dx, dy] = [x - board.transform.position[0], y - board.transform.position[1]]
+      const [u, v] = [dx * Math.cos(r) + dy * Math.sin(r), -dx * Math.sin(r) + dy * Math.cos(r)]
+      if (u >= 0 && u <= lengthMm && v >= 0 && v <= widthMm) top = Math.max(top, heightMm)
+    }
+  }
+  return top
+}
+
 const dist = (a: Vec3, b: Vec3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
 
 /** Where the wire leaves the housing at one end, or null if the end has no position yet. */
@@ -44,12 +62,10 @@ export function exitPoint(doc: CircuitDoc, defs: PartDefs, end: Endpoint): Vec3 
   }
   const part = doc.parts.find((p) => p.id === end.pin.part)
   const pin = part && docPartDefs(doc, defs)(part.defId).pins.find((p) => p.id === end.pin.pin)
-  if (!part?.placement.offboardPose || !pin) return null
-  const [x, y] = toTable(part.placement.offboardPose, [
-    pin.offsetPitch[0] * 2.54,
-    pin.offsetPitch[1] * 2.54
-  ])
-  return [x, y, ASSUMED_HEIGHTS_MM.modulePin + lift]
+  const pose = part?.placement.offboardPose
+  if (!pose || !pin) return null
+  const [x, y] = toTable(pose, [pin.offsetPitch[0] * 2.54, pin.offsetPitch[1] * 2.54])
+  return [x, y, restHeightMm(doc, [pose.position]) + ASSUMED_HEIGHTS_MM.modulePin + lift]
 }
 
 export interface LeadReach {

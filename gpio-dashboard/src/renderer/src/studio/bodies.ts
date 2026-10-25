@@ -11,7 +11,7 @@ import type { CircuitDoc, PartInstance, Transform2D, Vec2 } from '../core/model/
 import { ASSUMED_HEIGHTS_MM, toTable } from '../core/reach/reach'
 import type { Selection } from '../state/studioStore'
 import { PI_HEIGHT_MM } from './camera'
-import { defOf, moduleModel, toThree } from './coords'
+import { defOf, moduleModel, moduleRestMm, toThree } from './coords'
 
 const PITCH_MM = 2.54
 const up = new Vector3(0, 1, 0)
@@ -36,7 +36,10 @@ function partBox(doc: CircuitDoc, part: PartInstance): Matrix4 | null {
   const def = defOf(doc, part.defId)
   const pose = part.placement.offboardPose
   const model = pose && moduleModel(part.defId)
-  if (model) return box(pose, model.rect, 0, model.top)
+  if (model) {
+    const rest = moduleRestMm(doc, part.defId, pose)
+    return box(pose, model.rect, rest, rest + model.top)
+  }
   let frame: Transform2D
   let points: Vec2[]
   let z0: number
@@ -44,7 +47,7 @@ function partBox(doc: CircuitDoc, part: PartInstance): Matrix4 | null {
   if (pose) {
     frame = pose
     points = def.pins.map((p) => [p.offsetPitch[0] * PITCH_MM, p.offsetPitch[1] * PITCH_MM])
-    z0 = 0
+    z0 = moduleRestMm(doc, part.defId, pose)
   } else {
     const holes = def.pins.map((p) => part.placement.pins[p.id])
     const board = doc.boards.find((b) => b.id === holes[0]?.board)

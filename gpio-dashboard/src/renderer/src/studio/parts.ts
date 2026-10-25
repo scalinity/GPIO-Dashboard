@@ -21,7 +21,14 @@ import type { CircuitDoc, HoleRef, PartDef, PartInstance } from '../core/model/t
 import { toTable } from '../core/reach/reach'
 import { resistorBands } from '../core/steps/steps'
 import type { Placement } from './cables'
-import { defOf, holeInScene, type ModulePinFrame, poseMatrix, setModuleModel } from './coords'
+import {
+  defOf,
+  holeInScene,
+  type ModulePinFrame,
+  moduleRestMm,
+  poseMatrix,
+  setModuleModel
+} from './coords'
 import { ModelInstances } from './instances'
 import { bentLeadGeometry, leadDiameterMm, leadPath, RADIAL } from './leads'
 import { modelNow, type PartFile, partIndexNow } from './loaders'
@@ -377,7 +384,9 @@ export class PartLayer {
       const origin = new Vector3().setFromMatrixPosition(first).setY(0)
       this.recordModule(def, model, origin)
       return {
-        pose: poseMatrix(pose, 0).multiply(new Matrix4().makeTranslation(origin.negate())),
+        pose: poseMatrix(pose, moduleRestMm(doc, part.defId, pose)).multiply(
+          new Matrix4().makeTranslation(origin.negate())
+        ),
         leads: []
       }
     }

@@ -16,7 +16,7 @@ import type {
   Vec2
 } from '../core/model/types'
 import { docPartDefs } from '../core/netlist/netlist'
-import { ASSUMED_HEIGHTS_MM, toTable } from '../core/reach/reach'
+import { ASSUMED_HEIGHTS_MM, restHeightMm, toTable } from '../core/reach/reach'
 
 const up = new Vector3(0, 1, 0)
 
@@ -105,11 +105,33 @@ function modulePinLocal(doc: CircuitDoc, part: PartInstance, pin: string): Modul
   }
 }
 
+/**
+ * How high an off-board module laid at `pose` rests: on the board under its footprint, else on the
+ * table. Until its model has loaded, its first pin stands in for the footprint.
+ */
+export function moduleRestMm(doc: CircuitDoc, defId: string, pose: Transform2D): number {
+  const r = modules.get(defId)?.rect
+  const corners: Vec2[] = r
+    ? [
+        [r.xMin, r.yMin],
+        [r.xMax, r.yMin],
+        [r.xMax, r.yMax],
+        [r.xMin, r.yMax]
+      ]
+    : [[0, 0]]
+  return restHeightMm(
+    doc,
+    corners.map((c) => toTable(pose, c))
+  )
+}
+
 /** Where an off-board module's connector pin is in the scene, or null if it isn't on the table. */
 export function modulePinInScene(doc: CircuitDoc, part: PartInstance, pin: string): Vector3 | null {
   const pose = part.placement.offboardPose
   const local = pose && modulePinLocal(doc, part, pin)
-  return local ? local.at.clone().applyMatrix4(poseMatrix(pose, 0)) : null
+  return local
+    ? local.at.clone().applyMatrix4(poseMatrix(pose, moduleRestMm(doc, part.defId, pose)))
+    : null
 }
 
 /**
