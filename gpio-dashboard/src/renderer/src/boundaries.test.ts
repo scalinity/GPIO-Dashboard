@@ -8,11 +8,18 @@ const BOUNDARY_RULES = new Set([
   'no-restricted-globals',
   'no-restricted-syntax'
 ])
+// no-restricted-imports does not see import(); assistant/ has its own rule for it.
+const DYNAMIC_IMPORT_RULE = 'assistant-boundary/dynamic-import'
 
 async function boundaryErrors(file: string, code: string): Promise<string[]> {
   const [result] = await eslint.lintText(code, { filePath: `src/renderer/src/${file}` })
   return (result?.messages ?? [])
-    .filter((m) => m.severity === 2 && m.ruleId !== null && BOUNDARY_RULES.has(m.ruleId))
+    .filter(
+      (m) =>
+        m.severity === 2 &&
+        m.ruleId !== null &&
+        (BOUNDARY_RULES.has(m.ruleId) || m.ruleId === DYNAMIC_IMPORT_RULE)
+    )
     .map((m) => `${m.ruleId}: ${m.message}`)
 }
 
@@ -58,6 +65,33 @@ const cases: [file: string, code: string, allowed: boolean][] = [
   ['studio/x.ts', "import { circuit } from '../state/circuit'\nexport { circuit }", true]
 ]
 
+// Every way assistant/ can reach what it may not, written in plain JavaScript so each parses in
+// every file type the boundary covers.
+const ASSISTANT_EXTENSIONS = ['ts', 'tsx', 'js', 'jsx']
+const assistantViolations = [
+  "import { runScript } from '../native/ssh'\nexport { runScript }",
+  "export * from '../native/ssh'",
+  "export { runScript } from '../native/ssh'",
+  "export const run = async () => (await import('../native/ssh')).runScript('project_x.py')",
+  "export const core = () => import('@tauri-apps/api/core')",
+  "export const store = () => import('../state/runStore')",
+  "export const store = () => import('@renderer/state/runStore')",
+  "export const ui = () => import('react')",
+  "export const sibling = () => import('../core/../state/runStore')",
+  'export const load = (name) => import(name)',
+  'export const load = (name) => import(`../core/${name}`)',
+  'export const win = () => window.api.gpio'
+]
+const assistantAllowed = [
+  "export * from '../core/netlist/build'",
+  "export const load = () => import('../native/anthropic')",
+  "export const load = () => import('../core/netlist/build')",
+  "export const load = () => import('@renderer/core/netlist/build')",
+  "export const load = () => import('./context')",
+  "export const load = () => import('./tools/index')",
+  "export const load = () => import('zod')"
+]
+
 describe('module boundary lint rules (SPEC 4.5)', () => {
   it.each(['core', 'physics', 'assistant'])(
     '%s/ has the boundary rules configured as errors',
@@ -71,9 +105,35 @@ describe('module boundary lint rules (SPEC 4.5)', () => {
     }
   )
 
+  it('has the dynamic import rule configured as an error for assistant/', async () => {
+    const config = await eslint.calculateConfigForFile('src/renderer/src/assistant/x.ts')
+    const setting = config.rules?.[DYNAMIC_IMPORT_RULE]
+    expect(Array.isArray(setting) ? setting[0] : setting).toBe(2)
+  })
+
   it.each(cases)('%s: %s → allowed=%s', async (file, code, allowed) => {
     const errors = await boundaryErrors(file, code)
     if (allowed) expect(errors).toEqual([])
     else expect(errors.length).toBeGreaterThan(0)
+  })
+
+  describe.each(ASSISTANT_EXTENSIONS)('assistant/*.%s', (ext) => {
+    it.each(assistantViolations)('rejects %s', async (code) => {
+      expect((await boundaryErrors(`assistant/probe.${ext}`, code)).length).toBeGreaterThan(0)
+    })
+
+    it.each(assistantAllowed)('allows %s', async (code) => {
+      expect(await boundaryErrors(`assistant/probe.${ext}`, code)).toEqual([])
+    })
+  })
+
+  it('resolves a dynamic import against the importing file, not against assistant/', async () => {
+    const nested = (spec: string) =>
+      boundaryErrors('assistant/tools/probe.ts', `export const l = () => import('${spec}')`)
+    expect(await nested('../../core/netlist/build')).toEqual([])
+    expect(await nested('../types')).toEqual([])
+    expect(await nested('../../native/anthropic')).toEqual([])
+    expect(await nested('../../native/ssh')).not.toEqual([])
+    expect(await nested('../../state/runStore')).not.toEqual([])
   })
 })

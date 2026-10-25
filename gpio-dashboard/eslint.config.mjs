@@ -1,3 +1,4 @@
+import path from 'node:path'
 import js from '@eslint/js'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
@@ -35,6 +36,53 @@ const NO_WINDOW_API = {
   message: 'window.api is reachable only from UI handlers (SPEC 4.5).'
 }
 const DOM_GLOBALS = ['window', 'document', 'navigator', 'localStorage', 'sessionStorage']
+
+// no-restricted-imports does not see import(). This rule holds a dynamic import in assistant/ to
+// the same boundary: a string literal that resolves into assistant/, core/ or native/anthropic, or
+// a package outside UI_AND_NATIVE. Any other specifier cannot be checked, so it is rejected.
+const assistantDynamicImport = {
+  meta: {
+    type: 'problem',
+    schema: [],
+    messages: {
+      unchecked:
+        'assistant/ may import() only a string literal, so the boundary can check it (SPEC 4.5).',
+      outside: 'assistant/ may import() only core/, native/anthropic and itself (SPEC 4.5).'
+    }
+  },
+  create(context) {
+    const root = path.resolve(context.cwd, R)
+    const within = (target, dir) => target === dir || target.startsWith(dir + path.sep)
+    const anthropic = path.join(root, 'native', 'anthropic')
+    const bannedPackages = UI_AND_NATIVE.flatMap((rule) => rule.group)
+    const isBanned = (spec) =>
+      bannedPackages.some((g) => (g.endsWith('/*') ? spec.startsWith(g.slice(0, -1)) : spec === g))
+    return {
+      ImportExpression(node) {
+        const { source } = node
+        if (source.type !== 'Literal' || typeof source.value !== 'string') {
+          context.report({ node, messageId: 'unchecked' })
+          return
+        }
+        const spec = source.value
+        let allowed
+        if (spec.startsWith('.') || spec.startsWith('@renderer/')) {
+          const target = spec.startsWith('.')
+            ? path.resolve(path.dirname(context.filename), spec)
+            : path.join(root, spec.slice('@renderer/'.length))
+          allowed =
+            within(target, path.join(root, 'assistant')) ||
+            within(target, path.join(root, 'core')) ||
+            target === anthropic ||
+            target === `${anthropic}.ts`
+        } else {
+          allowed = /^(?:@[\w.-]+\/)?[\w.-]+(?:\/|$)/.test(spec) && !isBanned(spec)
+        }
+        if (!allowed) context.report({ node, messageId: 'outside' })
+      }
+    }
+  }
+}
 
 export default [
   { ignores: ['**/node_modules', '**/dist', '**/out', 'src-tauri', 'src/renderer/public'] },
@@ -120,8 +168,10 @@ export default [
     }
   },
   {
-    files: [`${R}/assistant/**/*.{ts,tsx}`],
+    files: [`${R}/assistant/**/*.{js,jsx,mjs,cjs,ts,tsx}`],
+    plugins: { 'assistant-boundary': { rules: { 'dynamic-import': assistantDynamicImport } } },
     rules: {
+      'assistant-boundary/dynamic-import': 'error',
       'no-restricted-imports': [
         'error',
         {
