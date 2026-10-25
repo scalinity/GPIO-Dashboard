@@ -477,10 +477,11 @@ const PARTS: PartEntry[] = [
     defId,
     texturePx: [512, 128] as [number, number]
   })),
-  { family: 'seven-segment', defId: 'seven-segment-ca' },
-  { family: 'seven-segment', defId: 'seven-segment-cc' },
+  // The displays' side marking is geometry; these three carry more of it than the family cap allows.
+  { family: 'seven-segment', defId: 'seven-segment-ca', triangles: 295 },
+  { family: 'seven-segment', defId: 'seven-segment-cc', triangles: 275 },
   { family: 'seven-segment-4digit', defId: 'seven-segment-4digit' },
-  { family: 'bar-graph', defId: 'bar-graph-10' },
+  { family: 'bar-graph', defId: 'bar-graph-10', triangles: 320 },
   { family: 'dot-matrix', defId: 'led-matrix-8x8' },
   {
     family: 'motor',

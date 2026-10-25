@@ -14,7 +14,7 @@
       "seed": 0
     },
     "sha256": {
-      "blender/seven_segment.py": "06ceb080625d3de9147ec0714a1e1e5e78ecc0c91653cd3293dab61762ff2b6d",
+      "blender/seven_segment.py": "1277e76709de80551efec6dcee06816a4f8de423ca1472882b14a45a2cf1cebe",
       "blender/partkit.py": "041c73af3746cbcb89435960a5fc4e19af8c61d8411d7679641d5664a1390ea4",
       "blender/devicekit.py": "5cbe22dc9c2d951e94336d88fbeff00b27d5ac701ad9aac55a7cae6858f82c29",
       "blender/lib/__init__.py": "fde31da9f6d72b2297d6828833720649d7d25feab9e48e41ede38379551cb95a",
@@ -31,17 +31,17 @@
     }
   ],
   "sources": [],
-  "triangles": 196,
-  "bytes": 9256,
+  "triangles": 228,
+  "bytes": 16644,
   "textures": [],
   "budget": {
     "texturePx": [
       0,
       0
     ],
-    "triangles": 240,
+    "triangles": 275,
     "bytes": 40000,
     "met": true
   },
-  "geometryHash": "752ef1a88972e4445226e6bd3e3681e12e94b9ca32a24878053cede80c59da48"
+  "geometryHash": "4fefae3451c4fbda7375a30e27f87b8b42e1b40e53612efc2bc94d91893db1aa"
 }

@@ -1192,15 +1192,21 @@ decision and consequences. Numbering is stable; superseded records say so.
     drawings give none, so a lead and a gap show. The segments, bars and dots stand flush with the
     body's stated height and the face lies 0.05 mm below them, so the height is the stated one and
     the surfaces do not fight.
-  - The digit is Kingbright's: 14.22 mm tall, 8 mm across including the slant, segments 1.5 mm
-    wide, slanted 8 degrees (both drawings give these), and a decimal point 1.5 mm across at the
-    lower right.
+  - The digit is Kingbright's: 14.22 mm tall, 8 mm wide along a row (the kit's display measures
+    8.1 mm on its 12.7 mm face), segments 1.5 mm wide, slanted 8 degrees (both drawings give
+    these), and a decimal point 1.5 mm across at the lower right. Segments meet in mitres at the
+    digit's corners and in points at its middle, 0.3 mm apart, as on the kit's display.
+  - The displays look like the kit's own parts, from SunFounder's photos of them: a white housing,
+    a black face, white diffused segments, bars and dots, and the marking printed in black on the
+    side along pin 1's row, as geometry (`2510SR-1  420`, `CL5611AH`, `788BS`). The parts not in
+    the kit carry their makers' common-anode names: `CL5611BH` for the one digit and `5641BS` for
+    the four. The dot matrix has square corners, as the 788BS has; its marking shows pin 1's side.
   - The DIP has the half-round notch (1.0 mm radius, 0.5 mm deep) and the pin-1 dimple cut with
     an exact Boolean, the drafted body sides (0.25 mm), and its top marked with the part number
     (`SN74HC595N`, `ADC0834CCN`, `L293DNE`) in a KTX2 map.
 - **Consequences.** The studio places the dot matrix's pins from the definition and its dots from
-  the model; a dot is never more than 0.14 mm from the hole row it belongs to. The displays'
-  segment shapes are mine, from the drawing's outline; a lookdev pass can refine them.
+  the model; a dot is never more than 0.14 mm from the hole row it belongs to. The black face
+  keeps the displays readable on the white breadboard from the top and iso views.
 
 ## ADR-0047 The bench and the parts are instanced per model file, with handles per copy
 
