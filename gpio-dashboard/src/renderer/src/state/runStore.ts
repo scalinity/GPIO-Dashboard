@@ -34,7 +34,7 @@ const MAX_LINES = 1000
 
 /** Bumped by every run and every Stop, so a run can tell that a Stop came after it began. */
 let latest = 0
-/** Runs that paused Board Sense and have not ended; the last of them to end resumes it. */
+/** Runs that have asked Board Sense to pause and have not ended; the last to end resumes it. */
 let holders = 0
 
 export const useRun = create<RunState>((set, get) => ({
@@ -65,17 +65,19 @@ export const useRun = create<RunState>((set, get) => ({
     ]
     const mine = (latest += 1)
     set({ blocked: null, status: 'deploying', filename: null, pins, output: [] })
-    // Board Sense holds GPIO lines during a sweep; the program needs them (SPEC 14.5).
-    if (!(await useSense.getState().pauseForRun())) {
-      get().addOutput({
-        stream: 'stderr',
-        data: 'Board Sense did not confirm within 1 s that it had released the pins, so the run did not start.'
-      })
-      set({ status: 'error' })
-      return
-    }
+    // Board Sense holds GPIO lines during a sweep; the program needs them (SPEC 14.5). The hold is
+    // taken before the pause, so a run that ends while this one waits for it does not resume
+    // sensing under this one; a pause that is not confirmed gives its hold back like any other end.
     holders += 1
     try {
+      if (!(await useSense.getState().pauseForRun())) {
+        get().addOutput({
+          stream: 'stderr',
+          data: 'Board Sense did not confirm within 1 s that it had released the pins, so the run did not start.'
+        })
+        set({ status: 'error' })
+        return
+      }
       // A Stop that lands during the pause or the upload ends this run before the program starts.
       if (mine !== latest) return
       const filename = scriptName(projectId)

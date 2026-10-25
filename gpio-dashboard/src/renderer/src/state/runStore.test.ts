@@ -151,6 +151,28 @@ describe('Run on Pi', () => {
     expect(calls.map((c) => c[0]).filter((c) => c === 'sense_resume')).toHaveLength(1)
   })
 
+  it('keeps Board Sense paused for a run whose pause is still on its way when a stopped run ends', async () => {
+    useSense.setState({ mode: 'pi' })
+    let finishUpload!: () => void
+    uploadGate = new Promise<void>((resolve) => (finishUpload = resolve))
+    const first = useRun.getState().run('p1', program, [])
+    await vi.waitUntil(() => calls.some((c) => c[0] === 'scp'))
+    await useRun.getState().stop()
+    uploadGate = null
+    let finishPause!: () => void
+    pauseGate = new Promise<void>((resolve) => (finishPause = resolve))
+    const second = useRun.getState().run('p2', 'x', [])
+    await vi.waitUntil(() => calls.filter((c) => c[0] === 'sense_pause').length === 2)
+    finishUpload()
+    await first
+    expect(calls.map((c) => c[0])).not.toContain('sense_resume')
+    finishPause()
+    await second
+    const order = calls.map((c) => c[0])
+    expect(order.filter((c) => c === 'sense_resume')).toHaveLength(1)
+    expect(order.indexOf('sense_resume')).toBeGreaterThan(order.lastIndexOf('run'))
+  })
+
   it('still runs a program started after an earlier run was stopped', async () => {
     await useRun.getState().stop()
     await useRun.getState().run('p1', 'x', [])
@@ -174,7 +196,8 @@ describe('Run on Pi', () => {
     useSense.setState({ mode: 'pi' })
     pauseAck = false
     await useRun.getState().run('p1', 'x', [])
-    expect(calls.map((c) => c[0])).toEqual(['sense_pause'])
+    // The pause may still land after its second: sensing is resumed, as after any run.
+    expect(calls.map((c) => c[0])).toEqual(['sense_pause', 'sense_resume'])
     expect(useRun.getState().status).toBe('error')
   })
 })
