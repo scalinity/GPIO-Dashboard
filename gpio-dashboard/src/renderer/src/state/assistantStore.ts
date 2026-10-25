@@ -417,35 +417,38 @@ export async function send(text: string): Promise<void> {
     return
   }
   if (get().running) return
-  if (!fetchOverride) {
-    let ready: boolean
-    try {
-      ready = await hasKey()
-    } catch {
-      push({ kind: 'error', id: itemId(), text: 'The assistant works in the app window only.' })
-      return
-    }
-    set({ hasKey: ready })
-    if (!ready) {
-      push({
-        kind: 'notice',
-        id: itemId(),
-        text: 'Add your Anthropic API key in Settings first. It is kept in the macOS Keychain.'
-      })
-      set({ settingsOpen: true })
-      return
-    }
-  }
-  const s = session_()
-  controller = new AbortController()
-  turnStart = circuit.getSnapshot()
-  clearReview()
-  useStudio.setState({ cue: null })
-  push({ kind: 'user', id: itemId(), text: message })
-  set({ running: true, thinking: true, draft: '' })
-  const { model, effort } = get()
+  // Claim the turn before the first await: `running` covers the key check, so a second send is
+  // refused as one during a turn is, and the turn that locked the document is the one that unlocks.
+  set({ running: true })
   let result: TurnResult | null = null
   try {
+    if (!fetchOverride) {
+      let ready: boolean
+      try {
+        ready = await hasKey()
+      } catch {
+        push({ kind: 'error', id: itemId(), text: 'The assistant works in the app window only.' })
+        return
+      }
+      set({ hasKey: ready })
+      if (!ready) {
+        push({
+          kind: 'notice',
+          id: itemId(),
+          text: 'Add your Anthropic API key in Settings first. It is kept in the macOS Keychain.'
+        })
+        set({ settingsOpen: true })
+        return
+      }
+    }
+    const s = session_()
+    controller = new AbortController()
+    turnStart = circuit.getSnapshot()
+    clearReview()
+    useStudio.setState({ cue: null })
+    push({ kind: 'user', id: itemId(), text: message })
+    set({ thinking: true, draft: '' })
+    const { model, effort } = get()
     result = await s.runTurn(message, { onEvent, signal: controller.signal, model, effort })
   } catch (e) {
     push({ kind: 'error', id: itemId(), text: e instanceof Error ? e.message : String(e) })

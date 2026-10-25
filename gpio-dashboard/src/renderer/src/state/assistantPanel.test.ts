@@ -17,6 +17,16 @@ vi.mock('./simClient', () => ({
   },
   simRequest: async () => ({ type: 'error', message: 'not in this test' })
 }))
+// The key check and the model's fetch are the test's to hold open (a dev replay skips both).
+const hold = vi.hoisted(() => ({
+  hasKey: async () => true,
+  fetch: null as typeof fetch | null
+}))
+vi.mock('../native/anthropic', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../native/anthropic')>()),
+  hasKey: () => hold.hasKey(),
+  nativeAnthropicFetch: (...args: Parameters<typeof fetch>) => hold.fetch!(...args)
+}))
 vi.mock('./assistantPython', () => ({
   checkPython: async () => [],
   runCodeInSim: async () => ({ stdout: '', stderr: '', error: null, events: [], truncated: false })
@@ -223,5 +233,67 @@ describe('a replayed turn through the store', () => {
         text: expect.stringMatching(/looks like an API key/)
       })
     ])
+  })
+
+  it('claims the turn before the key check: a second send starts no turn, and the document stays locked until the first ends', async () => {
+    store.newConversation()
+    const deferred = <T>() => {
+      let resolve!: (value: T) => void
+      const promise = new Promise<T>((r) => (resolve = r))
+      return { promise, resolve }
+    }
+    const key = deferred<boolean>()
+    const gate = deferred<void>()
+    const served = scriptedFetch([{ blocks: [text('Done.')], stop: 'end_turn' }])
+    hold.hasKey = () => key.promise
+    hold.fetch = async (input, init) => (await gate.promise, served.fetch(input, init))
+    store.replaceFetchForDev(null)
+    const first = store.send('first')
+    const second = store.send('second')
+    try {
+      // Refused at once, as a send during a running turn is; not parked behind the key check.
+      const refused = await Promise.race([
+        second.then(() => true),
+        new Promise<boolean>((r) => setTimeout(() => r(false), 50))
+      ])
+      expect(refused).toBe(true)
+      key.resolve(true)
+      await vi.waitUntil(() => circuit.locked, { timeout: 5000 })
+      expect(store.useAssistant.getState().running).toBe(true)
+      const byHand = circuit.dispatch({
+        author: 'user',
+        label: 'x',
+        ops: [{ type: 'SetMeta', meta: { name: 'Mine' } }]
+      })
+      expect(byHand.ok).toBe(false)
+      gate.resolve()
+      await first
+      expect(circuit.locked).toBe(false)
+      expect(store.useAssistant.getState().running).toBe(false)
+      expect(served.requests).toHaveLength(1)
+      const said = store.useAssistant
+        .getState()
+        .items.flatMap((i) => (i.kind === 'user' ? [i.text] : []))
+      expect(said).toEqual(['first'])
+    } finally {
+      key.resolve(true)
+      gate.resolve()
+      await Promise.all([first, second])
+    }
+  })
+
+  it('releases the claim when there is no key, so the next send is not refused', async () => {
+    store.newConversation()
+    hold.hasKey = async () => false
+    store.replaceFetchForDev(null)
+    await store.send('first')
+    expect(store.useAssistant.getState().running).toBe(false)
+    expect(store.useAssistant.getState().settingsOpen).toBe(true)
+    hold.hasKey = async () => {
+      throw new Error('no window')
+    }
+    await store.send('second')
+    expect(store.useAssistant.getState().running).toBe(false)
+    expect(store.useAssistant.getState().items.at(-1)).toMatchObject({ kind: 'error' })
   })
 })
