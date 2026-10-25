@@ -2,8 +2,10 @@
 // Bench strips: GND row 5 a-e, GPIO17 row 6 a-e.
 import { describe, expect, it } from 'vitest'
 import { partDef } from '../defs/parts'
+import { TUTORIALS } from '../defs/tutorials'
+import type { CircuitDoc } from '../model/types'
 import { at, emptyDoc, hole, part, wire } from '../testing/fixtures'
-import { simChecks } from './checks'
+import { driveChecks, simChecks } from './checks'
 import { Circuit } from './circuit'
 import { SimSession } from './session'
 
@@ -68,5 +70,41 @@ describe('sim checks', () => {
     const issues = simChecks(d, partDef, s.snapshot())
     expect(issues.map((i) => i.code)).toEqual(['RAIL_BUDGET'])
     expect(issues[0]!.refs).toEqual(['GPIO17', 'GPIO22', 'GPIO23', 'GPIO27'])
+  })
+})
+
+describe('driveChecks', () => {
+  // 3V3 → resistor → LED → GPIO17: the cathode is on the pin, so LOW is the loaded state.
+  const blink = TUTORIALS.find((t) => t.meta.id === 'blinking-led')!.doc
+  const sink = (ohms: number): CircuitDoc => ({
+    ...blink,
+    parts: blink.parts.map((p) =>
+      p.id === 'R1' ? { ...p, props: { ...p.props, resistance: ohms } } : p
+    )
+  })
+  const keys = (doc: CircuitDoc, pins: number[]) =>
+    driveChecks(doc, partDef, pins).map((i) => `${i.code}:${i.refs.join(',')}`)
+
+  it('finds the overcurrent that only a LOW drive produces', () => {
+    const s = new SimSession(new Circuit(sink(10), partDef, {}))
+    s.setGpio(17, { mode: 'out', level: true })
+    expect(simChecks(sink(10), partDef, s.snapshot())).toEqual([])
+    expect(keys(sink(10), [17])).toEqual(['PIN_OVERCURRENT:GPIO17', 'LED_NO_LIMIT:D1'])
+  })
+
+  it('is quiet for 220 Ω, and for a pin the program does not drive', () => {
+    expect(keys(sink(220), [17])).toEqual([])
+    expect(keys(sink(10), [])).toEqual([])
+  })
+
+  it('keeps one issue per code and refs when HIGH and LOW both produce it', () => {
+    // A second 10 Ω from GPIO17 (row 6) to GND (row 5) over-drives the pin when HIGH as well.
+    const both = sink(10)
+    both.parts.push(
+      part('R2', 'resistor', { 1: hole(6, 'b'), 2: hole(5, 'b') }, { resistance: 10 })
+    )
+    const found = keys(both, [17])
+    expect(found.filter((k) => k === 'PIN_OVERCURRENT:GPIO17')).toHaveLength(1)
+    expect(found).toContain('LED_NO_LIMIT:D1')
   })
 })

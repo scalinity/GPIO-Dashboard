@@ -1,8 +1,10 @@
 // Run on Pi is project-level and ERC-gated (SPEC 14.3; the run part of D14), against a mocked
 // native layer.
 import { beforeEach, describe, expect, it } from 'vitest'
+import { TUTORIALS } from '../core/defs/tutorials'
 import type { Issue } from '../core/erc/erc'
-import { useRun } from './runStore'
+import type { CircuitDoc } from '../core/model/types'
+import { runOnPi, useRun } from './runStore'
 import { useSense } from './senseStore'
 
 const calls: unknown[][] = []
@@ -84,5 +86,30 @@ describe('Run on Pi', () => {
     await useRun.getState().run('p1', 'x', [])
     expect(calls.map((c) => c[0])).toEqual(['sense_pause'])
     expect(useRun.getState().status).toBe('error')
+  })
+})
+
+describe('Run on Pi checks the currents the program can drive', () => {
+  // The cathode is on GPIO17 and the resistor on 3V3, so LOW is the loaded state.
+  const blinkingLed = TUTORIALS.find((t) => t.meta.id === 'blinking-led')!.doc
+  const withResistor = (ohms: number): CircuitDoc => ({
+    ...blinkingLed,
+    parts: blinkingLed.parts.map((p) =>
+      p.id === 'R1' ? { ...p, props: { ...p.props, resistance: ohms } } : p
+    )
+  })
+
+  it('blocks a 10 Ω LED on GPIO17 with the pin overcurrent, and starts nothing', async () => {
+    const doc = withResistor(10)
+    await runOnPi('blinking-led', doc, doc.code.source)
+    expect(calls).toEqual([])
+    const errors = useRun.getState().blocked?.errors ?? []
+    expect(errors.map((e) => `${e.code}:${e.refs.join(',')}`)).toContain('PIN_OVERCURRENT:GPIO17')
+  })
+
+  it('runs the shipped 220 Ω Blinking LED', async () => {
+    await runOnPi('blinking-led', blinkingLed, blinkingLed.code.source)
+    expect(useRun.getState().blocked).toBeNull()
+    expect(calls.map((c) => c[0])).toEqual(['scp', 'run'])
   })
 })

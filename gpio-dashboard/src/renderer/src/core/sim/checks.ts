@@ -6,7 +6,9 @@ import { RP1 } from '../constants/rp1'
 import type { Issue } from '../erc/erc'
 import type { CircuitDoc } from '../model/types'
 import { docPartDefs, type PartDefs } from '../netlist/netlist'
-import type { Snapshot } from './session'
+import { BEHAVIORS } from './behaviors'
+import { Circuit } from './circuit'
+import { SimSession, type Snapshot } from './session'
 
 const mA = (a: number) => `${(a * 1000).toFixed(1)} mA`
 
@@ -66,4 +68,26 @@ export function simChecks(doc: CircuitDoc, defs: PartDefs, snapshot: Snapshot): 
     })
   }
   return issues
+}
+
+/**
+ * simChecks for the worst case a program can drive: every pin in `pins` HIGH, then every pin LOW,
+ * each in a fresh simulation. One issue is kept per code and refs. A pass that cannot be
+ * simulated adds none.
+ */
+export function driveChecks(doc: CircuitDoc, defs: PartDefs, pins: number[]): Issue[] {
+  const found = new Map<string, Issue>()
+  for (const level of [true, false]) {
+    try {
+      const session = new SimSession(new Circuit(doc, defs, BEHAVIORS))
+      for (const bcm of pins) session.setGpio(bcm, { mode: 'out', level })
+      for (const issue of simChecks(doc, defs, session.snapshot())) {
+        const key = `${issue.code}:${issue.refs.join(',')}`
+        if (!found.has(key)) found.set(key, issue)
+      }
+    } catch {
+      continue
+    }
+  }
+  return [...found.values()]
 }

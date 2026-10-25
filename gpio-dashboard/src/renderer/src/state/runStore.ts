@@ -5,6 +5,7 @@ import { codePins } from '../core/code/pins'
 import { partDef } from '../core/defs/parts'
 import { erc, type Issue } from '../core/erc/erc'
 import type { CircuitDoc } from '../core/model/types'
+import { driveChecks } from '../core/sim/checks'
 import { cleanupPins, killScript, runScript, scriptName, uploadScript } from '../native/ssh'
 import { useSense } from './senseStore'
 
@@ -99,8 +100,19 @@ const projectId = (source: string | null, doc: CircuitDoc) =>
     .replace(/[^A-Za-z0-9_-]+/g, '-')
     .slice(0, 48) || 'project'
 
-/** Run on Pi for a document with the code being edited, gated by ERC over both. */
+/**
+ * Run on Pi for a document with the code being edited, gated by ERC over both. The gate includes
+ * the simulated-current rules (PIN_OVERCURRENT, RAIL_BUDGET, LED_NO_LIMIT) with the program's
+ * output pins driven HIGH and LOW, since the program decides which level it ends up holding.
+ */
 export function runOnPi(source: string | null, doc: CircuitDoc, code: string): Promise<void> {
   const withCode = { ...doc, code: { ...doc.code, source: code } }
-  return useRun.getState().run(projectId(source, doc), code, erc(withCode, partDef))
+  const outputs = codePins(code)
+    .uses.filter((u) => u.mode === 'out' || u.mode === 'pwm')
+    .map((u) => u.bcm)
+  const issues = [
+    ...erc(withCode, partDef),
+    ...driveChecks(withCode, partDef, [...new Set(outputs)])
+  ]
+  return useRun.getState().run(projectId(source, doc), code, issues)
 }
