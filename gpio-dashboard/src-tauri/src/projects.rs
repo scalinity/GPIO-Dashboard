@@ -14,7 +14,8 @@ const EXTENSION: &str = "gpiob";
 /// The assistant's transcript sits beside its project as `<id>.transcript.json`.
 const TRANSCRIPT_EXTENSION: &str = "transcript.json";
 const MAX_ID_LEN: usize = 64;
-/// Larger files are refused instead of being read into memory.
+/// Larger files are refused instead of being read into memory, and a larger document is never
+/// written.
 const MAX_FILE_BYTES: u64 = 16 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -222,11 +223,15 @@ pub fn write_doc_file(path: &Path, doc: &Value) -> Result<(), String> {
     write_atomic(path, &render(doc)?)
 }
 
-/// Pretty-printed JSON with a trailing newline, after validation.
+/// Pretty-printed JSON with a trailing newline, after validation. A document longer than
+/// `read_doc_file` accepts is refused, so a project that was saved can always be opened.
 fn render(doc: &Value) -> Result<String, String> {
     validate_doc(doc)?;
     let mut text = serde_json::to_string_pretty(doc).map_err(|e| e.to_string())?;
     text.push('\n');
+    if text.len() as u64 > MAX_FILE_BYTES {
+        return Err("The project is too large: the limit is 16 MiB".to_string());
+    }
     Ok(text)
 }
 
@@ -678,6 +683,41 @@ mod tests {
 
         let ids: Vec<String> = projects.list().unwrap().into_iter().map(|p| p.id).collect();
         assert_eq!(ids, ["limit"], "the oversized file is skipped by list");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    /// A valid project whose serialized form is longer by `extra` bytes than with no padding.
+    fn padded_doc(extra: usize) -> Value {
+        let mut padded = doc("Big", "2026-01-02T00:00:00Z");
+        padded["padding"] = json!("x".repeat(extra));
+        padded
+    }
+
+    #[test]
+    fn a_document_over_the_read_limit_is_refused_and_the_previous_file_is_kept() {
+        let dir = temp_dir("write-limit");
+        let projects = Projects::new(dir.clone());
+        projects
+            .write("p1", &doc("Small", "2026-01-01T00:00:00Z"))
+            .unwrap();
+        let before = fs::read_to_string(dir.join("p1.gpiob")).unwrap();
+
+        // A document that serializes to exactly the limit is written and reads back.
+        let unpadded = render(&padded_doc(0)).unwrap().len();
+        let at_limit = padded_doc(MAX_FILE_BYTES as usize - unpadded);
+        projects.write("at-limit", &at_limit).unwrap();
+        assert_eq!(projects.read("at-limit").unwrap(), at_limit);
+
+        let over_limit = padded_doc(MAX_FILE_BYTES as usize - unpadded + 1);
+        let err = projects.write("p1", &over_limit).unwrap_err();
+        assert!(err.contains("too large") && err.contains("16 MiB"), "{err}");
+        assert_eq!(fs::read_to_string(dir.join("p1.gpiob")).unwrap(), before);
+        assert_eq!(file_names(&dir), ["at-limit.gpiob", "p1.gpiob"]);
+
+        let export = dir.join("export.gpiob");
+        let err = write_doc_file(&export, &over_limit).unwrap_err();
+        assert!(err.contains("too large") && err.contains("16 MiB"), "{err}");
+        assert!(!export.exists());
         let _ = fs::remove_dir_all(dir);
     }
 
