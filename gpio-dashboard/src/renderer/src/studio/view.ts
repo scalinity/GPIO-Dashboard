@@ -42,7 +42,14 @@ import '../state/liveDivergence'
 import '../state/liveSim'
 import { useLive } from '../state/liveStore'
 import { useSense } from '../state/senseStore'
-import { BUILDING_MESSAGE, edit, type Selection, type Tool, useStudio } from '../state/studioStore'
+import {
+  BUILDING_MESSAGE,
+  edit,
+  type Selection,
+  togglePanels,
+  type Tool,
+  useStudio
+} from '../state/studioStore'
 import { useWorkbench } from '../state/workbenchStore'
 import { BadgeLayer } from './badges'
 import { BenchLayer } from './bench'
@@ -534,6 +541,9 @@ export class StudioView {
       else if (key === 'delete' || key === 'backspace') this.remove()
       else if (key === 'r') this.rotate(90)
       else if (key === 'w') this.setTool(useStudio.getState().tool === 'wire' ? 'select' : 'wire')
+      else if (key === '[') togglePanels('library')
+      else if (key === ']') togglePanels('properties')
+      else if (key === '\\') togglePanels('both')
       else if (KEYS[key]) this.preset(KEYS[key])
     }
     // Hover only over the canvas itself, and not while a button is down (orbiting).

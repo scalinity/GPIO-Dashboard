@@ -10,6 +10,10 @@ import {
   GitFork,
   LayoutGrid,
   ListChecks,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Play,
   Redo2,
   Save,
@@ -38,7 +42,7 @@ import {
   useProject
 } from '../state/projectStore'
 import { runOnPi, useRun } from '../state/runStore'
-import { edit, useStudio } from '../state/studioStore'
+import { edit, togglePanels, useStudio } from '../state/studioStore'
 import { follow, useWorkbench } from '../state/workbenchStore'
 import Studio from '../studio/Studio'
 import { StudioView } from '../studio/view'
@@ -108,6 +112,7 @@ function TopBar() {
   }
   return (
     <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.04] shrink-0">
+      <PanelToggle side="library" />
       <input
         key={doc.meta.name}
         aria-label="Project name"
@@ -194,8 +199,29 @@ function TopBar() {
           </button>
         )}
         <ConnectionStatus />
+        <PanelToggle side="properties" />
       </div>
     </div>
+  )
+}
+
+/** Shows or hides a side panel; with both hidden the bench fills the window. */
+function PanelToggle({ side }: { side: 'library' | 'properties' }) {
+  const open = useStudio((s) => s[side])
+  const [Icon, label, key] =
+    side === 'library'
+      ? [open ? PanelLeftClose : PanelLeftOpen, 'part library', '[']
+      : [open ? PanelRightClose : PanelRightOpen, 'properties', ']']
+  return (
+    <button
+      className="p-1.5 rounded-btn text-gray-400 hover:text-gray-200 hover:bg-white/[0.06]"
+      aria-label={`${open ? 'Hide' : 'Show'} the ${label}`}
+      aria-pressed={open}
+      title={`${open ? 'Hide' : 'Show'} the ${label} (${key}); \\ hides or shows both`}
+      onClick={() => togglePanels(side)}
+    >
+      <Icon className="w-4 h-4" />
+    </button>
   )
 }
 
@@ -204,17 +230,21 @@ export default function StudioPage() {
   const doc = useSyncExternalStore(circuit.subscribe, circuit.getSnapshot)
   const preview = useStudio((s) => s.preview)
   const building = useBuild((s) => s.on)
+  const library = useStudio((s) => s.library)
+  const properties = useStudio((s) => s.properties)
   return (
     <div ref={followOnMount} className="relative flex-1 flex flex-col h-full overflow-hidden">
       <TopBar />
       <div className="relative flex-1 flex min-h-0">
-        {building ? <BuildPanel /> : <PartLibrary view={view} />}
+        {building ? <BuildPanel /> : library && <PartLibrary view={view} />}
         <Studio view={view} doc={preview ?? doc} />
-        <aside className="w-64 shrink-0 overflow-y-auto border-l border-white/[0.04] bg-surface-900/60 p-3 space-y-4">
-          <Properties />
-          <Inspect view={view} />
-        </aside>
-        <div className="absolute right-[17rem] top-3 z-20 w-96">
+        {properties && (
+          <aside className="w-64 shrink-0 overflow-y-auto border-l border-white/[0.04] bg-surface-900/60 p-3 space-y-4">
+            <Properties />
+            <Inspect view={view} />
+          </aside>
+        )}
+        <div className={`absolute ${properties ? 'right-[17rem]' : 'right-3'} top-3 z-20 w-96`}>
           <RunBlockedDialog />
         </div>
       </div>

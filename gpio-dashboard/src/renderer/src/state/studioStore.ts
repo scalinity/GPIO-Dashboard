@@ -47,6 +47,9 @@ interface StudioState {
   pinMenu: PinMenu | null
   /** The open drawer tab; null while the drawer is folded. */
   drawer: DrawerTab | null
+  /** Whether the part library (left) and the properties (right) are shown; both off is immersive. */
+  library: boolean
+  properties: boolean
   /** The document as the current drag would leave it, while that is legal. */
   preview: CircuitDoc | null
   /** Why the last edit was refused, until the next one. */
@@ -70,12 +73,23 @@ export const useStudio = create<StudioState>(() => ({
   badge: null,
   pinMenu: null,
   drawer: null,
+  library: true,
+  properties: true,
   preview: null,
   notice: null,
   ghosts: {},
   tinted: null,
   cue: null
 }))
+
+/** Shows or hides the side panels: `[` the library, `]` the properties, `\` both together. */
+export function togglePanels(which: 'library' | 'properties' | 'both'): void {
+  const { library, properties } = useStudio.getState()
+  if (which === 'both') {
+    const open = !(library || properties)
+    useStudio.setState({ library: open, properties: open })
+  } else useStudio.setState({ [which]: !useStudio.getState()[which] })
+}
 
 export const BUILDING_MESSAGE = 'Leave Build Mode to change the circuit.'
 
