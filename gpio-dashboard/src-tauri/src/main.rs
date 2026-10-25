@@ -67,17 +67,22 @@ pub type Emit = Arc<dyn Fn(&str, Value) + Send + Sync>;
 
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Stops the Pi agent and closes the connections, then exits. Quitting waits for the
-/// remote stop so the agent is not left running on the Pi.
+/// Stops the Pi agent and closes the connections, waiting at most SHUTDOWN_TIMEOUT.
+async fn stop_remote(app: &AppHandle) {
+    app.state::<Ws>().disconnect();
+    let ssh = app.state::<Ssh>().inner().clone();
+    let _ = tokio::time::timeout(SHUTDOWN_TIMEOUT, async {
+        let _ = agent::stop(&ssh).await;
+        ssh.disconnect().await;
+    })
+    .await;
+}
+
+/// Stops the Pi agent, then exits. Quitting waits for the remote stop so the agent is not
+/// left running on the Pi.
 fn shutdown(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
-        app.state::<Ws>().disconnect();
-        let ssh = app.state::<Ssh>().inner().clone();
-        let _ = tokio::time::timeout(SHUTDOWN_TIMEOUT, async {
-            let _ = agent::stop(&ssh).await;
-            ssh.disconnect().await;
-        })
-        .await;
+        stop_remote(&app).await;
         app.exit(0);
     });
 }
@@ -146,17 +151,22 @@ fn main() {
         .expect("error while building the application");
 
     let shutting_down = AtomicBool::new(false);
-    app.run(move |app, event| {
-        // `code` is None when the user quits (last window closed, Cmd+Q); the later
-        // `app.exit(0)` carries a code and passes through.
-        if let RunEvent::ExitRequested {
+    app.run(move |app, event| match event {
+        // `code` is None when the last window closes; the later `app.exit(0)` carries a code and
+        // passes through.
+        RunEvent::ExitRequested {
             api, code: None, ..
-        } = event
-        {
+        } => {
             api.prevent_exit();
             if !shutting_down.swap(true, Ordering::SeqCst) {
                 shutdown(app.clone());
             }
         }
+        // Cmd+Q on macOS ends the app without ExitRequested (tao reports it as the loop being
+        // destroyed), so the agent is stopped here, before the process ends.
+        RunEvent::Exit if !shutting_down.swap(true, Ordering::SeqCst) => {
+            tauri::async_runtime::block_on(stop_remote(app));
+        }
+        _ => {}
     });
 }
