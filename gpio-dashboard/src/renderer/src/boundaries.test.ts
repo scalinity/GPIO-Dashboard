@@ -9,7 +9,7 @@ const BOUNDARY_RULES = new Set([
   'no-restricted-syntax'
 ])
 // no-restricted-imports does not see import(); assistant/ has its own rule for it.
-const DYNAMIC_IMPORT_RULE = 'assistant-boundary/dynamic-import'
+const IMPORTS_RULE = 'assistant-boundary/imports'
 
 async function boundaryErrors(file: string, code: string): Promise<string[]> {
   const [result] = await eslint.lintText(code, { filePath: `src/renderer/src/${file}` })
@@ -18,7 +18,7 @@ async function boundaryErrors(file: string, code: string): Promise<string[]> {
       (m) =>
         m.severity === 2 &&
         m.ruleId !== null &&
-        (BOUNDARY_RULES.has(m.ruleId) || m.ruleId === DYNAMIC_IMPORT_RULE)
+        (BOUNDARY_RULES.has(m.ruleId) || m.ruleId === IMPORTS_RULE)
     )
     .map((m) => `${m.ruleId}: ${m.message}`)
 }
@@ -72,6 +72,8 @@ const assistantViolations = [
   "import { runScript } from '../native/ssh'\nexport { runScript }",
   "export * from '../native/ssh'",
   "export { runScript } from '../native/ssh'",
+  "export { PINS } from '../data/pins.js'",
+  "import inventory from '../content/inventory.json'\nexport { inventory }",
   "export const run = async () => (await import('../native/ssh')).runScript('project_x.py')",
   "export const core = () => import('@tauri-apps/api/core')",
   "export const store = () => import('../state/runStore')",
@@ -84,6 +86,8 @@ const assistantViolations = [
 ]
 const assistantAllowed = [
   "export * from '../core/netlist/build'",
+  "import { netlist } from '../core/netlist/netlist'\nexport { netlist }",
+  "import { z } from 'zod'\nexport { z }",
   "export const load = () => import('../native/anthropic')",
   "export const load = () => import('../core/netlist/build')",
   "export const load = () => import('@renderer/core/netlist/build')",
@@ -105,9 +109,9 @@ describe('module boundary lint rules (SPEC 4.5)', () => {
     }
   )
 
-  it('has the dynamic import rule configured as an error for assistant/', async () => {
+  it('has the import allowlist configured as an error for assistant/', async () => {
     const config = await eslint.calculateConfigForFile('src/renderer/src/assistant/x.ts')
-    const setting = config.rules?.[DYNAMIC_IMPORT_RULE]
+    const setting = config.rules?.[IMPORTS_RULE]
     expect(Array.isArray(setting) ? setting[0] : setting).toBe(2)
   })
 
