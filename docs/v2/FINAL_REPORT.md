@@ -40,7 +40,7 @@ Tauri-window run.
 | Closed on 2026-10-25 | 9 (Tauri window), 10 and 12 (real Pi), 15 (look-dev retake), 16 (README tests); section 9 |
 | Defects | D1 to D18 closed: each with a named guard, D16 by the README rewrite and its review (section 4) |
 | Hardware work left for the user | 48 unticked items in `HIL_CHECKLIST.md`, each needing a built circuit or a Pi 5 GPIO library (section 5.1) |
-| Decisions recorded | 137 ADRs, ADR-0001 to ADR-0137, contiguous (section 6) |
+| Decisions recorded | 138 ADRs, ADR-0001 to ADR-0138, contiguous (section 6) |
 
 Test suites, re-run at `20b9ab8` for this report (commands and output in the appendix):
 
@@ -180,7 +180,7 @@ Labels e2e (`e2e/labels.spec.ts`) closed item 8's gap. Final acceptance run: app
 | 7 | Undo of an assistant turn is deep-equal | Met | |
 | 8 | Hover in one frame; Labels, Voltages, Current | Met | Run in Chromium, not WKWebView |
 | 9 | WebGPU in the Tauri window, 60 fps, idle zero | Met | 60 fps on the four heaviest scenes in the Tauri window, 0 frames idle (2026-10-25) |
-| 10 | Run on Pi works; ERC gates it | Met | Run on the real Pi; the tutorials' own RPi.GPIO code needs a Pi 5 GPIO library that Pi's OS lacks |
+| 10 | Run on Pi works; ERC gates it | Met | Run on the real Pi, a shipped tutorial included (ADR-0138) |
 | 11 | Secrets and safety | Met | The real key read from the Keychain by the app (2026-10-25); the Settings field itself was not typed into |
 | 12 | Baseline suites green; features keep working | Met | Connect, deploy, telemetry, monitor, terminal, run and stop on the real Pi |
 | 13 | Cables physical in real time | Met | Tauri measurement is from M8 |
@@ -390,9 +390,9 @@ locked from M10 on, which hides the WKWebView, so the M12 numbers are headless. 
 ### Item 10. Run on Pi works for projects and tutorials; ERC errors block it unless overridden
 
 **Status: Met (2026-10-25)** on the real Pi through the app: the ERC gate, a project's upload, run,
-output and Stop, and a program driving a free pin (section 9). The tutorials' own programs were not
-run there: they import RPi.GPIO or gpiozero, which on that Pi's OS has no Pi 5 backend. The text
-below is the record up to M12.
+output and Stop, a program driving a free pin, and the shipped Breathing LED tutorial driving GPIO18
+once the agent's venv supplied a Pi 5 RPi.GPIO and gpiozero (ADR-0138; section 9). The text below is
+the record up to M12.
 
 Evidence:
 - `state/runStore.test.ts` (6 tests) against a mocked native layer: uploads to
@@ -870,6 +870,7 @@ heading count.
 - ADR-0135 A known host's key of another algorithm is a changed key
 - ADR-0136 The agent's start command backgrounds only nohup
 - ADR-0137 The app icon is rendered in Blender and shipped both as Icon Composer and as icns
+- ADR-0138 Programs run with the agent's venv Python, which gets rpi-lgpio where apt has no lgpio
 
 ## 7. Commands
 
@@ -972,9 +973,11 @@ defect no local test could: the agent's start command lasted as long as the agen
 OpenSSH, so no token came back and telemetry was refused (ADR-0136); fixed, the deploy takes 6 s.
 Quitting with Cmd+Q left the agent running on the Pi: macOS raises RunEvent::Exit there, never the
 ExitRequested the stop waited in; the stop now runs on Exit too, and the Pi is left with no agent.
-I2C was enabled on the Pi at its owner's request. Not run there: the tutorials' own programs and
-the Toggle LED checkpoint, which import RPi.GPIO; that Pi's OS has only the pre-RP1 RPi.GPIO 0.7.1,
-and pip's lgpio does not build for its Python 3.14.
+I2C was enabled on the Pi at its owner's request. The tutorials' own programs, which import RPi.GPIO
+or gpiozero, could not drive pins there at first: that Pi's OS has only the pre-RP1 RPi.GPIO 0.7.1,
+and pip's lgpio did not build for its Python 3.14 (its SWIG interface calls Python 2 functions).
+The installer now builds lgpio with those four functions mapped and puts rpi-lgpio in the agent's
+venv, which Run on Pi uses (ADR-0138); the unmodified Breathing LED tutorial then drove GPIO18.
 
 **The assistant, live.** The API key was added to the login Keychain under the app's own service and
 account (`com.gpio-dashboard`, `anthropic.apiKey`), read from `.env` into the shell's memory and

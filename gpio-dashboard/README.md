@@ -174,7 +174,7 @@ The full diagram, the data flows and the module boundaries are in [`docs/ARCHITE
 - **Strict tools within a grammar budget.** The API refuses a request whose strict tool schemas compile to too large a grammar, so 11 of the 22 tools are strict and 12 stream eagerly; a refused first request drops one flag at a time ([ADR-0105](../docs/v2/DECISIONS.md)).
 - **Render only when something moves.** One geometry pass, a shadow map redrawn every second frame, and a frame loop that goes idle after temporal anti-aliasing converges; a held build step draws zero frames ([ADR-0026](../docs/v2/DECISIONS.md), [ADR-0082](../docs/v2/DECISIONS.md), [ADR-0110](../docs/v2/DECISIONS.md)).
 - **Reproducible evals.** A live run is recorded with every secret and opaque token scrubbed, and Vitest replays it with no key and no network ([ADR-0101](../docs/v2/DECISIONS.md)).
-- **137 recorded decisions.** [`docs/v2/DECISIONS.md`](../docs/v2/DECISIONS.md) holds ADR-0001 to ADR-0137, with context, options and consequences.
+- **138 recorded decisions.** [`docs/v2/DECISIONS.md`](../docs/v2/DECISIONS.md) holds ADR-0001 to ADR-0138, with context, options and consequences.
 
 ---
 
@@ -219,7 +219,7 @@ Counted from the repository when this README was written; the commands in the So
 | Rust | 94 tests pass, 20 ignored | `cargo test` |
 | Node bridge / Pi agent | 7 / 58 tests pass | `node --test`, `python3 -m unittest` |
 | End-to-end tests (listed, not run for this table) | 105 in 11 files | `npx playwright test --list` |
-| Recorded decisions | 137 | `docs/v2/DECISIONS.md` |
+| Recorded decisions | 138 | `docs/v2/DECISIONS.md` |
 | Audit rows | 242 (11 unsafe for hardware), every one closed | `docs/v2/AUDIT.md`, `audit.test.ts` |
 
 ---
@@ -283,7 +283,7 @@ On macOS the bundle is ad-hoc signed. Keychain access is tied to the app's code 
 | [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) | The system as built: processes, data flow, module boundaries, asset pipeline, Board Sense, the key's path |
 | [`docs/v2/SPEC.md`](../docs/v2/SPEC.md) | The v2 specification |
 | [`docs/v2/PLAN.md`](../docs/v2/PLAN.md), [`PROGRESS.md`](../docs/v2/PROGRESS.md) | The milestone plan and each milestone's exit evidence |
-| [`docs/v2/DECISIONS.md`](../docs/v2/DECISIONS.md) | ADR-0001 to ADR-0137 |
+| [`docs/v2/DECISIONS.md`](../docs/v2/DECISIONS.md) | ADR-0001 to ADR-0138 |
 | [`docs/v2/AUDIT.md`](../docs/v2/AUDIT.md) | The correctness audit: every tutorial, part depiction, hard-coded fact and README claim, with sources |
 | [`docs/v2/HIL_CHECKLIST.md`](../docs/v2/HIL_CHECKLIST.md) | Checks that need the Pi or the bench |
 | [`docs/v2/EVALS.md`](../docs/v2/EVALS.md), [`LOOKDEV.md`](../docs/v2/LOOKDEV.md) | The assistant's evaluations and the look-development checklist |

@@ -327,3 +327,11 @@ Integrator work, in the Tauri window and on the real Pi (`hil/2026-10-25-real-pi
   165 mm), retakes on the final render path; R2's Pi end is hidden under the ribbon's loop.
 - Blender MCP: the official add-on installed and used against a live Blender (`--online-mode`) for
   the app icon (f47aefe, ADR-0137; `scripts/icon/app_icon.py`) and an independent check of the GLBs.
+
+## Pi 5 GPIO for programs on any OS — done (2026-10-25)
+
+Tutorials could not drive pins on the bench Pi (Kali, Python 3.14): no lgpio from apt, and pip's
+lgpio did not build (Python 2 names in its SWIG interface). install.sh now builds it with those
+names mapped and puts rpi-lgpio in the agent's venv; Run on Pi uses that venv's Python (ADR-0138).
+On the real Pi the unmodified Breathing LED tutorial drove GPIO18 from Run on Pi, and Stop returned
+it to an input; every pin was then set back as found.

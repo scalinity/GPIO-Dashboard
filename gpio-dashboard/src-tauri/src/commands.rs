@@ -58,9 +58,12 @@ fn is_safe_script_name(name: &str) -> bool {
 }
 
 /// The remote command that runs an uploaded tutorial script. `filename` must already
-/// have passed `is_safe_script_name`.
-pub(crate) fn tutorial_run_command(filename: &str) -> String {
-    format!("mkdir -p {TUTORIAL_DIR} && cd {TUTORIAL_DIR} && python3 -u {filename}")
+/// have passed `is_safe_script_name`. With the agent's directory, the script runs with its venv's
+/// Python when there is one (`agent::python_in`), which is where install.sh puts rpi-lgpio on a
+/// system whose apt has no Pi 5 backend for RPi.GPIO and gpiozero.
+pub(crate) fn tutorial_run_command(filename: &str, agent_dir: Option<&str>) -> String {
+    let python = agent_dir.map_or_else(|| "python3".to_string(), agent::python_in);
+    format!("mkdir -p {TUTORIAL_DIR} && cd {TUTORIAL_DIR} && {python} -u {filename}")
 }
 
 /// The remote command that stops that script. The `[x]` keeps the pattern from matching
@@ -186,7 +189,10 @@ fn run_time_limit(setting: &Value) -> Option<Duration> {
 /// time limit is also killed on the Pi, as Stop does through `ssh_kill_process`.
 pub(crate) async fn run_script(ssh: &Ssh, filename: &str, limit: Option<Duration>) -> Value {
     let result = ssh
-        .execute_streaming(&tutorial_run_command(filename), limit)
+        .execute_streaming(
+            &tutorial_run_command(filename, agent::remote_dir(ssh).ok().as_deref()),
+            limit,
+        )
         .await
         .unwrap_or_else(|e| json!({ "error": e }));
     if result["timedOut"] == true {
@@ -731,7 +737,7 @@ mod tests {
 
     #[test]
     fn the_stop_command_does_not_match_its_own_shell() {
-        let run = tutorial_run_command("tutorial_1.py");
+        let run = tutorial_run_command("tutorial_1.py", None);
         let kill = tutorial_kill_command("tutorial_1.py");
         assert!(run.ends_with("python3 -u tutorial_1.py"));
         assert_eq!(
