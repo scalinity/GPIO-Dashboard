@@ -16,7 +16,7 @@ function opFor(doc: CircuitDoc, pick: number[]): Op {
   const hasParts = doc.parts.length > 0
   const hasWires = doc.wires.length > 0
   const choices: string[] = [...kinds, 'AddCustomPart', 'SetBuildStepAnnotations']
-  if (doc.customParts) choices.push('RemoveCustomPart')
+  if (doc.customParts?.length) choices.push('RemoveCustomPart')
   if (hasParts) choices.push('MovePart', 'RemovePart', 'SetPartProps')
   if (hasWires) choices.push('MoveWireEnd', 'SetWireProps', 'RemoveWire')
   const kind = choices[n(0, choices.length)]
@@ -84,12 +84,15 @@ function opFor(doc: CircuitDoc, pick: number[]): Op {
 }
 
 describe('ops and their inverses', () => {
-  it('undo restores a strictly equal document after any sequence of edits', () => {
+  it.each([
+    ['without customParts', emptyDoc],
+    ['with an empty customParts list', () => ({ ...emptyDoc(), customParts: [] })]
+  ])('undo restores a strictly equal document after any sequence of edits, %s', (_, begin) => {
     fc.assert(
       fc.property(
         fc.array(fc.array(fc.nat(1000), { minLength: 5, maxLength: 5 }), { maxLength: 25 }),
         (picks) => {
-          const start = emptyDoc()
+          const start = begin()
           let doc = start
           const ops: Op[] = []
           for (const pick of picks) {
@@ -140,6 +143,16 @@ describe('ops and their inverses', () => {
     expect(
       applyOp(noted.doc, { type: 'SetBuildStepAnnotations' }).doc.buildStepAnnotations
     ).toBeUndefined()
+  })
+
+  it('puts back an empty customParts list as it was, and no field as none', () => {
+    const empty = { ...emptyDoc(), customParts: [] }
+    const added = applyOp(empty, { type: 'AddCustomPart', def: CUSTOM_RES })
+    expect(applyOp(added.doc, added.inverse).doc).toStrictEqual(empty)
+    // Taking the last one away by hand still drops the field, and undoing that restores the part.
+    const removed = applyOp(added.doc, { type: 'RemoveCustomPart', id: CUSTOM_RES.id })
+    expect(removed.doc).not.toHaveProperty('customParts')
+    expect(applyOp(removed.doc, removed.inverse).doc).toStrictEqual(added.doc)
   })
 
   it('rejects unknown and duplicate ids', () => {

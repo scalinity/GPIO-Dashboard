@@ -1,6 +1,6 @@
 // The single writer: validated transactions, exact undo, and nothing else mutates (SPEC 4.5).
 import { describe, expect, it } from 'vitest'
-import { at, emptyDoc, fixtureDefs, hole, part, wire } from '../core/testing/fixtures'
+import { at, CUSTOM_RES, emptyDoc, fixtureDefs, hole, part, wire } from '../core/testing/fixtures'
 import { CircuitStore } from './circuitStore'
 
 let tick = 0
@@ -91,6 +91,26 @@ describe('CircuitStore', () => {
     expect(s.undoTurn('turn-1')).toBe(3)
     expect(s.getSnapshot()).toStrictEqual(beforeTurn)
     expect(s.canUndo).toBe(true) // the user's own edit is still there to undo
+  })
+
+  it.each([
+    ['no customParts field', emptyDoc()],
+    ['an empty customParts list', { ...emptyDoc(), customParts: [] }]
+  ])('undoes an assistant turn that defines a custom part back to %s (acceptance 7)', (_, doc) => {
+    const s = new CircuitStore(doc, fixtureDefs, () => `2026-10-24T00:00:0${tick++}.000Z`)
+    const beforeTurn = s.getSnapshot()
+    s.dispatch({
+      author: 'assistant',
+      label: 'Define a part',
+      assistantTurnId: 'turn-1',
+      ops: [{ type: 'AddCustomPart', def: CUSTOM_RES }]
+    })
+    const afterTurn = s.getSnapshot()
+    expect(afterTurn.customParts).toEqual([CUSTOM_RES])
+    expect(s.undoTurn('turn-1')).toBe(1)
+    expect(s.getSnapshot()).toStrictEqual(beforeTurn)
+    s.redo()
+    expect(s.getSnapshot()).toStrictEqual(afterTurn)
   })
 
   it('keeps the connectivity engine in step with every change', () => {

@@ -277,7 +277,8 @@ export type Op =
   | { type: 'SetCode'; code: CircuitDoc['code'] }
   | { type: 'SetMeta'; meta: Partial<Pick<CircuitDoc['meta'], 'name' | 'sourceTutorialId'>> }
   | { type: 'AddCustomPart'; def: PartDef; index?: number }
-  | { type: 'RemoveCustomPart'; id: string }
+  /** Keeps an empty list, not a missing field, when the last one goes (the undo of an add). */
+  | { type: 'RemoveCustomPart'; id: string; keepEmpty?: boolean }
   /** Replaces all the build-step notes as a whole; none removes them. */
   | { type: 'SetBuildStepAnnotations'; annotations?: CircuitDoc['buildStepAnnotations'] }
 
