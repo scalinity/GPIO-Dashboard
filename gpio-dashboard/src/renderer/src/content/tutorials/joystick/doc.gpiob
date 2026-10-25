@@ -1,0 +1,340 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Joystick",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "joystick"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "U1",
+      "defId": "ads7830-module",
+      "props": {},
+      "placement": {
+        "pins": {
+          "A0": null,
+          "A1": null,
+          "A2": null,
+          "A3": null,
+          "A4": null,
+          "A5": null,
+          "A6": null,
+          "A7": null,
+          "VCC": null,
+          "SDA": null,
+          "SCL": null,
+          "GND": null
+        },
+        "offboardPose": {
+          "position": [
+            60,
+            75
+          ],
+          "rotationDeg": 0
+        }
+      }
+    },
+    {
+      "id": "J1",
+      "defId": "joystick-module",
+      "props": {},
+      "placement": {
+        "pins": {
+          "GND": null,
+          "VCC": null,
+          "VRX": null,
+          "VRY": null,
+          "SW": null
+        },
+        "offboardPose": {
+          "position": [
+            110,
+            75
+          ],
+          "rotationDeg": 0
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "VCC"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "b"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "J1",
+          "pin": "VCC"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "GND"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "b"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "J1",
+          "pin": "GND"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W5",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 2,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "SDA"
+        }
+      },
+      "color": "blue",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W6",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 3,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "SCL"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W7",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 30,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "J1",
+          "pin": "VRX"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W8",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 30,
+          "col": "b"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "A0"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W9",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 32,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "J1",
+          "pin": "VRY"
+        }
+      },
+      "color": "violet",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W10",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 32,
+          "col": "b"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "A1"
+        }
+      },
+      "color": "violet",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W11",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "J1",
+          "pin": "SW"
+        }
+      },
+      "color": "orange",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\nimport smbus\n\nBUTTON_PIN = 17  # BCM numbering: header pin 11, the stick's SW pin\nX_CHANNEL = 0  # VRX is on input A0\nY_CHANNEL = 1  # VRY is on input A1\nDEAD_ZONE = 30  # readings within this of the 128 centre count as centred\n\nADC_ADDRESS = 0x48  # the ADS7830 module on I2C bus 1 (SDA is GPIO2, SCL is GPIO3)\n\n# Command byte: SD = 1 (single-ended), C2-C0 choose the input, PD1-PD0 = 01 (converter on).\n# The select codes for A0 to A7 are not in binary order (ADS7830 datasheet, Table 2).\nSELECT = (0, 4, 1, 5, 2, 6, 3, 7)\n\nbus = smbus.SMBus(1)\n\n\ndef read_adc(channel):\n    \"\"\"One 8-bit reading: 0 for 0 V up to 255 for the module's 3.3 V supply.\"\"\"\n    command = 0x84 | (SELECT[channel] << 4)\n    return bus.read_byte_data(ADC_ADDRESS, command)\n\n\nGPIO.setmode(GPIO.BCM)\n# SW floats until pressed, then connects to ground, so the pin needs its own pull-up.\nGPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)\n\n\ndef direction(value, low_name, high_name):\n    if value < 128 - DEAD_ZONE:\n        return low_name\n    if value > 128 + DEAD_ZONE:\n        return high_name\n    return 'centre'\n\n\ntry:\n    while True:\n        x = read_adc(X_CHANNEL)\n        y = read_adc(Y_CHANNEL)\n        pressed = GPIO.input(BUTTON_PIN) == GPIO.LOW\n        print(\n            f'x {x:3d} {direction(x, \"left\", \"right\"):6s} '\n            f'y {y:3d} {direction(y, \"down\", \"up\"):6s} '\n            f'button {\"pressed\" if pressed else \"released\"}'\n        )\n        time.sleep(0.1)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.cleanup()\n    bus.close()\n"
+  },
+  "buildStepAnnotations": {
+    "U1": {
+      "why": "The module turns the two axis voltages into numbers the Pi can read over I2C.",
+      "mistake": "Powering the module from 5 V. Its I2C pull-ups are unverified, so it runs from 3.3 V."
+    },
+    "J1": {
+      "why": "Each axis is a potentiometer across the supply, so the stick position sets the voltage on VRX and VRY.",
+      "mistake": "Powering the joystick from 5 V: VRX and VRY then reach 5 V, too high for the 3.3 V ADC module."
+    },
+    "W7": {
+      "why": "VRX, the left-right axis, goes through this row to ADC input A0."
+    },
+    "W9": {
+      "why": "VRY, the up-down axis, goes through this row to ADC input A1."
+    },
+    "W11": {
+      "why": "The stick button pulls SW to ground when pressed and leaves it floating otherwise, so the code turns on the pin pull-up."
+    }
+  }
+}

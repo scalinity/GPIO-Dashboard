@@ -1,0 +1,981 @@
+{
+  "generator": "scripts/reference/ngspice_fixtures.py",
+  "ngspice": "ngspice-47",
+  "tolerance": 0.02,
+  "fixtures": [
+    {
+      "id": "divider",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "v1",
+          "p": 1,
+          "n": 0,
+          "volts": 5
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 1000
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 0,
+          "ohms": 2000
+        }
+      ],
+      "probes": {
+        "v(2)": "v(2)",
+        "i(v1)": "i(v1)"
+      },
+      "netlist": "divider\nv1 1 0 5\nR1 1 2 1000\nR2 2 0 2000\n.control\nset numdgt=10\nop\nlet p0 = v(2)\nlet p1 = i(v1)\nprint p0 p1\n.endc\n.end\n",
+      "results": {
+        "v(2)": 3.3333333333,
+        "i(v1)": -0.001666666667
+      }
+    },
+    {
+      "id": "divider-3v3-10k-20k",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "v1",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 10000
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 0,
+          "ohms": 20000
+        }
+      ],
+      "probes": {
+        "v(2)": "v(2)"
+      },
+      "netlist": "divider-3v3-10k-20k\nv1 1 0 3.3\nR1 1 2 10000\nR2 2 0 20000\n.control\nset numdgt=10\nop\nlet p0 = v(2)\nprint p0\n.endc\n.end\n",
+      "results": {
+        "v(2)": 2.2
+      }
+    },
+    {
+      "id": "led-red-5mm",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "vgpio",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 42.105263157894726
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 3,
+          "ohms": 220
+        },
+        {
+          "type": "D",
+          "a": 3,
+          "k": 0,
+          "is": 1.6465947482759563e-18,
+          "n": 2,
+          "rs": 2,
+          "fit": {
+            "part": "led",
+            "key": "red.5mm"
+          }
+        }
+      ],
+      "probes": {
+        "v(3)": "v(3)",
+        "i(vgpio)": "i(vgpio)"
+      },
+      "netlist": "led-red-5mm\nvgpio 1 0 3.3\nR1 1 2 42.105263157894726\nR2 2 3 220\nD1 3 0 mD1\n.model mD1 d(is=1.6465947482759563e-18 n=2 rs=2)\n.control\nset numdgt=10\nop\nlet p0 = v(3)\nlet p1 = i(vgpio)\nprint p0 p1\n.endc\n.end\n",
+      "results": {
+        "v(3)": 1.8600045218,
+        "i(vgpio)": -0.005493958652
+      }
+    },
+    {
+      "id": "led-red-3mm",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "vgpio",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 42.105263157894726
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 3,
+          "ohms": 220
+        },
+        {
+          "type": "D",
+          "a": 3,
+          "k": 0,
+          "is": 7.0142641053727735e-19,
+          "n": 2,
+          "rs": 2,
+          "fit": {
+            "part": "led",
+            "key": "red.3mm"
+          }
+        }
+      ],
+      "probes": {
+        "v(3)": "v(3)",
+        "i(vgpio)": "i(vgpio)"
+      },
+      "netlist": "led-red-3mm\nvgpio 1 0 3.3\nR1 1 2 42.105263157894726\nR2 2 3 220\nD1 3 0 mD1\n.model mD1 d(is=7.0142641053727735e-19 n=2 rs=2)\n.control\nset numdgt=10\nop\nlet p0 = v(3)\nlet p1 = i(vgpio)\nprint p0 p1\n.endc\n.end\n",
+      "results": {
+        "v(3)": 1.9022839553,
+        "i(vgpio)": -0.005332651576
+      }
+    },
+    {
+      "id": "led-green-5mm",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "vgpio",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 42.105263157894726
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 3,
+          "ohms": 220
+        },
+        {
+          "type": "D",
+          "a": 3,
+          "k": 0,
+          "is": 2.382557917360727e-19,
+          "n": 2,
+          "rs": 2,
+          "fit": {
+            "part": "led",
+            "key": "green.5mm"
+          }
+        }
+      ],
+      "probes": {
+        "v(3)": "v(3)",
+        "i(vgpio)": "i(vgpio)"
+      },
+      "netlist": "led-green-5mm\nvgpio 1 0 3.3\nR1 1 2 42.105263157894726\nR2 2 3 220\nD1 3 0 mD1\n.model mD1 d(is=2.382557917360727e-19 n=2 rs=2)\n.control\nset numdgt=10\nop\nlet p0 = v(3)\nlet p1 = i(vgpio)\nprint p0 p1\n.endc\n.end\n",
+      "results": {
+        "v(3)": 1.9557163475,
+        "i(vgpio)": -0.005128793052
+      }
+    },
+    {
+      "id": "led-green-3mm",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "vgpio",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 42.105263157894726
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 3,
+          "ohms": 220
+        },
+        {
+          "type": "D",
+          "a": 3,
+          "k": 0,
+          "is": 1.468573190377496e-20,
+          "n": 2,
+          "rs": 2,
+          "fit": {
+            "part": "led",
+            "key": "green.3mm"
+          }
+        }
+      ],
+      "probes": {
+        "v(3)": "v(3)",
+        "i(vgpio)": "i(vgpio)"
+      },
+      "netlist": "led-green-3mm\nvgpio 1 0 3.3\nR1 1 2 42.105263157894726\nR2 2 3 220\nD1 3 0 mD1\n.model mD1 d(is=1.468573190377496e-20 n=2 rs=2)\n.control\nset numdgt=10\nop\nlet p0 = v(3)\nlet p1 = i(vgpio)\nprint p0 p1\n.endc\n.end\n",
+      "results": {
+        "v(3)": 2.0932286461,
+        "i(vgpio)": -0.004604147736
+      }
+    },
+    {
+      "id": "led-blue-5mm",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "vgpio",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 42.105263157894726
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 3,
+          "ohms": 220
+        },
+        {
+          "type": "D",
+          "a": 3,
+          "k": 0,
+          "is": 1.1348971213223643e-20,
+          "n": 3,
+          "rs": 2,
+          "fit": {
+            "part": "led",
+            "key": "blue.5mm"
+          }
+        }
+      ],
+      "probes": {
+        "v(3)": "v(3)",
+        "i(vgpio)": "i(vgpio)"
+      },
+      "netlist": "led-blue-5mm\nvgpio 1 0 3.3\nR1 1 2 42.105263157894726\nR2 2 3 220\nD1 3 0 mD1\n.model mD1 d(is=1.1348971213223643e-20 n=3 rs=2)\n.control\nset numdgt=10\nop\nlet p0 = v(3)\nlet p1 = i(vgpio)\nprint p0 p1\n.endc\n.end\n",
+      "results": {
+        "v(3)": 3.0314730451,
+        "i(vgpio)": -0.00102450043
+      }
+    },
+    {
+      "id": "led-blue-3mm",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "vgpio",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 42.105263157894726
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 3,
+          "ohms": 220
+        },
+        {
+          "type": "D",
+          "a": 3,
+          "k": 0,
+          "is": 1.1348971213223643e-20,
+          "n": 3,
+          "rs": 2,
+          "fit": {
+            "part": "led",
+            "key": "blue.3mm"
+          }
+        }
+      ],
+      "probes": {
+        "v(3)": "v(3)",
+        "i(vgpio)": "i(vgpio)"
+      },
+      "netlist": "led-blue-3mm\nvgpio 1 0 3.3\nR1 1 2 42.105263157894726\nR2 2 3 220\nD1 3 0 mD1\n.model mD1 d(is=1.1348971213223643e-20 n=3 rs=2)\n.control\nset numdgt=10\nop\nlet p0 = v(3)\nlet p1 = i(vgpio)\nprint p0 p1\n.endc\n.end\n",
+      "results": {
+        "v(3)": 3.0314730451,
+        "i(vgpio)": -0.00102450043
+      }
+    },
+    {
+      "id": "led-yellow-5mm",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "vgpio",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 42.105263157894726
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 3,
+          "ohms": 220
+        },
+        {
+          "type": "D",
+          "a": 3,
+          "k": 0,
+          "is": 6.2634713651373075e-19,
+          "n": 2,
+          "rs": 2,
+          "fit": {
+            "part": "led",
+            "key": "yellow.5mm"
+          }
+        }
+      ],
+      "probes": {
+        "v(3)": "v(3)",
+        "i(vgpio)": "i(vgpio)"
+      },
+      "netlist": "led-yellow-5mm\nvgpio 1 0 3.3\nR1 1 2 42.105263157894726\nR2 2 3 220\nD1 3 0 mD1\n.model mD1 d(is=6.2634713651373075e-19 n=2 rs=2)\n.control\nset numdgt=10\nop\nlet p0 = v(3)\nlet p1 = i(vgpio)\nprint p0 p1\n.endc\n.end\n",
+      "results": {
+        "v(3)": 1.9078896979,
+        "i(vgpio)": -0.005311264205
+      }
+    },
+    {
+      "id": "led-yellow-3mm",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "vgpio",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 42.105263157894726
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 3,
+          "ohms": 220
+        },
+        {
+          "type": "D",
+          "a": 3,
+          "k": 0,
+          "is": 1.014936461822984e-19,
+          "n": 2,
+          "rs": 2,
+          "fit": {
+            "part": "led",
+            "key": "yellow.3mm"
+          }
+        }
+      ],
+      "probes": {
+        "v(3)": "v(3)",
+        "i(vgpio)": "i(vgpio)"
+      },
+      "netlist": "led-yellow-3mm\nvgpio 1 0 3.3\nR1 1 2 42.105263157894726\nR2 2 3 220\nD1 3 0 mD1\n.model mD1 d(is=1.014936461822984e-19 n=2 rs=2)\n.control\nset numdgt=10\nop\nlet p0 = v(3)\nlet p1 = i(vgpio)\nprint p0 p1\n.endc\n.end\n",
+      "results": {
+        "v(3)": 1.9978893282,
+        "i(vgpio)": -0.004967892121
+      }
+    },
+    {
+      "id": "led-white-5mm",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "vgpio",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 42.105263157894726
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 3,
+          "ohms": 220
+        },
+        {
+          "type": "D",
+          "a": 3,
+          "k": 0,
+          "is": 1.1348971213223643e-20,
+          "n": 3,
+          "rs": 2,
+          "fit": {
+            "part": "led",
+            "key": "white.5mm"
+          }
+        }
+      ],
+      "probes": {
+        "v(3)": "v(3)",
+        "i(vgpio)": "i(vgpio)"
+      },
+      "netlist": "led-white-5mm\nvgpio 1 0 3.3\nR1 1 2 42.105263157894726\nR2 2 3 220\nD1 3 0 mD1\n.model mD1 d(is=1.1348971213223643e-20 n=3 rs=2)\n.control\nset numdgt=10\nop\nlet p0 = v(3)\nlet p1 = i(vgpio)\nprint p0 p1\n.endc\n.end\n",
+      "results": {
+        "v(3)": 3.0314730451,
+        "i(vgpio)": -0.00102450043
+      }
+    },
+    {
+      "id": "led-white-3mm",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "vgpio",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 42.105263157894726
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 3,
+          "ohms": 220
+        },
+        {
+          "type": "D",
+          "a": 3,
+          "k": 0,
+          "is": 1.1348971213223643e-20,
+          "n": 3,
+          "rs": 2,
+          "fit": {
+            "part": "led",
+            "key": "white.3mm"
+          }
+        }
+      ],
+      "probes": {
+        "v(3)": "v(3)",
+        "i(vgpio)": "i(vgpio)"
+      },
+      "netlist": "led-white-3mm\nvgpio 1 0 3.3\nR1 1 2 42.105263157894726\nR2 2 3 220\nD1 3 0 mD1\n.model mD1 d(is=1.1348971213223643e-20 n=3 rs=2)\n.control\nset numdgt=10\nop\nlet p0 = v(3)\nlet p1 = i(vgpio)\nprint p0 p1\n.endc\n.end\n",
+      "results": {
+        "v(3)": 3.0314730451,
+        "i(vgpio)": -0.00102450043
+      }
+    },
+    {
+      "id": "rgb-cc-red",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "v5",
+          "p": 1,
+          "n": 0,
+          "volts": 5
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 220
+        },
+        {
+          "type": "D",
+          "a": 2,
+          "k": 0,
+          "is": 7.0142641053727735e-19,
+          "n": 2,
+          "rs": 2,
+          "fit": {
+            "part": "rgb-led-cc",
+            "key": "red"
+          }
+        }
+      ],
+      "probes": {
+        "v(2)": "v(2)",
+        "i(v5)": "i(v5)"
+      },
+      "netlist": "rgb-cc-red\nv5 1 0 5\nR1 1 2 220\nD1 2 0 mD1\n.model mD1 d(is=7.0142641053727735e-19 n=2 rs=2)\n.control\nset numdgt=10\nop\nlet p0 = v(2)\nlet p1 = i(v5)\nprint p0 p1\n.endc\n.end\n",
+      "results": {
+        "v(2)": 1.9682921207,
+        "i(v5)": -0.01378049036
+      }
+    },
+    {
+      "id": "rgb-cc-green",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "v5",
+          "p": 1,
+          "n": 0,
+          "volts": 5
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 220
+        },
+        {
+          "type": "D",
+          "a": 2,
+          "k": 0,
+          "is": 4.1176743834353925e-20,
+          "n": 3,
+          "rs": 2,
+          "fit": {
+            "part": "rgb-led-cc",
+            "key": "green"
+          }
+        }
+      ],
+      "probes": {
+        "v(2)": "v(2)",
+        "i(v5)": "i(v5)"
+      },
+      "netlist": "rgb-cc-green\nv5 1 0 5\nR1 1 2 220\nD1 2 0 mD1\n.model mD1 d(is=4.1176743834353925e-20 n=3 rs=2)\n.control\nset numdgt=10\nop\nlet p0 = v(2)\nlet p1 = i(v5)\nprint p0 p1\n.endc\n.end\n",
+      "results": {
+        "v(2)": 3.1115341685,
+        "i(v5)": -0.008583935598
+      }
+    },
+    {
+      "id": "rgb-cc-blue",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "v5",
+          "p": 1,
+          "n": 0,
+          "volts": 5
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 220
+        },
+        {
+          "type": "D",
+          "a": 2,
+          "k": 0,
+          "is": 4.1176743834353925e-20,
+          "n": 3,
+          "rs": 2,
+          "fit": {
+            "part": "rgb-led-cc",
+            "key": "blue"
+          }
+        }
+      ],
+      "probes": {
+        "v(2)": "v(2)",
+        "i(v5)": "i(v5)"
+      },
+      "netlist": "rgb-cc-blue\nv5 1 0 5\nR1 1 2 220\nD1 2 0 mD1\n.model mD1 d(is=4.1176743834353925e-20 n=3 rs=2)\n.control\nset numdgt=10\nop\nlet p0 = v(2)\nlet p1 = i(v5)\nprint p0 p1\n.endc\n.end\n",
+      "results": {
+        "v(2)": 3.1115341685,
+        "i(v5)": -0.008583935598
+      }
+    },
+    {
+      "id": "diode-1n4007",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "v1",
+          "p": 1,
+          "n": 0,
+          "volts": 5
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 1000
+        },
+        {
+          "type": "D",
+          "a": 2,
+          "k": 0,
+          "is": 4.9656221086196844e-08,
+          "n": 2,
+          "rs": 0.05,
+          "fit": {
+            "part": "diode-1n4007"
+          }
+        }
+      ],
+      "probes": {
+        "v(2)": "v(2)",
+        "i(v1)": "i(v1)"
+      },
+      "netlist": "diode-1n4007\nv1 1 0 5\nR1 1 2 1000\nD1 2 0 mD1\n.model mD1 d(is=4.9656221086196844e-08 n=2 rs=0.05)\n.control\nset numdgt=10\nop\nlet p0 = v(2)\nlet p1 = i(v1)\nprint p0 p1\n.endc\n.end\n",
+      "results": {
+        "v(2)": 0.58964950127,
+        "i(v1)": -0.004410350499
+      }
+    },
+    {
+      "id": "rc-step",
+      "analysis": "tran",
+      "step": 5e-06,
+      "stop": 0.005,
+      "elements": [
+        {
+          "type": "V",
+          "name": "v1",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 1000
+        },
+        {
+          "type": "C",
+          "p": 2,
+          "n": 0,
+          "farads": 1e-06
+        }
+      ],
+      "probes": {
+        "v(2)@0.0005": "v(2) at=0.0005",
+        "v(2)@0.001": "v(2) at=0.001",
+        "v(2)@0.002": "v(2) at=0.002",
+        "v(2)@0.003": "v(2) at=0.003",
+        "v(2)@0.005": "v(2) at=0.005"
+      },
+      "netlist": "rc-step\nv1 1 0 3.3\nR1 1 2 1000\nC1 2 0 1e-06 ic=0\n.control\nset numdgt=10\ntran 5e-06 0.005 uic\nmeas tran p0 find v(2) at=0.0005\nmeas tran p1 find v(2) at=0.001\nmeas tran p2 find v(2) at=0.002\nmeas tran p3 find v(2) at=0.003\nmeas tran p4 find v(2) at=0.005\n.endc\n.end\n",
+      "results": {
+        "v(2)@0.0005": 1.29845,
+        "v(2)@0.001": 2.086,
+        "v(2)@0.002": 2.8534,
+        "v(2)@0.003": 3.1357,
+        "v(2)@0.005": 3.27777
+      }
+    },
+    {
+      "id": "bjt-switch-pn2222",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "vgpio",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 42.105263157894726
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 3,
+          "ohms": 1000
+        },
+        {
+          "type": "V",
+          "name": "v5",
+          "p": 4,
+          "n": 0,
+          "volts": 5
+        },
+        {
+          "type": "R",
+          "p": 4,
+          "n": 5,
+          "ohms": 220
+        },
+        {
+          "type": "D",
+          "a": 5,
+          "k": 6,
+          "is": 1.6465947482759563e-18,
+          "n": 2,
+          "rs": 2,
+          "fit": {
+            "part": "led",
+            "key": "red.5mm"
+          }
+        },
+        {
+          "type": "Q",
+          "c": 6,
+          "b": 3,
+          "e": 0,
+          "is": 1e-14,
+          "br": 1,
+          "bf": 173.20508075688772,
+          "polarity": 1,
+          "fit": {
+            "part": "pn2222"
+          }
+        }
+      ],
+      "probes": {
+        "v(3)": "v(3)",
+        "v(6)": "v(6)",
+        "i(vgpio)": "i(vgpio)",
+        "i(v5)": "i(v5)"
+      },
+      "netlist": "bjt-switch-pn2222\nvgpio 1 0 3.3\nR1 1 2 42.105263157894726\nR2 2 3 1000\nv5 4 0 5\nR3 4 5 220\nD1 5 6 mD1\nQ1 6 3 0 mQ1\n.model mD1 d(is=1.6465947482759563e-18 n=2 rs=2)\n.model mQ1 npn(is=1e-14 bf=173.20508075688772 br=1)\n.control\nset numdgt=10\nop\nlet p0 = v(3)\nlet p1 = v(6)\nlet p2 = i(vgpio)\nlet p3 = i(v5)\nprint p0 p1 p2 p3\n.endc\n.end\n",
+      "results": {
+        "v(3)": 0.73052770457,
+        "v(6)": 0.053210627019,
+        "i(vgpio)": -0.002465655233,
+        "i(v5)": -0.01374032816
+      }
+    },
+    {
+      "id": "bjt-active-pn2222",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "vb",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 1000000.0
+        },
+        {
+          "type": "V",
+          "name": "vc",
+          "p": 3,
+          "n": 0,
+          "volts": 5
+        },
+        {
+          "type": "R",
+          "p": 3,
+          "n": 4,
+          "ohms": 1000
+        },
+        {
+          "type": "Q",
+          "c": 4,
+          "b": 2,
+          "e": 0,
+          "is": 1e-14,
+          "br": 1,
+          "bf": 173.20508075688772,
+          "polarity": 1,
+          "fit": {
+            "part": "pn2222"
+          }
+        }
+      ],
+      "probes": {
+        "v(2)": "v(2)",
+        "v(4)": "v(4)",
+        "i(vb)": "i(vb)",
+        "i(vc)": "i(vc)"
+      },
+      "netlist": "bjt-active-pn2222\nvb 1 0 3.3\nR1 1 2 1000000.0\nvc 3 0 5\nR2 3 4 1000\nQ1 4 2 0 mQ1\n.model mQ1 npn(is=1e-14 bf=173.20508075688772 br=1)\n.control\nset numdgt=10\nop\nlet p0 = v(2)\nlet p1 = v(4)\nlet p2 = i(vb)\nlet p3 = i(vc)\nprint p0 p1 p2 p3\n.endc\n.end\n",
+      "results": {
+        "v(2)": 0.63512124933,
+        "v(4)": 4.5384288845,
+        "i(vb)": -2.664878751e-06,
+        "i(vc)": -0.0004615711155
+      }
+    },
+    {
+      "id": "bjt-pnp-s8550",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "ve",
+          "p": 1,
+          "n": 0,
+          "volts": 5
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 0,
+          "ohms": 10000
+        },
+        {
+          "type": "R",
+          "p": 3,
+          "n": 0,
+          "ohms": 1000
+        },
+        {
+          "type": "Q",
+          "c": 3,
+          "b": 2,
+          "e": 1,
+          "is": 1e-14,
+          "br": 1,
+          "bf": 159.68719422671313,
+          "polarity": -1,
+          "fit": {
+            "part": "s8550"
+          }
+        }
+      ],
+      "probes": {
+        "v(2)": "v(2)",
+        "v(3)": "v(3)",
+        "i(ve)": "i(ve)"
+      },
+      "netlist": "bjt-pnp-s8550\nve 1 0 5\nR1 2 0 10000\nR2 3 0 1000\nQ1 3 2 1 mQ1\n.model mQ1 pnp(is=1e-14 bf=159.68719422671313 br=1)\n.control\nset numdgt=10\nop\nlet p0 = v(2)\nlet p1 = v(3)\nlet p2 = i(ve)\nprint p0 p1 p2\n.endc\n.end\n",
+      "results": {
+        "v(2)": 4.2997373204,
+        "v(3)": 4.9307918848,
+        "i(ve)": -0.005360765621
+      }
+    },
+    {
+      "id": "button-pulldown-pressed",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "v1",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 0.1
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 0,
+          "ohms": 10000
+        }
+      ],
+      "probes": {
+        "v(2)": "v(2)"
+      },
+      "netlist": "button-pulldown-pressed\nv1 1 0 3.3\nR1 1 2 0.1\nR2 2 0 10000\n.control\nset numdgt=10\nop\nlet p0 = v(2)\nprint p0\n.endc\n.end\n",
+      "results": {
+        "v(2)": 3.2999670003
+      }
+    },
+    {
+      "id": "button-pulldown-released",
+      "analysis": "op",
+      "elements": [
+        {
+          "type": "V",
+          "name": "v1",
+          "p": 1,
+          "n": 0,
+          "volts": 3.3
+        },
+        {
+          "type": "R",
+          "p": 1,
+          "n": 2,
+          "ohms": 1000000000.0
+        },
+        {
+          "type": "R",
+          "p": 2,
+          "n": 0,
+          "ohms": 10000
+        }
+      ],
+      "probes": {
+        "v(2)": "v(2)"
+      },
+      "netlist": "button-pulldown-released\nv1 1 0 3.3\nR1 1 2 1000000000.0\nR2 2 0 10000\n.control\nset numdgt=10\nop\nlet p0 = v(2)\nprint p0\n.endc\n.end\n",
+      "results": {
+        "v(2)": 3.2999670003e-05
+      }
+    }
+  ]
+}

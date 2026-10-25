@@ -1,0 +1,65 @@
+{
+  "sources": [
+    {
+      "id": "hdri-studio-small-09",
+      "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr",
+      "sha256": "e7cfda5f4e98e623db12b8bfd0184e048488e4855d9c83e2751fb44a32e80c45",
+      "retrieved": "2026-10-24",
+      "license": "CC0 1.0 (https://polyhaven.com/license)",
+      "page": "https://polyhaven.com/a/studio_small_09",
+      "author": "Sergej Majboroda",
+      "use": "Studio image-based lighting (SPEC 10.2), shipped as public/env/studio_small_09_1k.hdr",
+      "shipped": "src/renderer/public/env/studio_small_09_1k.hdr"
+    },
+    {
+      "id": "rpi5-step-no-graphics",
+      "url": "https://pip-assets.raspberrypi.com/categories/892-raspberry-pi-5/documents/RP-010083-CA-1-rpi-5%203D%20STEP%20-%20No%20Graphics%20small%20file.zip",
+      "sha256": "6841637b4cfa97637bf34b529bfe896f24d9634b2c40b57a156781f55d88f06f",
+      "retrieved": "2026-10-24",
+      "license": "MIT, Copyright (c) 2026 Raspberry Pi Ltd (the archive's LICENSE.txt, carried in pi5.manifest.json)",
+      "page": "https://pip.raspberrypi.com/categories/892-raspberry-pi-5",
+      "author": "Raspberry Pi Ltd",
+      "use": "Raspberry Pi 5 model (SPEC 6.2, 10.4): step-to-glb.ts and blender/pi5.py make public/models/pi5.glb",
+      "extract": [
+        {
+          "path": "rpi-5b_no_graphics.step",
+          "sha256": "78164070c1cc7ab854382950d2e85926c6e35432f1e5a146b733397a7c6afb44"
+        },
+        {
+          "path": "LICENSE.txt",
+          "sha256": "4ca2d350552b24137e55587e13fb09a249b757c6af49652ff02ea524d154c7fc"
+        }
+      ]
+    },
+    {
+      "id": "adafruit-cad-parts-license",
+      "url": "https://raw.githubusercontent.com/adafruit/Adafruit_CAD_Parts/c128bceb1f96b6ea8b68f250bda986ba85da24ea/LICENSE",
+      "sha256": "f60436644e066301d4c2e8f1f0674a157b1f60e4fd5586717b99dde255cc18cd",
+      "retrieved": "2026-10-24",
+      "license": "MIT, Copyright (c) 2016 Adafruit Industries (permits use, modification and redistribution with the notice)",
+      "page": "https://github.com/adafruit/Adafruit_CAD_Parts",
+      "author": "Adafruit Industries",
+      "use": "The licence of the Adafruit_CAD_Parts repository at commit c128bce (2026-10-01), carried in the manifests of the models made from its STEP files"
+    },
+    {
+      "id": "adafruit-1085-ads1115-step",
+      "url": "https://raw.githubusercontent.com/adafruit/Adafruit_CAD_Parts/c128bceb1f96b6ea8b68f250bda986ba85da24ea/1085%20ADS1115%20ADC/1085%20ADS1115%20ADC.step",
+      "sha256": "36657e86b2899297a298b77d7b46f16ef9b8c659055429494d7a1f367f983e9b",
+      "retrieved": "2026-10-24",
+      "license": "MIT, Copyright (c) 2016 Adafruit Industries (see adafruit-cad-parts-license)",
+      "page": "https://github.com/adafruit/Adafruit_CAD_Parts/tree/main/1085%20ADS1115%20ADC",
+      "author": "Adafruit Industries",
+      "use": "ADS1115 breakout, Adafruit product 1085 (SPEC 7, 10.4 off-board modules): step-to-glb.ts and blender/module.py make public/models/parts/ads1115-module.glb"
+    },
+    {
+      "id": "adafruit-711-dc-toy-motor-step",
+      "url": "https://raw.githubusercontent.com/adafruit/Adafruit_CAD_Parts/c128bceb1f96b6ea8b68f250bda986ba85da24ea/711%20DC%20Toy%20Motor/711%20DC%20Toy%20Motor.step",
+      "sha256": "7718d43d37ff4191a8b136846fedd33de85f6c64216fa76f9eff6b0064c4ef64",
+      "retrieved": "2026-10-24",
+      "license": "MIT, Copyright (c) 2016 Adafruit Industries (see adafruit-cad-parts-license)",
+      "page": "https://github.com/adafruit/Adafruit_CAD_Parts/tree/main/711%20DC%20Toy%20Motor",
+      "author": "Adafruit Industries",
+      "use": "130-size DC toy motor, Adafruit product 711, the part behind dc-motor.part.json (SPEC 7, 10.4 off-board modules): step-to-glb.ts and blender/motor.py make public/models/parts/dc-motor.glb"
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "id": "diode-1n4007",
+  "name": "Diode 1N4007",
+  "category": "semiconductor",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "A",
+      "label": "Anode (+)",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "K",
+      "label": "Cathode (−, band)",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": {
+    "kind": "flex-2lead",
+    "minSpan": 1,
+    "maxSpan": 15
+  },
+  "sim": {
+    "model": "diode",
+    "params": {
+      "vrrmV": 1000,
+      "vrmsV": 700,
+      "vdcV": 1000,
+      "ifAvA": 1.0,
+      "ifsmA": 30,
+      "vfMaxV": 1.1,
+      "vfTestA": 1.0,
+      "vfTypFig4V": 0.92,
+      "irMaxA": 5e-6,
+      "irMaxHotA": 5e-5,
+      "cjTypF": 1.5e-11
+    }
+  },
+  "properties": {},
+  "bodyMm": [5.2, 2.7, 2.7],
+  "geometry": {
+    "family": "diode",
+    "params": {
+      "package": "DO-41 (DO-204AL)",
+      "bodyLengthMm": 5.2,
+      "bodyLengthMinMm": 4.1,
+      "bodyDiameterMm": 2.7,
+      "bodyDiameterMinMm": 2.0,
+      "leadDiameterMm": 0.86,
+      "leadDiameterMinMm": 0.71,
+      "leadLengthMinMm": 25.4
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://www.vishay.com/docs/88503/1n4001.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "Datasheet: Vishay General Semiconductor 1N4001 to 1N4007, document 88503, revision 29-Apr-2020 (5 pages), 1N4007 column. MAXIMUM RATINGS p.1: VRRM 1000 V, VRMS 700 V, VDC 1000 V, IF(AV) 1.0 A (0.375 in leads, TA 75 °C), IFSM 30 A (8.3 ms half sine). ELECTRICAL CHARACTERISTICS p.2: maximum instantaneous VF 1.1 V at 1.0 A (a maximum, not a typical); maximum DC reverse current IR 5.0 µA at 25 °C and 50 µA at 125 °C at rated blocking voltage; typical junction capacitance 15 pF at 4.0 V, 1 MHz. Polarity: 'color band denotes cathode end'. vfTypFig4V 0.92 V is NOT a table value: it is read by eye from the typical forward characteristic Fig. 4 p.3 (TJ 25 °C, 300 µs pulses) at 1 A, good to about ±0.03 V, and is there because fitting a Shockley model to the 1.1 V maximum would overstate the drop by about 0.2 V. The same curve passes about 0.6 V at 10 mA and about 0.8 V at 0.2 A. Package outline p.4 (DO-41): body ø2.0 to 2.7 mm, length 4.1 to 5.2 mm, lead ø0.71 to 0.86 mm (0.58 to 0.66 mm for E-suffix parts), leads 25.4 mm min; bodyMm uses the maxima. Kit: 1N4007 x2 on the component list image. Spans: minSpan 1 is an upright mount (ø2.7 max body over one hole); a flat mount needs hole spacing above the 5.2 mm body, so at least 3 pitches. maxSpan 15 = floor((5.2 + 2 x (25.4 - 8)) / 2.54); the 8 mm per lead bend/insertion allowance is a modelling assumption, not a datasheet value."
+  }
+}

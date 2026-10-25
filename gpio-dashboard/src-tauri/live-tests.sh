@@ -37,4 +37,6 @@ CONFIG
 start_sshd 2222 yes
 start_sshd 2223 no
 
-SSHD_TEST_DIR="$DIR" cargo test -- --ignored --test-threads=1 "$@"
+# The live Anthropic proxy test needs ANTHROPIC_API_KEY in its own process and is run on its
+# own: cargo test live_count_tokens_through_the_real_proxy_path -- --ignored
+SSHD_TEST_DIR="$DIR" cargo test -- --ignored --test-threads=1 --skip anthropic::tests::live_ "$@"

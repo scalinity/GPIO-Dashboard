@@ -65,6 +65,33 @@
     @apply bg-surface-800/60 backdrop-blur-xl;
   }
 
+  /* Build Mode's rings over the holes of the step in hand (studio/stepMarks.ts): the tone class
+     sets the colour, the ring pulses and a dot stays where it fades. */
+  .step-mark-step {
+    color: #c4b5fd;
+  }
+  .step-mark-cause {
+    color: #fca5a5;
+  }
+  .step-mark {
+    @apply relative block rounded-full border-2;
+    width: 30px;
+    height: 30px;
+    margin: -15px 0 0 -15px;
+    border-color: currentColor;
+    box-shadow: 0 0 12px currentColor;
+    animation: step-pulse 1.4s ease-out infinite;
+  }
+  .step-mark-dot {
+    @apply absolute rounded-full;
+    left: 0;
+    top: 0;
+    width: 6px;
+    height: 6px;
+    margin: -3px 0 0 -3px;
+    background: currentColor;
+  }
+
   .glass-panel {
     @apply glass-bg border border-white/[0.04];
   }
@@ -119,5 +146,23 @@
     transform-box: fill-box;
     transform-origin: center;
     transform: rotate(90deg);
+  }
+}
+
+@keyframes step-pulse {
+  0% {
+    transform: scale(0.55);
+    opacity: 1;
+  }
+  70%,
+  100% {
+    transform: scale(1.25);
+    opacity: 0.15;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-mark {
+    animation: none;
   }
 }

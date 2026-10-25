@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Breathing LED",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "breathing-led"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "R1",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 26,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 30,
+            "col": "b"
+          }
+        }
+      }
+    },
+    {
+      "id": "D1",
+      "defId": "led",
+      "props": {
+        "color": "red",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 30,
+            "col": "c"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "main",
+            "row": 31,
+            "col": "c"
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 26,
+          "col": "a"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 31,
+          "col": "a"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import math\nimport time\n\nimport RPi.GPIO as GPIO\n\nLED_PIN = 18   # BCM numbering: header pin 12\nPWM_HZ = 1000\nPERIOD_S = 4.0     # one full breath, in seconds\nSTEP_S = 0.02\n\nGPIO.setmode(GPIO.BCM)\n# The LED's anode is fed from GPIO18 and its cathode is on GND, so HIGH lights it.\nGPIO.setup(LED_PIN, GPIO.OUT, initial=GPIO.LOW)\nled = GPIO.PWM(LED_PIN, PWM_HZ)\nled.start(0)\n\ntry:\n    start = time.time()\n    while True:\n        phase = 2 * math.pi * (time.time() - start) / PERIOD_S\n        level = (1 - math.cos(phase)) / 2   # 0 -> 1 -> 0, easing in and out\n        # The eye judges brightness on a curve, so squaring the level looks more even.\n        led.ChangeDutyCycle(100 * level * level)\n        time.sleep(STEP_S)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    led.stop()\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "R1": {
+      "why": "The resistor sets the LED current; without it the LED and the GPIO would carry far more than their ratings."
+    },
+    "D1": {
+      "why": "Current flows from anode to cathode only, so the anode (longer leg) faces GPIO18.",
+      "mistake": "The LED in backwards: it stays dark however the duty cycle changes."
+    },
+    "W1": {
+      "why": "GPIO18 drives the LED through R1, so the duty cycle sets the brightness."
+    },
+    "W2": {
+      "why": "The cathode returns to GND. This LED lights when GPIO18 is HIGH."
+    }
+  }
+}

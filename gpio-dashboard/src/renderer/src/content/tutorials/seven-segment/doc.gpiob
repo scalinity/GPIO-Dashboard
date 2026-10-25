@@ -1,0 +1,680 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "7-Segment Display",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "seven-segment"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "U1",
+      "defId": "ic-74hc595",
+      "props": {},
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 25,
+            "col": "e"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 26,
+            "col": "e"
+          },
+          "3": {
+            "board": "bb1",
+            "area": "main",
+            "row": 27,
+            "col": "e"
+          },
+          "4": {
+            "board": "bb1",
+            "area": "main",
+            "row": 28,
+            "col": "e"
+          },
+          "5": {
+            "board": "bb1",
+            "area": "main",
+            "row": 29,
+            "col": "e"
+          },
+          "6": {
+            "board": "bb1",
+            "area": "main",
+            "row": 30,
+            "col": "e"
+          },
+          "7": {
+            "board": "bb1",
+            "area": "main",
+            "row": 31,
+            "col": "e"
+          },
+          "8": {
+            "board": "bb1",
+            "area": "main",
+            "row": 32,
+            "col": "e"
+          },
+          "9": {
+            "board": "bb1",
+            "area": "main",
+            "row": 32,
+            "col": "f"
+          },
+          "10": {
+            "board": "bb1",
+            "area": "main",
+            "row": 31,
+            "col": "f"
+          },
+          "11": {
+            "board": "bb1",
+            "area": "main",
+            "row": 30,
+            "col": "f"
+          },
+          "12": {
+            "board": "bb1",
+            "area": "main",
+            "row": 29,
+            "col": "f"
+          },
+          "13": {
+            "board": "bb1",
+            "area": "main",
+            "row": 28,
+            "col": "f"
+          },
+          "14": {
+            "board": "bb1",
+            "area": "main",
+            "row": 27,
+            "col": "f"
+          },
+          "15": {
+            "board": "bb1",
+            "area": "main",
+            "row": 26,
+            "col": "f"
+          },
+          "16": {
+            "board": "bb1",
+            "area": "main",
+            "row": 25,
+            "col": "f"
+          }
+        }
+      }
+    },
+    {
+      "id": "DS1",
+      "defId": "seven-segment-cc",
+      "props": {},
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 36,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 37,
+            "col": "b"
+          },
+          "3": {
+            "board": "bb1",
+            "area": "main",
+            "row": 38,
+            "col": "b"
+          },
+          "4": {
+            "board": "bb1",
+            "area": "main",
+            "row": 39,
+            "col": "b"
+          },
+          "5": {
+            "board": "bb1",
+            "area": "main",
+            "row": 40,
+            "col": "b"
+          },
+          "6": {
+            "board": "bb1",
+            "area": "main",
+            "row": 40,
+            "col": "f"
+          },
+          "7": {
+            "board": "bb1",
+            "area": "main",
+            "row": 39,
+            "col": "f"
+          },
+          "8": {
+            "board": "bb1",
+            "area": "main",
+            "row": 38,
+            "col": "f"
+          },
+          "9": {
+            "board": "bb1",
+            "area": "main",
+            "row": 37,
+            "col": "f"
+          },
+          "10": {
+            "board": "bb1",
+            "area": "main",
+            "row": 36,
+            "col": "f"
+          }
+        }
+      }
+    },
+    {
+      "id": "R1",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 38,
+            "col": "i"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 43,
+            "col": "i"
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "rail",
+          "rail": "top+",
+          "index": 0
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 3,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "rail",
+          "rail": "top-",
+          "index": 0
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 25,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "rail",
+          "rail": "top+",
+          "index": 19
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 31,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "rail",
+          "rail": "top+",
+          "index": 24
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W5",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 32,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "rail",
+          "rail": "top-",
+          "index": 24
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W6",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 28,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "rail",
+          "rail": "top-",
+          "index": 21
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W7",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 43,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "rail",
+          "rail": "top-",
+          "index": 34
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W8",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 27,
+          "col": "j"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W9",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 29,
+          "col": "j"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W10",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 7,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 30,
+          "col": "j"
+        }
+      },
+      "color": "blue",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W11",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 26,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 39,
+          "col": "j"
+        }
+      },
+      "color": "brown",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W12",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 25,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 40,
+          "col": "j"
+        }
+      },
+      "color": "violet",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W13",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 26,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 39,
+          "col": "a"
+        }
+      },
+      "color": "grey",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W14",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 27,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 37,
+          "col": "a"
+        }
+      },
+      "color": "white",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W15",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 28,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 36,
+          "col": "a"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W16",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 29,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 37,
+          "col": "j"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W17",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 30,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 36,
+          "col": "j"
+        }
+      },
+      "color": "blue",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W18",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 31,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 40,
+          "col": "a"
+        }
+      },
+      "color": "violet",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\nSER_PIN = 17    # BCM numbering: header pin 11, data into the 74HC595\nRCLK_PIN = 18   # header pin 12, latch\nSRCLK_PIN = 27  # header pin 13, shift clock\n\n# Output QA drives segment a, QB drives b, and so on up to QG for g and QH for the decimal point.\n# Each digit is the list of its lit segments; a lit segment is a 1 bit in the byte sent.\nGLYPHS = [\n    \"abcdef\", \"bc\", \"abdeg\", \"abcdg\", \"bcfg\", \"acdfg\", \"acdefg\", \"abc\",\n    \"abcdefg\", \"abcdfg\", \"abcefg\", \"cdefg\", \"adef\", \"bcdeg\", \"adefg\", \"aefg\",\n]\nNAMES = \"0123456789ABCDEF\"\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(SER_PIN, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(RCLK_PIN, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(SRCLK_PIN, GPIO.OUT, initial=GPIO.LOW)\n\n\ndef pattern(segments):\n    \"\"\"Turn a string of segment letters into the byte that lights them.\"\"\"\n    byte = 0\n    for letter in segments:\n        byte |= 1 << \"abcdefg\".index(letter)\n    return byte\n\n\ndef show(byte):\n    \"\"\"Shift one byte in, most significant bit first, then latch it onto the outputs.\"\"\"\n    for bit in range(7, -1, -1):\n        GPIO.output(SER_PIN, (byte >> bit) & 1)\n        GPIO.output(SRCLK_PIN, GPIO.HIGH)\n        GPIO.output(SRCLK_PIN, GPIO.LOW)\n    GPIO.output(RCLK_PIN, GPIO.HIGH)\n    GPIO.output(RCLK_PIN, GPIO.LOW)\n\n\ntry:\n    while True:\n        for name, segments in zip(NAMES, GLYPHS):\n            print(\"Showing\", name)\n            show(pattern(segments))\n            time.sleep(0.5)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    show(0x00)\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "U1": {
+      "why": "Eight outputs from three GPIO pins: the shift register turns a byte sent bit by bit into eight steady output levels.",
+      "mistake": "Fitting the chip the wrong way round, with pin 1 at the far end."
+    },
+    "DS1": {
+      "why": "A common-cathode display: the seven segments and the decimal point are separate LEDs with their cathodes joined at the two common pins.",
+      "mistake": "Taking the display for common anode. Its patterns would then come out inverted."
+    },
+    "R1": {
+      "why": "One resistor in the common line limits the total current of whichever segments are lit."
+    },
+    "W7": {
+      "why": "Returns the common cathode to GND through R1."
+    },
+    "W6": {
+      "why": "OE is active low: GND keeps the outputs on."
+    },
+    "W4": {
+      "why": "SRCLR is active low: 3V3 stops the register clearing itself."
+    },
+    "W8": {
+      "why": "GPIO17 sends the data bits into the register."
+    },
+    "W9": {
+      "why": "GPIO18 latches the shifted bits onto the outputs."
+    },
+    "W10": {
+      "why": "GPIO27 clocks each bit along the register."
+    },
+    "W11": {
+      "why": "QA drives segment a, QB segment b, and so on up to QH on the decimal point."
+    }
+  }
+}

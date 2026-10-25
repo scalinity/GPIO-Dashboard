@@ -1,0 +1,2584 @@
+{
+ "turns": [
+  "blink an LED on GPIO17",
+  "add a second LED on GPIO27 that blinks opposite to the first"
+ ],
+ "model": "claude-opus-5-5",
+ "effort": "high",
+ "webTools": false,
+ "recorded": "2026-10-24",
+ "sdk": "1.3.0",
+ "expected": {
+  "turns.complete": true,
+  "erc": true,
+  "convention": true,
+  "inventory": true,
+  "code.syntax": true,
+  "code.pins": true,
+  "claims": true,
+  "ghosts": true,
+  "code.requested-pins": true,
+  "sim.program": true,
+  "led.count": true,
+  "undo.turn2": true,
+  "undo.all": true
+ },
+ "notes": [],
+ "requests": [
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "prefix": {
+    "system": [
+     {
+      "type": "text",
+      "text": "You are Claude, built into Breadboard Studio, a desktop app that holds a digital twin of the user's electronics bench. You help them design, build, check and understand circuits, and you edit the twin through the tools you are given.\n\n# The bench\n\n- A Raspberry Pi 5, a SunFounder Basic Starter Kit, one 830-point breadboard (bb1), and a 40-pin T-shaped extension board (the T-board) joined to the Pi by a 200 mm ribbon cable.\n- The T-board sits on bb1 in columns d and h, header toward row 0, with pin 1 at row 1. Odd pins (3V3, SDA1, SCL1, GPIO4, GND, GPIO17...) are in column d, even pins (5V, 5V, GND, TXD, RXD, GPIO18...) in column h, two pins to a row. Every hole in a half-row (a to e, or f to j) is one electrical node, so a lead in row 6 column a is on the same net as the T-board pin in row 6 column d.\n- Rows 24 to 63 of bb1 are free. Rows 1 to 23 are covered by the T-board; its columns a, b, c (and i, j) can take leads, nothing else.\n- The leads are 200 mm Dupont jumpers, male-male and male-female. Leads are plentiful; parts are the kit's.\n\n# How you work\n\nYou change the twin only through tools. Each tool call that changes the circuit is one transaction of this turn, and the user can undo the whole turn at once. A rejected call changes nothing and tells you why; read the reason and fix the input. You have no tool that runs anything on the real Pi, and you never say or imply that you ran, flashed, tested or measured anything on hardware. Simulation and ERC are the twin's own checks.\n\nCall get_circuit_state before you edit an existing project, and again after a batch of edits to see the result (pass `since` to get only the changes). Nets, holes and lead lengths in tool results are exact; use them instead of working them out yourself.\n\n# The wiring convention\n\nThis is how the user's bench is wired, and the tools enforce it:\n\n- Nothing attaches to the Pi's header. The ribbon occupies it. Every GPIO, 3V3, 5V and GND is reached from its T-board pin's strip on the breadboard, with a male-male lead from a free hole in that strip. `connect` does this for you when an end is a net (GND, 3V3, 5V, GPIO17...). Name nets; do not pick T-board holes yourself.\n- Breadboard-to-breadboard wiring is male-male.\n- A module with male header pins (HC-SR04, DHT11 board, relay module) takes male-female leads: female end on the module pin, male end in a breadboard hole. A module with a female socket (the SG90 servo, the keypad) takes male-male leads. `connect` picks the kind from the part definition.\n- Off-board modules never connect straight to the Pi.\n- To put two parts in series, give the second an exact `at` in a strip the first already uses (place_part lists each pin's free holes), or join them with a lead. `at: \"auto\"` puts a part in strips of its own, so it joins nothing until you connect it.\n\n# What you check, and what you may claim\n\nAfter each batch of changes, run run_erc, then simulate. Iterate until there are no errors, or until you need a decision from the user. Use write_code for the program, and run_code_in_sim to see that it does what was asked. The simulator runs RPi.GPIO and these gpiozero classes: LED, PWMLED, RGBLED, Buzzer, TonalBuzzer, Servo, AngularServo, Button, MotionSensor, LineSensor, DistanceSensor, and the base classes OutputDevice, DigitalOutputDevice, PWMOutputDevice, InputDevice and DigitalInputDevice. A program that sets callbacks and then calls signal.pause() runs until the simulated time is up.\n\nNever say a circuit is correct, safe or will work unless the latest ERC and simulation support it, and quote the numbers: the resistor's value and the current through the LED, the GPIO's milliamps. If a check did not run, or a tool failed, say so plainly. If ERC or the sim still shows a problem you chose to leave, say which and why.\n\n# The Pi's limits\n\nRespect them without being asked:\n\n- GPIOs are 3.3 V logic and not 5 V tolerant. A 5 V signal (an HC-SR04's ECHO) needs a voltage divider or a level shifter before it reaches a GPIO.\n- 16 mA per pin and 50 mA across all GPIOs. Drive buzzers, relays and motors through a transistor with a base resistor, not from a pin.\n- Motors need their own supply, a flyback diode across any bare coil, and a shared ground with the Pi.\n- LEDs always get a series resistor. Pick the value from the supply, the LED's forward voltage and a current well under 16 mA, and show the arithmetic.\n- Pins that the Pi uses for something else (GPIO2 and GPIO3 are I2C with board pull-ups) are not general outputs.\n\n# Parts\n\nPrefer parts in the user's inventory, and lead kinds they own. Ask (ask_user) before using a part outside it. Use search_parts first; take part ids, pin names and properties from its results. If the library lacks a part, find its datasheet with the web tools when they are available, cite its URL, take the pin order from the datasheet (TO-92 pin orders differ between parts), and use define_custom_part. Without a datasheet, say that the part's pins are hints.\n\n# When the user is debugging their real board\n\nCall read_board_sense first. Reason from the measured divergences and the candidate causes it returns, not from guesses, and name the holes involved. Say plainly what the Pi cannot observe: an LED's presence or polarity, and anything behind more than about 10 kilohms, shows up as unobserved. If sensing is off, say that nothing you have is a live measurement.\n\n# How you write\n\nTalk to a hobbyist who wants to understand the circuit, not just have it. Keep replies short. End a build with a summary of three parts: what you built, how it works, and what to check on the bench (for example, which way round the LED goes, what the ribbon's brown wire is). Explain a choice when it matters (why this resistor, why a divider), not every step. Use capture_view once after a build to check the layout by eye; use focus and highlight when pointing at something helps the explanation.\n\nWhen a request is ambiguous in a way that changes the circuit, ask one short question with ask_user. When it is not, decide and say what you decided.\n"
+     },
+     {
+      "type": "text",
+      "text": "# Part catalog\nPart ids you can place now. search_parts gives full pinouts, connectors and property ranges.\n- active-buzzer: Active buzzer (12 mm, 5 V). In inventory; rigid, plugs into the board. Pins: +=+ (long lead), -=- (short lead).\n- ads1115-module: ADS1115 16-bit ADC breakout (Adafruit 1085). Not in inventory; off-board module, wired with leads. Pins: VDD=VIN, GND=GND, SCL=SCL, SDA=SDA, ADDR=ADDR, ALRT=ALRT, A0=A0, A1=A1, A2=A2, A3=A3.\n- ads7830-module: ADS7830 8-channel 8-bit ADC module (LAFVIN). In inventory; off-board module, wired with leads. Pins: A0=A0, A1=A1, A2=A2, A3=A3, A4=A4, A5=A5, A6=A6, A7=A7, VCC=VCC, SDA=SDA, SCL=SCL, GND=GND.\n- bar-graph-10: 10-segment LED bar graph (20-pin). In inventory; straddles the trench. Pins: 20 pins (see search_parts).\n- breadboard-power-module: MB102 breadboard power supply module (3.3 V / 5 V). In inventory; off-board module, wired with leads. Pins: 1=3V3 (J6 pin 1), 2=GND (J6 pin 2), 3=3V3 (J6 pin 3), 4=GND (J6 pin 4), 5=5V (J6 pin 5), 6=GND (J6 pin 6), 7=5V (J6 pin 7), 8=GND (J6 pin 8). Properties: inputVoltage, switchOn.\n- ceramic-capacitor: Ceramic capacitor, radial. In inventory; two leads, 2-20 pitches apart. Pins: 1=Lead 1, 2=Lead 2. Properties: capacitance, ratedVoltage.\n- dc-motor: DC motor with fan blade (130 size). In inventory; off-board module, wired with leads. Pins: red=Red lead, black=Black lead.\n- dht11-module: DHT11 temperature and humidity module (3-pin). In inventory; off-board module, wired with leads. Pins: DATA=S, VCC=VCC, GND=-. Properties: temperatureC, humidityPct.\n- dht11: DHT11 temperature and humidity sensor (bare, 4-pin). Not in inventory; rigid, plugs into the board. Pins: VDD=VDD, DATA=DATA, NC=NC, GND=GND. Properties: temperatureC, humidityPct.\n- diode-1n4007: Diode 1N4007. In inventory; two leads, 1-15 pitches apart. Pins: A=Anode (+), K=Cathode (−, band).\n- electrolytic-capacitor: Electrolytic capacitor, radial polarized. Not in inventory; two leads, 1-6 pitches apart. Pins: +=Positive (+, longer lead), -=Negative (−, shorter lead, marked side). Properties: capacitance, ratedVoltage.\n- hc-sr04: HC-SR04 ultrasonic ranging module. Not in inventory; off-board module, wired with leads. Pins: VCC=Vcc, TRIG=Trig, ECHO=Echo, GND=Gnd. Properties: distanceCm.\n- hc-sr501: HC-SR501 PIR motion sensor module. Not in inventory; off-board module, wired with leads. Pins: VCC=VCC, OUT=OUT, GND=GND. Properties: motion.\n- ic-74hc595: 74HC595 8-bit shift register (DIP-16). In inventory; straddles the trench. Pins: 16 pins (see search_parts).\n- ic-adc0834: ADC0834 4-channel 8-bit serial ADC (DIP-14). Not in inventory; straddles the trench. Pins: 14 pins (see search_parts).\n- ic-l293d: L293D quadruple half-H driver (DIP-16). In inventory; straddles the trench. Pins: 16 pins (see search_parts).\n- joystick-module: Dual-axis analog joystick module (5-pin). Not in inventory; off-board module, wired with leads. Pins: GND=GND, VCC=+5V, VRX=VRX, VRY=VRY, SW=SW. Properties: x, y, pressed.\n- keypad-4x4: 4x4 membrane matrix keypad (8-pin female connector). Not in inventory; off-board module, wired with leads. Pins: R1=R1, R2=R2, R3=R3, R4=R4, C1=C1, C2=C2, C3=C3, C4=C4.\n- lcd1602-i2c: LCD1602 (16x2, HD44780) with PCF8574 I2C backpack. Not in inventory; off-board module, wired with leads. Pins: GND=GND, VCC=VCC, SDA=SDA, SCL=SCL.\n- ldr: Photoresistor (LDR), GL5528. In inventory; two leads, 1-20 pitches apart. Pins: 1=Lead 1, 2=Lead 2. Properties: lux.\n- led-matrix-8x8: 8x8 LED dot matrix, common anode (788BS, 20 mm). In inventory; straddles the trench. Pins: 16 pins (see search_parts).\n- led: LED, round single colour. In inventory; two leads, 1-15 pitches apart. Pins: A=Anode (+), K=Cathode (−). Properties: color, size.\n- ntc-10k: NTC thermistor 10 kΩ, B 3950. In inventory; two leads, 1-6 pitches apart. Pins: 1=Lead 1, 2=Lead 2. Properties: temperatureC.\n- passive-buzzer: Passive buzzer (12 mm magnetic transducer). In inventory; rigid, plugs into the board. Pins: +=+ (marked lead), -=- (unmarked lead).\n- pn2222: PN2222A NPN transistor (TO-92). In inventory; rigid, plugs into the board. Pins: 1=Emitter, 2=Base, 3=Collector.\n- potentiometer-10k: Potentiometer 10 kΩ, rotary. In inventory; rigid, plugs into the board. Pins: 1=End terminal 1 (pin 1), 2=Wiper (pin 2, centre), 3=End terminal 2 (pin 3). Properties: wiper.\n- relay-module-5v: 5 V relay module (SRD-05VDC-SL-C). In inventory; off-board module, wired with leads. Pins: S=S (signal input), +=+ (5 V supply), -=- (ground), NC=NC (normally closed, screw terminal), COM=COM (common, screw terminal), NO=NO (normally open, screw terminal).\n- resistor: Resistor, 1/4 W axial. In inventory; two leads, 1-16 pitches apart. Pins: 1=Lead 1, 2=Lead 2. Properties: resistance, tolerance.\n- rgb-led-ca: RGB LED, 5 mm, common anode. Not in inventory; rigid, plugs into the board. Pins: R=Red cathode (pin 1), A=Common anode (pin 2), B=Blue cathode (pin 3), G=Green cathode (pin 4).\n- rgb-led-cc: RGB LED, 5 mm, common cathode. In inventory; rigid, plugs into the board. Pins: R=Red anode (pin 1), K=Common cathode (pin 2, longest lead), G=Green anode (pin 3), B=Blue anode (pin 4).\n- s8050: S8050 NPN transistor (TO-92). Not in inventory; rigid, plugs into the board. Pins: 1=Emitter, 2=Base, 3=Collector.\n- s8550: S8550 PNP transistor (TO-92). Not in inventory; rigid, plugs into the board. Pins: 1=Emitter, 2=Base, 3=Collector.\n- seven-segment-4digit: 4-digit 7-segment display, common anode (0.56 in, 12-pin). Not in inventory; straddles the trench. Pins: 1=e, 2=d, 3=dp, 4=c, 5=g, 6=D4, 7=b, 8=D3, 9=D2, 10=f, 11=a, 12=D1.\n- seven-segment-ca: 7-segment display, common anode (0.56 in, 1 digit). Not in inventory; straddles the trench. Pins: 1=e, 2=d, 3=COM, 4=c, 5=dp, 6=b, 7=a, 8=COM, 9=f, 10=g.\n- seven-segment-cc: 7-segment display, common cathode (0.56 in, 1 digit). In inventory; straddles the trench. Pins: 1=e, 2=d, 3=COM, 4=c, 5=dp, 6=b, 7=a, 8=COM, 9=f, 10=g.\n- sg90: TowerPro SG90 micro servo (9 g). Not in inventory; off-board module, wired with leads. Pins: GND=Brown (GND), VCC=Red (VCC), PWM=Orange (signal).\n- tact-switch-6mm: 6 mm tactile switch (4-pin). In inventory; straddles the trench. Pins: 1=Terminal 1, 2=Terminal 2, 3=Terminal 3, 4=Terminal 4. Properties: mode, pressed.\n- tilt-switch: Ball tilt switch (SW-520D). In inventory; rigid, plugs into the board. Pins: 1=Lead 1, 2=Lead 2. Properties: tilted.",
+      "cache_control": {
+       "type": "ephemeral"
+      }
+     }
+    ],
+    "tools": [
+     {
+      "name": "get_circuit_state",
+      "description": "Read the circuit: boards and their free rows, the T-board placement, every part with pin → hole → net, every wire, the nets, the ERC issues and the pins the code uses. Call it before editing an existing project, and after a batch of edits to see the result. `summary` is enough for most work; `full` adds properties, the 40 T-board pins and the code. With `since` (a revision you saw earlier) it returns only what changed.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "detail": {
+         "type": "string",
+         "enum": [
+          "summary",
+          "full"
+         ]
+        },
+        "since": {
+         "description": "A revision number from an earlier reply. (at least -9007199254740991, at most 9007199254740991)",
+         "type": "integer"
+        }
+       },
+       "required": [
+        "detail"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true
+     },
+     {
+      "name": "search_parts",
+      "description": "Find parts in the library by name, kind or pin function (for example \"led\", \"ultrasonic\", \"transistor\", \"shift register\"). Each result has the part id, whether it is in the user’s inventory, its footprint, its pins (id, label, role, connector gender for modules), its editable properties and its datasheet. Prefer inventory parts. An empty query lists every part id.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "query": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "query"
+       ],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "define_custom_part",
+      "description": "Define a part the library lacks, from a template and its datasheet pinout. First search_parts; then find the datasheet with web search and cite its URL. Take the pin order from that datasheet: TO-92 pin orders differ between parts. Returns the new part id to use with place_part.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "template": {
+         "type": "string",
+         "enum": [
+          "2-lead",
+          "TO-92",
+          "DIP",
+          "SIP-header",
+          "module-with-header"
+         ],
+         "description": "2-lead: axial or radial part with two leads. TO-92: three pins in a row. DIP: a dual in-line IC (pins 1..N down the left side, then up the right). SIP-header: a row of pins that plugs into the board. module-with-header: an off-board module with its own header, wired with leads."
+        },
+        "name": {
+         "type": "string",
+         "description": "A short name, e.g. \"VL53L0X distance sensor\"."
+        },
+        "pins": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string",
+            "description": "Letters, digits, _ + or -. Datasheet order, pin 1 first."
+           },
+           "label": {
+            "type": "string"
+           },
+           "role": {
+            "type": "string",
+            "enum": [
+             "passive",
+             "anode",
+             "cathode",
+             "positive",
+             "negative",
+             "base",
+             "collector",
+             "emitter",
+             "wiper",
+             "switch",
+             "coil",
+             "contact",
+             "power",
+             "ground",
+             "logic-in",
+             "logic-out",
+             "logic-io",
+             "analog-in",
+             "analog-out",
+             "driver-out",
+             "signal",
+             "nc"
+            ]
+           },
+           "electricalType": {
+            "type": "string",
+            "enum": [
+             "passive",
+             "input",
+             "output",
+             "bidirectional",
+             "power-in",
+             "power-out",
+             "open-collector",
+             "nc"
+            ]
+           },
+           "connector": {
+            "type": "string",
+            "enum": [
+             "male-pin",
+             "female-socket",
+             "none"
+            ],
+            "description": "For module-with-header, the connector at this pin. Otherwise \"none\"."
+           }
+          },
+          "required": [
+           "id",
+           "label",
+           "role",
+           "electricalType",
+           "connector"
+          ],
+          "additionalProperties": false
+         },
+         "description": "The pins in datasheet order."
+        },
+        "internalConnections": {
+         "type": "array",
+         "items": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          }
+         },
+         "description": "Groups of pin ids that are joined inside the part, e.g. [[\"1\",\"2\"]]. Usually empty."
+        },
+        "simModel": {
+         "type": "string",
+         "enum": [
+          "resistor",
+          "capacitor",
+          "electrolytic",
+          "diode",
+          "led",
+          "rgb-led",
+          "npn",
+          "pnp",
+          "switch",
+          "tact-switch",
+          "tilt-switch",
+          "potentiometer",
+          "ldr",
+          "ntc",
+          "active-buzzer",
+          "passive-buzzer",
+          "dc-motor",
+          "relay-module",
+          "shift-register-595",
+          "adc0834",
+          "l293d",
+          "seven-segment",
+          "seven-segment-4digit",
+          "led-matrix-8x8",
+          "bar-graph-10",
+          "dht11",
+          "hc-sr04",
+          "hc-sr501",
+          "sg90",
+          "lcd1602-i2c",
+          "ads1115",
+          "ads7830",
+          "keypad-4x4",
+          "joystick",
+          "power-module",
+          "none"
+         ],
+         "description": "The simulator model, or \"none\". A model reads specific pin ids, so use one only for a part that matches a built-in part’s pins (see search_parts)."
+        },
+        "datasheetUrl": {
+         "description": "The datasheet’s URL, found with web search. Without it the part is tagged \"no datasheet\".",
+         "type": "string"
+        }
+       },
+       "required": [
+        "template",
+        "name",
+        "pins",
+        "internalConnections",
+        "simModel"
+       ],
+       "additionalProperties": false
+      },
+      "eager_input_streaming": true
+     },
+     {
+      "name": "add_board",
+      "description": "Add a breadboard when the build will not fit. A new project has one bb-830. Returns the new board’s id.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "defId": {
+         "type": "string",
+         "enum": [
+          "bb-830",
+          "bb-400"
+         ],
+         "description": "bb-830 is the full-size board on the bench."
+        },
+        "position": {
+         "description": "Table position in mm. Leave out to put it beside the others.",
+         "type": "object",
+         "properties": {
+          "x": {
+           "type": "number"
+          },
+          "y": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "x",
+          "y"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "required": [
+        "defId"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "place_tboard",
+      "description": "Set where the T-board sits on a breadboard. Almost every build keeps the bench placement (bb1, pin1Row 1, d/h, header toward row 0): only call this to move it, for example to a second board. Returns the 40-pin map from T-board pin to hole and net.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "board": {
+         "type": "string",
+         "description": "Board id such as bb1."
+        },
+        "pin1Row": {
+         "type": "integer",
+         "description": "The row pin 1 sits in. (at least -9007199254740991, at most 9007199254740991)"
+        },
+        "colPair": {
+         "type": "string",
+         "enum": [
+          "b/f",
+          "c/g",
+          "d/h",
+          "e/i"
+         ],
+         "description": "The two columns the pin rows land in; the bench uses d/h."
+        },
+        "orientation": {
+         "type": "string",
+         "enum": [
+          "header-toward-row-0",
+          "header-toward-last-row"
+         ]
+        }
+       },
+       "required": [
+        "board",
+        "pin1Row",
+        "colPair",
+        "orientation"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "place_part",
+      "description": "Place one part. Use \"auto\" for `at` unless you need an exact spot: the placer picks free strips that do not join anything by accident, keeps DIPs across the trench and stays out of the T-board rows. To put two parts in the same net (for example a resistor feeding an LED), give an exact `at` in a strip the first part already uses; the reply lists each pin’s free holes. Off-board modules (sensors, servos) get no holes: wire them with connect. Returns each pin’s hole and net, and warnings when a pin shares a strip with something.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "defId": {
+         "type": "string",
+         "description": "A part id from search_parts, e.g. \"resistor\"."
+        },
+        "at": {
+         "type": "string",
+         "description": "Where pin 1 (or the first lead) goes, as \"board:rowColumn\" like \"bb1:30b\", or \"auto\" to let the placer pick free strips. Parts that plug into the board go in the main area."
+        },
+        "orientation": {
+         "type": "number",
+         "enum": [
+          0,
+          90,
+          180,
+          270
+         ],
+         "description": "Degrees. Rigid parts turn in 90 degree steps. A two-lead part runs 0 = toward higher rows, 180 = toward lower rows, 90/270 = across the columns."
+        },
+        "props": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "name": {
+            "type": "string"
+           },
+           "value": {
+            "type": [
+             "string",
+             "number",
+             "boolean"
+            ]
+           }
+          },
+          "required": [
+           "name",
+           "value"
+          ],
+          "additionalProperties": false
+         },
+         "description": "Property values to set, e.g. [{\"name\":\"resistance\",\"value\":220}]. Empty keeps the defaults."
+        },
+        "ref": {
+         "description": "Reference designator like R1. Leave out to take the next free one.",
+         "type": "string"
+        },
+        "span": {
+         "description": "Pitches between a two-lead part’s leads. Leave out for a span that fits the body. (at least -9007199254740991, at most 9007199254740991)",
+         "type": "integer"
+        },
+        "near": {
+         "description": "With at \"auto\": a part ref or a net (GPIO17, GND) whose rows to stay near.",
+         "type": "string"
+        }
+       },
+       "required": [
+        "defId",
+        "at",
+        "orientation",
+        "props"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "move_part",
+      "description": "Move a placed part to another spot. Leads that ended in the strips the part left stay where they are; the reply lists them so you can move or remove them.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "ref": {
+         "type": "string",
+         "description": "The part’s reference designator."
+        },
+        "at": {
+         "type": "string",
+         "description": "\"board:rowColumn\" for pin 1, or \"auto\"."
+        },
+        "orientation": {
+         "type": "number",
+         "enum": [
+          0,
+          90,
+          180,
+          270
+         ],
+         "description": "Degrees. Rigid parts turn in 90 degree steps. A two-lead part runs 0 = toward higher rows, 180 = toward lower rows, 90/270 = across the columns."
+        },
+        "span": {
+         "description": "Leads’ span for a two-lead part. Leave out to keep it. (at least -9007199254740991, at most 9007199254740991)",
+         "type": "integer"
+        }
+       },
+       "required": [
+        "ref",
+        "at",
+        "orientation"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "remove_part",
+      "description": "Remove a part. Leads that end on an off-board module’s pins go with it; leads in the strips it occupied stay and are listed.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "ref": {
+         "type": "string",
+         "description": "The part’s reference designator."
+        }
+       },
+       "required": [
+        "ref"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "set_part_props",
+      "description": "Change a placed part’s properties, such as a resistor’s value or an LED’s colour. Only the properties you list change.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "ref": {
+         "type": "string",
+         "description": "The part’s reference designator."
+        },
+        "props": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "name": {
+            "type": "string"
+           },
+           "value": {
+            "type": [
+             "string",
+             "number",
+             "boolean"
+            ]
+           }
+          },
+          "required": [
+           "name",
+           "value"
+          ],
+          "additionalProperties": false
+         }
+        }
+       },
+       "required": [
+        "ref",
+        "props"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "connect",
+      "description": "Run one jumper lead between two ends. An end is a hole, a part pin, or a T-board net (GND, 3V3, 5V, GPIOnn). You never pick holes or lead lengths yourself: nets resolve to a free hole in the net’s T-board strip, a pin on the breadboard to a free hole in its own strip, and the length to the shortest inventory lead that reaches. Reach the Pi only through nets, never a header. The lead kind follows the connectors: male-male between holes, male-female onto a module’s male header pin, male-male into a female socket. Returns the concrete wire.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "from": {
+         "anyOf": [
+          {
+           "type": "object",
+           "properties": {
+            "hole": {
+             "type": "string",
+             "description": "A hole such as \"bb1:23e\", or a rail hole such as \"bb1:top-.4\"."
+            }
+           },
+           "required": [
+            "hole"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "object",
+           "properties": {
+            "partPin": {
+             "type": "object",
+             "properties": {
+              "ref": {
+               "type": "string"
+              },
+              "pin": {
+               "type": "string"
+              }
+             },
+             "required": [
+              "ref",
+              "pin"
+             ],
+             "description": "A placed part’s pin. On the breadboard this becomes a free hole in the pin’s strip.",
+             "additionalProperties": false
+            }
+           },
+           "required": [
+            "partPin"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "object",
+           "properties": {
+            "net": {
+             "type": "string",
+             "enum": [
+              "GND",
+              "3V3",
+              "5V",
+              "GPIO0",
+              "GPIO1",
+              "GPIO2",
+              "GPIO3",
+              "GPIO4",
+              "GPIO5",
+              "GPIO6",
+              "GPIO7",
+              "GPIO8",
+              "GPIO9",
+              "GPIO10",
+              "GPIO11",
+              "GPIO12",
+              "GPIO13",
+              "GPIO14",
+              "GPIO15",
+              "GPIO16",
+              "GPIO17",
+              "GPIO18",
+              "GPIO19",
+              "GPIO20",
+              "GPIO21",
+              "GPIO22",
+              "GPIO23",
+              "GPIO24",
+              "GPIO25",
+              "GPIO26",
+              "GPIO27"
+             ],
+             "description": "A T-board net; becomes a free hole in its strip."
+            }
+           },
+           "required": [
+            "net"
+           ],
+           "additionalProperties": false
+          }
+         ]
+        },
+        "to": {
+         "anyOf": [
+          {
+           "type": "object",
+           "properties": {
+            "hole": {
+             "type": "string",
+             "description": "A hole such as \"bb1:23e\", or a rail hole such as \"bb1:top-.4\"."
+            }
+           },
+           "required": [
+            "hole"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "object",
+           "properties": {
+            "partPin": {
+             "type": "object",
+             "properties": {
+              "ref": {
+               "type": "string"
+              },
+              "pin": {
+               "type": "string"
+              }
+             },
+             "required": [
+              "ref",
+              "pin"
+             ],
+             "description": "A placed part’s pin. On the breadboard this becomes a free hole in the pin’s strip.",
+             "additionalProperties": false
+            }
+           },
+           "required": [
+            "partPin"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "object",
+           "properties": {
+            "net": {
+             "type": "string",
+             "enum": [
+              "GND",
+              "3V3",
+              "5V",
+              "GPIO0",
+              "GPIO1",
+              "GPIO2",
+              "GPIO3",
+              "GPIO4",
+              "GPIO5",
+              "GPIO6",
+              "GPIO7",
+              "GPIO8",
+              "GPIO9",
+              "GPIO10",
+              "GPIO11",
+              "GPIO12",
+              "GPIO13",
+              "GPIO14",
+              "GPIO15",
+              "GPIO16",
+              "GPIO17",
+              "GPIO18",
+              "GPIO19",
+              "GPIO20",
+              "GPIO21",
+              "GPIO22",
+              "GPIO23",
+              "GPIO24",
+              "GPIO25",
+              "GPIO26",
+              "GPIO27"
+             ],
+             "description": "A T-board net; becomes a free hole in its strip."
+            }
+           },
+           "required": [
+            "net"
+           ],
+           "additionalProperties": false
+          }
+         ]
+        },
+        "kind": {
+         "description": "Leave out: the kind follows the connectors at both ends.",
+         "type": "string",
+         "enum": [
+          "dupont-mm",
+          "dupont-mf",
+          "dupont-ff",
+          "solid-arc",
+          "solid-flat"
+         ]
+        },
+        "color": {
+         "description": "Leave out for black GND, red supplies, others in rotation.",
+         "type": "string"
+        },
+        "lengthMm": {
+         "description": "Leave out for the shortest inventory length that reaches.",
+         "type": "number"
+        }
+       },
+       "required": [
+        "from",
+        "to"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "set_wire_props",
+      "description": "Change a placed lead’s kind, colour, length or arc height, for example to recolour a lead or to give a short jumper a longer length. Only the fields you give change; a kind must match the connectors at both ends.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string",
+         "description": "The wire id, such as W3."
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "dupont-mm",
+          "dupont-mf",
+          "dupont-ff",
+          "solid-arc",
+          "solid-flat"
+         ]
+        },
+        "color": {
+         "type": "string"
+        },
+        "lengthMm": {
+         "type": "number"
+        },
+        "heightMm": {
+         "description": "Bend height of a solid-arc jumper.",
+         "type": "number"
+        }
+       },
+       "required": [
+        "id"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "remove_wire",
+      "description": "Remove one jumper lead by its id (W1, W2…), for example to undo a wrong connection. The ids are in get_circuit_state. Removing a lead can leave a part pin unconnected, which ERC reports as dangling.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string",
+         "description": "The wire id, such as W3."
+        }
+       },
+       "required": [
+        "id"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "run_erc",
+      "description": "Run the electrical rule checks on the circuit as it is now: shorts, GPIOs driven into supplies, 5 V into a GPIO, LEDs without a resistor, floating inputs, inductive loads without a driver, dangling leads, code that disagrees with the wiring, leads too short. Every issue has a code, the refs involved, a plain explanation and a fix. Run it after each batch of edits.",
+      "input_schema": {
+       "type": "object",
+       "properties": {},
+       "required": [],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "simulate",
+      "description": "Simulate the circuit: per-net voltages, LED currents and brightness, resistor currents and power, GPIO currents, supply draw, behaviour of ICs and modules, and the sim-based checks (a pin over 16 mA, the GPIOs over 50 mA together, an LED over its rated current). `op` solves the steady state; `transient` runs durationMs of virtual time. Drive GPIOs and part inputs through `stimulus`. Quote the numbers when you say whether a circuit works.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "mode": {
+         "type": "string",
+         "enum": [
+          "op",
+          "transient"
+         ]
+        },
+        "durationMs": {
+         "type": "integer",
+         "description": "Transient length in ms (at most 60000). 0 for op. (at least -9007199254740991, at most 9007199254740991)"
+        },
+        "stimulus": {
+         "type": "object",
+         "properties": {
+          "gpio": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "properties": {
+             "pin": {
+              "type": "integer",
+              "description": "BCM number, e.g. 17 for GPIO17. (at least -9007199254740991, at most 9007199254740991)"
+             },
+             "level": {
+              "type": "string",
+              "enum": [
+               "high",
+               "low",
+               "pwm"
+              ]
+             },
+             "freqHz": {
+              "type": "number",
+              "description": "PWM frequency; 0 unless level is pwm."
+             },
+             "duty": {
+              "type": "number",
+              "description": "PWM duty from 0 to 1; 0 unless level is pwm."
+             }
+            },
+            "required": [
+             "pin",
+             "level",
+             "freqHz",
+             "duty"
+            ],
+            "additionalProperties": false
+           },
+           "description": "GPIOs the Pi drives as outputs. Empty leaves every GPIO as an input."
+          },
+          "inputs": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "properties": {
+             "part": {
+              "type": "string"
+             },
+             "key": {
+              "type": "string",
+              "description": "An input the part declares: pressed (tact switch, joystick), tilted, wiper (0 to 100), lux, temperatureC, humidityPct, distanceCm, motion, x and y."
+             },
+             "value": {
+              "type": [
+               "string",
+               "number",
+               "boolean"
+              ]
+             }
+            },
+            "required": [
+             "part",
+             "key",
+             "value"
+            ],
+            "additionalProperties": false
+           },
+           "description": "Switch positions and sensor values (the part’s editable properties)."
+          }
+         },
+         "required": [
+          "gpio",
+          "inputs"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "required": [
+        "mode",
+        "durationMs",
+        "stimulus"
+       ],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "write_code",
+      "description": "Store the Python program that drives this circuit in the project, as the project’s code. It is checked, never run: the reply has the Python syntax check and a cross-check of the GPIOs the code uses against the wiring (code that uses an unwired GPIO, wired GPIOs it never configures, inputs with no pull). Use BCM numbers, `RPi.GPIO` or `gpiozero`, and a loop that Ctrl+C ends cleanly. Fix syntax errors and mismatches before you say the code is ready.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "library": {
+         "type": "string",
+         "enum": [
+          "RPi.GPIO",
+          "gpiozero"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "library",
+        "source"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "run_code_in_sim",
+      "description": "Run the project’s code for `seconds` of virtual time in the simulator, never on hardware, and return what it printed and every pin event it caused (time, GPIO, high/low/pwm). Use it to confirm the program does what was asked, for example that an LED blinks at the right rate.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "seconds": {
+         "type": "number",
+         "description": "Virtual seconds to run, up to 60."
+        }
+       },
+       "required": [
+        "seconds"
+       ],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "capture_view",
+      "description": "Take a picture of the 3D stage, `top` or `iso`, to check the layout by eye: parts in sensible places, leads not crossing the wrong things. It waits up to 2 seconds for the physics to settle. Use it after a build, not after every edit.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "preset": {
+         "type": "string",
+         "enum": [
+          "top",
+          "iso"
+         ]
+        }
+       },
+       "required": [
+        "preset"
+       ],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "read_board_sense",
+      "description": "Read what the user’s real board is doing, as Board Sense last measured it: per GPIO net matched, diverged (with the kind and detail), ambiguous, skipped or unobserved; the recent events; and ranked candidate causes for each divergence, each mapped to holes. Read-only: you can not start, stop or configure sensing, and sensing may be off. Call it first when the user is debugging real hardware, reason from the measured divergences, and say plainly what the Pi can not observe (LED paths, nets behind more than about 10 kΩ).",
+      "input_schema": {
+       "type": "object",
+       "properties": {},
+       "required": [],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "focus",
+      "description": "Move the camera to frame parts, wires or holes, with an optional caption. Use it to show the user the piece you are about to explain.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "refs": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         },
+         "description": "Part refs, wire ids, board ids or holes like \"bb1:23e\"."
+        },
+        "note": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "refs"
+       ],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "highlight",
+      "description": "Mark parts, wires or holes in the 3D view with a caption, as a teaching cue: \"the longer leg is the anode\", \"this row is GND\". The mark stays until the user dismisses it.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "refs": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         },
+         "description": "Part refs, wire ids, board ids or holes like \"bb1:23e\"."
+        },
+        "note": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "refs",
+        "note"
+       ],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "annotate_build_steps",
+      "description": "Add a \"why\" and a \"common mistake\" note to build steps. Each annotation names the part or wire its step is about (a ref such as R1, or a wire id such as W2; if a part and a lead share an id, the step key \"part:R1\" or \"wire:R1\"); the step text itself is generated from the circuit. Give both notes, in one or two plain sentences, and an empty string where there is nothing to say. Two empty notes clear the step’s notes.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "annotations": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "step": {
+            "type": "string"
+           },
+           "why": {
+            "type": "string"
+           },
+           "mistake": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "step",
+           "why",
+           "mistake"
+          ],
+          "additionalProperties": false
+         }
+        }
+       },
+       "required": [
+        "annotations"
+       ],
+       "additionalProperties": false
+      },
+      "eager_input_streaming": true
+     },
+     {
+      "name": "ask_user",
+      "description": "Ask the user a question in the chat and wait for the answer: a choice you should not make for them (a part outside their inventory, a second board, a level shifter versus a divider). Give two to four short options; they can also answer in their own words. Do not ask what you can decide from the datasheet or the rules.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "question": {
+         "type": "string"
+        },
+        "options": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        }
+       },
+       "required": [
+        "question",
+        "options"
+       ],
+       "additionalProperties": false
+      }
+     }
+    ]
+   },
+   "messages": [
+    {
+     "role": "user",
+     "content": "blink an LED on GPIO17"
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU1YpzP484d8zZUrogk\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":4,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":14216,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":8,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\",\"signature\":\"\"}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"signature_delta\",\"signature\":\"scrubbed\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01F7E1784NyZDzQBhkRPUCuG\",\"name\":\"get_circuit_state\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"detai\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"l\\\": \\\"su\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"mmary\\\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":4,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":14216,\"output_tokens\":68,\"output_tokens_details\":{\"thinking_tokens\":14}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "thinking",
+       "thinking": "",
+       "signature": "scrubbed"
+      },
+      {
+       "type": "tool_use",
+       "id": "toolu_01F7E1784NyZDzQBhkRPUCuG",
+       "name": "get_circuit_state",
+       "input": {
+        "detail": "summary"
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01F7E1784NyZDzQBhkRPUCuG",
+       "content": "Revision 0: 1 board(s), 0 part(s), 0 wire(s). ERC: 0 error(s), 0 warning(s).\n{\"revision\":0,\"boards\":[{\"id\":\"bb1\",\"def\":\"bb-830\",\"rows\":63,\"freeRows\":[[24,63]],\"freeRailHoles\":{\"top+\":50,\"top-\":50,\"bottom+\":50,\"bottom-\":50}}],\"tboard\":{\"board\":\"bb1\",\"pin1Row\":1,\"colPair\":\"d/h\",\"orientation\":\"header-toward-row-0\"},\"parts\":[],\"wires\":[],\"nets\":[],\"erc\":[],\"code\":{\"library\":\"RPi.GPIO\",\"lines\":0,\"uses\":[],\"unresolved\":[]}}"
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU1fhyoPmDpvNampcHQ\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":14535,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":8,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\",\"signature\":\"\"}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"signature_delta\",\"signature\":\"scrubbed\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01WqsegCbfdu4mv1vx8GsxwG\",\"name\":\"place_part\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"defId\\\": \\\"led\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\", \\\"at\\\": \\\"b\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"b1:30e\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\", \\\"orientation\\\": 0\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"props\\\": [{\\\"name\\\":\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\"color\\\",\\\"value\\\":\\\"red\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"}]\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"ref\\\": \\\"D\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"1\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":14535,\"output_tokens\":266,\"output_tokens_details\":{\"thinking_tokens\":110}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "thinking",
+       "thinking": "",
+       "signature": "scrubbed"
+      },
+      {
+       "type": "tool_use",
+       "id": "toolu_01WqsegCbfdu4mv1vx8GsxwG",
+       "name": "place_part",
+       "input": {
+        "defId": "led",
+        "at": "bb1:30e",
+        "orientation": 0,
+        "props": [
+         {
+          "name": "color",
+          "value": "red"
+         }
+        ],
+        "ref": "D1"
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01WqsegCbfdu4mv1vx8GsxwG",
+       "content": "{\"ref\":\"D1\",\"pins\":{\"A\":{\"hole\":\"bb1:30e\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:30a\",\"bb1:30b\",\"bb1:30c\",\"bb1:30d\"]},\"K\":{\"hole\":\"bb1:33e\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:33a\",\"bb1:33b\",\"bb1:33c\",\"bb1:33d\"]}}}"
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU1tkoTVpbB285NhLZo\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":407,\"cache_read_input_tokens\":14535,\"cache_creation\":{\"ephemeral_5m_input_tokens\":407,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":7,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\",\"signature\":\"\"}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"signature_delta\",\"signature\":\"scrubbed\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01H8KwuH3KgikJWEFn65QTH6\",\"name\":\"place_part\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"defId\\\": \\\"res\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"istor\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\", \\\"at\\\": \\\"bb\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"1:26c\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\", \\\"orientation\\\": 0\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"props\\\": [{\\\"name\\\":\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" \\\"resistance\\\", \\\"value\\\":\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" 220}]\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"ref\\\": \\\"R1\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\", \\\"span\\\": 4\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":407,\"cache_read_input_tokens\":14535,\"output_tokens\":246,\"output_tokens_details\":{\"thinking_tokens\":65}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "thinking",
+       "thinking": "",
+       "signature": "scrubbed"
+      },
+      {
+       "type": "tool_use",
+       "id": "toolu_01H8KwuH3KgikJWEFn65QTH6",
+       "name": "place_part",
+       "input": {
+        "defId": "resistor",
+        "at": "bb1:26c",
+        "orientation": 0,
+        "props": [
+         {
+          "name": "resistance",
+          "value": 220
+         }
+        ],
+        "ref": "R1",
+        "span": 4
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01H8KwuH3KgikJWEFn65QTH6",
+       "content": "{\"ref\":\"R1\",\"pins\":{\"1\":{\"hole\":\"bb1:26c\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:26a\",\"bb1:26b\",\"bb1:26d\",\"bb1:26e\"]},\"2\":{\"hole\":\"bb1:30c\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:30a\",\"bb1:30b\",\"bb1:30d\"]}},\"warnings\":[\"R1.2 shares its strip with D1.A, so it joins their net\"]}"
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU26KZmGAxVLHTPZrMx\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":409,\"cache_read_input_tokens\":14942,\"cache_creation\":{\"ephemeral_5m_input_tokens\":409,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":16,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01RGsSikxC1XwsQqteGhjon1\",\"name\":\"connect\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"from\\\": {\\\"net\\\": \\\"G\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"PIO17\\\"}\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"to\\\": {\\\"partPin\\\":\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" {\\\"ref\\\": \\\"R1\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\", \\\"pin\\\": \\\"1\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"}}\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_018gyK7ytPVPLVrTnsBaFfSn\",\"name\":\"connect\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"from\\\": {\\\"part\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"Pin\\\": {\\\"ref\\\":\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" \\\"D1\\\", \\\"pin\\\":\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" \\\"K\\\"}}\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"to\\\": {\\\"net\\\": \\\"GND\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\"}\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":409,\"cache_read_input_tokens\":14942,\"output_tokens\":196,\"output_tokens_details\":{\"thinking_tokens\":0}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "tool_use",
+       "id": "toolu_01RGsSikxC1XwsQqteGhjon1",
+       "name": "connect",
+       "input": {
+        "from": {
+         "net": "GPIO17"
+        },
+        "to": {
+         "partPin": {
+          "ref": "R1",
+          "pin": "1"
+         }
+        }
+       },
+       "caller": {
+        "type": "direct"
+       }
+      },
+      {
+       "type": "tool_use",
+       "id": "toolu_018gyK7ytPVPLVrTnsBaFfSn",
+       "name": "connect",
+       "input": {
+        "from": {
+         "partPin": {
+          "ref": "D1",
+          "pin": "K"
+         }
+        },
+        "to": {
+         "net": "GND"
+        }
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01RGsSikxC1XwsQqteGhjon1",
+       "content": "{\"wire\":{\"id\":\"W1\",\"kind\":\"dupont-mm\",\"color\":\"yellow\",\"lengthMm\":200,\"a\":\"bb1:6a\",\"b\":\"bb1:26a\"},\"net\":\"GPIO17\"}"
+      },
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_018gyK7ytPVPLVrTnsBaFfSn",
+       "content": "{\"wire\":{\"id\":\"W2\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:33a\",\"b\":\"bb1:20a\"},\"net\":\"GND\"}"
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU2TurG5dZbj1xj34vi\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":389,\"cache_read_input_tokens\":15351,\"cache_creation\":{\"ephemeral_5m_input_tokens\":389,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":16,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01F4VTZoPvhsdEyFpynJ8c1B\",\"name\":\"run_erc\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_011qScWGofXyWaZJ81b7Nju4\",\"name\":\"simulate\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"mode\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\": \\\"op\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"dura\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"tionMs\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\": 0\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"stim\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ulus\\\": \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"gpio\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\":[{\\\"pin\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\":17,\\\"l\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"evel\\\":\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"high\\\",\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"freqHz\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\":0,\\\"dut\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"y\\\":0}],\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\"inputs\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\":[]}}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":389,\"cache_read_input_tokens\":15351,\"output_tokens\":164,\"output_tokens_details\":{\"thinking_tokens\":0}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "tool_use",
+       "id": "toolu_01F4VTZoPvhsdEyFpynJ8c1B",
+       "name": "run_erc",
+       "input": {},
+       "caller": {
+        "type": "direct"
+       }
+      },
+      {
+       "type": "tool_use",
+       "id": "toolu_011qScWGofXyWaZJ81b7Nju4",
+       "name": "simulate",
+       "input": {
+        "mode": "op",
+        "durationMs": 0,
+        "stimulus": {
+         "gpio": [
+          {
+           "pin": 17,
+           "level": "high",
+           "freqHz": 0,
+           "duty": 0
+          }
+         ],
+         "inputs": []
+        }
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01F4VTZoPvhsdEyFpynJ8c1B",
+       "content": "{\"errors\":0,\"warnings\":1,\"info\":0,\"issues\":[{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO17\"],\"message\":\"GPIO17 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO17 in the code, or move the lead to the pin the code uses.\"}]}"
+      },
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_011qScWGofXyWaZJ81b7Nju4",
+       "content": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":3.069,\"GPIO18\":0,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":0,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":0,\"N1\":1.86},\"leds\":[{\"die\":\"D1.D\",\"mA\":5.494,\"brightness\":0.549}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":3.069,\"mA\":5.494},{\"pin\":\"GPIO18\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":0,\"mA\":0}],\"rails\":{\"3V3_mA\":0,\"5V_mA\":0},\"resistors\":[{\"ref\":\"R1\",\"ohms\":220,\"volts\":1.209,\"mA\":5.494,\"mW\":6.64}],\"parts\":{},\"errors\":0,\"warnings\":1,\"info\":0,\"issues\":[{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO17\"],\"message\":\"GPIO17 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO17 in the code, or move the lead to the pin the code uses.\"}]}"
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU2c21JKZnMdKDQHHpx\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":1535,\"cache_read_input_tokens\":15740,\"cache_creation\":{\"ephemeral_5m_input_tokens\":1535,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":16,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_015G2ACNYJrSagA8VSQ4MGpC\",\"name\":\"write_code\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"library\\\": \\\"gpiozero\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\", \\\"source\\\": \\\"from gpi\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ozero import LED\\\\nfrom time\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" import sleep\\\\n\\\\nled = L\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ED(17)  # BC\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"M \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"17, through R\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"1 (\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"220 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ohm) to the L\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ED\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\\n\\\\ntry:\\\\n    while True:\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\\n        led.on()\\\\n        s\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"leep(0.5)\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\\n        led.off()\\\\n        s\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"leep(0.5)\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\\nexcept KeyboardInter\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"rupt:\\\\n    p\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ass\\\\nfinally:\\\\n    led\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\".close\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"()\\\\n\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":1535,\"cache_read_input_tokens\":15740,\"output_tokens\":186,\"output_tokens_details\":{\"thinking_tokens\":0}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "tool_use",
+       "id": "toolu_015G2ACNYJrSagA8VSQ4MGpC",
+       "name": "write_code",
+       "input": {
+        "library": "gpiozero",
+        "source": "from gpiozero import LED\nfrom time import sleep\n\nled = LED(17)  # BCM 17, through R1 (220 ohm) to the LED\n\ntry:\n    while True:\n        led.on()\n        sleep(0.5)\n        led.off()\n        sleep(0.5)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    led.close()\n"
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_015G2ACNYJrSagA8VSQ4MGpC",
+       "content": "{\"syntax\":\"ok\",\"gpioUsed\":[{\"gpio\":17,\"mode\":\"out\"}],\"unresolved\":[],\"crossCheck\":\"matches the wiring\"}"
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU2mewgusAx6WpindUa\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":250,\"cache_read_input_tokens\":17275,\"cache_creation\":{\"ephemeral_5m_input_tokens\":250,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":24,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01UgHrh2fqBAZCnEzPiMaUK3\",\"name\":\"run_code_in_sim\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"secon\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ds\\\": 3}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_0198ihyL4ao5cEMuuaN58TPr\",\"name\":\"run_erc\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":2,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01BAUsqSpJLR9KN9v7o6FD7B\",\"name\":\"capture_view\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"prese\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"t\\\": \\\"to\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"p\\\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":2}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":250,\"cache_read_input_tokens\":17275,\"output_tokens\":124,\"output_tokens_details\":{\"thinking_tokens\":0}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "tool_use",
+       "id": "toolu_01UgHrh2fqBAZCnEzPiMaUK3",
+       "name": "run_code_in_sim",
+       "input": {
+        "seconds": 3
+       },
+       "caller": {
+        "type": "direct"
+       }
+      },
+      {
+       "type": "tool_use",
+       "id": "toolu_0198ihyL4ao5cEMuuaN58TPr",
+       "name": "run_erc",
+       "input": {},
+       "caller": {
+        "type": "direct"
+       }
+      },
+      {
+       "type": "tool_use",
+       "id": "toolu_01BAUsqSpJLR9KN9v7o6FD7B",
+       "name": "capture_view",
+       "input": {
+        "preset": "top"
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01UgHrh2fqBAZCnEzPiMaUK3",
+       "content": "{\"stdout\":\"\",\"error\":null,\"events\":[\"0.000 GPIO17 high\",\"0.500 GPIO17 low\",\"1.000 GPIO17 high\",\"1.500 GPIO17 low\",\"2.000 GPIO17 high\",\"2.500 GPIO17 low\",\"3.000 GPIO17 low\"],\"eventCount\":7}"
+      },
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_0198ihyL4ao5cEMuuaN58TPr",
+       "content": "{\"errors\":0,\"warnings\":0,\"info\":0,\"issues\":[]}"
+      },
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01BAUsqSpJLR9KN9v7o6FD7B",
+       "content": "{\"INTERNAL_ERROR\":\"capture_view is not available in this session: there is no 3D stage here (headless evaluation). Check the layout from the hole positions and nets that get_circuit_state returns.\"}",
+       "is_error": true
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU2u3vx6WzbRpFJKH8q\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":416,\"cache_read_input_tokens\":17525,\"cache_creation\":{\"ephemeral_5m_input_tokens\":416,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":16,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_014suJkMez6DSeo87Rj79yWn\",\"name\":\"highlight\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"refs\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\": [\\\"D1\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"]\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"note\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\": \\\"Lon\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"g leg (\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"anode) \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"goes in\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" row 30\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", towar\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"d the r\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"esistor\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\". Short\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" leg / \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"flat si\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"de goes\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" in row\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" 33.\\\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":416,\"cache_read_input_tokens\":17525,\"output_tokens\":109,\"output_tokens_details\":{\"thinking_tokens\":0}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "tool_use",
+       "id": "toolu_014suJkMez6DSeo87Rj79yWn",
+       "name": "highlight",
+       "input": {
+        "refs": [
+         "D1"
+        ],
+        "note": "Long leg (anode) goes in row 30, toward the resistor. Short leg / flat side goes in row 33."
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_014suJkMez6DSeo87Rj79yWn",
+       "content": "ok"
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU32a7vNnpjyKtRAuYt\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":116,\"cache_read_input_tokens\":17941,\"cache_creation\":{\"ephemeral_5m_input_tokens\":116,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":6,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\",\"signature\":\"\"}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"signature_delta\",\"signature\":\"scrubbed\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"I've w\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ired a\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" red LED to\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" GPIO17 with a\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" res\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"istor and written the program. On\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the twin it blinks once\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" a second: on\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" for 0.5 s,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" then\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" off for 0.5 s\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\".\\n\\n**What I\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" built**\\n- **R1 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"(220 Ω):**\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" from row 26 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"to row 30,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" column c.\\n- **D1\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" (red LED):** an\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ode (\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"long leg) in row 30\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"e, cathode (short le\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"g) in row 33e.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"\\n- **W\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"1, yellow l\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ead:** from the GPI\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"O17 strip (6\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"a) to row 26a.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"\\n- **W2, black l\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ead:** from row 33a\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" to the GND strip (20\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"a).\\n- **Code:\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"** a\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" gpiozero program that lo\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ops on 0\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\".5 s / off 0\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\".5 s. \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"Ctrl+C stops it\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" cleanly.\\n\\n**How\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" it works**\\nWhen\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" GPIO17 go\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"es high (\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"3.3 V), current fl\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ows through\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" R\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"1 and\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the LED to\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" ground. The resistor s\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ets the current: (3.3\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" V − about\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" 2 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"V for a red LED) /\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" 220 Ω \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"≈ 6 mA.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" The simulation agrees:\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" 5.5 mA through\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the LED and out\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" of GPIO17, well\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" under the 16 mA p\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"in limit. The\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" ERC check found\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" no problems.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" In the simulated code run\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\", GPIO17 swit\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ched every\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" 0.5 s.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"\\n\\nI\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" couldn't get a pic\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ture of the layout in\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" this session because\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the 3D view isn't\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" available. I checked the lay\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"out from the hole positions inst\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ead.\\n\\n**What to check on\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the bench**\\n- **L\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ED direction:** the long le\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"g goes in row 30,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" next to the resistor. The\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" short leg,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" on\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the side\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" where\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the rim is flat, go\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"es in row 33. If\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" it's in\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" back\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"wards, it\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" simply won't light;\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" it won't be\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" damaged. I've marked\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" this\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" on the twin.\\n- **\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"Ribbon cable:** the\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" edge w\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ire mar\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ked with a stripe (often\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" brown or\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" red\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\") is pin 1.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" Line\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" it up with p\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"in 1 on the T-\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"board and on the Pi's\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" header.\\n- **Resist\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"or:** check\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" it\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"'s 220 Ω (\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"red-\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"red-br\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"own b\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ands). Anything from 220\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" to 1\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" kΩ works;\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" hig\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"her values just\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" make\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the LED dimmer.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"\\n\\nTo\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" run it on the Pi,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" save the code\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" as `blink.py` and\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" run\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" `python3 blink.py\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"`.\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":116,\"cache_read_input_tokens\":17941,\"output_tokens\":696,\"output_tokens_details\":{\"thinking_tokens\":14}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "thinking",
+       "thinking": "",
+       "signature": "scrubbed"
+      },
+      {
+       "type": "text",
+       "text": "I've wired a red LED to GPIO17 with a resistor and written the program. On the twin it blinks once a second: on for 0.5 s, then off for 0.5 s.\n\n**What I built**\n- **R1 (220 Ω):** from row 26 to row 30, column c.\n- **D1 (red LED):** anode (long leg) in row 30e, cathode (short leg) in row 33e.\n- **W1, yellow lead:** from the GPIO17 strip (6a) to row 26a.\n- **W2, black lead:** from row 33a to the GND strip (20a).\n- **Code:** a gpiozero program that loops on 0.5 s / off 0.5 s. Ctrl+C stops it cleanly.\n\n**How it works**\nWhen GPIO17 goes high (3.3 V), current flows through R1 and the LED to ground. The resistor sets the current: (3.3 V − about 2 V for a red LED) / 220 Ω ≈ 6 mA. The simulation agrees: 5.5 mA through the LED and out of GPIO17, well under the 16 mA pin limit. The ERC check found no problems. In the simulated code run, GPIO17 switched every 0.5 s.\n\nI couldn't get a picture of the layout in this session because the 3D view isn't available. I checked the layout from the hole positions instead.\n\n**What to check on the bench**\n- **LED direction:** the long leg goes in row 30, next to the resistor. The short leg, on the side where the rim is flat, goes in row 33. If it's in backwards, it simply won't light; it won't be damaged. I've marked this on the twin.\n- **Ribbon cable:** the edge wire marked with a stripe (often brown or red) is pin 1. Line it up with pin 1 on the T-board and on the Pi's header.\n- **Resistor:** check it's 220 Ω (red-red-brown bands). Anything from 220 to 1 kΩ works; higher values just make the LED dimmer.\n\nTo run it on the Pi, save the code as `blink.py` and run `python3 blink.py`."
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": "add a second LED on GPIO27 that blinks opposite to the first"
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU3ZN37PLhfXh3WTFPX\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":4,\"cache_creation_input_tokens\":720,\"cache_read_input_tokens\":18057,\"cache_creation\":{\"ephemeral_5m_input_tokens\":720,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":24,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01TX8P43eAj7hCA3FUGgFm73\",\"name\":\"get_circuit_state\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"detai\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"l\\\": \\\"su\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"mmary\\\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":4,\"cache_creation_input_tokens\":720,\"cache_read_input_tokens\":18057,\"output_tokens\":53,\"output_tokens_details\":{\"thinking_tokens\":0}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "tool_use",
+       "id": "toolu_01TX8P43eAj7hCA3FUGgFm73",
+       "name": "get_circuit_state",
+       "input": {
+        "detail": "summary"
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01TX8P43eAj7hCA3FUGgFm73",
+       "content": "Revision 5: 1 board(s), 2 part(s), 2 wire(s). ERC: 0 error(s), 0 warning(s).\n{\"revision\":5,\"boards\":[{\"id\":\"bb1\",\"def\":\"bb-830\",\"rows\":63,\"freeRows\":[[24,25],[27,29],[31,32],[34,63]],\"freeRailHoles\":{\"top+\":50,\"top-\":50,\"bottom+\":50,\"bottom-\":50}}],\"tboard\":{\"board\":\"bb1\",\"pin1Row\":1,\"colPair\":\"d/h\",\"orientation\":\"header-toward-row-0\"},\"parts\":[{\"ref\":\"D1\",\"def\":\"led\",\"pins\":{\"A\":\"bb1:30e N1\",\"K\":\"bb1:33e GND\"}},{\"ref\":\"R1\",\"def\":\"resistor\",\"pins\":{\"1\":\"bb1:26c GPIO17\",\"2\":\"bb1:30c N1\"}}],\"wires\":[{\"id\":\"W1\",\"kind\":\"dupont-mm\",\"lengthMm\":200,\"color\":\"yellow\",\"a\":\"bb1:6a\",\"b\":\"bb1:26a\"},{\"id\":\"W2\",\"kind\":\"dupont-mm\",\"lengthMm\":200,\"color\":\"black\",\"a\":\"bb1:33a\",\"b\":\"bb1:20a\"}],\"nets\":[{\"net\":\"GND\",\"tboardHoles\":[\"bb1:3h\",\"bb1:5d\",\"bb1:7h\",\"bb1:10h\",\"bb1:13d\",\"bb1:15h\",\"bb1:17h\",\"bb1:20d\"],\"partPins\":[\"D1.K\"],\"wireEnds\":[\"W2.a\",\"W2.b\"]},{\"net\":\"GPIO17\",\"tboardHoles\":[\"bb1:6d\"],\"partPins\":[\"R1.1\"],\"wireEnds\":[\"W1.a\",\"W1.b\"]},{\"net\":\"N1\",\"tboardHoles\":[],\"partPins\":[\"D1.A\",\"R1.2\"],\"wireEnds\":[]}],\"erc\":[],\"code\":{\"library\":\"gpiozero\",\"lines\":16,\"uses\":[{\"gpio\":17,\"mode\":\"out\"}],\"unresolved\":[]}}"
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU3eZ5pE531BehSm71R\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":745,\"cache_read_input_tokens\":18777,\"cache_creation\":{\"ephemeral_5m_input_tokens\":745,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":57,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Same layout,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" a few rows further down: R\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"2 in\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" rows 36–40 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"and D\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"2 in rows 40–\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"43.\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01KoMbakj6Hwyz3WCyryGynB\",\"name\":\"place_part\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"defId\\\": \\\"led\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\", \\\"at\\\": \\\"bb1:\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"40e\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\", \\\"orientation\\\": 0\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"props\\\": [{\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"name\\\": \\\"color\\\", \\\"value\\\":\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" \\\"green\\\"}]\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"ref\\\": \\\"D2\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":2,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01M2uG7pDG3esdB1QuAxRrcG\",\"name\":\"place_part\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"defId\\\": \\\"resistor\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\", \\\"at\\\": \\\"b\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"b1:36c\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\", \\\"orientation\\\": 0\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"props\\\": [{\\\"name\\\": \\\"resist\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ance\\\", \\\"value\\\": 220}\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"]\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"ref\\\": \\\"R2\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\", \\\"span\\\": 4\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":2}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":745,\"cache_read_input_tokens\":18777,\"output_tokens\":369,\"output_tokens_details\":{\"thinking_tokens\":0}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "text",
+       "text": "Same layout, a few rows further down: R2 in rows 36–40 and D2 in rows 40–43."
+      },
+      {
+       "type": "tool_use",
+       "id": "toolu_01KoMbakj6Hwyz3WCyryGynB",
+       "name": "place_part",
+       "input": {
+        "defId": "led",
+        "at": "bb1:40e",
+        "orientation": 0,
+        "props": [
+         {
+          "name": "color",
+          "value": "green"
+         }
+        ],
+        "ref": "D2"
+       },
+       "caller": {
+        "type": "direct"
+       }
+      },
+      {
+       "type": "tool_use",
+       "id": "toolu_01M2uG7pDG3esdB1QuAxRrcG",
+       "name": "place_part",
+       "input": {
+        "defId": "resistor",
+        "at": "bb1:36c",
+        "orientation": 0,
+        "props": [
+         {
+          "name": "resistance",
+          "value": 220
+         }
+        ],
+        "ref": "R2",
+        "span": 4
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01KoMbakj6Hwyz3WCyryGynB",
+       "content": "{\"ref\":\"D2\",\"pins\":{\"A\":{\"hole\":\"bb1:40e\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:40a\",\"bb1:40b\",\"bb1:40c\",\"bb1:40d\"]},\"K\":{\"hole\":\"bb1:43e\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:43a\",\"bb1:43b\",\"bb1:43c\",\"bb1:43d\"]}}}"
+      },
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01M2uG7pDG3esdB1QuAxRrcG",
+       "content": "{\"ref\":\"R2\",\"pins\":{\"1\":{\"hole\":\"bb1:36c\",\"net\":\"N4\",\"freeInStrip\":[\"bb1:36a\",\"bb1:36b\",\"bb1:36d\",\"bb1:36e\"]},\"2\":{\"hole\":\"bb1:40c\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:40a\",\"bb1:40b\",\"bb1:40d\"]}},\"warnings\":[\"R2.2 shares its strip with D2.A, so it joins their net\"]}"
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU3tMno6euZFn7zGtrx\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":718,\"cache_read_input_tokens\":19522,\"cache_creation\":{\"ephemeral_5m_input_tokens\":718,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":16,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01GtFSopE3qznzTX4hwKs2H3\",\"name\":\"connect\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"from\\\": {\\\"net\\\": \\\"G\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"PIO27\\\"}\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"to\\\": {\\\"partPin\\\":\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" {\\\"ref\\\": \\\"R2\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\", \\\"pin\\\": \\\"1\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"}}\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01QQtX6bUH7WphAwKXDwtVWp\",\"name\":\"connect\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"from\\\": {\\\"partP\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"in\\\": {\\\"ref\\\": \\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"D2\\\", \\\"pin\\\": \\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"K\\\"}}\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"to\\\": {\\\"net\\\": \\\"GND\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"}\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":718,\"cache_read_input_tokens\":19522,\"output_tokens\":196,\"output_tokens_details\":{\"thinking_tokens\":0}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "tool_use",
+       "id": "toolu_01GtFSopE3qznzTX4hwKs2H3",
+       "name": "connect",
+       "input": {
+        "from": {
+         "net": "GPIO27"
+        },
+        "to": {
+         "partPin": {
+          "ref": "R2",
+          "pin": "1"
+         }
+        }
+       },
+       "caller": {
+        "type": "direct"
+       }
+      },
+      {
+       "type": "tool_use",
+       "id": "toolu_01QQtX6bUH7WphAwKXDwtVWp",
+       "name": "connect",
+       "input": {
+        "from": {
+         "partPin": {
+          "ref": "D2",
+          "pin": "K"
+         }
+        },
+        "to": {
+         "net": "GND"
+        }
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01GtFSopE3qznzTX4hwKs2H3",
+       "content": "{\"wire\":{\"id\":\"W3\",\"kind\":\"dupont-mm\",\"color\":\"green\",\"lengthMm\":200,\"a\":\"bb1:7a\",\"b\":\"bb1:36a\"},\"net\":\"GPIO27\"}"
+      },
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01QQtX6bUH7WphAwKXDwtVWp",
+       "content": "{\"wire\":{\"id\":\"W4\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:43a\",\"b\":\"bb1:20b\"},\"net\":\"GND\"}"
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU43ZBSduuRwdbk9w5E\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":387,\"cache_read_input_tokens\":20240,\"cache_creation\":{\"ephemeral_5m_input_tokens\":387,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":16,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01WF6B7kbFBkynbiGRRx9x86\",\"name\":\"write_code\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"library\\\": \\\"gpiozero\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\", \\\"source\\\": \\\"from gpi\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ozero import LED\\\\nfrom time\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" import sleep\\\\n\\\\nled1 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"= LED(17)  #\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" red\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\",\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" through R1 (220 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ohm)\\\\nled2 =\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" LED(27)  # green\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", through R2 (220 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ohm)\\\\n\\\\ntry:\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\\n    while True:\\\\n        led1\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\".on()\\\\n        led2.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"off()\\\\n        sleep(\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"0.5)\\\\n        led1\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\".off()\\\\n        led2.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"on()\\\\n        sleep(\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"0.5)\\\\nexcept Ke\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"yboardInterrupt\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\":\\\\n    pass\\\\nfinally\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\":\\\\n    led1.close()\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\\n    led2.close()\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\\n\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":387,\"cache_read_input_tokens\":20240,\"output_tokens\":229,\"output_tokens_details\":{\"thinking_tokens\":0}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "tool_use",
+       "id": "toolu_01WF6B7kbFBkynbiGRRx9x86",
+       "name": "write_code",
+       "input": {
+        "library": "gpiozero",
+        "source": "from gpiozero import LED\nfrom time import sleep\n\nled1 = LED(17)  # red, through R1 (220 ohm)\nled2 = LED(27)  # green, through R2 (220 ohm)\n\ntry:\n    while True:\n        led1.on()\n        led2.off()\n        sleep(0.5)\n        led1.off()\n        led2.on()\n        sleep(0.5)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    led1.close()\n    led2.close()\n"
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01WF6B7kbFBkynbiGRRx9x86",
+       "content": "{\"syntax\":\"ok\",\"gpioUsed\":[{\"gpio\":17,\"mode\":\"out\"},{\"gpio\":27,\"mode\":\"out\"}],\"unresolved\":[],\"crossCheck\":\"matches the wiring\"}"
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU4DvHTk8AATa8xZZmg\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":309,\"cache_read_input_tokens\":20627,\"cache_creation\":{\"ephemeral_5m_input_tokens\":309,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":16,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01D24v5XSqfWE8sEKs9cF9PK\",\"name\":\"run_erc\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01AjeTNTidvnVhJuSPZrW2DL\",\"name\":\"simulate\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"mode\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\": \\\"op\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"dura\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"tionMs\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\": 0\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"stim\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ulus\\\": \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"gpio\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\":[{\\\"pin\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\":17,\\\"l\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"evel\\\":\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"low\\\",\\\"f\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"reqHz\\\":\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"0,\\\"duty\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\":0},{\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"pin\\\":27\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\",\\\"level\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\":\\\"high\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\",\\\"freq\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"Hz\\\":0,\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"duty\\\":0\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"}],\\\"inp\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"uts\\\":[]\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"}}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":2,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01SyETfPKjkUy4MGwaLEpf2x\",\"name\":\"run_code_in_sim\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"secon\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ds\\\": 2}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":2}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":309,\"cache_read_input_tokens\":20627,\"output_tokens\":246,\"output_tokens_details\":{\"thinking_tokens\":0}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "tool_use",
+       "id": "toolu_01D24v5XSqfWE8sEKs9cF9PK",
+       "name": "run_erc",
+       "input": {},
+       "caller": {
+        "type": "direct"
+       }
+      },
+      {
+       "type": "tool_use",
+       "id": "toolu_01AjeTNTidvnVhJuSPZrW2DL",
+       "name": "simulate",
+       "input": {
+        "mode": "op",
+        "durationMs": 0,
+        "stimulus": {
+         "gpio": [
+          {
+           "pin": 17,
+           "level": "low",
+           "freqHz": 0,
+           "duty": 0
+          },
+          {
+           "pin": 27,
+           "level": "high",
+           "freqHz": 0,
+           "duty": 0
+          }
+         ],
+         "inputs": []
+        }
+       },
+       "caller": {
+        "type": "direct"
+       }
+      },
+      {
+       "type": "tool_use",
+       "id": "toolu_01SyETfPKjkUy4MGwaLEpf2x",
+       "name": "run_code_in_sim",
+       "input": {
+        "seconds": 2
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01D24v5XSqfWE8sEKs9cF9PK",
+       "content": "{\"errors\":0,\"warnings\":0,\"info\":0,\"issues\":[]}"
+      },
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01AjeTNTidvnVhJuSPZrW2DL",
+       "content": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":0,\"GPIO18\":0,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":0,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":3.084,\"N1\":0,\"N2\":1.956},\"leds\":[{\"die\":\"D1.D\",\"mA\":0,\"brightness\":0},{\"die\":\"D2.D\",\"mA\":5.129,\"brightness\":0.513}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO18\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":3.084,\"mA\":5.129}],\"rails\":{\"3V3_mA\":0,\"5V_mA\":0},\"resistors\":[{\"ref\":\"R1\",\"ohms\":220,\"volts\":0,\"mA\":0,\"mW\":0},{\"ref\":\"R2\",\"ohms\":220,\"volts\":1.128,\"mA\":5.129,\"mW\":5.787}],\"parts\":{},\"errors\":0,\"warnings\":0,\"info\":0,\"issues\":[]}"
+      },
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01SyETfPKjkUy4MGwaLEpf2x",
+       "content": "{\"stdout\":\"\",\"error\":null,\"events\":[\"0.000 GPIO17 high\",\"0.000 GPIO27 low\",\"0.500 GPIO17 low\",\"0.500 GPIO27 high\",\"1.000 GPIO17 high\",\"1.000 GPIO27 low\",\"1.500 GPIO17 low\",\"1.500 GPIO27 high\",\"2.000 GPIO17 low\",\"2.000 GPIO27 low\"],\"eventCount\":10}"
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU4Q4yhmKur35UgzdjE\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":1655,\"cache_read_input_tokens\":20936,\"cache_creation\":{\"ephemeral_5m_input_tokens\":1655,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":16,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_013uhU2f8bmHK2dW7LtqmHpE\",\"name\":\"highlight\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"refs\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\": [\\\"D2\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"]\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"note\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\": \\\"Lon\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"g leg (\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"anode) \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"in row \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"40, nex\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"t to R2\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"; short\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" leg in\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" row 43\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\".\\\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":1655,\"cache_read_input_tokens\":20936,\"output_tokens\":98,\"output_tokens_details\":{\"thinking_tokens\":0}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "high"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "tool_use",
+       "id": "toolu_013uhU2f8bmHK2dW7LtqmHpE",
+       "name": "highlight",
+       "input": {
+        "refs": [
+         "D2"
+        ],
+        "note": "Long leg (anode) in row 40, next to R2; short leg in row 43."
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_013uhU2f8bmHK2dW7LtqmHpE",
+       "content": "ok"
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMU4WfM4uQEiJvBdzZRp\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":105,\"cache_read_input_tokens\":22591,\"cache_creation\":{\"ephemeral_5m_input_tokens\":105,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":560,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"I've added a second LED,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" a\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" green one on\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" GPIO27, and upd\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ated the program\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" so the\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" two LEDs take turns\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\": one\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" is on wh\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"enever the other is off, sw\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"apping every 0.5 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"s.\\n\\n**What I added\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"**\\n- **R2 (\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"220 Ω):** from\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" row 36 to row 40\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\", column c.\\n- **D\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"2 (green LED):**\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" anode (long leg) in\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" row 40e, cathode\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" (short leg) in row \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"43e.\\n- **W3\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\", green lead:** from the\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" GPIO27 strip\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" (7a) to row 36\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"a.\\n- **W4,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" black lead:** from row \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"43a to the GND strip\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" (20b).\\n\\n**How it\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" works**\\nThe second LED is\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" wired the same way as the first\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\". The code swit\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ches G\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"PIO17 on and G\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"PIO27 off,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" wa\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"its 0.5 s,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" then swaps them. In the\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" simulation\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\", with\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" GPIO27 high the\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" green LED dra\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ws 5.1 mA\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" (3.3 V −\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" about 2.0 V across\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" the\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" LED, through\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" 220 Ω). The\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" red LED dr\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ew 5.5 mA\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" earlier. Only one L\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ED is on at a time, so\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" the\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" Pi sup\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"plies about 5 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"mA in\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" total, well under the 16 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"mA per-\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"pin and 50 mA\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" total\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" limits. The ERC check\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" is clean, and in\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" the simulated code run the two\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" pins switch in\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" opposite directions every 0\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\".5 s.\\n\\n**What\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" to check on the bench**\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"\\n- **D\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"2 direction:** long\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" leg in row 40, fl\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"at side in row 43.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" I've marked this on the tw\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"in.\\n- **G\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"PIO27 lead:\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"** it goes into row 7\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" on\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" the T\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"-board, the row\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" just\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" below GPIO17 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"(row 6). Check it\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"'s in\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" column a, b\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" or c, next to GPI\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"O27 in column d.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" Don't use\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" the\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" right-\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hand half of that\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" row; that's\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" a different pin.\\n- **\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Resistors:** both\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" should\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" be 220 Ω (\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"red-red-brown).\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":105,\"cache_read_input_tokens\":22591,\"output_tokens\":560,\"output_tokens_details\":{\"thinking_tokens\":0}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  }
+ ]
+}

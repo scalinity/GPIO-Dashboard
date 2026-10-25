@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Sample: blink an LED on GPIO17",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "R1",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 30,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 34,
+            "col": "b"
+          }
+        }
+      }
+    },
+    {
+      "id": "D1",
+      "defId": "led",
+      "props": {
+        "color": "red",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 34,
+            "col": "c"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "main",
+            "row": 35,
+            "col": "c"
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 30,
+          "col": "a"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 35,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "a"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "gpiozero",
+    "source": "from gpiozero import LED\nfrom time import sleep\n\nled = LED(17)\n\nwhile True:\n    led.on()\n    sleep(0.5)\n    led.off()\n    sleep(0.5)\n"
+  }
+}

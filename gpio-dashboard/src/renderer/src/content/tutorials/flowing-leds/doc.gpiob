@@ -1,0 +1,646 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Flowing LEDs",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "flowing-leds"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "R1",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 26,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 26,
+            "col": "f"
+          }
+        }
+      }
+    },
+    {
+      "id": "D1",
+      "defId": "led",
+      "props": {
+        "color": "green",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 26,
+            "col": "h"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "rail",
+            "rail": "top-",
+            "index": 19
+          }
+        }
+      }
+    },
+    {
+      "id": "R2",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 29,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 29,
+            "col": "f"
+          }
+        }
+      }
+    },
+    {
+      "id": "D2",
+      "defId": "led",
+      "props": {
+        "color": "yellow",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 29,
+            "col": "h"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "rail",
+            "rail": "top-",
+            "index": 22
+          }
+        }
+      }
+    },
+    {
+      "id": "R3",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 32,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 32,
+            "col": "f"
+          }
+        }
+      }
+    },
+    {
+      "id": "D3",
+      "defId": "led",
+      "props": {
+        "color": "red",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 32,
+            "col": "h"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "rail",
+            "rail": "top-",
+            "index": 24
+          }
+        }
+      }
+    },
+    {
+      "id": "R4",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 35,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 35,
+            "col": "f"
+          }
+        }
+      }
+    },
+    {
+      "id": "D4",
+      "defId": "led",
+      "props": {
+        "color": "red",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 35,
+            "col": "h"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "rail",
+            "rail": "top-",
+            "index": 27
+          }
+        }
+      }
+    },
+    {
+      "id": "R5",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 38,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 38,
+            "col": "f"
+          }
+        }
+      }
+    },
+    {
+      "id": "D5",
+      "defId": "led",
+      "props": {
+        "color": "red",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 38,
+            "col": "h"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "rail",
+            "rail": "top-",
+            "index": 29
+          }
+        }
+      }
+    },
+    {
+      "id": "R6",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 41,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 41,
+            "col": "f"
+          }
+        }
+      }
+    },
+    {
+      "id": "D6",
+      "defId": "led",
+      "props": {
+        "color": "red",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 41,
+            "col": "h"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "rail",
+            "rail": "top-",
+            "index": 32
+          }
+        }
+      }
+    },
+    {
+      "id": "R7",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 44,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 44,
+            "col": "f"
+          }
+        }
+      }
+    },
+    {
+      "id": "D7",
+      "defId": "led",
+      "props": {
+        "color": "yellow",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 44,
+            "col": "h"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "rail",
+            "rail": "top-",
+            "index": 34
+          }
+        }
+      }
+    },
+    {
+      "id": "R8",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 47,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 47,
+            "col": "f"
+          }
+        }
+      }
+    },
+    {
+      "id": "D8",
+      "defId": "led",
+      "props": {
+        "color": "green",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 47,
+            "col": "h"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "rail",
+            "rail": "top-",
+            "index": 37
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 3,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "rail",
+          "rail": "top-",
+          "index": 0
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 26,
+          "col": "a"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 29,
+          "col": "a"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 7,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 32,
+          "col": "a"
+        }
+      },
+      "color": "blue",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W5",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 8,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 35,
+          "col": "a"
+        }
+      },
+      "color": "violet",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W6",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 8,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 38,
+          "col": "a"
+        }
+      },
+      "color": "white",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W7",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 9,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 41,
+          "col": "a"
+        }
+      },
+      "color": "brown",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W8",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 11,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 44,
+          "col": "a"
+        }
+      },
+      "color": "grey",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W9",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 15,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 47,
+          "col": "a"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\n# BCM numbers of the eight GPIOs, in the order the LEDs sit along the breadboard.\nLED_PINS = [17, 18, 27, 22, 23, 24, 25, 5]\nSTEP_S = 0.1\n\nGPIO.setmode(GPIO.BCM)\n# Each LED's cathode is on GND, so a HIGH pin lights it and a LOW pin turns it off.\nfor pin in LED_PINS:\n    GPIO.setup(pin, GPIO.OUT, initial=GPIO.LOW)\n\n\ndef light_only(index):\n    \"\"\"Light one LED and turn all the others off.\"\"\"\n    for n, pin in enumerate(LED_PINS):\n        GPIO.output(pin, GPIO.HIGH if n == index else GPIO.LOW)\n\n\ntry:\n    while True:\n        # Sweep to the far end, then back, without lighting either end LED twice in a row.\n        for index in list(range(len(LED_PINS))) + list(range(len(LED_PINS) - 2, 0, -1)):\n            light_only(index)\n            time.sleep(STEP_S)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    for pin in LED_PINS:\n        GPIO.output(pin, GPIO.LOW)\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "R1": {
+      "why": "Each LED has its own resistor, so every pin carries a few milliamps and no more."
+    },
+    "D1": {
+      "why": "The anode (longer leg) goes toward the resistor, and the cathode (shorter leg) goes to the GND rail.",
+      "mistake": "An LED in backwards stays dark, and the row will seem to skip a step."
+    },
+    "W2": {
+      "why": "GPIO17 lights the first LED when it is HIGH."
+    }
+  }
+}

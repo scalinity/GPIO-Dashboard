@@ -1,0 +1,104 @@
+{
+  "id": "dht11",
+  "name": "DHT11 temperature and humidity sensor (bare, 4-pin)",
+  "category": "sensor",
+  "kitTags": ["not in kit"],
+  "pins": [
+    {
+      "id": "VDD",
+      "label": "VDD",
+      "role": "power",
+      "electricalType": "power-in",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "DATA",
+      "label": "DATA",
+      "role": "logic-io",
+      "electricalType": "bidirectional",
+      "offsetPitch": [1, 0]
+    },
+    { "id": "NC", "label": "NC", "role": "nc", "electricalType": "nc", "offsetPitch": [2, 0] },
+    {
+      "id": "GND",
+      "label": "GND",
+      "role": "ground",
+      "electricalType": "power-in",
+      "offsetPitch": [3, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": { "kind": "rigid" },
+  "sim": {
+    "model": "dht11",
+    "params": {
+      "vccMinV": 3.3,
+      "vccMaxV": 5.5,
+      "outputHighLevel": "VDD",
+      "onBoardPullup": false,
+      "externalPullupRecommendedOhm": 5100,
+      "humidityMinPct": 20,
+      "humidityMaxPct": 90,
+      "humidityAccuracyPct": 5,
+      "humidityResolutionPct": 1,
+      "temperatureMinC": 0,
+      "temperatureMaxC": 50,
+      "temperatureAccuracyC": 2,
+      "temperatureResolutionC": 1,
+      "samplePeriodMinS": 2,
+      "powerUpWaitS": 1,
+      "startLowMinMs": 18,
+      "hostReleaseMinUs": 20,
+      "hostReleaseMaxUs": 40,
+      "responseLowUs": 80,
+      "responseHighUs": 80,
+      "bitStartLowUs": 50,
+      "bitZeroHighMinUs": 26,
+      "bitZeroHighMaxUs": 28,
+      "bitOneHighUs": 70,
+      "endLowUs": 50,
+      "frameBits": 40,
+      "supplyCurrentMeasuringMa": 0.3,
+      "supplyCurrentStandbyUa": 60
+    }
+  },
+  "properties": {
+    "temperatureC": {
+      "type": "number",
+      "label": "Temperature",
+      "unit": "°C",
+      "min": 0,
+      "max": 50,
+      "default": 25
+    },
+    "humidityPct": {
+      "type": "number",
+      "label": "Relative humidity",
+      "unit": "%RH",
+      "min": 20,
+      "max": 90,
+      "default": 50
+    }
+  },
+  "bodyMm": [12, 5.5, 15.5],
+  "geometry": {
+    "family": "module",
+    "params": {
+      "variant": "dht11-bare-4pin-sip",
+      "pins": 4,
+      "pitchMm": 2.54,
+      "bodyWidthMm": 12,
+      "bodyThicknessMm": 5.5,
+      "bodyHeightMm": 15.5,
+      "pinLengthMm": 8
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://components101.com/sites/default/files/component_datasheet/DHT11-Temperature-Sensor.pdf",
+      "https://www.mouser.com/datasheet/2/758/DHT11-Technical-Data-Sheet-Translated-Version-1143054.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/_images/Basic_List.jpg"
+    ],
+    "notes": "PIN ORDER: Aosong DHT11 Product Manual (the components101-hosted copy), section 5 'Pin Description': 1 VDD, 2 DATA (serial data, single-bus), 3 NC, 4 GND; the drawing shows 1pin to 4pin left to right with 2.54 mm pitch. Pin 3 is NC. SIZE: the same drawing gives 12 x 15.5 mm body, 5.5 mm thick, 8 mm leads. FOOTPRINT: rigid, pin 1 at [0,0], pins at 2.54 mm pitch along one row. KIT: the kit ships the 3-pin DHT11 module (see dht11-module), not the bare 4-pin sensor, per the kit's Component List photo, so this part is 'not in kit'. SUPPLY: Aosong manual says DC 3.3-5.5 V; the OSEPP-translated datasheet (Mouser) says 3-5.5 V with 5 V typical; 3.3 V is used as the minimum (conservative). Neither gives a numeric DATA output high voltage: the OSEPP signal tables call it 'High (VCC)', so the part records the level as VDD (the pulled-up line). PULL-UP: Aosong manual says an external pull-up of about 5.1 kOhm on DATA is needed for the single bus; OSEPP says a 5 kOhm pull-up is recommended for cables shorter than 20 m. The bare sensor has none on board. RESOLUTION CONFLICT: the Aosong manual lists 16 bit for humidity and temperature, the OSEPP datasheet lists 8 bit and 1 %RH / 1 C. Both agree on the frame: 8-bit integer + 8-bit decimal for each value, and the Aosong manual notes the decimal bytes are 0, so 1-unit steps are used. ACCURACY: humidity +-5 %RH at 25 C in the Aosong manual; the OSEPP table says +-4 %RH at 25 C and +-5 %RH over 0-50 C; +-5 is used. Temperature +-2 C in both. RANGE: 20-90 %RH and 0-50 C from the OSEPP table (humidity 30-90 % at 0 C and 20-80 % at 50 C); the Aosong manual copy lists no measuring range. SAMPLING: Aosong manual 'secondary greater than 2 seconds' (and an advice of more than 5 s between reads for accurate data); OSEPP 1 s; 2 s is used. CURRENT: Aosong 0.3 mA measuring, 60 uA standby; OSEPP 0.5-2.5 mA measuring, 0.2-1 mA average, 100-150 uA standby. TIMING: Aosong manual and OSEPP datasheet agree on start low of at least 18 ms, 80 us response low then 80 us high, 50 us low before each bit, 26-28 us high for a 0 and about 70 us high for a 1, 40 bits, 50 us end low; the 20-40 us host release wait is from the OSEPP datasheet only. The OSEPP datasheet suggests 100 nF between VDD and GND."
+  }
+}

@@ -1,0 +1,969 @@
+{
+  "id": "flowing-leds",
+  "title": "Flowing LEDs",
+  "order": 19,
+  "kitProject": null,
+  "tags": [],
+  "summary": "Sweep a light back and forth along eight LEDs, each on its own GPIO. A HIGH pin lights its LED.",
+  "sources": {
+    "kit": null,
+    "datasheets": [
+      "https://www.kingbrightusa.com/images/catalog/SPEC/WP7113ID.pdf",
+      "https://www.kingbrightusa.com/images/catalog/SPEC/WP7113YD.pdf",
+      "https://www.kingbrightusa.com/images/catalog/SPEC/WP7113GD.pdf",
+      "https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "GPIO17 HIGH lights LED 1 and no other, within the 16 mA pin limit",
+      "gpio": {
+        "5": {
+          "mode": "out",
+          "level": false
+        },
+        "17": {
+          "mode": "out",
+          "level": true
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "23": {
+          "mode": "out",
+          "level": false
+        },
+        "24": {
+          "mode": "out",
+          "level": false
+        },
+        "25": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
+        },
+        {
+          "die": "D2.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D3.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D4.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D5.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D6.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D7.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D8.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "gpio": 17,
+          "currentA": {
+            "min": 0.001,
+            "max": 0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "GPIO18 HIGH lights LED 2 and no other, within the 16 mA pin limit",
+      "gpio": {
+        "5": {
+          "mode": "out",
+          "level": false
+        },
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": true
+        },
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "23": {
+          "mode": "out",
+          "level": false
+        },
+        "24": {
+          "mode": "out",
+          "level": false
+        },
+        "25": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D2.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
+        },
+        {
+          "die": "D3.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D4.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D5.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D6.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D7.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D8.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "gpio": 18,
+          "currentA": {
+            "min": 0.001,
+            "max": 0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "GPIO27 HIGH lights LED 3 and no other, within the 16 mA pin limit",
+      "gpio": {
+        "5": {
+          "mode": "out",
+          "level": false
+        },
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "23": {
+          "mode": "out",
+          "level": false
+        },
+        "24": {
+          "mode": "out",
+          "level": false
+        },
+        "25": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": true
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D2.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D3.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
+        },
+        {
+          "die": "D4.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D5.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D6.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D7.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D8.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "gpio": 27,
+          "currentA": {
+            "min": 0.001,
+            "max": 0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "GPIO22 HIGH lights LED 4 and no other, within the 16 mA pin limit",
+      "gpio": {
+        "5": {
+          "mode": "out",
+          "level": false
+        },
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "22": {
+          "mode": "out",
+          "level": true
+        },
+        "23": {
+          "mode": "out",
+          "level": false
+        },
+        "24": {
+          "mode": "out",
+          "level": false
+        },
+        "25": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D2.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D3.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D4.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
+        },
+        {
+          "die": "D5.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D6.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D7.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D8.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "gpio": 22,
+          "currentA": {
+            "min": 0.001,
+            "max": 0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "GPIO23 HIGH lights LED 5 and no other, within the 16 mA pin limit",
+      "gpio": {
+        "5": {
+          "mode": "out",
+          "level": false
+        },
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "23": {
+          "mode": "out",
+          "level": true
+        },
+        "24": {
+          "mode": "out",
+          "level": false
+        },
+        "25": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D2.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D3.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D4.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D5.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
+        },
+        {
+          "die": "D6.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D7.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D8.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "gpio": 23,
+          "currentA": {
+            "min": 0.001,
+            "max": 0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "GPIO24 HIGH lights LED 6 and no other, within the 16 mA pin limit",
+      "gpio": {
+        "5": {
+          "mode": "out",
+          "level": false
+        },
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "23": {
+          "mode": "out",
+          "level": false
+        },
+        "24": {
+          "mode": "out",
+          "level": true
+        },
+        "25": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D2.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D3.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D4.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D5.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D6.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
+        },
+        {
+          "die": "D7.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D8.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "gpio": 24,
+          "currentA": {
+            "min": 0.001,
+            "max": 0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "GPIO25 HIGH lights LED 7 and no other, within the 16 mA pin limit",
+      "gpio": {
+        "5": {
+          "mode": "out",
+          "level": false
+        },
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "23": {
+          "mode": "out",
+          "level": false
+        },
+        "24": {
+          "mode": "out",
+          "level": false
+        },
+        "25": {
+          "mode": "out",
+          "level": true
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D2.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D3.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D4.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D5.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D6.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D7.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
+        },
+        {
+          "die": "D8.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "gpio": 25,
+          "currentA": {
+            "min": 0.001,
+            "max": 0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "GPIO5 HIGH lights LED 8 and no other, within the 16 mA pin limit",
+      "gpio": {
+        "5": {
+          "mode": "out",
+          "level": true
+        },
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "23": {
+          "mode": "out",
+          "level": false
+        },
+        "24": {
+          "mode": "out",
+          "level": false
+        },
+        "25": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D2.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D3.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D4.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D5.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D6.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D7.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D8.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
+        },
+        {
+          "gpio": 5,
+          "currentA": {
+            "min": 0.001,
+            "max": 0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "All eight pins LOW leaves every LED dark",
+      "gpio": {
+        "5": {
+          "mode": "out",
+          "level": false
+        },
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "23": {
+          "mode": "out",
+          "level": false
+        },
+        "24": {
+          "mode": "out",
+          "level": false
+        },
+        "25": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D2.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D3.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D4.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D5.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D6.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D7.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D8.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "Four LEDs on together (every other one) light and no others",
+      "gpio": {
+        "5": {
+          "mode": "out",
+          "level": false
+        },
+        "17": {
+          "mode": "out",
+          "level": true
+        },
+        "18": {
+          "mode": "out",
+          "level": false
+        },
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "23": {
+          "mode": "out",
+          "level": true
+        },
+        "24": {
+          "mode": "out",
+          "level": false
+        },
+        "25": {
+          "mode": "out",
+          "level": true
+        },
+        "27": {
+          "mode": "out",
+          "level": true
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
+        },
+        {
+          "die": "D2.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D3.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
+        },
+        {
+          "die": "D4.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D5.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
+        },
+        {
+          "die": "D6.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        },
+        {
+          "die": "D7.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.025
+          }
+        },
+        {
+          "die": "D8.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        }
+      ],
+      "code": false
+    }
+  ],
+  "checkpoints": [
+    {
+      "kind": "toggle-led",
+      "afterStep": "W2",
+      "part": "D1",
+      "gpio": 17
+    }
+  ]
+}

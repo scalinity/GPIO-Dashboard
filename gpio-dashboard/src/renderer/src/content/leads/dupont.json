@@ -1,0 +1,24 @@
+{
+  "id": "dupont",
+  "name": "Dupont jumper leads (single, 2.54 mm housings)",
+  "housing": { "widthMm": 2.54, "lengthMm": 12.0, "lengthUncertaintyMm": 1.0 },
+  "malePin": { "sideMm": 0.64, "exposedMm": 5.5 },
+  "wire": { "awg": [26, 28], "outerDiameterMm": 1.0 },
+  "minBendRadiusMm": 3,
+  "inventoryLengthsMm": [200],
+  "provenance": {
+    "sources": [
+      "https://www.pololu.com/product/1900",
+      "https://keszoox.com/blogs/news/dupont-connector-complete-guide"
+    ],
+    "values": {
+      "housing.widthMm": "Pololu 0.1\" crimp housing, 1x1: B = 2.54 mm",
+      "housing.lengthMm": "Photo calibration (SPEC 6.5): 'T-Cobbler and BreadBoard - Image 1.jpg' (SHA-256 a1d88400...cc98), M-F bundle's female end: 10 adjacent housings span about 174 px, so 2.54 mm = 17.4 px (6.85 px/mm); housing length about 82 px = 12.0 mm. +/-1 mm for edge blur and gaps between housings",
+      "malePin.sideMm": "SPEC 6.5 and BB830 datasheet FAQ: a standard 0.1\" header pin is 0.025\" (0.64 mm) square",
+      "malePin.exposedMm": "Same photo and scale: the bottom M-M ends' exposed pins measure about 37 px = 5.5 mm",
+      "wire": "Secondary source (keszoox Dupont guide): jumper wire is typically 26-28 AWG; outer diameter about 1.0 mm in the same photo",
+      "minBendRadiusMm": "Assumption for the reach check: a 26-28 AWG stranded lead turns within about 3 mm of its housing",
+      "inventoryLengthsMm": "Listing photo and SPEC 6.5: the T-board kit's M-M and M-F leads are 200 mm, measured pin tip to pin tip (photo 4's callout ends at the outermost pin tips). reach.ts wireLengthMm takes the housings and exposed pins off for the wire (ADR-0042)"
+    }
+  }
+}

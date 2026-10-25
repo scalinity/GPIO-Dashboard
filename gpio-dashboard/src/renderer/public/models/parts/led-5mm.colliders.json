@@ -1,0 +1,20 @@
+{
+  "units": "mm",
+  "frame": "core, z up",
+  "boxes": [
+    {
+      "name": "body",
+      "min": [
+        -2.95,
+        -2.95,
+        0.0
+      ],
+      "max": [
+        2.65,
+        2.95,
+        8.6
+      ]
+    }
+  ],
+  "capsules": []
+}

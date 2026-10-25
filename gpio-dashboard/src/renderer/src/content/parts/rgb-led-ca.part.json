@@ -1,0 +1,97 @@
+{
+  "id": "rgb-led-ca",
+  "name": "RGB LED, 5 mm, common anode",
+  "category": "led",
+  "kitTags": ["not in kit"],
+  "pins": [
+    {
+      "id": "R",
+      "label": "Red cathode (pin 1)",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "A",
+      "label": "Common anode (pin 2)",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0]
+    },
+    {
+      "id": "B",
+      "label": "Blue cathode (pin 3)",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [2, 0]
+    },
+    {
+      "id": "G",
+      "label": "Green cathode (pin 4)",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [3, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": {
+    "kind": "rigid"
+  },
+  "sim": {
+    "model": "rgb-led",
+    "params": {
+      "red.vfMinV": 1.7,
+      "red.vfTypV": 2.2,
+      "red.vfMaxV": 2.7,
+      "red.ifTestMa": 20,
+      "red.ifMaxMa": 30,
+      "red.ifPeakMa": 90,
+      "red.irMaxA": 1e-5,
+      "red.vrTestV": 5,
+      "red.pdMaxW": 0.08,
+      "green.vfMinV": 2.5,
+      "green.vfTypV": 3.2,
+      "green.vfMaxV": 3.7,
+      "green.ifTestMa": 20,
+      "green.ifMaxMa": 30,
+      "green.ifPeakMa": 100,
+      "green.irMaxA": 1e-5,
+      "green.vrTestV": 5,
+      "green.pdMaxW": 0.108,
+      "blue.vfMinV": 2.5,
+      "blue.vfTypV": 3.2,
+      "blue.vfMaxV": 3.7,
+      "blue.ifTestMa": 20,
+      "blue.ifMaxMa": 30,
+      "blue.ifPeakMa": 100,
+      "blue.irMaxA": 1e-5,
+      "blue.vrTestV": 5,
+      "blue.pdMaxW": 0.108,
+      "commonPin": "A",
+      "commonType": "anode"
+    }
+  },
+  "properties": {},
+  "bodyMm": [5.8, 5.8, 8.6],
+  "geometry": {
+    "family": "rgb-led",
+    "params": {
+      "domeDiameterMm": 5.0,
+      "flangeDiameterMm": 5.8,
+      "flangeThicknessMm": 1.0,
+      "bodyHeightMm": 8.6,
+      "leadLengthMinMm": 22,
+      "leadLengthMaxMm": 24,
+      "leadPitchNativeMm": 1.27,
+      "leadSquareMm": 0.5
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://atta.szlcsc.com/upload/public/pdf/source/20250630/29DF0A225F74CB001860CB26889C1712.pdf",
+      "http://cdn.sparkfun.com/datasheets/Components/LED/YSL-R596AR3G4B5C-C10.pdf",
+      "https://www.sparkfun.com/led-rgb-clear-common-anode.html"
+    ],
+    "notes": "Primary datasheet: Dialight 521-8559F, '5mm RGB WC with 4L common anode', drawing C-18455 rev B (LCSC-hosted copy of the manufacturer drawing, 1 page). LED SCHEMATIC: 1 RED CATHODE, 2 COMMON ANODE, 3 BLUE CATHODE, 4 GREEN CATHODE. Note 2 on the drawing says the pin numbers are for reference only and are not marked on the part. Operating characteristics at 20 mA: VF red 1.7/2.2/2.7 V, blue and green 2.5/3.2/3.7 V (min/typ/max); IR 10 µA max at VR = 5 V (test condition, no separate VR rating). Absolute maximum: DC 30 mA per colour, PD 80 mW red and 108 mW blue and green, peak 90 mA red and 100 mA blue and green (1/10 duty, 0.1 ms). Package: dome ø5 (.197), flange ø5.8 (.228) 1 mm thick, dome-to-flange 8.6 mm, leads .020 square (0.5 mm) at 1.27 mm pitch, lead lengths 22 to 24 mm (.866 to .945). The leads are bent to the 2.54 mm grid on a breadboard, which is why the offsets are [0..3, 0]. Cross-check: the Young Sun YSL-R596AR3G4B5C-C10 common-anode sheet (SparkFun-hosted, 2 pages) gives the same package and the same electrical figures as its common-cathode sibling (VF 2.0/3.2/3.2 V typ) and shows pin 2 as the common anode, but it labels no colours, so it cannot settle the colour order. SparkFun states its common-anode datasheet is the common-cathode one with the polarity changed. Colour order differs between sources: Dialight is R, anode, B, G here, while the kit's common-cathode part (rgb-led-cc) is R, cathode, G, B. Check any real common-anode part with a diode test. Not in the SunFounder kit (the kit's RGB LED is common cathode, see rgb-led-cc). bodyMm is [flange, flange, overall height]."
+  }
+}

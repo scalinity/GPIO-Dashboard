@@ -1,0 +1,201 @@
+{
+  "active-buzzer": [
+    {
+      "file": "active-buzzer.glb"
+    }
+  ],
+  "ads1115-module": [
+    {
+      "file": "ads1115-module.glb"
+    }
+  ],
+  "ads7830-module": [
+    {
+      "file": "ads7830-module.glb"
+    }
+  ],
+  "bar-graph-10": [
+    {
+      "file": "bar-graph-10.glb"
+    }
+  ],
+  "breadboard-power-module": [
+    {
+      "file": "breadboard-power-module.glb"
+    }
+  ],
+  "ceramic-capacitor": [
+    {
+      "file": "ceramic-capacitor.glb"
+    }
+  ],
+  "dc-motor": [
+    {
+      "file": "dc-motor.glb"
+    }
+  ],
+  "dht11": [
+    {
+      "file": "dht11.glb"
+    }
+  ],
+  "dht11-module": [
+    {
+      "file": "dht11-module.glb"
+    }
+  ],
+  "diode-1n4007": [
+    {
+      "file": "diode-1n4007.glb"
+    }
+  ],
+  "electrolytic-capacitor": [
+    {
+      "file": "electrolytic-capacitor.glb"
+    }
+  ],
+  "hc-sr04": [
+    {
+      "file": "hc-sr04.glb"
+    }
+  ],
+  "hc-sr501": [
+    {
+      "file": "hc-sr501.glb"
+    }
+  ],
+  "ic-74hc595": [
+    {
+      "file": "ic-74hc595.glb"
+    }
+  ],
+  "ic-adc0834": [
+    {
+      "file": "ic-adc0834.glb"
+    }
+  ],
+  "ic-l293d": [
+    {
+      "file": "ic-l293d.glb"
+    }
+  ],
+  "joystick-module": [
+    {
+      "file": "joystick-module.glb"
+    }
+  ],
+  "keypad-4x4": [
+    {
+      "file": "keypad-4x4.glb"
+    }
+  ],
+  "lcd1602-i2c": [
+    {
+      "file": "lcd1602-i2c.glb"
+    }
+  ],
+  "ldr": [
+    {
+      "file": "ldr.glb"
+    }
+  ],
+  "led": [
+    {
+      "file": "led-3mm.glb",
+      "when": {
+        "size": "3mm"
+      }
+    },
+    {
+      "file": "led-5mm.glb",
+      "when": {
+        "size": "5mm"
+      }
+    }
+  ],
+  "led-matrix-8x8": [
+    {
+      "file": "led-matrix-8x8.glb"
+    }
+  ],
+  "ntc-10k": [
+    {
+      "file": "ntc-10k.glb"
+    }
+  ],
+  "passive-buzzer": [
+    {
+      "file": "passive-buzzer.glb"
+    }
+  ],
+  "pn2222": [
+    {
+      "file": "pn2222.glb"
+    }
+  ],
+  "potentiometer-10k": [
+    {
+      "file": "potentiometer-10k.glb"
+    }
+  ],
+  "relay-module-5v": [
+    {
+      "file": "relay-module-5v.glb"
+    }
+  ],
+  "resistor": [
+    {
+      "file": "resistor.glb"
+    }
+  ],
+  "rgb-led-ca": [
+    {
+      "file": "rgb-led-ca.glb"
+    }
+  ],
+  "rgb-led-cc": [
+    {
+      "file": "rgb-led-cc.glb"
+    }
+  ],
+  "s8050": [
+    {
+      "file": "s8050.glb"
+    }
+  ],
+  "s8550": [
+    {
+      "file": "s8550.glb"
+    }
+  ],
+  "seven-segment-4digit": [
+    {
+      "file": "seven-segment-4digit.glb"
+    }
+  ],
+  "seven-segment-ca": [
+    {
+      "file": "seven-segment-ca.glb"
+    }
+  ],
+  "seven-segment-cc": [
+    {
+      "file": "seven-segment-cc.glb"
+    }
+  ],
+  "sg90": [
+    {
+      "file": "sg90.glb"
+    }
+  ],
+  "tact-switch-6mm": [
+    {
+      "file": "tact-switch-6mm.glb"
+    }
+  ],
+  "tilt-switch": [
+    {
+      "file": "tilt-switch.glb"
+    }
+  ]
+}

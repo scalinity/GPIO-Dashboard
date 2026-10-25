@@ -1,0 +1,75 @@
+{
+  "id": "resistor",
+  "name": "Resistor, 1/4 W axial",
+  "category": "passive",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "Lead 1",
+      "role": "passive",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "Lead 2",
+      "role": "passive",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": {
+    "kind": "flex-2lead",
+    "minSpan": 1,
+    "maxSpan": 16
+  },
+  "sim": {
+    "model": "resistor",
+    "params": {
+      "ratedPowerW": 0.25,
+      "maxWorkingV": 250,
+      "maxOverloadV": 500
+    }
+  },
+  "properties": {
+    "resistance": {
+      "type": "number",
+      "label": "Resistance",
+      "unit": "Ω",
+      "min": 1,
+      "max": 4700000,
+      "default": 220
+    },
+    "tolerance": {
+      "type": "enum",
+      "label": "Tolerance",
+      "options": ["5%", "1%"],
+      "default": "5%"
+    }
+  },
+  "bodyMm": [6.3, 2.4, 2.4],
+  "geometry": {
+    "family": "axial-resistor",
+    "params": {
+      "bodyLengthMm": 6.3,
+      "bodyLengthTolMm": 0.5,
+      "bodyDiameterMm": 2.4,
+      "bodyDiameterTolMm": 0.2,
+      "leadDiameterMm": 0.55,
+      "leadDiameterTolMm": 0.05,
+      "leadLengthMm": 28,
+      "leadLengthTolMm": 2
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf",
+      "https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-MFR_DATASHEET.pdf",
+      "https://core-electronics.com.au/attachments/localcontent/DS-17994-Resistor_220_Ohm_1_4th_Watt_PTH_66488e7bf06.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "Body and leads: Yageo CFR datasheet V.3 (Apr 2024), DIMENSIONS table p.3, row CFR-25 (1/4 W normal style): L 6.3±0.5, ØD 2.4±0.2, lead length H 28±2, lead Ød 0.55±0.05 mm. Power 1/4 W at 70 °C, max working voltage 250 V, max overload 500 V: Table 1 p.3, CFR-25 column (the MFR V.4 sheet gives the same 6.3 x 2.4 mm body and 250/500 V for MFR-25). Tolerance: the 5% grade is carbon-film CFR-25JB; Yageo CFR lists only ±2% and ±5% and Stackpole CF14 (cross-check) only 2% and 5%, so no carbon-film sheet read offers ±1%. The 1% grade is therefore the metal-film Yageo MFR-25FB, which has an identical body. The kit photo shows blue-bodied resistors, which are usually metal film (not verified); SunFounder states no tolerance. Kit quantities from the component-list image: 220 Ω x20, 1 kΩ x10, 10 kΩ x10. Property max 4.7 MΩ is the MFR upper limit (CFR reaches 10 MΩ), so both grades stay valid. Spans: minSpan 1 is an upright mount (body ØD 2.4 stands over one hole, one lead bent back, 2.54 mm apart); a flat mount needs hole spacing above the body length 6.3±0.5 mm (6.8 max), i.e. at least 3 pitches (Yageo's M-type forming uses P = 10.0±1 mm, about 4 pitches). maxSpan 16 = floor((6.3 + 2 x (26 - 8)) / 2.54): 26 mm is the minimum lead length (28 - 2) and 8 mm per lead is an allowance for the bend and hole insertion, which is a modelling assumption and not a datasheet figure. bodyMm is the nominal drawing size [L, ØD, ØD]."
+  }
+}

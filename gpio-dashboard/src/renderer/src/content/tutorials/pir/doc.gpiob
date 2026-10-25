@@ -1,0 +1,242 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "PIR Motion Sensor",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "pir"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "U1",
+      "defId": "hc-sr501",
+      "props": {},
+      "placement": {
+        "pins": {
+          "VCC": null,
+          "OUT": null,
+          "GND": null
+        },
+        "offboardPose": {
+          "position": [
+            60,
+            -60
+          ],
+          "rotationDeg": 0
+        }
+      }
+    },
+    {
+      "id": "R1",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 30,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 34,
+            "col": "b"
+          }
+        }
+      }
+    },
+    {
+      "id": "D1",
+      "defId": "led",
+      "props": {
+        "color": "red",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 34,
+            "col": "c"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "main",
+            "row": 35,
+            "col": "c"
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "pin": {
+          "part": "U1",
+          "pin": "VCC"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 2,
+          "col": "i"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "pin": {
+          "part": "U1",
+          "pin": "GND"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 3,
+          "col": "i"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "pin": {
+          "part": "U1",
+          "pin": "OUT"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "b"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 30,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "j"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W5",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 35,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "a"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\nPIR_PIN = 17  # BCM numbering: header pin 11, from the sensor's OUT pin\nLED_PIN = 18  # header pin 12, through R1 to the alert LED\nWARM_UP_SECONDS = 60  # the HC-SR501 settles for about a minute after power-up\n\nGPIO.setmode(GPIO.BCM)\n# OUT is driven by the module; the pull-down only keeps the pin LOW if the lead is loose.\nGPIO.setup(PIR_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)\nGPIO.setup(LED_PIN, GPIO.OUT, initial=GPIO.LOW)\n\nprint('Warming up for', WARM_UP_SECONDS, 'seconds; keep still')\ntime.sleep(WARM_UP_SECONDS)\nprint('Ready')\n\ndetections = 0\nwas_high = False\n\ntry:\n    while True:\n        high = GPIO.input(PIR_PIN) == GPIO.HIGH\n        GPIO.output(LED_PIN, GPIO.HIGH if high else GPIO.LOW)\n        if high and not was_high:\n            detections += 1\n            print('Motion detected, count', detections)\n        was_high = high\n        time.sleep(0.1)\nexcept KeyboardInterrupt:\n    print('Stopped after', detections, 'detections')\nfinally:\n    GPIO.output(LED_PIN, GPIO.LOW)\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "U1": {
+      "why": "The module has its own regulator and a 3.3 V output, so it can be powered from 5 V and still be read safely by a GPIO pin.",
+      "mistake": "Reading the pin names from the wrong side of the board: check VCC, OUT and GND against the silkscreen."
+    },
+    "R1": {
+      "why": "The resistor limits the alert LED’s current."
+    },
+    "D1": {
+      "why": "The LED’s anode is fed from GPIO18 through R1, so it lights when GPIO18 is HIGH.",
+      "mistake": "The LED in backwards: it stays dark."
+    },
+    "W3": {
+      "why": "OUT goes HIGH while the sensor sees movement; GPIO17 reads it."
+    },
+    "W4": {
+      "why": "GPIO18 drives the alert LED."
+    }
+  }
+}

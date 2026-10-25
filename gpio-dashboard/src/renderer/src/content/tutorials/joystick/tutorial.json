@@ -1,0 +1,258 @@
+{
+  "id": "joystick",
+  "title": "Joystick",
+  "order": 27,
+  "kitProject": null,
+  "tags": ["needs parts not in the kit"],
+  "summary": "Read a two-axis joystick through the kit's ADS7830 I2C module and its push button on GPIO17.",
+  "sources": {
+    "kit": null,
+    "datasheets": [
+      "https://www.ti.com/lit/ds/symlink/ads7830.pdf",
+      "https://docs.sunfounder.com/projects/umsk/en/latest/01_components_basic/09-component_joystick.html",
+      "https://asset.conrad.com/media10/add/160267/c1/-/en/001707629DS01/datasheet-1707629-joy-it-ky023jm-1-pcs-compatible-with-development-kits-raspberry-pi-pcduino-banana-pi-arduino.pdf"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "The joystick and the ADS7830 module run from 3.3 V",
+      "inputs": {},
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [132]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 0,
+              "max": 255
+            }
+          ]
+        },
+        {
+          "pin": "U1.VCC",
+          "volts": {
+            "min": 3.28,
+            "max": 3.32
+          }
+        },
+        {
+          "pin": "J1.VCC",
+          "volts": {
+            "min": 3.28,
+            "max": 3.32
+          }
+        }
+      ]
+    },
+    {
+      "name": "X at 0 % reads 0 on A0",
+      "inputs": {
+        "J1": {
+          "x": 0
+        }
+      },
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [132]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 0,
+              "max": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "X at 50 % reads about the centre on A0",
+      "inputs": {
+        "J1": {
+          "x": 50
+        }
+      },
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [132]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 125,
+              "max": 129
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "X at 100 % reads 255 on A0",
+      "inputs": {
+        "J1": {
+          "x": 100
+        }
+      },
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [132]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 253,
+              "max": 255
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Y at 0 % reads 0 on A1",
+      "inputs": {
+        "J1": {
+          "y": 0
+        }
+      },
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [196]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 0,
+              "max": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Y at 100 % reads 255 on A1",
+      "inputs": {
+        "J1": {
+          "y": 100
+        }
+      },
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [196]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 253,
+              "max": 255
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "The button reads HIGH on GPIO17 with its pull-up while released",
+      "gpio": {
+        "17": {
+          "mode": "in",
+          "pull": "up"
+        }
+      },
+      "inputs": {
+        "J1": {
+          "pressed": false
+        }
+      },
+      "expect": [
+        {
+          "read": 17,
+          "is": "high"
+        }
+      ]
+    },
+    {
+      "name": "Pressing the button pulls GPIO17 LOW",
+      "gpio": {
+        "17": {
+          "mode": "in",
+          "pull": "up"
+        }
+      },
+      "inputs": {
+        "J1": {
+          "pressed": true
+        }
+      },
+      "expect": [
+        {
+          "read": 17,
+          "is": "low"
+        }
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "kind": "i2c-scan",
+      "afterStep": "W3",
+      "addresses": [72]
+    },
+    {
+      "kind": "press",
+      "afterStep": "W11",
+      "part": "J1",
+      "gpio": 17
+    }
+  ]
+}

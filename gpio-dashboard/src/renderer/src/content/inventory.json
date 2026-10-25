@@ -1,0 +1,264 @@
+{
+  "kit": {
+    "name": "SunFounder Basic Starter Kit for Raspberry Pi",
+    "source": {
+      "page": "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html",
+      "image": "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/_images/Basic_List.jpg",
+      "imageSha256": "5799cd52a286ef0327295427df619711f528a4879f07ef709ea5cd5aaf04eda1",
+      "retrieved": "2026-10-24"
+    },
+    "items": [
+      {
+        "name": "T-shape Extension Board",
+        "quantity": 1,
+        "partId": null
+      },
+      {
+        "name": "GPIO Cable",
+        "quantity": 1,
+        "partId": null
+      },
+      {
+        "name": "830 Tie-Points Breadboard",
+        "quantity": 1,
+        "partId": null
+      },
+      {
+        "name": "ADS7830 Module",
+        "quantity": 1,
+        "partId": "ads7830-module",
+        "notes": "LAFVIN-branded I2C ADC board; a different chip from the ADS1115 in the part library"
+      },
+      {
+        "name": "LED Bar Graph",
+        "quantity": 1,
+        "partId": "bar-graph-10"
+      },
+      {
+        "name": "20mm Dot Matrix Module",
+        "quantity": 1,
+        "partId": "led-matrix-8x8",
+        "notes": "bare 8x8 matrix marked 788BS; the project text says common anode"
+      },
+      {
+        "name": "Relay Module",
+        "quantity": 1,
+        "partId": "relay-module-5v",
+        "notes": "relay board with screw terminals and an indicator LED, not a bare relay; the project page photo shows SRD-05VDC-SL-C"
+      },
+      {
+        "name": "Resistor 10kΩ",
+        "quantity": 10,
+        "partId": "resistor"
+      },
+      {
+        "name": "Resistor 220Ω",
+        "quantity": 20,
+        "partId": "resistor"
+      },
+      {
+        "name": "Resistor 1kΩ",
+        "quantity": 10,
+        "partId": "resistor"
+      },
+      {
+        "name": "Passive Buzzer",
+        "quantity": 1,
+        "partId": "passive-buzzer"
+      },
+      {
+        "name": "Active Buzzer",
+        "quantity": 1,
+        "partId": "active-buzzer"
+      },
+      {
+        "name": "Motor & Fan",
+        "quantity": 1,
+        "partId": "dc-motor",
+        "notes": "motor with a fan blade"
+      },
+      {
+        "name": "Slide Switch",
+        "quantity": 2,
+        "partId": null,
+        "notes": "no project page in the docs uses it"
+      },
+      {
+        "name": "Photoresistor",
+        "quantity": 2,
+        "partId": "ldr"
+      },
+      {
+        "name": "LED-RGB",
+        "quantity": 1,
+        "partId": "rgb-led-cc",
+        "notes": "common cathode is inferred, not stated: the 1.1.2 wiring diagram ties the longest (common) leg to GND and the code drives the colour pins high to light them"
+      },
+      {
+        "name": "LED-Red",
+        "quantity": null,
+        "partId": "led",
+        "notes": "label reads \"LED-Red/Yellow/Green White/ Blue x5\" and the photo shows one LED of each of the five colours; the count per colour and the LED diameter are not stated"
+      },
+      {
+        "name": "LED-Yellow",
+        "quantity": null,
+        "partId": "led",
+        "notes": "see LED-Red: count per colour and diameter not stated"
+      },
+      {
+        "name": "LED-Green",
+        "quantity": null,
+        "partId": "led",
+        "notes": "see LED-Red: count per colour and diameter not stated"
+      },
+      {
+        "name": "LED-White",
+        "quantity": null,
+        "partId": "led",
+        "notes": "see LED-Red: count per colour and diameter not stated"
+      },
+      {
+        "name": "LED-Blue",
+        "quantity": null,
+        "partId": "led",
+        "notes": "see LED-Red: count per colour and diameter not stated"
+      },
+      {
+        "name": "Thermistor",
+        "quantity": 1,
+        "partId": "ntc-10k",
+        "notes": "shares a tile with the tilt switch; the 2.2.2 page says NTC, 10kΩ at 25°C, B = 3950"
+      },
+      {
+        "name": "Tilt Switch",
+        "quantity": 1,
+        "partId": "tilt-switch",
+        "notes": "shares a tile with the thermistor; the photo shows SW-520D"
+      },
+      {
+        "name": "Capacitor 104",
+        "quantity": 4,
+        "partId": "ceramic-capacitor",
+        "notes": "no project page in the docs uses it"
+      },
+      {
+        "name": "F-M DuPont Cable",
+        "quantity": 10,
+        "partId": null,
+        "leadKind": "dupont-mf",
+        "notes": "length not stated"
+      },
+      {
+        "name": "F-F DuPont Cable",
+        "quantity": 10,
+        "partId": null,
+        "leadKind": "dupont-ff",
+        "notes": "length not stated"
+      },
+      {
+        "name": "9V Battery Connector",
+        "quantity": 1,
+        "partId": null
+      },
+      {
+        "name": "1N4007",
+        "quantity": 2,
+        "partId": "diode-1n4007",
+        "notes": "no project page in the docs uses it"
+      },
+      {
+        "name": "L293D",
+        "quantity": 1,
+        "partId": "ic-l293d"
+      },
+      {
+        "name": "PN2222",
+        "quantity": 2,
+        "partId": "pn2222",
+        "notes": "NPN transistor in a TO-92 body; the buzzer pages show a PN2222A. The kit has no S8050 or S8550"
+      },
+      {
+        "name": "1 Dight 7-segment Display",
+        "quantity": 1,
+        "partId": "seven-segment-cc",
+        "notes": "printed with the spelling Dight; the photo shows CL5611AH and the 1.1.4 page says common cathode (a code comment on that page says common anode, but its segment codes are active high)"
+      },
+      {
+        "name": "Potentiometer (10k)",
+        "quantity": 1,
+        "partId": "potentiometer-10k"
+      },
+      {
+        "name": "74HC595",
+        "quantity": 2,
+        "partId": "ic-74hc595"
+      },
+      {
+        "name": "Power Supply Module",
+        "quantity": 1,
+        "partId": "breadboard-power-module"
+      },
+      {
+        "name": "DHT11 Temperature and Humidity Module",
+        "quantity": 1,
+        "partId": "dht11-module",
+        "notes": "3-pin module on a small board"
+      },
+      {
+        "name": "65 Jumper Wire",
+        "quantity": 1,
+        "partId": null,
+        "notes": "the photo shows pre-formed jumper wires with a pin at each end in assorted lengths; the text pages call them some jumper wires"
+      },
+      {
+        "name": "Button",
+        "quantity": 5,
+        "partId": "tact-switch-6mm",
+        "notes": "the 2.1.1 page says 6 mm tactile button"
+      }
+    ]
+  },
+  "tboardKit": {
+    "name": "40-pin T-type GPIO extension kit",
+    "source": {
+      "note": "User's kit; listing photo docs/v2/3D Reference Images/T-Cobbler and BreadBoard/Ribbon and BreadBoard.jpg"
+    },
+    "items": [
+      {
+        "name": "40-pin rainbow ribbon cable, 200 mm",
+        "quantity": 1,
+        "partId": null
+      },
+      {
+        "name": "T-type GPIO extension board",
+        "quantity": 1,
+        "partId": null
+      },
+      {
+        "name": "830-point breadboard",
+        "quantity": 1,
+        "partId": null,
+        "notes": "the listing says 400-hole; the photos show a full-size 830-point board"
+      },
+      {
+        "name": "Dupont lead, male-male, 200 mm",
+        "quantity": 10,
+        "partId": null,
+        "leadKind": "dupont-mm",
+        "lengthMm": 200
+      },
+      {
+        "name": "Dupont lead, male-female, 200 mm",
+        "quantity": 10,
+        "partId": null,
+        "leadKind": "dupont-mf",
+        "lengthMm": 200
+      }
+    ]
+  },
+  "leads": {
+    "countsEnforced": false,
+    "note": "SPEC 7: no lead counts are enforced unless the user sets them"
+  }
+}

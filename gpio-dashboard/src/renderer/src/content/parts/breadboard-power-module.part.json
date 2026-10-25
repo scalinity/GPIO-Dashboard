@@ -1,0 +1,122 @@
+{
+  "id": "breadboard-power-module",
+  "name": "MB102 breadboard power supply module (3.3 V / 5 V)",
+  "category": "power",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "3V3 (J6 pin 1)",
+      "role": "power",
+      "electricalType": "power-out",
+      "offsetPitch": [0, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "2",
+      "label": "GND (J6 pin 2)",
+      "role": "ground",
+      "electricalType": "power-out",
+      "offsetPitch": [0, 1],
+      "connector": "male-pin"
+    },
+    {
+      "id": "3",
+      "label": "3V3 (J6 pin 3)",
+      "role": "power",
+      "electricalType": "power-out",
+      "offsetPitch": [1, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "4",
+      "label": "GND (J6 pin 4)",
+      "role": "ground",
+      "electricalType": "power-out",
+      "offsetPitch": [1, 1],
+      "connector": "male-pin"
+    },
+    {
+      "id": "5",
+      "label": "5V (J6 pin 5)",
+      "role": "power",
+      "electricalType": "power-out",
+      "offsetPitch": [2, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "6",
+      "label": "GND (J6 pin 6)",
+      "role": "ground",
+      "electricalType": "power-out",
+      "offsetPitch": [2, 1],
+      "connector": "male-pin"
+    },
+    {
+      "id": "7",
+      "label": "5V (J6 pin 7)",
+      "role": "power",
+      "electricalType": "power-out",
+      "offsetPitch": [3, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "8",
+      "label": "GND (J6 pin 8)",
+      "role": "ground",
+      "electricalType": "power-out",
+      "offsetPitch": [3, 1],
+      "connector": "male-pin"
+    }
+  ],
+  "internalConnections": [
+    ["1", "3"],
+    ["5", "7"],
+    ["2", "4", "6", "8"]
+  ],
+  "footprint": { "kind": "offboard" },
+  "sim": {
+    "model": "power-module",
+    "params": {
+      "inputMinV": 6.5,
+      "inputMaxV": 12,
+      "usbInputV": 5,
+      "out33V": 3.3,
+      "out5V": 5,
+      "maxOutputMa": 700
+    }
+  },
+  "properties": {
+    "inputVoltage": {
+      "type": "number",
+      "label": "DC input voltage",
+      "unit": "V",
+      "min": 6.5,
+      "max": 12,
+      "default": 9
+    },
+    "switchOn": {
+      "type": "boolean",
+      "label": "Power switch on",
+      "default": true
+    }
+  },
+  "bodyMm": [53, 35, 12],
+  "geometry": {
+    "family": "module",
+    "params": {
+      "boardLengthMm": 53,
+      "boardWidthMm": 35,
+      "headerPins": 8,
+      "headerPitchMm": 2.54
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://alessandra-flammini.unibs.it/EG_FED/EG_AA2324/FE/Laboratorio/Datasheet%20componenti/alimentatore%20per%20breadboard%20mb102-ps.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.3.1%20Motor.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "Plugs into the rail holes in real use; rail-plug footprint pending. The module's rail outputs (J2 to J5 on the schematic, selected per rail by a 5V/OFF/3.3V jumper) are not modelled yet, so only the 8-pin J6 header is a pin set, as an off-board module with male pins. SunFounder's component list shows 'Power Supply Module x1', an MB102 clone: a DC barrel jack, a USB-A socket, a push switch, a green LED, two 5V/OFF/3.3V rail jumpers and a 2 x 4 header marked 5V, 3.3V and GND. SunFounder gives no datasheet for it. The Handson Technology MB102 datasheet (opened; the copy is hosted by a university course site) is used: input 6.5 to 12 V DC or 5 V USB, 3.3 V and 5 V outputs, maximum output current below 700 mA, an external input on/off switch, 5.3 x 3.5 cm board, series diode and polarity reversal protection. Its schematic (Addicore YwRobot page, opened) shows two linear regulators (A1117-5 and A1117-3.3) and header J6: pins 1 and 3 are +3.3 V, pins 5 and 7 are +5 V, and pins 2, 4, 6 and 8 are ground; its note says not to jumper across the header, because 3.3 V or 5 V would short to ground. The pin ids are the J6 numbers. The offsets are a 2 x 4 layout hint. The datasheet wording '<700 mA' does not say whether this is per output or for both together, and the regulators are linear, so the usable current from a high input voltage will be lower than that figure; the sim should treat 700 mA as an upper limit for each output and warn about the shared input. The kit's own board may differ in small ways (SunFounder's photo shows the header labelled 5V on the first two rows and 3.3V on the other two, with GND beside it, which fits the J6 pairs). SunFounder's Motor page powers it from the kit's 9 V battery connector and takes its 5 V output to the breadboard rail, hence the 9 V default input. Board height is not in the datasheet; 12 mm is an estimate for collision checks only."
+  }
+}

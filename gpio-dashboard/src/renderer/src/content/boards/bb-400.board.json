@@ -1,0 +1,48 @@
+{
+  "id": "bb-400",
+  "name": "Half-size breadboard, 400 tie points",
+  "pitchMm": 2.54,
+  "body": { "lengthMm": 84.0, "widthMm": 54.3, "heightMm": 8.5 },
+  "rows": 30,
+  "trenchPitches": 3,
+  "rails": {
+    "holesPerRail": 25,
+    "groupSize": 5,
+    "firstRow": 1,
+    "groupStride": 6,
+    "rowOffsetPitches": 0.5,
+    "innerOffsetPitches": 2.5,
+    "outerOffsetPitches": 3.5,
+    "splitAvailable": false,
+    "polarity": {
+      "top": { "inner": "+", "outer": "-" },
+      "bottom": { "inner": "-", "outer": "+" }
+    }
+  },
+  "layout": {
+    "row1FromEndMm": 5.17,
+    "columnAFromBottomEdgeMm": 13.18
+  },
+  "electrical": { "ratingV": 36, "ratingA": 2, "wireAwg": [21, 26], "wireDiameterMm": [0.4, 0.7] },
+  "material": "white ABS with a colour legend on the distribution strips; phosphor bronze contacts, nickel plated",
+  "provenance": {
+    "sources": [
+      "https://www.mouser.com/datasheet/2/58/BPS-DAT-(BB400)-Datasheet-932623.pdf",
+      "https://datasheet.octopart.com/BB830T-BusBoard-datasheet-10603672.pdf"
+    ],
+    "values": {
+      "body": "BB400 datasheet Rev 6 (Mouser copy, read through firecrawl 2026-10-24): 84.0 mm x 54.3 mm x 0.3\" (8.5 mm). The sheet prints 2.10\" beside 54.3 mm; 54.3 mm is 2.14\", which DigiKey's listing also gives",
+      "rows": "BB400 datasheet: 300 tie-point IC area; 60 vertical columns in the circuit area, i.e. 30 rows of two 5-hole strips",
+      "rails.holesPerRail": "BB400 datasheet: four 25 tie-point power rails",
+      "rails.groupSize": "BB400 datasheet image and AN0002: groups of 5 holes",
+      "rails.rowOffsetPitches": "AN0002 3.2 and 4: on the BB400 the distribution strip holes are offset 0.050\" from the circuit-area holes",
+      "rails.firstRow": "Derived: 5 groups of 5 with one gap span 29 positions, centred on 30 rows with the 0.050\" offset, so the first rail hole is half a pitch past row 1",
+      "rails.innerOffsetPitches": "AN0002 3.2: the outer strips sit 0.25\" from the circuit area, the same as the BB830 reading (inner line 0.25\", outer 0.35\")",
+      "rails.polarity": "Assumed to follow the BB830 legend; the datasheet image shows red and blue lines on both sides",
+      "unreconciled": "The Rev 6 dimension table ('Top power rail to first IC row 10.16 mm', 'IC row spacing 7.62 mm', 'Total height (top to bottom of power rails) 27.94 mm') does not add up against 11 pitches between columns a and j plus the AN0002 rail offsets; its labels could not be matched to the drawing. Not used. No tutorial uses this board",
+      "layout.row1FromEndMm": "Assumption: the 30-row grid is centred along the body, (84.0 - 29 x 2.54) / 2",
+      "layout.columnAFromBottomEdgeMm": "Assumption: the grid is centred across the body, (54.3 - 11 x 2.54) / 2",
+      "electrical": "BB400 datasheet: rated 36 V, 2 A; 21-26 AWG, 0.4-0.7 mm"
+    }
+  }
+}

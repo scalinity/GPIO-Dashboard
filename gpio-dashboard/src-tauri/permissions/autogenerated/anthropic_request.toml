@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-anthropic-request"
+description = "Enables the anthropic_request command without any pre-configured scope."
+commands.allow = ["anthropic_request"]
+
+[[permission]]
+identifier = "deny-anthropic-request"
+description = "Denies the anthropic_request command without any pre-configured scope."
+commands.deny = ["anthropic_request"]

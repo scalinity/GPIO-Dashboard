@@ -1,0 +1,114 @@
+{
+  "id": "dht11-module",
+  "name": "DHT11 temperature and humidity module (3-pin)",
+  "category": "sensor",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "DATA",
+      "label": "S",
+      "role": "logic-io",
+      "electricalType": "bidirectional",
+      "offsetPitch": [0, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "VCC",
+      "label": "VCC",
+      "role": "power",
+      "electricalType": "power-in",
+      "offsetPitch": [1, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "GND",
+      "label": "-",
+      "role": "ground",
+      "electricalType": "power-in",
+      "offsetPitch": [2, 0],
+      "connector": "male-pin"
+    }
+  ],
+  "internalConnections": [],
+  "footprint": { "kind": "offboard" },
+  "sim": {
+    "model": "dht11",
+    "params": {
+      "vccMinV": 3.3,
+      "vccMaxV": 5.5,
+      "outputHighLevel": "VCC",
+      "dataPullupOhm": 10000,
+      "dataPullupTo": "VCC",
+      "humidityMinPct": 20,
+      "humidityMaxPct": 90,
+      "humidityAccuracyPct": 5,
+      "humidityResolutionPct": 1,
+      "temperatureMinC": 0,
+      "temperatureMaxC": 50,
+      "temperatureAccuracyC": 2,
+      "temperatureResolutionC": 1,
+      "samplePeriodMinS": 2,
+      "powerUpWaitS": 1,
+      "startLowMinMs": 18,
+      "hostReleaseMinUs": 20,
+      "hostReleaseMaxUs": 40,
+      "responseLowUs": 80,
+      "responseHighUs": 80,
+      "bitStartLowUs": 50,
+      "bitZeroHighMinUs": 26,
+      "bitZeroHighMaxUs": 28,
+      "bitOneHighUs": 70,
+      "endLowUs": 50,
+      "frameBits": 40,
+      "supplyCurrentMeasuringMa": 0.3,
+      "supplyCurrentStandbyUa": 60
+    }
+  },
+  "properties": {
+    "temperatureC": {
+      "type": "number",
+      "label": "Temperature",
+      "unit": "°C",
+      "min": 0,
+      "max": 50,
+      "default": 25
+    },
+    "humidityPct": {
+      "type": "number",
+      "label": "Relative humidity",
+      "unit": "%RH",
+      "min": 20,
+      "max": 90,
+      "default": 50
+    }
+  },
+  "bodyMm": [18, 16, 5.5],
+  "geometry": {
+    "family": "module",
+    "params": {
+      "variant": "dht11-3pin-breakout",
+      "headerPins": 3,
+      "headerPitchMm": 2.54,
+      "sensorLengthMm": 15.5,
+      "sensorWidthMm": 12,
+      "sensorThicknessMm": 5.5,
+      "boardLengthApproxMm": 18,
+      "boardWidthApproxMm": 16,
+      "mountingHoles": 1
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/index.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/_images/Basic_List.jpg",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/2.2.3%20DHT-11.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/_images/2.2.3.png",
+      "https://docs.sunfounder.com/projects/ultimate-sensor-kit/en/latest/components_basic/12-component_dht11.html",
+      "https://arduinomodules.info/ky-015-temperature-humidity-sensor-module/",
+      "https://thearduinoshed.wordpress.com/arduino-gear/digital-temperature-and-humidity-sensor-module-dht11/",
+      "https://components101.com/sites/default/files/component_datasheet/DHT11-Temperature-Sensor.pdf",
+      "https://www.mouser.com/datasheet/2/758/DHT11-Technical-Data-Sheet-Translated-Version-1143054.pdf"
+    ],
+    "notes": "KIT: the kit's Component List photo (Basic_List.jpg) reads 'DHT11 Temperature and Humidity Module x1' and shows the 3-pin black-PCB breakout, so kitTags is 'kit'. PIN ORDER: the kit's own wiring diagram (2.2.3.png) runs the left pin to GPIO17 (blue), the middle pin to the + rail (red) and the right pin to the - rail (black); the board silkscreen prints 'S' at one end and '-' at the other and nothing on the middle pin (SunFounder 12-component_dht11 photo; arduinomodules.info: 'The middle pin is the power supply'). Pin 1 is S (DATA), pin 2 is VCC, pin 3 is GND. CONNECTOR: the kit photo and the SunFounder photo show a 3-pin 2.54 mm male header (bare pins), so Dupont male-female leads go female end onto the module. SUPPLY: the DHT11 sensor is 3.3-5.5 V in the Aosong manual (components101 copy), 3-5.5 V in the OSEPP-translated datasheet (Mouser); the more conservative 3.3 V minimum is used. The kit lesson says VCC to 3.3 V or 5 V. ON-BOARD PULL-UP: the photo of the SunFounder module shows SMD resistor R1 marked '103' (10 kOhm) and its schematic image labels it 10k, so dataPullupOhm is 10000 and it is taken to pull DATA up to VCC. CONFLICT 1: arduinomodules.info says the KY-015 module has a 1 kOhm pull-up; thearduinoshed lists R1 as 10k (smd); the value used is the one visible on the SunFounder board photo. CONFLICT 2: the SunFounder schematic image, read literally, joins the S node directly to VCC (the 10k sits between the sensor IO pin and that joined node), which would short S to VCC; this is a drawing error, and the pull-up-to-VCC reading is used. The kit's board photo shows R1 populated, but its value cannot be read from that photo. KIT WIRING NOTE: the kit's wiring diagram (2.2.3.png) also places an external 10 kOhm resistor from S to the 3V3 rail, in parallel with the module's own R1. SENSOR NUMBERS (same as the bare dht11 part): humidity 20-90 %RH, +-5 %RH, 1 %RH step; temperature 0-50 C, +-2 C, 1 C step (OSEPP table; the Aosong manual lists accuracy only and calls the 16-bit data 8 integer + 8 decimal bits with the decimal byte always 0, so 1-unit steps hold). Sampling period: the Aosong manual says greater than 2 s (and 5 s for accurate readings), the OSEPP datasheet says 1 s; 2 s is used. Current: Aosong manual 0.3 mA measuring, 60 uA standby; the OSEPP table gives 0.5-2.5 mA and 100-150 uA. Timing (start low at least 18 ms; host release 20-40 us; response 80 us low then 80 us high; bit 50 us low then 26-28 us high for 0 or 70 us high for 1; end 50 us low; 40 bits): Aosong manual and OSEPP datasheet. SIZE: the sensor body is 15.5 x 12 x 5.5 mm (Aosong drawing). The board size is NOT in any opened source: it is measured from the SunFounder module photo using the 15.5 mm sensor length as the scale (+-2 mm) and is stored under 'Approx' keys; board thickness is not included in bodyMm. The one mounting hole is counted from the photo."
+  }
+}

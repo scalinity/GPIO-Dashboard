@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """GPIO state reader using pinctrl (read-only, no pin claiming)."""
 
+import glob
 import logging
 import re
 import subprocess
@@ -10,14 +11,20 @@ log = logging.getLogger("gpio_monitor")
 # BCM GPIO pins on the 40-pin header (0-27)
 BCM_PINS = set(range(28))
 
-# Regex for pinctrl output lines like: "2: ip    pd | hi // GPIO2 = input"
+# Regex for pinctrl output lines. An input or alternate function has two fields before the "|":
+#   " 2: ip    pd | hi // GPIO2 = input"
+# An output has a third, the drive level (dh or dl), between the function and the pull:
+#   "17: op dh pd | hi // GPIO17 = output"
+# (raspberrypi/utils, pinctrl/pinctrl.c: print_gpio_state, drive names "dl", "dh", "--")
 PINCTRL_RE = re.compile(
-    r"^\s*(\d+):\s+(\S+)\s+(\S+)\s*\|\s*(\S+)\s*//\s*(.*)?$"
+    r"^\s*(?P<gpio>\d+):\s+(?P<func>\S+)(?:\s+(?:dh|dl|--))?\s+(?P<pull>\S+)\s*\|"
+    r"\s*(?P<level>\S+)\s*//\s*(?P<info>.*)?$"
 )
 
 DIRECTION_MAP = {
     "ip": "IN",
     "op": "OUT",
+    "no": "NONE",
 }
 
 PULL_MAP = {
@@ -34,27 +41,37 @@ LEVEL_MAP = {
 
 
 def _detect_chip() -> str:
-    """Detect GPIO chip name based on Pi model."""
+    """The device path of the chip carrying the header's GPIOs, found by label: pinctrl-rp1 on a
+    Pi 5 (gpiochip0 on kernels since Aug 2024, gpiochip4 before; raspberrypi/linux PR 6144),
+    pinctrl-bcm2711 or pinctrl-bcm2835 on earlier models. libgpiod 2's Chip takes a device path."""
     try:
-        with open("/sys/firmware/devicetree/base/model", "r") as f:
-            model = f.read().strip("\x00").strip()
-        if "Pi 5" in model:
-            return "gpiochip4"
-        return "gpiochip0"
-    except FileNotFoundError:
-        return "gpiochip0"
+        import gpiod
+    except ImportError:
+        return "/dev/gpiochip0"
+    for path in sorted(glob.glob("/dev/gpiochip*")):
+        try:
+            with gpiod.Chip(path) as chip:
+                if chip.get_info().label.startswith(("pinctrl-rp1", "pinctrl-bcm")):
+                    return path
+        except Exception:
+            continue
+    return "/dev/gpiochip0"
 
 
-def _parse_function(func_str: str) -> tuple[str, str]:
+def _parse_function(func_str: str, comment: str = "") -> tuple[str, str]:
     """Parse pinctrl function string into (direction, function_name).
 
-    Returns (direction, alt_function) where direction is IN/OUT/ALT
-    and alt_function describes the pin role (GPIO, I2C, SPI, etc.).
+    Returns (direction, alt_function) where direction is IN/OUT/ALT/NONE. An alternate function
+    (a0-a8) is named after the "=" in pinctrl's comment ("GPIO2 = SDA1"); the code is only its
+    FUNCSEL index (gpiolib.c fsel_names).
     """
     direction = DIRECTION_MAP.get(func_str, "ALT")
     if func_str in ("ip", "op"):
         return direction, "GPIO"
-    # Alt functions: a0-a5, or named functions
+    if func_str == "no":
+        return direction, "NONE"
+    if "=" in comment:
+        return direction, comment.split("=", 1)[1].strip()
     return direction, func_str.upper()
 
 
@@ -92,16 +109,16 @@ class GpioMonitor:
                 m = PINCTRL_RE.match(line)
                 if not m:
                     continue
-                gpio_num = int(m.group(1))
+                gpio_num = int(m.group("gpio"))
                 if gpio_num not in BCM_PINS:
                     continue
 
-                func_str = m.group(2)
-                pull_str = m.group(3)
-                level_str = m.group(4)
-                comment = m.group(5).strip() if m.group(5) else ""
+                func_str = m.group("func")
+                pull_str = m.group("pull")
+                level_str = m.group("level")
+                comment = m.group("info").strip() if m.group("info") else ""
 
-                direction, function = _parse_function(func_str)
+                direction, function = _parse_function(func_str, comment)
                 state = LEVEL_MAP.get(level_str, "UNKNOWN")
                 pull = PULL_MAP.get(pull_str, "UNKNOWN")
 

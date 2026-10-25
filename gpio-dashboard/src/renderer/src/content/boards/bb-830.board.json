@@ -1,0 +1,51 @@
+{
+  "id": "bb-830",
+  "name": "Full-size breadboard, 830 tie points",
+  "pitchMm": 2.54,
+  "body": { "lengthMm": 165.1, "widthMm": 54.6, "heightMm": 8.5 },
+  "rows": 63,
+  "trenchPitches": 3,
+  "rails": {
+    "holesPerRail": 50,
+    "groupSize": 5,
+    "firstRow": 3,
+    "groupStride": 6,
+    "rowOffsetPitches": 0,
+    "innerOffsetPitches": 2.5,
+    "outerOffsetPitches": 3.5,
+    "splitAvailable": true,
+    "polarity": {
+      "top": { "inner": "+", "outer": "-" },
+      "bottom": { "inner": "-", "outer": "+" }
+    }
+  },
+  "layout": {
+    "row1FromEndMm": 3.81,
+    "columnAFromBottomEdgeMm": 13.33
+  },
+  "electrical": { "ratingV": 36, "ratingA": 2, "wireAwg": [21, 26], "wireDiameterMm": [0.4, 0.7] },
+  "material": "white ABS with a colour legend; phosphor bronze contacts, nickel plated",
+  "provenance": {
+    "sources": [
+      "https://datasheet.octopart.com/BB830T-BusBoard-datasheet-10603672.pdf",
+      "http://www.busboard.us/pdfs/BPS-MAR-BB830+BB830T-001.pdf"
+    ],
+    "values": {
+      "pitchMm": "BB830 datasheet p.2: Hole Pitch 0.1\" (2.54 mm), square wire holes",
+      "body": "BB830 datasheet p.1: 6.5 x 2.2 x 0.3 in (165.1 x 54.6 x 8.5 mm)",
+      "rows": "BB830 datasheet p.2: 63 vertical columns on top and 63 below, 5 connected holes each (our rows)",
+      "trenchPitches": "SPEC 6.1: 0.3\" between columns e and f so 0.3\" DIPs straddle the trench; kit photo measures 2.96 pitch",
+      "rails.holesPerRail": "BB830 datasheet p.1: 2 distribution strips, 200 tie points (4 rails x 50)",
+      "rails.groupSize": "AN0002 3.3: strips have groups of 5 holes and then a space with no hole",
+      "rails.firstRow": "BB830 datasheet p.2 internal-connections diagram (10 groups of 5 centred on 63 rows) and the kit photo (rail holes measured at rows 3-7 ... 57-61)",
+      "rails.rowOffsetPitches": "AN0002 3.3: the distribution strip holes line up with the circuit-area columns",
+      "rails.innerOffsetPitches": "AN0002 3.3/4: BR1 outer strips on 0.1\" centres from the circuit area, BB830 strips 0.05\" further out, i.e. 0.25\" and 0.35\" from the outermost circuit column; consistent with 3.2 (BB400 strips 0.25\" from the circuit area)",
+      "rails.outerOffsetPitches": "as innerOffsetPitches; the two lines of a pair are on 0.1\" centres",
+      "rails.splitAvailable": "SPEC 6.1: rails are continuous by default; a split-rail flag covers boards that break mid-length",
+      "rails.polarity": "Reference photos 3 and 4 (docs/v2/reference/IMAGES.md): the j-side (top) pair is + inner, - outer; the a-side (bottom) pair is + outer, - inner",
+      "layout.row1FromEndMm": "Assumption: the 63-row grid is centred along the body, (165.1 - 62 x 2.54) / 2. The datasheet gives no edge distance",
+      "layout.columnAFromBottomEdgeMm": "Assumption: the grid including both rail pairs (18 pitches) is centred across the body, (54.6 - 11 x 2.54) / 2. The datasheet gives no edge distance",
+      "electrical": "BB830 datasheet p.2: rating 36 V 2 A; insertion wire 21-26 AWG, 0.4-0.7 mm"
+    }
+  }
+}

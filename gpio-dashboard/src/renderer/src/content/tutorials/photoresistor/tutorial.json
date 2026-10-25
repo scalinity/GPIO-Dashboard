@@ -1,0 +1,224 @@
+{
+  "id": "photoresistor",
+  "title": "Photoresistor",
+  "order": 13,
+  "kitProject": "2.2.1",
+  "tags": [],
+  "summary": "Measure light with a photoresistor in a voltage divider, read it through the ADS7830 I2C module and set the brightness of an LED on GPIO17.",
+  "sources": {
+    "kit": "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/2.2.1%20Photoresistor.html",
+    "datasheets": [
+      "https://www.ti.com/lit/ds/symlink/ads7830.pdf",
+      "https://evelta.com/content/datasheets/361-LDR-Senba.pdf",
+      "https://www.kingbrightusa.com/images/catalog/SPEC/WP7113ID.pdf",
+      "https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "The ADS7830 module runs from 3.3 V and answers at 0x48",
+      "inputs": {},
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [132]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 0,
+              "max": 255
+            }
+          ]
+        },
+        {
+          "pin": "U1.VCC",
+          "volts": {
+            "min": 3.28,
+            "max": 3.32
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dim light (1 lux) reads high: the photoresistor is a large resistance",
+      "inputs": {
+        "R2": {
+          "lux": 1
+        }
+      },
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [132]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 217,
+              "max": 221
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Room light (10 lux) reads about 153",
+      "inputs": {
+        "R2": {
+          "lux": 10
+        }
+      },
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [132]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 151,
+              "max": 155
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Bright light (100 lux) reads lower, about 70",
+      "inputs": {
+        "R2": {
+          "lux": 100
+        }
+      },
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [132]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 68,
+              "max": 72
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Very bright light (1000 lux) reads lowest, about 22",
+      "inputs": {
+        "R2": {
+          "lux": 1000
+        }
+      },
+      "sequence": [
+        {
+          "i2c": [
+            {
+              "address": 72,
+              "write": [132]
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "i2cRead": 72,
+          "bytes": [
+            {
+              "min": 20,
+              "max": 24
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GPIO17 LOW lights D1 with at least 1 mA, within its rating",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.03
+          }
+        },
+        {
+          "gpio": 17,
+          "currentA": {
+            "min": -0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "GPIO17 HIGH turns D1 off",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": true
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 0.000001
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "kind": "i2c-scan",
+      "afterStep": "W4",
+      "addresses": [72]
+    },
+    {
+      "kind": "toggle-led",
+      "afterStep": "W9",
+      "part": "D1",
+      "gpio": 17
+    }
+  ]
+}

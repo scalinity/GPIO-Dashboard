@@ -1,0 +1,240 @@
+{
+ "date": "2026-10-24",
+ "model": "claude-opus-5-5",
+ "web": {
+  "search": false,
+  "fetch": true
+ },
+ "spentUsd": 0.6138368,
+ "checks": [
+  {
+   "id": "strict-eager",
+   "question": "Is the strict-plus-eager tool set accepted?",
+   "answer": true,
+   "summary": "Yes: the first request (11 strict tools, 12 with eager_input_streaming) returned 200 and no fallback ran.",
+   "rows": [
+    {
+     "n": 1,
+     "status": 200,
+     "strict": 11,
+     "eager": 12,
+     "client": 22,
+     "server": 0,
+     "topLevelCacheControl": true,
+     "error": null,
+     "inputTokens": 4,
+     "outputTokens": 4,
+     "cacheWriteTokens": 83,
+     "cacheReadTokens": 14133,
+     "stop": "end_turn",
+     "seconds": 3.049
+    },
+    {
+     "n": 2,
+     "status": 200,
+     "strict": 11,
+     "eager": 12,
+     "client": 22,
+     "server": 0,
+     "topLevelCacheControl": true,
+     "error": null,
+     "inputTokens": 4,
+     "outputTokens": 3,
+     "cacheWriteTokens": 16,
+     "cacheReadTokens": 14216,
+     "stop": "end_turn",
+     "seconds": 1.132
+    }
+   ],
+   "costUsd": 0.006336800000000001
+  },
+  {
+   "id": "strict-set",
+   "question": "Does the first request, with 11 strict tools and eager streaming, compile?",
+   "answer": true,
+   "summary": "Yes: request 1 carried 11 strict tools and 12 with eager_input_streaming and returned 200.",
+   "rows": [
+    {
+     "n": 1,
+     "status": 200,
+     "strict": 11,
+     "eager": 12,
+     "client": 22,
+     "server": 0,
+     "topLevelCacheControl": true,
+     "error": null,
+     "inputTokens": 4,
+     "outputTokens": 4,
+     "cacheWriteTokens": 83,
+     "cacheReadTokens": 14133,
+     "stop": "end_turn",
+     "seconds": 3.049
+    },
+    {
+     "n": 2,
+     "status": 200,
+     "strict": 11,
+     "eager": 12,
+     "client": 22,
+     "server": 0,
+     "topLevelCacheControl": true,
+     "error": null,
+     "inputTokens": 4,
+     "outputTokens": 3,
+     "cacheWriteTokens": 16,
+     "cacheReadTokens": 14216,
+     "stop": "end_turn",
+     "seconds": 1.132
+    }
+   ],
+   "costUsd": 0
+  },
+  {
+   "id": "cache-control",
+   "question": "Is the top-level cache_control accepted?",
+   "answer": true,
+   "summary": "Yes: requests carrying a top-level cache_control (and one on the last system block) returned 200.",
+   "rows": [
+    {
+     "n": 1,
+     "status": 200,
+     "strict": 11,
+     "eager": 12,
+     "client": 22,
+     "server": 0,
+     "topLevelCacheControl": true,
+     "error": null,
+     "inputTokens": 4,
+     "outputTokens": 4,
+     "cacheWriteTokens": 83,
+     "cacheReadTokens": 14133,
+     "stop": "end_turn",
+     "seconds": 3.049
+    },
+    {
+     "n": 2,
+     "status": 200,
+     "strict": 11,
+     "eager": 12,
+     "client": 22,
+     "server": 0,
+     "topLevelCacheControl": true,
+     "error": null,
+     "inputTokens": 4,
+     "outputTokens": 3,
+     "cacheWriteTokens": 16,
+     "cacheReadTokens": 14216,
+     "stop": "end_turn",
+     "seconds": 1.132
+    }
+   ],
+   "costUsd": 0
+  },
+  {
+   "id": "cache-reads",
+   "question": "Do cache reads appear on a later request?",
+   "answer": true,
+   "summary": "Request 2 read 14216 tokens from the cache (request 1 wrote 83 and read 14133; its prefix was about 87 tokens). Request 2 wrote 16 and billed 4 uncached input tokens.",
+   "rows": [
+    {
+     "n": 1,
+     "status": 200,
+     "strict": 11,
+     "eager": 12,
+     "client": 22,
+     "server": 0,
+     "topLevelCacheControl": true,
+     "error": null,
+     "inputTokens": 4,
+     "outputTokens": 4,
+     "cacheWriteTokens": 83,
+     "cacheReadTokens": 14133,
+     "stop": "end_turn",
+     "seconds": 3.049
+    },
+    {
+     "n": 2,
+     "status": 200,
+     "strict": 11,
+     "eager": 12,
+     "client": 22,
+     "server": 0,
+     "topLevelCacheControl": true,
+     "error": null,
+     "inputTokens": 4,
+     "outputTokens": 3,
+     "cacheWriteTokens": 16,
+     "cacheReadTokens": 14216,
+     "stop": "end_turn",
+     "seconds": 1.132
+    }
+   ],
+   "costUsd": 0
+  },
+  {
+   "id": "eager-plain",
+   "question": "Are eager_input_streaming tools accepted when none is strict?",
+   "answer": true,
+   "summary": "Yes: 22 plain tools, 12 with eager_input_streaming, returned 200.",
+   "rows": [],
+   "costUsd": 0.034768
+  },
+  {
+   "id": "strict-alone",
+   "question": "Does each strict tool compile on its own?",
+   "answer": true,
+   "summary": "Yes: all 20 compile alone.",
+   "rows": [],
+   "costUsd": 0.05799200000000001
+  },
+  {
+   "id": "strict-all",
+   "question": "Does the whole request compile with all 20 parameterised tools strict?",
+   "answer": false,
+   "summary": "No. Exactly: invalid_request_error: The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.",
+   "rows": [],
+   "costUsd": 0
+  },
+  {
+   "id": "strict-room",
+   "question": "Is there room beyond the 11 strict tools the app sends?",
+   "answer": false,
+   "summary": "The app's set (get_circuit_state, add_board, place_tboard, place_part, move_part, remove_part, set_part_props, connect, set_wire_props, remove_wire, write_code) with eager streaming on the 12 mutation tools returned 200. Added one at a time to the whole request, none of the other tools fit.",
+   "rows": [],
+   "costUsd": 0.034768
+  },
+  {
+   "id": "web-tools-enabled",
+   "question": "Does the organization have web search and web fetch?",
+   "answer": false,
+   "summary": "web_search, direct: refused, exactly: invalid_request_error: Web search is not enabled for this organization. web_fetch, direct: accepted. web_search, default callers: refused, exactly: invalid_request_error: Web search is not enabled for this organization. web_fetch, default callers: accepted",
+   "rows": [],
+   "costUsd": 0.025328
+  },
+  {
+   "id": "server-tools",
+   "question": "Do web_search_20260318 and web_fetch_20260318 run with allowed_callers [\"direct\"]?",
+   "answer": true,
+   "summary": "fetch alone: ran (stop end_turn) [web_fetch {\"url\":\"https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf\"} | web_fetch ok: https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf]",
+   "rows": [
+    {
+     "n": 1,
+     "status": 200,
+     "strict": 0,
+     "eager": 0,
+     "client": 0,
+     "server": 1,
+     "topLevelCacheControl": false,
+     "error": null,
+     "inputTokens": 112756,
+     "outputTokens": 181,
+     "cacheWriteTokens": 0,
+     "cacheReadTokens": 0,
+     "stop": "end_turn",
+     "seconds": 1.157
+    }
+   ],
+   "costUsd": 0.454644
+  }
+ ]
+}

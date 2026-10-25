@@ -1,0 +1,97 @@
+{
+  "id": "hc-sr04",
+  "name": "HC-SR04 ultrasonic ranging module",
+  "category": "sensor",
+  "kitTags": ["not in kit"],
+  "pins": [
+    {
+      "id": "VCC",
+      "label": "Vcc",
+      "role": "power",
+      "electricalType": "power-in",
+      "offsetPitch": [0, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "TRIG",
+      "label": "Trig",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [1, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "ECHO",
+      "label": "Echo",
+      "role": "logic-out",
+      "electricalType": "output",
+      "offsetPitch": [2, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "GND",
+      "label": "Gnd",
+      "role": "ground",
+      "electricalType": "power-in",
+      "offsetPitch": [3, 0],
+      "connector": "male-pin"
+    }
+  ],
+  "internalConnections": [],
+  "footprint": { "kind": "offboard" },
+  "sim": {
+    "model": "hc-sr04",
+    "params": {
+      "vccMinV": 5,
+      "vccMaxV": 5,
+      "workingCurrentMa": 15,
+      "echoOutputHighV": 5,
+      "echoOutputHighLevel": "5 V TTL, equal to the 5 V supply: needs a divider or level shifter before a 3.3 V GPIO",
+      "trigPulseMinUs": 10,
+      "rangeMinCm": 2,
+      "rangeMaxCm": 400,
+      "rangeAccuracyMm": 3,
+      "measuringAngleDeg": 15,
+      "burstCycles": 8,
+      "burstFrequencyKHz": 40,
+      "echoUsPerCm": 58,
+      "soundSpeedMPerS": 340,
+      "measurementCycleMinMs": 60
+    }
+  },
+  "properties": {
+    "distanceCm": {
+      "type": "number",
+      "label": "Distance to object",
+      "unit": "cm",
+      "min": 2,
+      "max": 400,
+      "default": 100
+    }
+  },
+  "bodyMm": [45, 20, 15],
+  "geometry": {
+    "family": "module",
+    "params": {
+      "variant": "hc-sr04",
+      "boardLengthMm": 45,
+      "boardWidthMm": 20,
+      "heightMm": 15,
+      "headerPins": 4,
+      "headerPitchMm": 2.54,
+      "transducerDiameterApproxMm": 16,
+      "transducerCentreSpacingApproxMm": 25
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://cdn.sparkfun.com/datasheets/Sensors/Proximity/HCSR04.pdf",
+      "https://docs.sunfounder.com/projects/umsk/en/latest/01_components_basic/23-component_ultrasonic.html",
+      "https://docs.sunfounder.com/projects/umsk/en/latest/_images/23_ultrasonic.png",
+      "https://wiki.e-yantra.org/hardware/sensors/hcsr04.html",
+      "https://pimylifeup.com/raspberry-pi-distance-sensor/",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/index.html"
+    ],
+    "notes": "KIT: no ultrasonic lesson or part in the SunFounder Basic Starter Kit table of contents or Component List photo, so 'not in kit'. PIN ORDER: the Elecfreaks HC-SR04 datasheet (SparkFun-hosted copy) prints 'Vcc Trig Echo GND' for the four pins and the SunFounder photo shows a 4-pin male header with the same silkscreen (Vcc, Trig, Echo, Gnd), so Dupont male-female leads go female end onto the module. SUPPLY: the datasheet 'Electric Parameter' table gives Working Voltage DC 5 V and Working Current 15 mA, with no tolerance range, so vccMinV and vccMaxV are both 5. ECHO LEVEL (important): the datasheet says only 'Echo Output Signal: Input TTL lever signal and the range in proportion', with the module powered from 5 V; it prints no voltage number for ECHO. The 5 V level is therefore an inference from the 5 V TTL supply, confirmed by two tutorials that state it outright: wiki.e-yantra.org ('ECHO outputs 5V. Use a voltage divider (1kOhm + 2kOhm) to bring it down to 3.3V before connecting to the Pi GPIO') and pimylifeup.com ('the HC-SR04 outputs at 5V which can damage the Raspberry Pi'). This is why ECHO needs a divider or level shifter before a 3.3 V GPIO (SPEC 8 OVERVOLTAGE_GPIO, SPEC 13.1 ultrasonic assertion). TRIGGER: datasheet 'Trigger Input Signal: 10uS TTL pulse' and 'IO trigger for at least 10us high level'; the module then sends eight 40 kHz pulses; distance = echo high time x 340 m/s / 2, or us / 58 = cm; use a measurement cycle over 60 ms (SunFounder repeats this). The datasheet gives no TRIG input threshold voltage, so none is recorded. RANGE: 2 cm to 400 cm, accuracy to 3 mm, measuring angle 15 degrees; the datasheet lists 'Working Frequency 40Hz', which is a typo for the 40 kHz burst (the same sheet says 40 kHz in the principle text). SIZE: 'Dimension 45*20*15mm' from the datasheet. The transducer diameter and spacing are measured from the SunFounder photo using the 45 mm board length as the scale (+-1 mm) and are stored under 'Approx' keys. The datasheet's attention note says to connect GND first when hot-plugging."
+  }
+}

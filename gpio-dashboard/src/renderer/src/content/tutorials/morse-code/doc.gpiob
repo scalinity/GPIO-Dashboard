@@ -1,0 +1,330 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Morse Code Generator",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "morse-code"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "BZ1",
+      "defId": "active-buzzer",
+      "props": {},
+      "placement": {
+        "pins": {
+          "+": {
+            "board": "bb1",
+            "area": "main",
+            "row": 29,
+            "col": "j"
+          },
+          "-": {
+            "board": "bb1",
+            "area": "main",
+            "row": 32,
+            "col": "j"
+          }
+        }
+      }
+    },
+    {
+      "id": "Q1",
+      "defId": "pn2222",
+      "props": {},
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 36,
+            "col": "j"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 37,
+            "col": "j"
+          },
+          "3": {
+            "board": "bb1",
+            "area": "main",
+            "row": 38,
+            "col": "j"
+          }
+        }
+      }
+    },
+    {
+      "id": "R1",
+      "defId": "resistor",
+      "props": {
+        "resistance": 1000,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 37,
+            "col": "f"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 37,
+            "col": "d"
+          }
+        }
+      }
+    },
+    {
+      "id": "D1",
+      "defId": "led",
+      "props": {
+        "color": "red",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 42,
+            "col": "j"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "main",
+            "row": 41,
+            "col": "j"
+          }
+        }
+      }
+    },
+    {
+      "id": "R2",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 42,
+            "col": "f"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 42,
+            "col": "d"
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 29,
+          "col": "h"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 32,
+          "col": "h"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 38,
+          "col": "i"
+        }
+      },
+      "color": "blue",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 36,
+          "col": "g"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "a"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 37,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 8,
+          "col": "a"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W5",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 41,
+          "col": "g"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "b"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W6",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 42,
+          "col": "c"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\nLED_PIN = 17  # BCM numbering: header pin 11, through R2 to the LED's anode\nBUZZER_PIN = 22  # header pin 15, through R1 to the base of Q1\nUNIT_SECONDS = 0.1  # one dot; a dash is three units\n\nMORSE = {\n    'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.', 'G': '--.',\n    'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..', 'M': '--', 'N': '-.',\n    'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.', 'S': '...', 'T': '-', 'U': '..-',\n    'V': '...-', 'W': '.--', 'X': '-..-', 'Y': '-.--', 'Z': '--..',\n    '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-',\n    '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.',\n}\n\nGPIO.setmode(GPIO.BCM)\n# Both outputs are active high: the LED's anode and the buzzer's transistor are fed from the pins.\nGPIO.setup(LED_PIN, GPIO.OUT, initial=GPIO.LOW)\nGPIO.setup(BUZZER_PIN, GPIO.OUT, initial=GPIO.LOW)\n\n\ndef signal(units):\n    GPIO.output(LED_PIN, GPIO.HIGH)\n    GPIO.output(BUZZER_PIN, GPIO.HIGH)\n    time.sleep(units * UNIT_SECONDS)\n    GPIO.output(LED_PIN, GPIO.LOW)\n    GPIO.output(BUZZER_PIN, GPIO.LOW)\n\n\ndef send(message):\n    for word in message.upper().split():\n        for letter in word:\n            pattern = MORSE.get(letter)\n            if pattern is None:\n                continue\n            for symbol in pattern:\n                signal(1 if symbol == '.' else 3)\n                time.sleep(UNIT_SECONDS)  # gap between the dots and dashes of a letter\n            time.sleep(2 * UNIT_SECONDS)  # three units between letters in all\n        time.sleep(4 * UNIT_SECONDS)  # seven units between words in all\n\n\ntry:\n    while True:\n        text = input('Message to send (Ctrl+C to stop): ')\n        send(text)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.output(LED_PIN, GPIO.LOW)\n    GPIO.output(BUZZER_PIN, GPIO.LOW)\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "BZ1": {
+      "why": "The + lead faces the 5 V supply; the − lead goes to the transistor’s collector.",
+      "mistake": "The buzzer in backwards: it stays silent while the LED still flashes."
+    },
+    "Q1": {
+      "why": "The transistor switches the buzzer’s current, so GPIO22 supplies only the base current.",
+      "mistake": "Emitter, base and collector swapped: the buzzer never sounds."
+    },
+    "R1": {
+      "why": "The 1 kΩ resistor limits the base current."
+    },
+    "R2": {
+      "why": "The 220 Ω resistor limits the LED current."
+    },
+    "D1": {
+      "why": "The LED’s anode is fed from GPIO17 through R2, so it lights when GPIO17 is HIGH.",
+      "mistake": "The LED in backwards: only the buzzer works."
+    },
+    "W4": {
+      "why": "GPIO22 drives the buzzer’s transistor."
+    },
+    "W6": {
+      "why": "GPIO17 drives the LED."
+    }
+  }
+}

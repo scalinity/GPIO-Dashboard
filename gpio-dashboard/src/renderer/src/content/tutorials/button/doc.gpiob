@@ -1,0 +1,290 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Button",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "button"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "R1",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 26,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 30,
+            "col": "b"
+          }
+        }
+      }
+    },
+    {
+      "id": "D1",
+      "defId": "led",
+      "props": {
+        "color": "red",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 30,
+            "col": "c"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "main",
+            "row": 31,
+            "col": "c"
+          }
+        }
+      }
+    },
+    {
+      "id": "R2",
+      "defId": "resistor",
+      "props": {
+        "resistance": 10000,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 34,
+            "col": "i"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 38,
+            "col": "i"
+          }
+        }
+      }
+    },
+    {
+      "id": "SW1",
+      "defId": "tact-switch-6mm",
+      "props": {},
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 38,
+            "col": "e"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 38,
+            "col": "f"
+          },
+          "3": {
+            "board": "bb1",
+            "area": "main",
+            "row": 40,
+            "col": "e"
+          },
+          "4": {
+            "board": "bb1",
+            "area": "main",
+            "row": 40,
+            "col": "f"
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 26,
+          "col": "a"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 31,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 9,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 34,
+          "col": "f"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 38,
+          "col": "j"
+        }
+      },
+      "color": "blue",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W5",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 40,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "a"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\nLED_PIN = 17  # BCM numbering: header pin 11, to the LED's cathode\nBUTTON_PIN = 18  # header pin 12, to the button and its pull-up resistor\n\nGPIO.setmode(GPIO.BCM)\n# The LED sits between 3V3 and the pin, so it lights when the pin is LOW.\nGPIO.setup(LED_PIN, GPIO.OUT, initial=GPIO.HIGH)\n# R2 already pulls the pin up to 3V3; the internal pull-up adds to it.\nGPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)\n\nprevious = GPIO.HIGH\n\ntry:\n    while True:\n        level = GPIO.input(BUTTON_PIN)\n        if level != previous:\n            if level == GPIO.LOW:\n                GPIO.output(LED_PIN, GPIO.LOW)\n                print('Pressed: pin reads LOW, LED on')\n            else:\n                GPIO.output(LED_PIN, GPIO.HIGH)\n                print('Released: pin reads HIGH, LED off')\n            previous = level\n        time.sleep(0.02)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.output(LED_PIN, GPIO.HIGH)\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "R1": {
+      "why": "The resistor limits the LED current to a few milliamps."
+    },
+    "D1": {
+      "why": "The LED sits between 3V3 and GPIO17, so it lights when GPIO17 goes LOW.",
+      "mistake": "The LED in backwards: it stays dark whatever the code does."
+    },
+    "R2": {
+      "why": "The 10 kΩ pull-up holds GPIO18 at 3V3 while the button is open, so the pin never floats.",
+      "mistake": "The resistor in a different row from the button and GPIO18: the pin then floats while the button is open."
+    },
+    "SW1": {
+      "why": "The switch bridges row 38 to row 40 only while it is pressed. Pins 1 and 2 are joined inside it, as are 3 and 4.",
+      "mistake": "The switch turned a quarter turn, so its pairs lie along the rows instead of across the trench. It is then closed all the time."
+    },
+    "W4": {
+      "why": "GPIO18 meets the pull-up resistor and one side of the switch."
+    },
+    "W5": {
+      "why": "Pressing the switch connects GPIO18 to GND, so the pin reads LOW."
+    }
+  }
+}

@@ -23,7 +23,7 @@ fi
 
 # 2. Install Python packages
 echo "[2/5] Installing Python dependencies..."
-PACKAGES="python3-gpiod python3-websockets"
+PACKAGES="python3-libgpiod python3-websockets python3-venv"
 
 # python3-rpi-lgpio may not exist on all distros; install if available
 if apt-cache show python3-rpi-lgpio &>/dev/null; then
@@ -33,6 +33,16 @@ fi
 if ! $SUDO apt-get install -y -qq $PACKAGES; then
     echo "ERROR: Failed to install Python packages."
     exit 1
+fi
+
+# The agent needs the libgpiod 2 Python API. Trixie's apt binding is 2.x; Bookworm's is 1.6.3, so
+# gpiod 2 goes into a venv here that still sees apt's packages, and the app starts the agent with it.
+if ! python3 -c 'import gpiod, sys; sys.exit(not hasattr(gpiod, "request_lines"))' 2>/dev/null; then
+    echo "  apt's gpiod binding is 1.x; installing gpiod 2 into $(pwd)/venv..."
+    if ! { python3 -m venv --system-site-packages venv && venv/bin/pip install -q 'gpiod>=2,<3'; }; then
+        rm -rf venv
+        echo "  WARNING: gpiod 2 could not be installed. Board Sense and line-usage info are unavailable."
+    fi
 fi
 
 # 3. Ensure pinctrl is available (provided by raspi-utils or raspberrypi-utils)
@@ -73,10 +83,11 @@ fi
 echo "[5/5] Installation complete!"
 echo ""
 echo "To start the agent:"
-echo "  python3 $(dirname "$0")/agent.py"
+echo "  $([ -x venv/bin/python3 ] && echo "$(pwd)/venv/bin/python3" || echo python3) $(pwd)/agent.py"
 echo ""
 echo "The agent will listen on ws://127.0.0.1:8765"
-echo "Set AGENT_HOST and AGENT_PORT environment variables to customize."
+echo "It listens on loopback only; the dashboard connects through the SSH session."
+echo "Set AGENT_PORT to change the port."
 echo ""
 
 # Uncomment below to install as a systemd service:

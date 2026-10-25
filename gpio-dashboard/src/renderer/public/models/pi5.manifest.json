@@ -1,0 +1,80 @@
+{
+  "name": "pi5",
+  "tools": {
+    "blender": "Blender 5.2.2 LTS",
+    "ktx": "ktx version: v4.4.2"
+  },
+  "script": {
+    "path": "scripts/assets/blender/pi5.py",
+    "args": {
+      "board": "src/renderer/src/content/controllers/pi5-board.json",
+      "triangles": 195000,
+      "texture": "2048x2048",
+      "samples": 128,
+      "seed": 0
+    },
+    "sha256": {
+      "blender/pi5.py": "c135f7753f811bfce804f59ef9bbcf69f2655530f246c84efe5f46e73601749c",
+      "blender/lib/__init__.py": "fde31da9f6d72b2297d6828833720649d7d25feab9e48e41ede38379551cb95a",
+      "blender/lib/bake.py": "79d84decfc2118f593cbd56a4b2de266e48c41e5f27ba36cded71d45b83f7ed1",
+      "blender/lib/export.py": "5832244f9a618a46fd65b3f7b0f5c816c591ead0510aebe744e339423a8774a7",
+      "blender/lib/materials.py": "4fd8a2aaf9f6f5b064f8bf9737e168abf65cfc1a5789fb7a248cb8e0b91187cb",
+      "blender/lib/scene.py": "7d4ebb2378fead7573344de3b3a44bf12a34dc2bdc7b544c91c608837e196089"
+    }
+  },
+  "inputs": [
+    {
+      "path": "src/renderer/src/content/controllers/pi5-board.json",
+      "sha256": "fed7daac0cb61094f66c84671714fd9d0c3578f2618bfe3b8969642d654f98e0"
+    }
+  ],
+  "sources": [
+    {
+      "id": "rpi5-step-no-graphics",
+      "url": "https://pip-assets.raspberrypi.com/categories/892-raspberry-pi-5/documents/RP-010083-CA-1-rpi-5%203D%20STEP%20-%20No%20Graphics%20small%20file.zip",
+      "sha256": "6841637b4cfa97637bf34b529bfe896f24d9634b2c40b57a156781f55d88f06f",
+      "license": "MIT, Copyright (c) 2026 Raspberry Pi Ltd (the archive's LICENSE.txt, carried in pi5.manifest.json)",
+      "files": [
+        "rpi-5b_no_graphics.step",
+        "LICENSE.txt"
+      ]
+    }
+  ],
+  "step": {
+    "file": "rpi-5b_no_graphics.step",
+    "sha256": "78164070c1cc7ab854382950d2e85926c6e35432f1e5a146b733397a7c6afb44",
+    "params": {
+      "partBytes": 12000000,
+      "linearDeflectionMm": 0.05,
+      "angularDeflectionRad": 0.5
+    },
+    "parts": 5,
+    "bodies": 2711
+  },
+  "license": "= Disclaimer =\r\nThis 3D model is provided under the MIT license included at the end of this file. The 3D model may incorporate individual 3D models that have been provided by third parties with permission to redistribute. No additional license terms are imposed by this use of third party provided 3D models, where applicable.\r\n\r\nThe overall 3D model and any individual 3D models incorporated into the whole, whether created by first or a third party, are provided here for guidance only and without guarantee of accuracy. Additionally, provided 3D model data may not reflect the most current version(s). Any third party intending to use the provided 3D model for appearance and fitment purposes must refer to manufacturer information and conduct suitable measurements of the physical product.\r\n\r\n= MIT License =\r\nCopyright (c) 2026 Raspberry Pi Ltd\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\r\n",
+  "triangles": 195000,
+  "bytes": 4981612,
+  "textures": [
+    {
+      "name": "pi5-occlusion",
+      "format": "UASTC",
+      "size": [
+        2048,
+        2048
+      ],
+      "slots": [
+        "occlusionTexture"
+      ]
+    }
+  ],
+  "budget": {
+    "texturePx": [
+      2048,
+      2048
+    ],
+    "triangles": 200000,
+    "bytes": 8000000,
+    "met": true
+  },
+  "geometryHash": "64e68cdc84342df12f9c0b4bf50f39490ff309465b877a4d393f7a8455e5e4af"
+}

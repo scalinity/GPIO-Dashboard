@@ -1,0 +1,1436 @@
+{
+ "turns": [
+  "Board Sense is on. My button on GPIO18 never registers on the real breadboard, but the twin looks right to me. What is wrong?"
+ ],
+ "model": "claude-opus-5-5",
+ "effort": "medium",
+ "webTools": false,
+ "recorded": "2026-10-24",
+ "sdk": "1.3.0",
+ "expected": {
+  "turns.complete": true,
+  "erc": true,
+  "convention": true,
+  "inventory": true,
+  "no-mutation": true,
+  "claims": true,
+  "ghosts": true,
+  "reads-sense-first": true,
+  "no-edits": true,
+  "names-cause": true,
+  "names-fault": true,
+  "says-unobserved": true
+ },
+ "notes": [],
+ "requests": [
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "medium"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "prefix": {
+    "system": [
+     {
+      "type": "text",
+      "text": "You are Claude, built into Breadboard Studio, a desktop app that holds a digital twin of the user's electronics bench. You help them design, build, check and understand circuits, and you edit the twin through the tools you are given.\n\n# The bench\n\n- A Raspberry Pi 5, a SunFounder Basic Starter Kit, one 830-point breadboard (bb1), and a 40-pin T-shaped extension board (the T-board) joined to the Pi by a 200 mm ribbon cable.\n- The T-board sits on bb1 in columns d and h, header toward row 0, with pin 1 at row 1. Odd pins (3V3, SDA1, SCL1, GPIO4, GND, GPIO17...) are in column d, even pins (5V, 5V, GND, TXD, RXD, GPIO18...) in column h, two pins to a row. Every hole in a half-row (a to e, or f to j) is one electrical node, so a lead in row 6 column a is on the same net as the T-board pin in row 6 column d.\n- Rows 24 to 63 of bb1 are free. Rows 1 to 23 are covered by the T-board; its columns a, b, c (and i, j) can take leads, nothing else.\n- The leads are 200 mm Dupont jumpers, male-male and male-female. Leads are plentiful; parts are the kit's.\n\n# How you work\n\nYou change the twin only through tools. Each tool call that changes the circuit is one transaction of this turn, and the user can undo the whole turn at once. A rejected call changes nothing and tells you why; read the reason and fix the input. You have no tool that runs anything on the real Pi, and you never say or imply that you ran, flashed, tested or measured anything on hardware. Simulation and ERC are the twin's own checks.\n\nCall get_circuit_state before you edit an existing project, and again after a batch of edits to see the result (pass `since` to get only the changes). Nets, holes and lead lengths in tool results are exact; use them instead of working them out yourself.\n\n# The wiring convention\n\nThis is how the user's bench is wired, and the tools enforce it:\n\n- Nothing attaches to the Pi's header. The ribbon occupies it. Every GPIO, 3V3, 5V and GND is reached from its T-board pin's strip on the breadboard, with a male-male lead from a free hole in that strip. `connect` does this for you when an end is a net (GND, 3V3, 5V, GPIO17...). Name nets; do not pick T-board holes yourself.\n- Breadboard-to-breadboard wiring is male-male.\n- A module with male header pins (HC-SR04, DHT11 board, relay module) takes male-female leads: female end on the module pin, male end in a breadboard hole. A module with a female socket (the SG90 servo, the keypad) takes male-male leads. `connect` picks the kind from the part definition.\n- Off-board modules never connect straight to the Pi.\n- To put two parts in series, give the second an exact `at` in a strip the first already uses (place_part lists each pin's free holes), or join them with a lead. `at: \"auto\"` puts a part in strips of its own, so it joins nothing until you connect it.\n\n# What you check, and what you may claim\n\nAfter each batch of changes, run run_erc, then simulate. Iterate until there are no errors, or until you need a decision from the user. Use write_code for the program, and run_code_in_sim to see that it does what was asked. The simulator runs RPi.GPIO and these gpiozero classes: LED, PWMLED, RGBLED, Buzzer, TonalBuzzer, Servo, AngularServo, Button, MotionSensor, LineSensor, DistanceSensor, and the base classes OutputDevice, DigitalOutputDevice, PWMOutputDevice, InputDevice and DigitalInputDevice. A program that sets callbacks and then calls signal.pause() runs until the simulated time is up.\n\nNever say a circuit is correct, safe or will work unless the latest ERC and simulation support it, and quote the numbers: the resistor's value and the current through the LED, the GPIO's milliamps. If a check did not run, or a tool failed, say so plainly. If ERC or the sim still shows a problem you chose to leave, say which and why.\n\n# The Pi's limits\n\nRespect them without being asked:\n\n- GPIOs are 3.3 V logic and not 5 V tolerant. A 5 V signal (an HC-SR04's ECHO) needs a voltage divider or a level shifter before it reaches a GPIO.\n- 16 mA per pin and 50 mA across all GPIOs. Drive buzzers, relays and motors through a transistor with a base resistor, not from a pin.\n- Motors need their own supply, a flyback diode across any bare coil, and a shared ground with the Pi.\n- LEDs always get a series resistor. Pick the value from the supply, the LED's forward voltage and a current well under 16 mA, and show the arithmetic.\n- Pins that the Pi uses for something else (GPIO2 and GPIO3 are I2C with board pull-ups) are not general outputs.\n\n# Parts\n\nPrefer parts in the user's inventory, and lead kinds they own. Ask (ask_user) before using a part outside it. Use search_parts first; take part ids, pin names and properties from its results. If the library lacks a part, find its datasheet with the web tools when they are available, cite its URL, take the pin order from the datasheet (TO-92 pin orders differ between parts), and use define_custom_part. Without a datasheet, say that the part's pins are hints.\n\n# When the user is debugging their real board\n\nCall read_board_sense first. Reason from the measured divergences and the candidate causes it returns, not from guesses, and name the holes involved. Say plainly what the Pi cannot observe: an LED's presence or polarity, and anything behind more than about 10 kilohms, shows up as unobserved. If sensing is off, say that nothing you have is a live measurement.\n\n# How you write\n\nTalk to a hobbyist who wants to understand the circuit, not just have it. Keep replies short. End a build with a summary of three parts: what you built, how it works, and what to check on the bench (for example, which way round the LED goes, what the ribbon's brown wire is). Explain a choice when it matters (why this resistor, why a divider), not every step. Use capture_view once after a build to check the layout by eye; use focus and highlight when pointing at something helps the explanation.\n\nWhen a request is ambiguous in a way that changes the circuit, ask one short question with ask_user. When it is not, decide and say what you decided.\n"
+     },
+     {
+      "type": "text",
+      "text": "# Part catalog\nPart ids you can place now. search_parts gives full pinouts, connectors and property ranges.\n- active-buzzer: Active buzzer (12 mm, 5 V). In inventory; rigid, plugs into the board. Pins: +=+ (long lead), -=- (short lead).\n- ads1115-module: ADS1115 16-bit ADC breakout (Adafruit 1085). Not in inventory; off-board module, wired with leads. Pins: VDD=VIN, GND=GND, SCL=SCL, SDA=SDA, ADDR=ADDR, ALRT=ALRT, A0=A0, A1=A1, A2=A2, A3=A3.\n- ads7830-module: ADS7830 8-channel 8-bit ADC module (LAFVIN). In inventory; off-board module, wired with leads. Pins: A0=A0, A1=A1, A2=A2, A3=A3, A4=A4, A5=A5, A6=A6, A7=A7, VCC=VCC, SDA=SDA, SCL=SCL, GND=GND.\n- bar-graph-10: 10-segment LED bar graph (20-pin). In inventory; straddles the trench. Pins: 20 pins (see search_parts).\n- breadboard-power-module: MB102 breadboard power supply module (3.3 V / 5 V). In inventory; off-board module, wired with leads. Pins: 1=3V3 (J6 pin 1), 2=GND (J6 pin 2), 3=3V3 (J6 pin 3), 4=GND (J6 pin 4), 5=5V (J6 pin 5), 6=GND (J6 pin 6), 7=5V (J6 pin 7), 8=GND (J6 pin 8). Properties: inputVoltage, switchOn.\n- ceramic-capacitor: Ceramic capacitor, radial. In inventory; two leads, 2-20 pitches apart. Pins: 1=Lead 1, 2=Lead 2. Properties: capacitance, ratedVoltage.\n- dc-motor: DC motor with fan blade (130 size). In inventory; off-board module, wired with leads. Pins: red=Red lead, black=Black lead.\n- dht11-module: DHT11 temperature and humidity module (3-pin). In inventory; off-board module, wired with leads. Pins: DATA=S, VCC=VCC, GND=-. Properties: temperatureC, humidityPct.\n- dht11: DHT11 temperature and humidity sensor (bare, 4-pin). Not in inventory; rigid, plugs into the board. Pins: VDD=VDD, DATA=DATA, NC=NC, GND=GND. Properties: temperatureC, humidityPct.\n- diode-1n4007: Diode 1N4007. In inventory; two leads, 1-15 pitches apart. Pins: A=Anode (+), K=Cathode (−, band).\n- electrolytic-capacitor: Electrolytic capacitor, radial polarized. Not in inventory; two leads, 1-6 pitches apart. Pins: +=Positive (+, longer lead), -=Negative (−, shorter lead, marked side). Properties: capacitance, ratedVoltage.\n- hc-sr04: HC-SR04 ultrasonic ranging module. Not in inventory; off-board module, wired with leads. Pins: VCC=Vcc, TRIG=Trig, ECHO=Echo, GND=Gnd. Properties: distanceCm.\n- hc-sr501: HC-SR501 PIR motion sensor module. Not in inventory; off-board module, wired with leads. Pins: VCC=VCC, OUT=OUT, GND=GND. Properties: motion.\n- ic-74hc595: 74HC595 8-bit shift register (DIP-16). In inventory; straddles the trench. Pins: 16 pins (see search_parts).\n- ic-adc0834: ADC0834 4-channel 8-bit serial ADC (DIP-14). Not in inventory; straddles the trench. Pins: 14 pins (see search_parts).\n- ic-l293d: L293D quadruple half-H driver (DIP-16). In inventory; straddles the trench. Pins: 16 pins (see search_parts).\n- joystick-module: Dual-axis analog joystick module (5-pin). Not in inventory; off-board module, wired with leads. Pins: GND=GND, VCC=+5V, VRX=VRX, VRY=VRY, SW=SW. Properties: x, y, pressed.\n- keypad-4x4: 4x4 membrane matrix keypad (8-pin female connector). Not in inventory; off-board module, wired with leads. Pins: R1=R1, R2=R2, R3=R3, R4=R4, C1=C1, C2=C2, C3=C3, C4=C4.\n- lcd1602-i2c: LCD1602 (16x2, HD44780) with PCF8574 I2C backpack. Not in inventory; off-board module, wired with leads. Pins: GND=GND, VCC=VCC, SDA=SDA, SCL=SCL.\n- ldr: Photoresistor (LDR), GL5528. In inventory; two leads, 1-20 pitches apart. Pins: 1=Lead 1, 2=Lead 2. Properties: lux.\n- led-matrix-8x8: 8x8 LED dot matrix, common anode (788BS, 20 mm). In inventory; straddles the trench. Pins: 16 pins (see search_parts).\n- led: LED, round single colour. In inventory; two leads, 1-15 pitches apart. Pins: A=Anode (+), K=Cathode (−). Properties: color, size.\n- ntc-10k: NTC thermistor 10 kΩ, B 3950. In inventory; two leads, 1-6 pitches apart. Pins: 1=Lead 1, 2=Lead 2. Properties: temperatureC.\n- passive-buzzer: Passive buzzer (12 mm magnetic transducer). In inventory; rigid, plugs into the board. Pins: +=+ (marked lead), -=- (unmarked lead).\n- pn2222: PN2222A NPN transistor (TO-92). In inventory; rigid, plugs into the board. Pins: 1=Emitter, 2=Base, 3=Collector.\n- potentiometer-10k: Potentiometer 10 kΩ, rotary. In inventory; rigid, plugs into the board. Pins: 1=End terminal 1 (pin 1), 2=Wiper (pin 2, centre), 3=End terminal 2 (pin 3). Properties: wiper.\n- relay-module-5v: 5 V relay module (SRD-05VDC-SL-C). In inventory; off-board module, wired with leads. Pins: S=S (signal input), +=+ (5 V supply), -=- (ground), NC=NC (normally closed, screw terminal), COM=COM (common, screw terminal), NO=NO (normally open, screw terminal).\n- resistor: Resistor, 1/4 W axial. In inventory; two leads, 1-16 pitches apart. Pins: 1=Lead 1, 2=Lead 2. Properties: resistance, tolerance.\n- rgb-led-ca: RGB LED, 5 mm, common anode. Not in inventory; rigid, plugs into the board. Pins: R=Red cathode (pin 1), A=Common anode (pin 2), B=Blue cathode (pin 3), G=Green cathode (pin 4).\n- rgb-led-cc: RGB LED, 5 mm, common cathode. In inventory; rigid, plugs into the board. Pins: R=Red anode (pin 1), K=Common cathode (pin 2, longest lead), G=Green anode (pin 3), B=Blue anode (pin 4).\n- s8050: S8050 NPN transistor (TO-92). Not in inventory; rigid, plugs into the board. Pins: 1=Emitter, 2=Base, 3=Collector.\n- s8550: S8550 PNP transistor (TO-92). Not in inventory; rigid, plugs into the board. Pins: 1=Emitter, 2=Base, 3=Collector.\n- seven-segment-4digit: 4-digit 7-segment display, common anode (0.56 in, 12-pin). Not in inventory; straddles the trench. Pins: 1=e, 2=d, 3=dp, 4=c, 5=g, 6=D4, 7=b, 8=D3, 9=D2, 10=f, 11=a, 12=D1.\n- seven-segment-ca: 7-segment display, common anode (0.56 in, 1 digit). Not in inventory; straddles the trench. Pins: 1=e, 2=d, 3=COM, 4=c, 5=dp, 6=b, 7=a, 8=COM, 9=f, 10=g.\n- seven-segment-cc: 7-segment display, common cathode (0.56 in, 1 digit). In inventory; straddles the trench. Pins: 1=e, 2=d, 3=COM, 4=c, 5=dp, 6=b, 7=a, 8=COM, 9=f, 10=g.\n- sg90: TowerPro SG90 micro servo (9 g). Not in inventory; off-board module, wired with leads. Pins: GND=Brown (GND), VCC=Red (VCC), PWM=Orange (signal).\n- tact-switch-6mm: 6 mm tactile switch (4-pin). In inventory; straddles the trench. Pins: 1=Terminal 1, 2=Terminal 2, 3=Terminal 3, 4=Terminal 4. Properties: mode, pressed.\n- tilt-switch: Ball tilt switch (SW-520D). In inventory; rigid, plugs into the board. Pins: 1=Lead 1, 2=Lead 2. Properties: tilted.",
+      "cache_control": {
+       "type": "ephemeral"
+      }
+     }
+    ],
+    "tools": [
+     {
+      "name": "get_circuit_state",
+      "description": "Read the circuit: boards and their free rows, the T-board placement, every part with pin → hole → net, every wire, the nets, the ERC issues and the pins the code uses. Call it before editing an existing project, and after a batch of edits to see the result. `summary` is enough for most work; `full` adds properties, the 40 T-board pins and the code. With `since` (a revision you saw earlier) it returns only what changed.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "detail": {
+         "type": "string",
+         "enum": [
+          "summary",
+          "full"
+         ]
+        },
+        "since": {
+         "description": "A revision number from an earlier reply. (at least -9007199254740991, at most 9007199254740991)",
+         "type": "integer"
+        }
+       },
+       "required": [
+        "detail"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true
+     },
+     {
+      "name": "search_parts",
+      "description": "Find parts in the library by name, kind or pin function (for example \"led\", \"ultrasonic\", \"transistor\", \"shift register\"). Each result has the part id, whether it is in the user’s inventory, its footprint, its pins (id, label, role, connector gender for modules), its editable properties and its datasheet. Prefer inventory parts. An empty query lists every part id.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "query": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "query"
+       ],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "define_custom_part",
+      "description": "Define a part the library lacks, from a template and its datasheet pinout. First search_parts; then find the datasheet with web search and cite its URL. Take the pin order from that datasheet: TO-92 pin orders differ between parts. Returns the new part id to use with place_part.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "template": {
+         "type": "string",
+         "enum": [
+          "2-lead",
+          "TO-92",
+          "DIP",
+          "SIP-header",
+          "module-with-header"
+         ],
+         "description": "2-lead: axial or radial part with two leads. TO-92: three pins in a row. DIP: a dual in-line IC (pins 1..N down the left side, then up the right). SIP-header: a row of pins that plugs into the board. module-with-header: an off-board module with its own header, wired with leads."
+        },
+        "name": {
+         "type": "string",
+         "description": "A short name, e.g. \"VL53L0X distance sensor\"."
+        },
+        "pins": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "id": {
+            "type": "string",
+            "description": "Letters, digits, _ + or -. Datasheet order, pin 1 first."
+           },
+           "label": {
+            "type": "string"
+           },
+           "role": {
+            "type": "string",
+            "enum": [
+             "passive",
+             "anode",
+             "cathode",
+             "positive",
+             "negative",
+             "base",
+             "collector",
+             "emitter",
+             "wiper",
+             "switch",
+             "coil",
+             "contact",
+             "power",
+             "ground",
+             "logic-in",
+             "logic-out",
+             "logic-io",
+             "analog-in",
+             "analog-out",
+             "driver-out",
+             "signal",
+             "nc"
+            ]
+           },
+           "electricalType": {
+            "type": "string",
+            "enum": [
+             "passive",
+             "input",
+             "output",
+             "bidirectional",
+             "power-in",
+             "power-out",
+             "open-collector",
+             "nc"
+            ]
+           },
+           "connector": {
+            "type": "string",
+            "enum": [
+             "male-pin",
+             "female-socket",
+             "none"
+            ],
+            "description": "For module-with-header, the connector at this pin. Otherwise \"none\"."
+           }
+          },
+          "required": [
+           "id",
+           "label",
+           "role",
+           "electricalType",
+           "connector"
+          ],
+          "additionalProperties": false
+         },
+         "description": "The pins in datasheet order."
+        },
+        "internalConnections": {
+         "type": "array",
+         "items": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          }
+         },
+         "description": "Groups of pin ids that are joined inside the part, e.g. [[\"1\",\"2\"]]. Usually empty."
+        },
+        "simModel": {
+         "type": "string",
+         "enum": [
+          "resistor",
+          "capacitor",
+          "electrolytic",
+          "diode",
+          "led",
+          "rgb-led",
+          "npn",
+          "pnp",
+          "switch",
+          "tact-switch",
+          "tilt-switch",
+          "potentiometer",
+          "ldr",
+          "ntc",
+          "active-buzzer",
+          "passive-buzzer",
+          "dc-motor",
+          "relay-module",
+          "shift-register-595",
+          "adc0834",
+          "l293d",
+          "seven-segment",
+          "seven-segment-4digit",
+          "led-matrix-8x8",
+          "bar-graph-10",
+          "dht11",
+          "hc-sr04",
+          "hc-sr501",
+          "sg90",
+          "lcd1602-i2c",
+          "ads1115",
+          "ads7830",
+          "keypad-4x4",
+          "joystick",
+          "power-module",
+          "none"
+         ],
+         "description": "The simulator model, or \"none\". A model reads specific pin ids, so use one only for a part that matches a built-in part’s pins (see search_parts)."
+        },
+        "datasheetUrl": {
+         "description": "The datasheet’s URL, found with web search. Without it the part is tagged \"no datasheet\".",
+         "type": "string"
+        }
+       },
+       "required": [
+        "template",
+        "name",
+        "pins",
+        "internalConnections",
+        "simModel"
+       ],
+       "additionalProperties": false
+      },
+      "eager_input_streaming": true
+     },
+     {
+      "name": "add_board",
+      "description": "Add a breadboard when the build will not fit. A new project has one bb-830. Returns the new board’s id.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "defId": {
+         "type": "string",
+         "enum": [
+          "bb-830",
+          "bb-400"
+         ],
+         "description": "bb-830 is the full-size board on the bench."
+        },
+        "position": {
+         "description": "Table position in mm. Leave out to put it beside the others.",
+         "type": "object",
+         "properties": {
+          "x": {
+           "type": "number"
+          },
+          "y": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "x",
+          "y"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "required": [
+        "defId"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "place_tboard",
+      "description": "Set where the T-board sits on a breadboard. Almost every build keeps the bench placement (bb1, pin1Row 1, d/h, header toward row 0): only call this to move it, for example to a second board. Returns the 40-pin map from T-board pin to hole and net.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "board": {
+         "type": "string",
+         "description": "Board id such as bb1."
+        },
+        "pin1Row": {
+         "type": "integer",
+         "description": "The row pin 1 sits in. (at least -9007199254740991, at most 9007199254740991)"
+        },
+        "colPair": {
+         "type": "string",
+         "enum": [
+          "b/f",
+          "c/g",
+          "d/h",
+          "e/i"
+         ],
+         "description": "The two columns the pin rows land in; the bench uses d/h."
+        },
+        "orientation": {
+         "type": "string",
+         "enum": [
+          "header-toward-row-0",
+          "header-toward-last-row"
+         ]
+        }
+       },
+       "required": [
+        "board",
+        "pin1Row",
+        "colPair",
+        "orientation"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "place_part",
+      "description": "Place one part. Use \"auto\" for `at` unless you need an exact spot: the placer picks free strips that do not join anything by accident, keeps DIPs across the trench and stays out of the T-board rows. To put two parts in the same net (for example a resistor feeding an LED), give an exact `at` in a strip the first part already uses; the reply lists each pin’s free holes. Off-board modules (sensors, servos) get no holes: wire them with connect. Returns each pin’s hole and net, and warnings when a pin shares a strip with something.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "defId": {
+         "type": "string",
+         "description": "A part id from search_parts, e.g. \"resistor\"."
+        },
+        "at": {
+         "type": "string",
+         "description": "Where pin 1 (or the first lead) goes, as \"board:rowColumn\" like \"bb1:30b\", or \"auto\" to let the placer pick free strips. Parts that plug into the board go in the main area."
+        },
+        "orientation": {
+         "type": "number",
+         "enum": [
+          0,
+          90,
+          180,
+          270
+         ],
+         "description": "Degrees. Rigid parts turn in 90 degree steps. A two-lead part runs 0 = toward higher rows, 180 = toward lower rows, 90/270 = across the columns."
+        },
+        "props": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "name": {
+            "type": "string"
+           },
+           "value": {
+            "type": [
+             "string",
+             "number",
+             "boolean"
+            ]
+           }
+          },
+          "required": [
+           "name",
+           "value"
+          ],
+          "additionalProperties": false
+         },
+         "description": "Property values to set, e.g. [{\"name\":\"resistance\",\"value\":220}]. Empty keeps the defaults."
+        },
+        "ref": {
+         "description": "Reference designator like R1. Leave out to take the next free one.",
+         "type": "string"
+        },
+        "span": {
+         "description": "Pitches between a two-lead part’s leads. Leave out for a span that fits the body. (at least -9007199254740991, at most 9007199254740991)",
+         "type": "integer"
+        },
+        "near": {
+         "description": "With at \"auto\": a part ref or a net (GPIO17, GND) whose rows to stay near.",
+         "type": "string"
+        }
+       },
+       "required": [
+        "defId",
+        "at",
+        "orientation",
+        "props"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "move_part",
+      "description": "Move a placed part to another spot. Leads that ended in the strips the part left stay where they are; the reply lists them so you can move or remove them.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "ref": {
+         "type": "string",
+         "description": "The part’s reference designator."
+        },
+        "at": {
+         "type": "string",
+         "description": "\"board:rowColumn\" for pin 1, or \"auto\"."
+        },
+        "orientation": {
+         "type": "number",
+         "enum": [
+          0,
+          90,
+          180,
+          270
+         ],
+         "description": "Degrees. Rigid parts turn in 90 degree steps. A two-lead part runs 0 = toward higher rows, 180 = toward lower rows, 90/270 = across the columns."
+        },
+        "span": {
+         "description": "Leads’ span for a two-lead part. Leave out to keep it. (at least -9007199254740991, at most 9007199254740991)",
+         "type": "integer"
+        }
+       },
+       "required": [
+        "ref",
+        "at",
+        "orientation"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "remove_part",
+      "description": "Remove a part. Leads that end on an off-board module’s pins go with it; leads in the strips it occupied stay and are listed.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "ref": {
+         "type": "string",
+         "description": "The part’s reference designator."
+        }
+       },
+       "required": [
+        "ref"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "set_part_props",
+      "description": "Change a placed part’s properties, such as a resistor’s value or an LED’s colour. Only the properties you list change.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "ref": {
+         "type": "string",
+         "description": "The part’s reference designator."
+        },
+        "props": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "name": {
+            "type": "string"
+           },
+           "value": {
+            "type": [
+             "string",
+             "number",
+             "boolean"
+            ]
+           }
+          },
+          "required": [
+           "name",
+           "value"
+          ],
+          "additionalProperties": false
+         }
+        }
+       },
+       "required": [
+        "ref",
+        "props"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "connect",
+      "description": "Run one jumper lead between two ends. An end is a hole, a part pin, or a T-board net (GND, 3V3, 5V, GPIOnn). You never pick holes or lead lengths yourself: nets resolve to a free hole in the net’s T-board strip, a pin on the breadboard to a free hole in its own strip, and the length to the shortest inventory lead that reaches. Reach the Pi only through nets, never a header. The lead kind follows the connectors: male-male between holes, male-female onto a module’s male header pin, male-male into a female socket. Returns the concrete wire.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "from": {
+         "anyOf": [
+          {
+           "type": "object",
+           "properties": {
+            "hole": {
+             "type": "string",
+             "description": "A hole such as \"bb1:23e\", or a rail hole such as \"bb1:top-.4\"."
+            }
+           },
+           "required": [
+            "hole"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "object",
+           "properties": {
+            "partPin": {
+             "type": "object",
+             "properties": {
+              "ref": {
+               "type": "string"
+              },
+              "pin": {
+               "type": "string"
+              }
+             },
+             "required": [
+              "ref",
+              "pin"
+             ],
+             "description": "A placed part’s pin. On the breadboard this becomes a free hole in the pin’s strip.",
+             "additionalProperties": false
+            }
+           },
+           "required": [
+            "partPin"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "object",
+           "properties": {
+            "net": {
+             "type": "string",
+             "enum": [
+              "GND",
+              "3V3",
+              "5V",
+              "GPIO0",
+              "GPIO1",
+              "GPIO2",
+              "GPIO3",
+              "GPIO4",
+              "GPIO5",
+              "GPIO6",
+              "GPIO7",
+              "GPIO8",
+              "GPIO9",
+              "GPIO10",
+              "GPIO11",
+              "GPIO12",
+              "GPIO13",
+              "GPIO14",
+              "GPIO15",
+              "GPIO16",
+              "GPIO17",
+              "GPIO18",
+              "GPIO19",
+              "GPIO20",
+              "GPIO21",
+              "GPIO22",
+              "GPIO23",
+              "GPIO24",
+              "GPIO25",
+              "GPIO26",
+              "GPIO27"
+             ],
+             "description": "A T-board net; becomes a free hole in its strip."
+            }
+           },
+           "required": [
+            "net"
+           ],
+           "additionalProperties": false
+          }
+         ]
+        },
+        "to": {
+         "anyOf": [
+          {
+           "type": "object",
+           "properties": {
+            "hole": {
+             "type": "string",
+             "description": "A hole such as \"bb1:23e\", or a rail hole such as \"bb1:top-.4\"."
+            }
+           },
+           "required": [
+            "hole"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "object",
+           "properties": {
+            "partPin": {
+             "type": "object",
+             "properties": {
+              "ref": {
+               "type": "string"
+              },
+              "pin": {
+               "type": "string"
+              }
+             },
+             "required": [
+              "ref",
+              "pin"
+             ],
+             "description": "A placed part’s pin. On the breadboard this becomes a free hole in the pin’s strip.",
+             "additionalProperties": false
+            }
+           },
+           "required": [
+            "partPin"
+           ],
+           "additionalProperties": false
+          },
+          {
+           "type": "object",
+           "properties": {
+            "net": {
+             "type": "string",
+             "enum": [
+              "GND",
+              "3V3",
+              "5V",
+              "GPIO0",
+              "GPIO1",
+              "GPIO2",
+              "GPIO3",
+              "GPIO4",
+              "GPIO5",
+              "GPIO6",
+              "GPIO7",
+              "GPIO8",
+              "GPIO9",
+              "GPIO10",
+              "GPIO11",
+              "GPIO12",
+              "GPIO13",
+              "GPIO14",
+              "GPIO15",
+              "GPIO16",
+              "GPIO17",
+              "GPIO18",
+              "GPIO19",
+              "GPIO20",
+              "GPIO21",
+              "GPIO22",
+              "GPIO23",
+              "GPIO24",
+              "GPIO25",
+              "GPIO26",
+              "GPIO27"
+             ],
+             "description": "A T-board net; becomes a free hole in its strip."
+            }
+           },
+           "required": [
+            "net"
+           ],
+           "additionalProperties": false
+          }
+         ]
+        },
+        "kind": {
+         "description": "Leave out: the kind follows the connectors at both ends.",
+         "type": "string",
+         "enum": [
+          "dupont-mm",
+          "dupont-mf",
+          "dupont-ff",
+          "solid-arc",
+          "solid-flat"
+         ]
+        },
+        "color": {
+         "description": "Leave out for black GND, red supplies, others in rotation.",
+         "type": "string"
+        },
+        "lengthMm": {
+         "description": "Leave out for the shortest inventory length that reaches.",
+         "type": "number"
+        }
+       },
+       "required": [
+        "from",
+        "to"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "set_wire_props",
+      "description": "Change a placed lead’s kind, colour, length or arc height, for example to recolour a lead or to give a short jumper a longer length. Only the fields you give change; a kind must match the connectors at both ends.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string",
+         "description": "The wire id, such as W3."
+        },
+        "kind": {
+         "type": "string",
+         "enum": [
+          "dupont-mm",
+          "dupont-mf",
+          "dupont-ff",
+          "solid-arc",
+          "solid-flat"
+         ]
+        },
+        "color": {
+         "type": "string"
+        },
+        "lengthMm": {
+         "type": "number"
+        },
+        "heightMm": {
+         "description": "Bend height of a solid-arc jumper.",
+         "type": "number"
+        }
+       },
+       "required": [
+        "id"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "remove_wire",
+      "description": "Remove one jumper lead by its id (W1, W2…), for example to undo a wrong connection. The ids are in get_circuit_state. Removing a lead can leave a part pin unconnected, which ERC reports as dangling.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string",
+         "description": "The wire id, such as W3."
+        }
+       },
+       "required": [
+        "id"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "run_erc",
+      "description": "Run the electrical rule checks on the circuit as it is now: shorts, GPIOs driven into supplies, 5 V into a GPIO, LEDs without a resistor, floating inputs, inductive loads without a driver, dangling leads, code that disagrees with the wiring, leads too short. Every issue has a code, the refs involved, a plain explanation and a fix. Run it after each batch of edits.",
+      "input_schema": {
+       "type": "object",
+       "properties": {},
+       "required": [],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "simulate",
+      "description": "Simulate the circuit: per-net voltages, LED currents and brightness, resistor currents and power, GPIO currents, supply draw, behaviour of ICs and modules, and the sim-based checks (a pin over 16 mA, the GPIOs over 50 mA together, an LED over its rated current). `op` solves the steady state; `transient` runs durationMs of virtual time. Drive GPIOs and part inputs through `stimulus`. Quote the numbers when you say whether a circuit works.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "mode": {
+         "type": "string",
+         "enum": [
+          "op",
+          "transient"
+         ]
+        },
+        "durationMs": {
+         "type": "integer",
+         "description": "Transient length in ms (at most 60000). 0 for op. (at least -9007199254740991, at most 9007199254740991)"
+        },
+        "stimulus": {
+         "type": "object",
+         "properties": {
+          "gpio": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "properties": {
+             "pin": {
+              "type": "integer",
+              "description": "BCM number, e.g. 17 for GPIO17. (at least -9007199254740991, at most 9007199254740991)"
+             },
+             "level": {
+              "type": "string",
+              "enum": [
+               "high",
+               "low",
+               "pwm"
+              ]
+             },
+             "freqHz": {
+              "type": "number",
+              "description": "PWM frequency; 0 unless level is pwm."
+             },
+             "duty": {
+              "type": "number",
+              "description": "PWM duty from 0 to 1; 0 unless level is pwm."
+             }
+            },
+            "required": [
+             "pin",
+             "level",
+             "freqHz",
+             "duty"
+            ],
+            "additionalProperties": false
+           },
+           "description": "GPIOs the Pi drives as outputs. Empty leaves every GPIO as an input."
+          },
+          "inputs": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "properties": {
+             "part": {
+              "type": "string"
+             },
+             "key": {
+              "type": "string",
+              "description": "An input the part declares: pressed (tact switch, joystick), tilted, wiper (0 to 100), lux, temperatureC, humidityPct, distanceCm, motion, x and y."
+             },
+             "value": {
+              "type": [
+               "string",
+               "number",
+               "boolean"
+              ]
+             }
+            },
+            "required": [
+             "part",
+             "key",
+             "value"
+            ],
+            "additionalProperties": false
+           },
+           "description": "Switch positions and sensor values (the part’s editable properties)."
+          }
+         },
+         "required": [
+          "gpio",
+          "inputs"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "required": [
+        "mode",
+        "durationMs",
+        "stimulus"
+       ],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "write_code",
+      "description": "Store the Python program that drives this circuit in the project, as the project’s code. It is checked, never run: the reply has the Python syntax check and a cross-check of the GPIOs the code uses against the wiring (code that uses an unwired GPIO, wired GPIOs it never configures, inputs with no pull). Use BCM numbers, `RPi.GPIO` or `gpiozero`, and a loop that Ctrl+C ends cleanly. Fix syntax errors and mismatches before you say the code is ready.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "library": {
+         "type": "string",
+         "enum": [
+          "RPi.GPIO",
+          "gpiozero"
+         ]
+        },
+        "source": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "library",
+        "source"
+       ],
+       "additionalProperties": false
+      },
+      "strict": true,
+      "eager_input_streaming": true
+     },
+     {
+      "name": "run_code_in_sim",
+      "description": "Run the project’s code for `seconds` of virtual time in the simulator, never on hardware, and return what it printed and every pin event it caused (time, GPIO, high/low/pwm). Use it to confirm the program does what was asked, for example that an LED blinks at the right rate.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "seconds": {
+         "type": "number",
+         "description": "Virtual seconds to run, up to 60."
+        }
+       },
+       "required": [
+        "seconds"
+       ],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "capture_view",
+      "description": "Take a picture of the 3D stage, `top` or `iso`, to check the layout by eye: parts in sensible places, leads not crossing the wrong things. It waits up to 2 seconds for the physics to settle. Use it after a build, not after every edit.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "preset": {
+         "type": "string",
+         "enum": [
+          "top",
+          "iso"
+         ]
+        }
+       },
+       "required": [
+        "preset"
+       ],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "read_board_sense",
+      "description": "Read what the user’s real board is doing, as Board Sense last measured it: per GPIO net matched, diverged (with the kind and detail), ambiguous, skipped or unobserved; the recent events; and ranked candidate causes for each divergence, each mapped to holes. Read-only: you can not start, stop or configure sensing, and sensing may be off. Call it first when the user is debugging real hardware, reason from the measured divergences, and say plainly what the Pi can not observe (LED paths, nets behind more than about 10 kΩ).",
+      "input_schema": {
+       "type": "object",
+       "properties": {},
+       "required": [],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "focus",
+      "description": "Move the camera to frame parts, wires or holes, with an optional caption. Use it to show the user the piece you are about to explain.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "refs": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         },
+         "description": "Part refs, wire ids, board ids or holes like \"bb1:23e\"."
+        },
+        "note": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "refs"
+       ],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "highlight",
+      "description": "Mark parts, wires or holes in the 3D view with a caption, as a teaching cue: \"the longer leg is the anode\", \"this row is GND\". The mark stays until the user dismisses it.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "refs": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         },
+         "description": "Part refs, wire ids, board ids or holes like \"bb1:23e\"."
+        },
+        "note": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "refs",
+        "note"
+       ],
+       "additionalProperties": false
+      }
+     },
+     {
+      "name": "annotate_build_steps",
+      "description": "Add a \"why\" and a \"common mistake\" note to build steps. Each annotation names the part or wire its step is about (a ref such as R1, or a wire id such as W2; if a part and a lead share an id, the step key \"part:R1\" or \"wire:R1\"); the step text itself is generated from the circuit. Give both notes, in one or two plain sentences, and an empty string where there is nothing to say. Two empty notes clear the step’s notes.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "annotations": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "step": {
+            "type": "string"
+           },
+           "why": {
+            "type": "string"
+           },
+           "mistake": {
+            "type": "string"
+           }
+          },
+          "required": [
+           "step",
+           "why",
+           "mistake"
+          ],
+          "additionalProperties": false
+         }
+        }
+       },
+       "required": [
+        "annotations"
+       ],
+       "additionalProperties": false
+      },
+      "eager_input_streaming": true
+     },
+     {
+      "name": "ask_user",
+      "description": "Ask the user a question in the chat and wait for the answer: a choice you should not make for them (a part outside their inventory, a second board, a level shifter versus a divider). Give two to four short options; they can also answer in their own words. Do not ask what you can decide from the datasheet or the rules.",
+      "input_schema": {
+       "type": "object",
+       "properties": {
+        "question": {
+         "type": "string"
+        },
+        "options": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        }
+       },
+       "required": [
+        "question",
+        "options"
+       ],
+       "additionalProperties": false
+      }
+     }
+    ]
+   },
+   "messages": [
+    {
+     "role": "user",
+     "content": "Board Sense is on. My button on GPIO18 never registers on the real breadboard, but the twin looks right to me. What is wrong?"
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMUJYZqZk3kVUztvm7Zf\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":4,\"cache_creation_input_tokens\":116,\"cache_read_input_tokens\":14133,\"cache_creation\":{\"ephemeral_5m_input_tokens\":116,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":3,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\",\"signature\":\"\"}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"signature_delta\",\"signature\":\"scrubbed\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01Fkfh7BN3qPWaWwa7zHoCxM\",\"name\":\"read_board_sense\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":2,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_016TrXfsrA9wyhmBNzPBAcNf\",\"name\":\"get_circuit_state\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"detai\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"l\\\": \\\"su\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":2,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"mmary\\\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":2}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":4,\"cache_creation_input_tokens\":116,\"cache_read_input_tokens\":14133,\"output_tokens\":108,\"output_tokens_details\":{\"thinking_tokens\":28}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "medium"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "thinking",
+       "thinking": "",
+       "signature": "scrubbed"
+      },
+      {
+       "type": "tool_use",
+       "id": "toolu_01Fkfh7BN3qPWaWwa7zHoCxM",
+       "name": "read_board_sense",
+       "input": {},
+       "caller": {
+        "type": "direct"
+       }
+      },
+      {
+       "type": "tool_use",
+       "id": "toolu_016TrXfsrA9wyhmBNzPBAcNf",
+       "name": "get_circuit_state",
+       "input": {
+        "detail": "summary"
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01Fkfh7BN3qPWaWwa7zHoCxM",
+       "content": "{\"sensingOn\":true,\"nets\":[{\"gpio\":\"GPIO17\",\"state\":\"unobserved\"},{\"gpio\":\"GPIO18\",\"state\":\"diverged\",\"kind\":\"missing-path\",\"detail\":\"GPIO18 reads follows-bias, expected tied-high\"},{\"gpio\":\"GPIO27\",\"state\":\"unobserved\"}],\"events\":[],\"candidates\":{\"GPIO18\":[{\"score\":\"21/21\",\"tie\":true,\"causes\":[{\"text\":\"P1 is missing\",\"holes\":[\"bb1:1a\",\"bb1:bottom+.0\"]},{\"text\":\"W1 is missing\",\"holes\":[\"bb1:6j\",\"bb1:30a\"]},{\"text\":\"W1's end in row 6 column j is in row 5 column j instead\",\"holes\":[\"bb1:6j\",\"bb1:5j\"]},{\"text\":\"W1's end in row 6 column j is in row 7 column j instead\",\"holes\":[\"bb1:6j\",\"bb1:7j\"]},{\"text\":\"W1's end in row 30 column a is in row 29 column a instead\",\"holes\":[\"bb1:30a\",\"bb1:29a\"]},{\"text\":\"W1's end in row 30 column a is in row 31 column a instead\",\"holes\":[\"bb1:30a\",\"bb1:31a\"]},{\"text\":\"W1's end in row 30 column a is across the trench, in row 30 column j\",\"holes\":[\"bb1:30a\",\"bb1:30j\"]},{\"text\":\"W2 is missing\",\"holes\":[\"bb1:34a\",\"bb1:bottom+.25\"]},{\"text\":\"W2's end in row 34 column a is in row 33 column a instead\",\"holes\":[\"bb1:34a\",\"bb1:33a\"]},{\"text\":\"W2's end in row 34 column a is in row 35 column a instead\",\"holes\":[\"bb1:34a\",\"bb1:35a\"]},{\"text\":\"W2's end in row 34 column a is across the trench, in row 34 column j\",\"holes\":[\"bb1:34a\",\"bb1:34j\"]},{\"text\":\"R1 sits one row up\",\"holes\":[\"bb1:30b\",\"bb1:34b\"]},{\"text\":\"R1 sits one row down\",\"holes\":[\"bb1:30b\",\"bb1:34b\"]}]},{\"score\":\"17/21\",\"tie\":true,\"causes\":[{\"text\":\"P1's end in row 1 column a is in row 2 column a instead\",\"holes\":[\"bb1:1a\",\"bb1:2a\"]},{\"text\":\"P1's end in row 1 column a is across the trench, in row 1 column j\",\"holes\":[\"bb1:1a\",\"bb1:1j\"]},{\"text\":\"P2 is missing\",\"holes\":[\"bb1:5a\",\"bb1:bottom-.1\"]},{\"text\":\"P2's end in row 5 column a is in row 4 column a instead\",\"holes\":[\"bb1:5a\",\"bb1:4a\"]},{\"text\":\"P2's end in row 5 column a is in row 6 column a instead\",\"holes\":[\"bb1:5a\",\"bb1:6a\"]},{\"text\":\"P2's end in row 5 column a is across the trench, in row 5 column j\",\"holes\":[\"bb1:5a\",\"bb1:5j\"]},{\"text\":\"W3 is missing\",\"holes\":[\"bb1:30c\",\"bb1:40a\"]},{\"text\":\"W3's end in row 30 column c is in row 29 column c instead\",\"holes\":[\"bb1:30c\",\"bb1:29c\"]},{\"text\":\"W3's end in row 30 column c is in row 31 column c instead\",\"holes\":[\"bb1:30c\",\"bb1:31c\"]},{\"text\":\"W3's end in row 30 column c is across the trench, in row 30 column h\",\"holes\":[\"bb1:30c\",\"bb1:30h\"]},{\"text\":\"W3's end in row 40 column a is in row 39 column a instead\",\"holes\":[\"bb1:40a\",\"bb1:39a\"]},{\"text\":\"W3's end in row 40 column a is in row 41 column a instead\",\"holes\":[\"bb1:40a\",\"bb1:41a\"]},{\"text\":\"W3's end in row 40 column a is across the trench, in row 40 column j\",\"holes\":[\"bb1:40a\",\"bb1:40j\"]},{\"text\":\"W4 is missing\",\"holes\":[\"bb1:42a\",\"bb1:bottom-.30\"]},{\"text\":\"W4's end in row 42 column a is in row 41 column a instead\",\"holes\":[\"bb1:42a\",\"bb1:41a\"]},{\"text\":\"W4's end in row 42 column a is in row 43 column a instead\",\"holes\":[\"bb1:42a\",\"bb1:43a\"]},{\"text\":\"W4's end in row 42 column a is across the trench, in row 42 column j\",\"holes\":[\"bb1:42a\",\"bb1:42j\"]},{\"text\":\"W4's end is on the bottom+ rail instead of bottom-\",\"holes\":[\"bb1:bottom-.30\",\"bb1:bottom+.30\"]},{\"text\":\"SW1 sits one row up\",\"holes\":[\"bb1:40e\",\"bb1:40f\",\"bb1:42e\",\"bb1:42f\"]},{\"text\":\"SW1 sits one row down\",\"holes\":[\"bb1:40e\",\"bb1:40f\",\"bb1:42e\",\"bb1:42f\"]}]},{\"score\":\"17/21\",\"causes\":[{\"text\":\"W1's end in row 6 column j is across the trench, in row 6 column a\",\"holes\":[\"bb1:6j\",\"bb1:6a\"]}]}]}}"
+      },
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_016TrXfsrA9wyhmBNzPBAcNf",
+       "content": "Revision 0: 1 board(s), 2 part(s), 6 wire(s). ERC: 0 error(s), 1 warning(s).\n{\"revision\":0,\"boards\":[{\"id\":\"bb1\",\"def\":\"bb-830\",\"rows\":63,\"freeRows\":[[24,29],[31,33],[35,39],[41,41],[43,63]],\"freeRailHoles\":{\"top+\":50,\"top-\":50,\"bottom+\":48,\"bottom-\":48}}],\"tboard\":{\"board\":\"bb1\",\"pin1Row\":1,\"colPair\":\"d/h\",\"orientation\":\"header-toward-row-0\"},\"parts\":[{\"ref\":\"R1\",\"def\":\"resistor\",\"pins\":{\"1\":\"bb1:30b GPIO18\",\"2\":\"bb1:34b 3V3\"}},{\"ref\":\"SW1\",\"def\":\"tact-switch-6mm\",\"pins\":{\"1\":\"bb1:40e GPIO18\",\"2\":\"bb1:40f GPIO18\",\"3\":\"bb1:42e GND\",\"4\":\"bb1:42f GND\"}}],\"wires\":[{\"id\":\"P1\",\"kind\":\"dupont-mm\",\"lengthMm\":\"auto\",\"color\":\"red\",\"a\":\"bb1:1a\",\"b\":\"bb1:bottom+.0\"},{\"id\":\"P2\",\"kind\":\"dupont-mm\",\"lengthMm\":\"auto\",\"color\":\"black\",\"a\":\"bb1:5a\",\"b\":\"bb1:bottom-.1\"},{\"id\":\"W1\",\"kind\":\"dupont-mm\",\"lengthMm\":\"auto\",\"color\":\"yellow\",\"a\":\"bb1:6j\",\"b\":\"bb1:30a\"},{\"id\":\"W2\",\"kind\":\"dupont-mm\",\"lengthMm\":\"auto\",\"color\":\"red\",\"a\":\"bb1:34a\",\"b\":\"bb1:bottom+.25\"},{\"id\":\"W3\",\"kind\":\"dupont-mm\",\"lengthMm\":\"auto\",\"color\":\"yellow\",\"a\":\"bb1:30c\",\"b\":\"bb1:40a\"},{\"id\":\"W4\",\"kind\":\"dupont-mm\",\"lengthMm\":\"auto\",\"color\":\"black\",\"a\":\"bb1:42a\",\"b\":\"bb1:bottom-.30\"}],\"nets\":[{\"net\":\"3V3\",\"tboardHoles\":[\"bb1:1d\",\"bb1:9d\"],\"partPins\":[\"R1.2\"],\"wireEnds\":[\"P1.a\",\"P1.b\",\"W2.a\",\"W2.b\"]},{\"net\":\"GND\",\"tboardHoles\":[\"bb1:3h\",\"bb1:5d\",\"bb1:7h\",\"bb1:10h\",\"bb1:13d\",\"bb1:15h\",\"bb1:17h\",\"bb1:20d\"],\"partPins\":[\"SW1.3\",\"SW1.4\"],\"wireEnds\":[\"P2.a\",\"P2.b\",\"W4.a\",\"W4.b\"]},{\"net\":\"GPIO18\",\"tboardHoles\":[\"bb1:6h\"],\"partPins\":[\"R1.1\",\"SW1.1\",\"SW1.2\"],\"wireEnds\":[\"W1.a\",\"W1.b\",\"W3.a\",\"W3.b\"]}],\"erc\":[{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO18\"],\"message\":\"GPIO18 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO18 in the code, or move the lead to the pin the code uses.\"}],\"code\":{\"library\":\"RPi.GPIO\",\"lines\":0,\"uses\":[],\"unresolved\":[]}}"
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMUJkvjRQCN3tsHc8cEx\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":3027,\"cache_read_input_tokens\":14249,\"cache_creation\":{\"ephemeral_5m_input_tokens\":3027,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":4,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\",\"signature\":\"\"}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"signature_delta\",\"signature\":\"scrubbed\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_01XnPqXW5VzPGTDWuEqAboEY\",\"name\":\"highlight\",\"input\":{},\"caller\":{\"type\":\"direct\"}}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"refs\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\": [\\\"P1\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\",\\\"W2\\\",\\\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"R1\\\",\\\"W1\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\",\\\"bb1:\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"bottom+\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\".0\\\",\\\"bb\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"1:botto\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"m+.25\\\"]\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\", \\\"note\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"\\\": \\\"Pul\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"l-up pa\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"th for \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"GPIO18:\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" 3V3 → \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"P1 → bo\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ttom+ r\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ail → W\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"2 → R1 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"→ W1 → \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"GPIO18.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\" Board \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"Sense s\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"ays thi\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"s path \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"is brok\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"en some\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"where.\\\"}\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":3027,\"cache_read_input_tokens\":14249,\"output_tokens\":767,\"output_tokens_details\":{\"thinking_tokens\":598}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  },
+  {
+   "rest": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 64000,
+    "stream": true,
+    "output_config": {
+     "effort": "medium"
+    },
+    "cache_control": {
+     "type": "ephemeral"
+    }
+   },
+   "messages": [
+    {
+     "role": "assistant",
+     "content": [
+      {
+       "type": "thinking",
+       "thinking": "",
+       "signature": "scrubbed"
+      },
+      {
+       "type": "tool_use",
+       "id": "toolu_01XnPqXW5VzPGTDWuEqAboEY",
+       "name": "highlight",
+       "input": {
+        "refs": [
+         "P1",
+         "W2",
+         "R1",
+         "W1",
+         "bb1:bottom+.0",
+         "bb1:bottom+.25"
+        ],
+        "note": "Pull-up path for GPIO18: 3V3 → P1 → bottom+ rail → W2 → R1 → W1 → GPIO18. Board Sense says this path is broken somewhere."
+       },
+       "caller": {
+        "type": "direct"
+       }
+      }
+     ]
+    },
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "tool_result",
+       "tool_use_id": "toolu_01XnPqXW5VzPGTDWuEqAboEY",
+       "content": "ok"
+      }
+     ]
+    }
+   ],
+   "status": 200,
+   "contentType": "text/event-stream; charset=utf-8",
+   "body": [
+    "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"model\":\"claude-opus-5-5\",\"id\":\"msg_011CgMUKVQrdHC94PpjU6rhX\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"container\":null,\"stop_reason\":null,\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":779,\"cache_read_input_tokens\":17276,\"cache_creation\":{\"ephemeral_5m_input_tokens\":779,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":3,\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\",\"signature\":\"\"}}",
+    "event: ping\ndata: {\"type\":\"ping\"}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"signature_delta\",\"signature\":\"scrubbed\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}",
+    "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":1,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"The tw\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"in is w\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ired correctly. On your real\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" board, the pull-up res\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"istor is\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"n't reaching GPI\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"O18.\\n\\n**What Board\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" Sense measured**\\n\\nG\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"PIO18 shows as\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" **diverged,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" missing path**. The twin\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" expects the pin held\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" high through\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" R1 to\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" 3V3. On the real\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" board the pin is\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" only following the Pi's own\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" weak internal bias. If\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the p\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"in isn't fir\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"mly held high, p\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ressing the button doesn't\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" make\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" a clear high\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"-\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"to-low change, so it\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" never registers.\\n\\n**Where\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" break is**\\n\\nThese\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" caus\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"es tie for\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the best match (21/21).\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" They all s\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"it on one\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" path,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" which I've highlighted on\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the board:\\n\\n3\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"V3 → **\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"P1** (\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"b\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"b1:1a to\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" bottom+.0) →\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" b\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ottom+ rail → **\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"W2** (bottom+\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\".25 to bb1:\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"34a) → **R1**\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" (34\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"b to 30b) → **\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"W1** (bb1:\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"30a to bb1:6\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"j,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the G\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"PIO18 row\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\")\\n\\nCheck these in order:\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"\\n1. **The\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" b\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ottom+ rail.**\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" P\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"1 go\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"es in\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" at r\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ail h\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ole 0 and W2 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"at hole 25. Many\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" 830-point boards split each\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" rail in the\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" middle, right\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" between\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" those two holes. If the red\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" line\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" on your r\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ail has a gap hal\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"fway along,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" W\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"2 is\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"n't getting 3V3\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\". This is my own\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" guess, not one\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" of Board Sense's cand\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"idates: it would\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" read\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" same as \\\"P1 missing\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"\\\" or \\\"W2 missing\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"\\\". Fix it by moving\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" W2's\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" r\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ail end to the\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" same half as P1, or by\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" adding a short jumper across\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the gap.\\n2. **\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"W1.** Check that\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" it's in row 6,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" column j (not row\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" 5 or 7)\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" and in\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" row 30, column a.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"\\n3. **W\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"2's board\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" end.** It\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" should be in row 34, column\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" a.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"\\n4. **R1.**\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" Its\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" legs should be ex\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"actly in rows 30 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"and 34. Being\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" one row off bre\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"aks the path\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\".\\n\\nThe button side\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" (W\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"3, W\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"4,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" SW1 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"in rows 40 and \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"42) scores lower at\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" 17/21,\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" so check\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" it last\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\".\\n\\n**What Board S\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ense can't t\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ell you\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"**\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"\\n\\nIt only\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" sees the G\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"PIO18 net. It\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" can't tell which\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" of those sp\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ots is the\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" act\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ual break, and G\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"PIO17 and GP\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"IO27 show as unob\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"served.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" Everything above com\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"es from the measurement\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" on GPIO18, not\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" from loo\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"king at the board\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\".\\n\\n**About\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the code**\\n\\nThe project has no\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" code stored, and\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" ERC war\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ns that GPIO18 \"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"is never set up.\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" Make\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" sure the program on\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" your Pi sets up\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" GPIO18 as an\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" input. With R\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"1 working\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\", it do\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"esn't need an\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" internal pull-up. If\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" you'd like, I can write\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the code\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" and check it in\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\" the sim\"}}",
+    "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":1,\"delta\":{\"type\":\"text_delta\",\"text\":\"ulator.\"}}",
+    "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":1}",
+    "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"container\":null},\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":779,\"cache_read_input_tokens\":17276,\"output_tokens\":807,\"output_tokens_details\":{\"thinking_tokens\":17}}}",
+    "event: message_stop\ndata: {\"type\":\"message_stop\"}"
+   ]
+  }
+ ]
+}

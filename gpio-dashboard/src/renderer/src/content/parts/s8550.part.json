@@ -1,0 +1,82 @@
+{
+  "id": "s8550",
+  "name": "S8550 PNP transistor (TO-92)",
+  "category": "semiconductor",
+  "kitTags": ["not in kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "Emitter",
+      "role": "emitter",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "Base",
+      "role": "base",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0]
+    },
+    {
+      "id": "3",
+      "label": "Collector",
+      "role": "collector",
+      "electricalType": "passive",
+      "offsetPitch": [2, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": { "kind": "rigid" },
+  "sim": {
+    "model": "pnp",
+    "params": {
+      "hfeMin": 85,
+      "hfeMax": 300,
+      "hfeTestIcMa": 50,
+      "hfeTestVceV": 1,
+      "hfeAt500MaMin": 40,
+      "hfeClassB": "85-150",
+      "hfeClassC": "120-200",
+      "hfeClassD": "160-300",
+      "vceSatMaxV": 0.6,
+      "vceSatTestIcMa": 500,
+      "vceSatTestIbMa": 50,
+      "vbeSatMaxV": 1.2,
+      "vbeOnTypV": 0.66,
+      "vbeOnMaxV": 1,
+      "icMaxMa": 500,
+      "vceoV": 25,
+      "vcboV": 40,
+      "veboV": 5,
+      "pdMaxW": 0.625
+    }
+  },
+  "properties": {},
+  "bodyMm": [4.7, 3.68, 4.7],
+  "geometry": {
+    "family": "to92",
+    "params": {
+      "bodyWidthMm": 4.7,
+      "bodyDepthMm": 3.68,
+      "bodyHeightMm": 4.7,
+      "leadDiaMaxMm": 0.63,
+      "leadLengthMinMm": 12.7,
+      "leadSpanStraightMm": 2.54,
+      "leadSpanBentMinMm": 4.4,
+      "leadSpanBentMaxMm": 5.6
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://media.digikey.com/pdf/Data%20Sheets/Micro%20Commercial%20PDFs/S8550(TO-92).pdf",
+      "https://www.mccsemi.com/pdf/Products/S8550(TO-92)-V1.pdf",
+      "https://www.onsemi.com/download/data-sheet/pdf/ss8550-d.pdf",
+      "https://alltransistors.com/adv/pdfview.php?dire=_blue-rocket-elect&doc=s8550.pdf",
+      "https://doc.platan.ru/pdf/datasheets/ntm/S8550.pdf",
+      "https://docs.sunfounder.com/projects/kepler-kit/en/latest/pyproject/py_transistor.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "Not in the SunFounder Basic Starter Kit for Raspberry Pi (its component list shows 'PN2222 x2' and no S8550; see the pn2222 part). SunFounder's Kepler kit ships S8550 as the PNP partner of S8050 (docs page 2.15), and the spec lists it as a library part. Values are magnitudes; the polarity of a PNP is implied by sim model 'pnp'. PIN ORDER CONFLICT between makers: MCC S8550 (rev D, 2013, drawing opened; the V1 sheet text says '1.EMITTER 2.BASE 3.COLLECTOR'), onsemi/Fairchild SS8550 (1 emitter, 2 base, 3 collector) and the UTC S8550 (E, B, C) agree. Foshan Blue Rocket Electronics S8550 rev E, March 2016 ('PIN1 Collector, PIN 2 Base, PIN 3 Emitter', read through the alltransistors.com text extract) is the reverse. This file follows the majority and MCC (E, B, C), with the flat face toward the viewer and leads down, pin 1 on the left; at rotation 0 the flat face points toward column a. A Blue Rocket part would be wired backwards if placed from this definition, so check the maker's datasheet or the part's marking before trusting the pin order. Electrical values follow the MCC rev D sheet: hFE(1) 85 to 300 at IC 50 mA, VCE 1 V, with classes B 85-150, C 120-200 and D 160-300; hFE(2) at least 40 at 500 mA; VCE(sat) max 0.6 V and VBE(sat) max 1.2 V at 500 mA/50 mA; IC 0.5 A; V(BR)CEO 25 V, VCBO 40 V, V(BR)EBO 5 V; 625 mW. MCC gives no VBE(on); the 0.66 V typical and 1.0 V maximum magnitudes (VCE 1 V, IC 10 mA) are from onsemi's SS8550 sheet, which Blue Rocket's S8550 repeats. Ratings differ by maker, so the sim must not treat them as universal: onsemi SS8550 IC 1.5 A, VEBO 6 V, hFE2 85 to 300 at 100 mA; UTC VCEO 20 V and IC 700 mA; Blue Rocket IC 800 mA. The MCC column is the most conservative of the full sheets read. Dimensions (MCC): body 4.45 to 4.70 wide and tall and 3.43 to 3.68 deep (maxima used), leads 0.41 to 0.63 dia and at least 12.70 long. Outer-lead span is 2.42 to 2.67 mm for straight leads and 4.40 to 5.60 mm for the bent form; in a breadboard the leads are spread to the 2.54 mm grid, so the offsets are [0,0], [1,0], [2,0]."
+  }
+}

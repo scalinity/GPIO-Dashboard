@@ -1,0 +1,266 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Relay",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "relay"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "K1",
+      "defId": "relay-module-5v",
+      "props": {},
+      "placement": {
+        "pins": {
+          "S": null,
+          "+": null,
+          "-": null,
+          "NC": null,
+          "COM": null,
+          "NO": null
+        },
+        "offboardPose": {
+          "position": [
+            30,
+            -75
+          ],
+          "rotationDeg": 0
+        }
+      }
+    },
+    {
+      "id": "R1",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 30,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 34,
+            "col": "b"
+          }
+        }
+      }
+    },
+    {
+      "id": "D1",
+      "defId": "led",
+      "props": {
+        "color": "red",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 34,
+            "col": "c"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "main",
+            "row": 35,
+            "col": "c"
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "pin": {
+          "part": "K1",
+          "pin": "+"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "i"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "pin": {
+          "part": "K1",
+          "pin": "-"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 3,
+          "col": "i"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "pin": {
+          "part": "K1",
+          "pin": "S"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "color": "blue",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "pin": {
+          "part": "K1",
+          "pin": "COM"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 2,
+          "col": "i"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W5",
+      "a": {
+        "pin": {
+          "part": "K1",
+          "pin": "NO"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 30,
+          "col": "a"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W6",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 35,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 3,
+          "col": "j"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\nRELAY_PIN = 17  # BCM numbering: header pin 11, to the relay module's S pin\n\nGPIO.setmode(GPIO.BCM)\n# The module is active high: HIGH on S energises the coil, LOW lets the relay fall back.\nGPIO.setup(RELAY_PIN, GPIO.OUT, initial=GPIO.LOW)\n\ntry:\n    while True:\n        GPIO.output(RELAY_PIN, GPIO.HIGH)\n        print('Relay energised: COM is joined to NO, so the LED is on')\n        time.sleep(1)\n        GPIO.output(RELAY_PIN, GPIO.LOW)\n        print('Relay released: COM is joined to NC, so the LED is off')\n        time.sleep(1)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.output(RELAY_PIN, GPIO.LOW)\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "K1": {
+      "why": "The module carries the coil, the transistor that drives it and a flyback diode, so a GPIO pin can drive it directly.",
+      "mistake": "Putting the load on the S, + and − header instead of the screw terminals."
+    },
+    "R1": {
+      "why": "The resistor sets the LED current when the contact closes."
+    },
+    "D1": {
+      "why": "The LED shows when the contact is closed.",
+      "mistake": "The LED in backwards: it stays dark even though the relay clicks."
+    },
+    "W3": {
+      "why": "GPIO17 drives S: HIGH energises the coil."
+    },
+    "W4": {
+      "why": "COM is the relay’s moving contact. It is fed from 5 V here, so closing it to NO powers the LED."
+    },
+    "W5": {
+      "why": "NO, normally open, is joined to COM only while the coil is energised."
+    }
+  }
+}

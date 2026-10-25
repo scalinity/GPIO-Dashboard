@@ -11,7 +11,7 @@ use std::{
 use russh::{
     client::{self, DisconnectReason, Handle},
     keys::{self, PrivateKeyWithHashAlg, PublicKeyOrCertificate},
-    Channel, ChannelMsg, Disconnect,
+    Channel, ChannelMsg, ChannelStream, Disconnect,
 };
 use serde_json::{json, Value};
 use tokio::sync::{mpsc, Notify};
@@ -24,6 +24,7 @@ const KEEPALIVE_MAX: usize = 3;
 const MAX_RECONNECT_DELAY_MS: u64 = 30_000;
 const MAX_RECONNECT_ATTEMPTS: u32 = 10;
 const SHELL_INIT_TIMEOUT: Duration = Duration::from_secs(10);
+const TUNNEL_OPEN_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Clone)]
 pub enum Auth {
@@ -180,8 +181,17 @@ impl Utf8Stream {
     }
 }
 
-/// Trust on first use, like OpenSSH's `accept-new`: an unknown host's key is recorded in
-/// `known_hosts`, a known one must match, and a changed key is refused.
+fn changed_key_error(host: &str, port: u16, known_hosts: &Path, line: usize) -> String {
+    format!(
+        "The host key for {host}:{port} has changed since it was first saved ({}, line {line}). \
+         If that is expected, for example after reinstalling the Pi, delete that line and \
+         connect again; otherwise someone may be impersonating it.",
+        known_hosts.display()
+    )
+}
+
+/// Trust on first use, like OpenSSH's `accept-new`: a host:port with no entry in `known_hosts`
+/// has its key recorded, a known one must match, and a changed key is refused.
 fn verify_host_key(
     host: &str,
     port: u16,
@@ -193,14 +203,24 @@ fn verify_host_key(
     };
     match keys::check_known_hosts_path(host, port, key, known_hosts) {
         Ok(true) => Ok(()),
-        Ok(false) => keys::known_hosts::learn_known_hosts_path(host, port, key, known_hosts)
-            .map_err(|e| format!("Could not save the host key to {}: {e}", known_hosts.display())),
-        Err(keys::Error::KeyChanged { line }) => Err(format!(
-            "The host key for {host}:{port} has changed since it was first saved ({}, line {line}). \
-             If that is expected, for example after reinstalling the Pi, delete that line and \
-             connect again; otherwise someone may be impersonating it.",
-            known_hosts.display()
-        )),
+        // `false` also covers a key of another algorithm than the one on file, which is a changed
+        // key, not a new host.
+        Ok(false) => match keys::known_hosts::known_host_keys_path(host, port, known_hosts) {
+            Ok(on_file) => match on_file.first() {
+                Some((line, _)) => Err(changed_key_error(host, port, known_hosts, *line)),
+                None => keys::known_hosts::learn_known_hosts_path(host, port, key, known_hosts)
+                    .map_err(|e| {
+                        format!(
+                            "Could not save the host key to {}: {e}",
+                            known_hosts.display()
+                        )
+                    }),
+            },
+            Err(e) => Err(format!("Could not check {}: {e}", known_hosts.display())),
+        },
+        Err(keys::Error::KeyChanged { line }) => {
+            Err(changed_key_error(host, port, known_hosts, line))
+        }
         Err(e) => Err(format!("Could not check {}: {e}", known_hosts.display())),
     }
 }
@@ -504,16 +524,22 @@ impl Ssh {
             .map_err(|_| format!("Command timed out after {}ms", timeout.as_millis()))?
     }
 
-    /// Runs `cmd`, forwarding its output to the renderer as it arrives.
-    /// Resolves to `{ code }`, or `{ code: -1, timedOut: true }` on timeout.
-    pub async fn execute_streaming(&self, cmd: &str, timeout: Duration) -> Result<Value, String> {
+    /// Runs `cmd`, forwarding its output to the renderer as it arrives, until it exits, Stop
+    /// is pressed, or the optional time limit passes (D17: a run has no fixed deadline).
+    /// Resolves to `{ code }`, or `{ code: -1, timedOut: true }` when the limit ends it.
+    /// Ending the stream closes the channel only; the caller kills the remote process.
+    pub async fn execute_streaming(
+        &self,
+        cmd: &str,
+        limit: Option<Duration>,
+    ) -> Result<Value, String> {
         let handle = self.connected_handle()?;
 
         // The stop signal exists before the channel is opened, so Stop works even while
         // a stalled server has not yet answered.
         let kill = Arc::new(Notify::new());
         self.st().tutorial_kill = Some(kill.clone());
-        let result = self.stream_command(&handle, cmd, &kill, timeout).await;
+        let result = self.stream_command(&handle, cmd, &kill, limit).await;
         {
             let mut s = self.st();
             if s.tutorial_kill
@@ -531,10 +557,15 @@ impl Ssh {
         handle: &Handle<ClientHandler>,
         cmd: &str,
         kill: &Notify,
-        timeout: Duration,
+        limit: Option<Duration>,
     ) -> Result<Value, String> {
         let killed = kill.notified();
-        let deadline = tokio::time::sleep(timeout);
+        let deadline = async {
+            match limit {
+                Some(limit) => tokio::time::sleep(limit).await,
+                None => std::future::pending().await,
+            }
+        };
         tokio::pin!(killed, deadline);
 
         // Opening the channel is covered by the same deadline and stop signal.
@@ -594,6 +625,25 @@ impl Ssh {
         if let Some(kill) = self.st().tutorial_kill.take() {
             kill.notify_one();
         }
+    }
+
+    /// Opens a TCP connection from the remote host to `host:port` through this SSH session
+    /// (a direct-tcpip channel), so a service bound to the Pi's loopback interface, like
+    /// the agent on 127.0.0.1:8765, is reachable without listening on the network (D18).
+    pub async fn open_tunnel(
+        &self,
+        host: &str,
+        port: u16,
+    ) -> Result<ChannelStream<client::Msg>, String> {
+        let handle = self.connected_handle()?;
+        let channel = tokio::time::timeout(
+            TUNNEL_OPEN_TIMEOUT,
+            handle.channel_open_direct_tcpip(host, u32::from(port), "127.0.0.1", 0),
+        )
+        .await
+        .map_err(|_| format!("Opening the tunnel to {host}:{port} timed out"))?
+        .map_err(|e| format!("Could not open a tunnel to {host}:{port}: {e}"))?;
+        Ok(channel.into_stream())
     }
 
     /// Writes `data` to `remote_path` by piping it into `cat` on the remote side.
@@ -794,5 +844,51 @@ mod tests {
         assert_eq!(shell_quote("plain"), "'plain'");
         assert_eq!(shell_quote("it's"), r"'it'\''s'");
         assert_eq!(shell_quote("a b; rm -rf /"), "'a b; rm -rf /'");
+    }
+
+    // Sample public keys from russh's and age's own tests: an Ed25519 key and an ECDSA P-256 key.
+    const ED25519: &str = "AAAAC3NzaC1lZDI1NTE5AAAAIJdD7y3aLq454yWBdwLWbieU1ebz9/cu7/QEXn9OIeZJ";
+    const ECDSA: &str = "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBHFliOyIZs1gxGF3fmDxFykQhE88wy6AKDGFBfn0R6ZuvRmENABZQa9+pj9hMki+LX0qDJbmHTiWDbYv/cmFt/Q=";
+
+    fn presented(key: &str) -> PublicKeyOrCertificate {
+        PublicKeyOrCertificate::PublicKey {
+            key: keys::parse_public_key_base64(key).unwrap(),
+            hash_alg: None,
+        }
+    }
+
+    fn temp_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("gpio-ssh-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        dir
+    }
+
+    #[test]
+    fn a_known_host_presenting_a_key_of_another_algorithm_is_refused() {
+        let dir = temp_dir("other-algorithm");
+        let known_hosts = dir.join("known_hosts");
+        verify_host_key("pi.local", 22, &known_hosts, &presented(ED25519)).unwrap();
+        verify_host_key("pi.local", 22, &known_hosts, &presented(ED25519)).unwrap();
+        let saved = std::fs::read_to_string(&known_hosts).unwrap();
+        assert!(saved.contains("pi.local ssh-ed25519 "), "{saved}");
+
+        let error = verify_host_key("pi.local", 22, &known_hosts, &presented(ECDSA)).unwrap_err();
+        assert!(error.contains("has changed"), "{error}");
+        assert_eq!(std::fs::read_to_string(&known_hosts).unwrap(), saved);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_host_and_port_with_no_entry_is_learned_whatever_the_algorithm() {
+        let dir = temp_dir("new-port");
+        let known_hosts = dir.join("known_hosts");
+        verify_host_key("pi.local", 22, &known_hosts, &presented(ED25519)).unwrap();
+        verify_host_key("pi.local", 2222, &known_hosts, &presented(ECDSA)).unwrap();
+        let saved = std::fs::read_to_string(&known_hosts).unwrap();
+        assert!(
+            saved.contains("[pi.local]:2222 ecdsa-sha2-nistp256 "),
+            "{saved}"
+        );
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

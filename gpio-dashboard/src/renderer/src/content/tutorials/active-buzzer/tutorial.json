@@ -1,0 +1,102 @@
+{
+  "id": "active-buzzer",
+  "title": "Active Buzzer",
+  "order": 5,
+  "kitProject": "1.2.1",
+  "tags": [],
+  "summary": "Beep an active buzzer from GPIO17 through a PN2222 transistor. The buzzer runs from 5 V and the pin only supplies the transistor's base current.",
+  "sources": {
+    "kit": "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.2.1%20Active%20Buzzer.html",
+    "datasheets": [
+      "https://stacktronics.com/wp-content/uploads/2024/12/TMB12A05.pdf",
+      "https://www.megastar.com/content/pdfs/PN2222A-D.pdf",
+      "https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "GPIO17 HIGH saturates Q1, so BZ1 sounds and the pin supplies only a few milliamps",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": true
+        }
+      },
+      "expect": [
+        {
+          "part": "BZ1",
+          "view": {
+            "sounding": true
+          }
+        },
+        {
+          "pin": "BZ1.+",
+          "volts": {
+            "min": 4.9
+          }
+        },
+        {
+          "pin": "BZ1.-",
+          "volts": {
+            "max": 0.3
+          }
+        },
+        {
+          "gpio": 17,
+          "currentA": {
+            "min": 0.001,
+            "max": 0.016
+          }
+        }
+      ]
+    },
+    {
+      "name": "GPIO17 LOW turns Q1 off, so BZ1 is silent with no voltage across it",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "part": "BZ1",
+          "view": {
+            "sounding": false
+          }
+        },
+        {
+          "pin": "BZ1.-",
+          "volts": {
+            "min": 4.9
+          }
+        }
+      ]
+    },
+    {
+      "name": "GPIO17 as a pulled-down input, as at power-up, leaves BZ1 silent",
+      "gpio": {
+        "17": {
+          "mode": "in",
+          "pull": "down"
+        }
+      },
+      "expect": [
+        {
+          "read": 17,
+          "is": "low"
+        },
+        {
+          "part": "BZ1",
+          "view": {
+            "sounding": false
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoints": []
+}

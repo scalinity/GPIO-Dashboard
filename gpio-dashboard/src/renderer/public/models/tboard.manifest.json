@@ -1,0 +1,133 @@
+{
+  "name": "tboard",
+  "tools": {
+    "blender": "Blender 5.2.2 LTS",
+    "ktx": "ktx version: v4.4.2"
+  },
+  "script": {
+    "path": "scripts/assets/blender/tboard.py",
+    "args": {
+      "tboard": "src/renderer/src/content/controllers/tboard.json",
+      "texture": "2048x2048",
+      "samples": 128,
+      "seed": 0
+    },
+    "sha256": {
+      "blender/tboard.py": "8825c4fb00f04b5ffbcff624d0770390ac5da7347c2127be6ed0f5345df340c8",
+      "blender/lib/__init__.py": "fde31da9f6d72b2297d6828833720649d7d25feab9e48e41ede38379551cb95a",
+      "blender/lib/bake.py": "79d84decfc2118f593cbd56a4b2de266e48c41e5f27ba36cded71d45b83f7ed1",
+      "blender/lib/export.py": "5832244f9a618a46fd65b3f7b0f5c816c591ead0510aebe744e339423a8774a7",
+      "blender/lib/materials.py": "4fd8a2aaf9f6f5b064f8bf9737e168abf65cfc1a5789fb7a248cb8e0b91187cb",
+      "blender/lib/scene.py": "7d4ebb2378fead7573344de3b3a44bf12a34dc2bdc7b544c91c608837e196089"
+    }
+  },
+  "inputs": [
+    {
+      "path": "src/renderer/src/content/controllers/tboard.json",
+      "sha256": "00860158e7a2bdfa20c1ded858364d47cd874bdcdc315acab0d1988d6bcd4366"
+    }
+  ],
+  "sources": [],
+  "triangles": 13448,
+  "bytes": 1604728,
+  "textures": [
+    {
+      "name": "tboard-header-normal",
+      "format": "UASTC",
+      "size": [
+        1024,
+        1024
+      ],
+      "slots": [
+        "normalTexture"
+      ]
+    },
+    {
+      "name": "tboard-header-occlusion",
+      "format": "UASTC",
+      "size": [
+        1024,
+        1024
+      ],
+      "slots": [
+        "occlusionTexture"
+      ]
+    },
+    {
+      "name": "tboard-top-normal",
+      "format": "UASTC",
+      "size": [
+        1652,
+        2048
+      ],
+      "slots": [
+        "normalTexture"
+      ]
+    },
+    {
+      "name": "tboard-top-occlusion",
+      "format": "UASTC",
+      "size": [
+        828,
+        1024
+      ],
+      "slots": [
+        "occlusionTexture"
+      ]
+    },
+    {
+      "name": "tboard-top-color",
+      "format": "ETC1S",
+      "size": [
+        1652,
+        2048
+      ],
+      "slots": [
+        "baseColorTexture"
+      ]
+    },
+    {
+      "name": "tboard-bottom-normal",
+      "format": "UASTC",
+      "size": [
+        1652,
+        2048
+      ],
+      "slots": [
+        "normalTexture"
+      ]
+    },
+    {
+      "name": "tboard-bottom-occlusion",
+      "format": "UASTC",
+      "size": [
+        828,
+        1024
+      ],
+      "slots": [
+        "occlusionTexture"
+      ]
+    },
+    {
+      "name": "tboard-bottom-color",
+      "format": "ETC1S",
+      "size": [
+        1652,
+        2048
+      ],
+      "slots": [
+        "baseColorTexture"
+      ]
+    }
+  ],
+  "budget": {
+    "texturePx": [
+      2048,
+      2048
+    ],
+    "triangles": 20000,
+    "bytes": 3000000,
+    "met": true
+  },
+  "geometryHash": "a3b01c62ff9cf8c732f432120f99991d88d64c568fab030a51e267004c25d2df"
+}

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-gpio-connect"
+description = "Enables the gpio_connect command without any pre-configured scope."
+commands.allow = ["gpio_connect"]
+
+[[permission]]
+identifier = "deny-gpio-connect"
+description = "Denies the gpio_connect command without any pre-configured scope."
+commands.deny = ["gpio_connect"]

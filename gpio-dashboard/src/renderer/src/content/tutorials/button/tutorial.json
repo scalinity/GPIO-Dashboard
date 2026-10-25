@@ -1,0 +1,191 @@
+{
+  "id": "button",
+  "title": "Button",
+  "order": 10,
+  "kitProject": "2.1.1",
+  "tags": [],
+  "summary": "Light an LED while a button is held. A 10 kΩ pull-up holds GPIO18 HIGH until the button ties it to GND, and the LED lights when GPIO17 goes LOW.",
+  "sources": {
+    "kit": "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/2.1.1%20Button.html",
+    "datasheets": [
+      "https://omronfs.omron.com/en_US/ecb/products/pdf/en-b3f.pdf",
+      "https://www.kingbrightusa.com/images/catalog/SPEC/WP7113ID.pdf",
+      "https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "Released, with the code's internal pull-up on: GPIO18 reads HIGH",
+      "gpio": {
+        "18": {
+          "mode": "in",
+          "pull": "up"
+        }
+      },
+      "inputs": {
+        "SW1": {
+          "pressed": false
+        }
+      },
+      "expect": [
+        {
+          "read": 18,
+          "is": "high"
+        },
+        {
+          "pin": "SW1.1",
+          "volts": {
+            "min": 3.2
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pressed, with the code's internal pull-up on: GPIO18 reads LOW",
+      "gpio": {
+        "18": {
+          "mode": "in",
+          "pull": "up"
+        }
+      },
+      "inputs": {
+        "SW1": {
+          "pressed": true
+        }
+      },
+      "expect": [
+        {
+          "read": 18,
+          "is": "low"
+        },
+        {
+          "pin": "SW1.1",
+          "volts": {
+            "max": 0.1
+          }
+        }
+      ]
+    },
+    {
+      "name": "Released, with no internal pull at all: the 10 kΩ pull-up alone holds GPIO18 HIGH",
+      "gpio": {
+        "18": {
+          "mode": "in",
+          "pull": "off"
+        }
+      },
+      "inputs": {
+        "SW1": {
+          "pressed": false
+        }
+      },
+      "expect": [
+        {
+          "read": 18,
+          "is": "high"
+        },
+        {
+          "pin": "R2.1",
+          "volts": {
+            "min": 3.2
+          }
+        },
+        {
+          "pin": "R2.2",
+          "volts": {
+            "min": 3.2
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pressed, with no internal pull at all: the switch alone pulls GPIO18 LOW",
+      "gpio": {
+        "18": {
+          "mode": "in",
+          "pull": "off"
+        }
+      },
+      "inputs": {
+        "SW1": {
+          "pressed": true
+        }
+      },
+      "expect": [
+        {
+          "read": 18,
+          "is": "low"
+        },
+        {
+          "pin": "R2.2",
+          "volts": {
+            "max": 0.1
+          }
+        }
+      ]
+    },
+    {
+      "name": "GPIO17 LOW lights D1 with at least 1 mA, within its rating and the pin's 16 mA",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "min": 0.001,
+            "max": 0.03
+          }
+        },
+        {
+          "gpio": 17,
+          "currentA": {
+            "min": -0.016
+          }
+        }
+      ],
+      "inputs": {
+        "SW1": {
+          "pressed": true
+        }
+      }
+    },
+    {
+      "name": "GPIO17 HIGH turns D1 off",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": true
+        }
+      },
+      "expect": [
+        {
+          "die": "D1.D",
+          "currentA": {
+            "max": 1e-6
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "kind": "toggle-led",
+      "afterStep": "W2",
+      "part": "D1",
+      "gpio": 17
+    },
+    {
+      "kind": "press",
+      "afterStep": "W5",
+      "part": "SW1",
+      "gpio": 18
+    }
+  ]
+}

@@ -1,10 +1,10 @@
 // Exposes the `window.api` bridge the renderer uses, backed by Tauri commands
 // (src-tauri/src/commands.rs) and events. Skipped outside Tauri, so the UI can
 // still be previewed in a plain browser with `npm run web:dev`.
-import { invoke } from '@tauri-apps/api/core'
+import { Channel, invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 
-export function createApi({ invoke, listen }) {
+export function createApi({ invoke, listen, Channel }) {
   // `listen` is async, but callers expect a synchronous unsubscribe function. Events that
   // arrive before the real unlisten completes are dropped.
   const on = (event, callback) => {
@@ -44,9 +44,10 @@ export function createApi({ invoke, listen }) {
       disconnect: () => invoke('ssh_disconnect'),
       runTutorialScript: (filename) => structured('ssh_run_tutorial_script', { filename }),
       killProcess: (filename) => structured('ssh_kill_process', { filename }),
-      gpioCleanup: () => structured('ssh_gpio_cleanup'),
+      gpioCleanup: (pins) => structured('ssh_gpio_cleanup', { pins }),
       scpBuffer: (content, remotePath) => structured('ssh_scp_buffer', { content, remotePath }),
       getStatus: () => invoke('ssh_get_status'),
+      i2cScan: (bus) => structured('ssh_i2c_scan', { bus }),
       onStatusChange: (callback) => on('ssh:status-change', callback),
       onTutorialOutput: (callback) => on('tutorial:output', callback)
     },
@@ -84,17 +85,38 @@ export function createApi({ invoke, listen }) {
       getAll: () => invoke('settings_get_all')
     },
 
-    ai: {
-      // Fire-and-forget: results and failures come back as events.
-      generate: (params) => {
-        invoke('ai_generate', { params }).catch(() => {})
-      },
-      abort: () => invoke('ai_abort'),
-      onChunk: (callback) => on('ai:chunk', callback),
-      onDone: (callback) => on('ai:done', callback),
-      onError: (callback) => on('ai:error', callback),
-      setApiKey: (value) => structured('settings_set_api_key', { value }),
-      hasApiKey: () => invoke('settings_has_api_key')
+    // The key goes to the Keychain through Rust; no command ever returns it.
+    anthropic: {
+      // Streams one API request through the Rust proxy, which adds the key. `onMessage`
+      // receives { status, headers }, then ArrayBuffer body chunks, then { end: true } or
+      // { error: { code, message } }.
+      request: (req, onMessage) =>
+        invoke('anthropic_request', { req, channel: new Channel(onMessage) }),
+      abort: (id) => invoke('anthropic_abort', { id }),
+      setKey: (value) => structured('settings_set_anthropic_key', { value }),
+      hasKey: () => invoke('settings_has_anthropic_key'),
+      clearKey: () => structured('settings_clear_anthropic_key')
+    },
+
+    // Board Sense (SPEC 14.5): only the Board tab's handlers call these.
+    sense: {
+      start: (pins, settleUs, periodMs) => structured('sense_start', { pins, settleUs, periodMs }),
+      stop: () => structured('sense_stop'),
+      pause: () => structured('sense_pause'),
+      resume: () => structured('sense_resume'),
+      onSweep: (callback) => on('gpio:sense', callback),
+      onEvent: (callback) => on('gpio:sense-event', callback)
+    },
+    projects: {
+      list: () => structured('projects_list'),
+      read: (id) => structured('projects_read', { id }),
+      write: (id, doc) => structured('projects_write', { id, doc }),
+      delete: (id) => structured('projects_delete', { id }),
+      export: (doc) => structured('projects_export', { doc }),
+      import: () => structured('projects_import'),
+      // The assistant's transcript beside the project's file; the Claude panel writes it.
+      writeTranscript: (id, transcript) =>
+        structured('projects_write_transcript', { id, transcript })
     }
   }
 }
@@ -126,6 +148,6 @@ function installExternalLinkHandler(invoke) {
 }
 
 if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__) {
-  window.api = createApi({ invoke, listen })
+  window.api = createApi({ invoke, listen, Channel })
   installExternalLinkHandler(invoke)
 }

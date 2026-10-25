@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ssh-gpio-cleanup"
+description = "Enables the ssh_gpio_cleanup command without any pre-configured scope."
+commands.allow = ["ssh_gpio_cleanup"]
+
+[[permission]]
+identifier = "deny-ssh-gpio-cleanup"
+description = "Denies the ssh_gpio_cleanup command without any pre-configured scope."
+commands.deny = ["ssh_gpio_cleanup"]

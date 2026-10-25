@@ -1,0 +1,75 @@
+{
+  "id": "electrolytic-capacitor",
+  "name": "Electrolytic capacitor, radial polarized",
+  "category": "passive",
+  "kitTags": ["not in kit"],
+  "pins": [
+    {
+      "id": "+",
+      "label": "Positive (+, longer lead)",
+      "role": "positive",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "-",
+      "label": "Negative (−, shorter lead, marked side)",
+      "role": "negative",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": {
+    "kind": "flex-2lead",
+    "minSpan": 1,
+    "maxSpan": 6
+  },
+  "sim": {
+    "model": "electrolytic",
+    "params": {
+      "ratedVoltageV": 25,
+      "tanDeltaMax": 0.16,
+      "leakageCoef2Min": 0.01,
+      "ratedRippleMa": 330,
+      "capTolPct": 20
+    }
+  },
+  "properties": {
+    "capacitance": {
+      "type": "number",
+      "label": "Capacitance",
+      "unit": "F",
+      "min": 1e-6,
+      "max": 0.022,
+      "default": 0.00022
+    },
+    "ratedVoltage": {
+      "type": "number",
+      "label": "Rated voltage",
+      "unit": "V",
+      "min": 6.3,
+      "max": 450,
+      "default": 25
+    }
+  },
+  "bodyMm": [8.5, 8.5, 11.5],
+  "geometry": {
+    "family": "electrolytic-cap",
+    "params": {
+      "diameterMm": 8.0,
+      "sleeveMaxDiameterMm": 8.5,
+      "lengthMm": 11.5,
+      "lengthTolMm": 1.5,
+      "leadSpacingMm": 3.5,
+      "leadSpacingTolMm": 0.5,
+      "leadDiameterMm": 0.6,
+      "negativeLeadLengthMinMm": 15,
+      "positiveLeadExtraMinMm": 4
+    }
+  },
+  "provenance": {
+    "sources": ["https://www.nichicon.co.jp/english/series_items/catalog_pdf/e-uvr.pdf"],
+    "notes": "Datasheet: Nichicon UVR miniature aluminum electrolytic series sheet (4 pages), part UVR1E221MPD = 220 µF, 25 V, case 8 x 11.5 mm. Specifications table p.1: tolerance ±20% at 120 Hz, 20 °C; rated voltage 6.3 to 450 V and capacitance 1 to 22000 µF (property limits); leakage current at most 0.01CV µA after 2 minutes at rated voltage (I in µA, C in µF, V in V; 0.03CV after 1 minute); tan δ max 0.16 at 25 V (120 Hz, 20 °C). Part table: 220 µF 25 V, 8x11.5, tan δ 0.16, leakage 165 µA at 1 minute and 55 µA at 2 minutes (matches 0.03CV and 0.01CV), rated ripple 330 mA rms at 85 °C, 120 Hz. ESR is not tabulated; at the part's own capacitance C it is about tan δ / (2π x 120 Hz x C), which is 0.97 Ω for 220 µF, a derived figure and not a datasheet value. Radial-lead drawing p.1 and its dimension table: ød 0.6 and P (lead spacing) 3.5±0.5 for ØD 8; ØD + 0.5 max for the sleeve; length L ± 1.5 for L up to 20 mm. The drawing marks the longer lead ⊕ and the shorter lead ⊖ (15 mm minimum for the ⊖ lead, 4 mm more for the ⊕ lead). The sheet only says 'printed with white letter on black sleeve' and draws no polarity stripe, so the stripe is not confirmed here; the ⊖ lead and the marked side are the datasheet's polarity cues. Not in the kit: the SunFounder component list image has no electrolytic capacitor. Spans: minSpan 1 needs the 3.5 mm leads bent in by about 0.5 mm each to the 2.54 mm grid; 2 pitches (5.08 mm) bends them out by a similar amount. maxSpan 6 = floor((3.5 + 2 x (15 - 8)) / 2.54); 15 mm is the minimum ⊖ lead length and the 8 mm bend/insertion allowance is a modelling assumption. bodyMm is [sleeve diameter max, sleeve diameter max, nominal length]. Default 220 µF / 25 V is the exact row the dimensions describe; other values change the can size."
+  }
+}

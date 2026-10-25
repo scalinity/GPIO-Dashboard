@@ -1,0 +1,66 @@
+{
+  "name": "ribbon",
+  "tools": {
+    "blender": "Blender 5.2.2 LTS",
+    "ktx": "ktx version: v4.4.2"
+  },
+  "script": {
+    "path": "scripts/assets/blender/ribbon.py",
+    "args": {
+      "ribbon": "src/renderer/src/content/controllers/ribbon.json",
+      "colors": "brown=6b3a1d,red=d81e1e,orange=f07a12,yellow=f2d21a,green=1fa84a,blue=1f59d6,violet=7a2fc4,grey=9a9a9e,white=eeeeea,black=1c1c1f",
+      "texture": "1280x64",
+      "samples": 128,
+      "seed": 0
+    },
+    "sha256": {
+      "blender/ribbon.py": "5537475e7ff37732c78a0bb34dd23e1d5897964c7c28dd5eb75cb7cb0ad0e1cf",
+      "blender/lib/__init__.py": "fde31da9f6d72b2297d6828833720649d7d25feab9e48e41ede38379551cb95a",
+      "blender/lib/bake.py": "79d84decfc2118f593cbd56a4b2de266e48c41e5f27ba36cded71d45b83f7ed1",
+      "blender/lib/export.py": "5832244f9a618a46fd65b3f7b0f5c816c591ead0510aebe744e339423a8774a7",
+      "blender/lib/materials.py": "4fd8a2aaf9f6f5b064f8bf9737e168abf65cfc1a5789fb7a248cb8e0b91187cb",
+      "blender/lib/scene.py": "7d4ebb2378fead7573344de3b3a44bf12a34dc2bdc7b544c91c608837e196089"
+    }
+  },
+  "inputs": [
+    {
+      "path": "src/renderer/src/content/controllers/ribbon.json",
+      "sha256": "c0f196bfd7f26c17c69bd1ef99eb845f83ca0ae30c825b2f03498c0d1ac055e1"
+    }
+  ],
+  "sources": [],
+  "triangles": 0,
+  "bytes": 6289,
+  "textures": [
+    {
+      "name": "ribbon-ridges.ktx2",
+      "format": "UASTC",
+      "size": [
+        1280,
+        64
+      ],
+      "slots": [
+        "normal"
+      ]
+    },
+    {
+      "name": "ribbon-colors.ktx2",
+      "format": "RGBA8",
+      "size": [
+        40,
+        1
+      ],
+      "slots": [
+        "lookup"
+      ]
+    }
+  ],
+  "budget": {
+    "texturePx": [
+      1280,
+      64
+    ],
+    "bytes": 100000,
+    "met": true
+  }
+}

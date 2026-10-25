@@ -1,0 +1,151 @@
+{
+  "id": "dht11",
+  "title": "DHT-11",
+  "order": 15,
+  "kitProject": "2.2.3",
+  "tags": [],
+  "summary": "Read temperature and humidity from the DHT11 module over one data wire on GPIO17, with a 10 kOhm pull-up holding the line high.",
+  "sources": {
+    "kit": "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/2.2.3%20DHT-11.html",
+    "datasheets": [
+      "https://components101.com/sites/default/files/component_datasheet/DHT11-Temperature-Sensor.pdf",
+      "https://www.mouser.com/datasheet/2/758/DHT11-Technical-Data-Sheet-Translated-Version-1143054.pdf",
+      "https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "DHT1 is powered from 3V3 and DATA idles high through the pull-up",
+      "gpio": {
+        "17": {
+          "mode": "in",
+          "pull": "off"
+        }
+      },
+      "expect": [
+        {
+          "pin": "DHT1.VCC",
+          "volts": {
+            "min": 3.28,
+            "max": 3.32
+          }
+        },
+        {
+          "pin": "DHT1.DATA",
+          "volts": {
+            "min": 3.28,
+            "max": 3.32
+          }
+        },
+        {
+          "read": 17,
+          "is": "high"
+        },
+        {
+          "part": "DHT1",
+          "view": {
+            "powered": true,
+            "transmitting": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "A 20 ms low start on GPIO17 wakes the sensor, which pulls DATA low to answer",
+      "inputs": {
+        "DHT1": {
+          "temperatureC": 30,
+          "humidityPct": 60
+        }
+      },
+      "gpio": {
+        "17": {
+          "mode": "in",
+          "pull": "off"
+        }
+      },
+      "advanceS": 1.1,
+      "sequence": [
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            }
+          },
+          "advanceS": 0.02
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "in",
+              "pull": "off"
+            }
+          },
+          "advanceS": 0.00006
+        }
+      ],
+      "expect": [
+        {
+          "read": 17,
+          "is": "low"
+        },
+        {
+          "part": "DHT1",
+          "view": {
+            "transmitting": true,
+            "temperatureC": 30,
+            "humidityPct": 60
+          }
+        }
+      ]
+    },
+    {
+      "name": "A start signal shorter than 18 ms is ignored: DATA stays high",
+      "gpio": {
+        "17": {
+          "mode": "in",
+          "pull": "off"
+        }
+      },
+      "advanceS": 1.1,
+      "sequence": [
+        {
+          "gpio": {
+            "17": {
+              "mode": "out",
+              "level": false
+            }
+          },
+          "advanceS": 0.005
+        },
+        {
+          "gpio": {
+            "17": {
+              "mode": "in",
+              "pull": "off"
+            }
+          },
+          "advanceS": 0.00006
+        }
+      ],
+      "expect": [
+        {
+          "read": 17,
+          "is": "high"
+        },
+        {
+          "part": "DHT1",
+          "view": {
+            "transmitting": false,
+            "temperatureC": null
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoints": []
+}

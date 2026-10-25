@@ -1,0 +1,228 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Active Buzzer",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "active-buzzer"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "BZ1",
+      "defId": "active-buzzer",
+      "props": {},
+      "placement": {
+        "pins": {
+          "+": {
+            "board": "bb1",
+            "area": "main",
+            "row": 29,
+            "col": "j"
+          },
+          "-": {
+            "board": "bb1",
+            "area": "main",
+            "row": 32,
+            "col": "j"
+          }
+        }
+      }
+    },
+    {
+      "id": "Q1",
+      "defId": "pn2222",
+      "props": {},
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 36,
+            "col": "j"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 37,
+            "col": "j"
+          },
+          "3": {
+            "board": "bb1",
+            "area": "main",
+            "row": 38,
+            "col": "j"
+          }
+        }
+      }
+    },
+    {
+      "id": "R1",
+      "defId": "resistor",
+      "props": {
+        "resistance": 1000,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 37,
+            "col": "f"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 37,
+            "col": "d"
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 29,
+          "col": "h"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 32,
+          "col": "h"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 38,
+          "col": "i"
+        }
+      },
+      "color": "blue",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 36,
+          "col": "g"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "a"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 37,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\n\nBUZZER_PIN = 17  # BCM numbering: header pin 11, through R1 to the base of Q1\n\nGPIO.setmode(GPIO.BCM)\n# Q1 is an NPN switch with its emitter on GND, so HIGH on its base turns the buzzer on.\nGPIO.setup(BUZZER_PIN, GPIO.OUT, initial=GPIO.LOW)\n\ntry:\n    while True:\n        GPIO.output(BUZZER_PIN, GPIO.HIGH)\n        print('Buzzer on')\n        time.sleep(0.1)\n        GPIO.output(BUZZER_PIN, GPIO.LOW)\n        print('Buzzer off')\n        time.sleep(0.1)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.output(BUZZER_PIN, GPIO.LOW)\n    GPIO.cleanup()\n"
+  },
+  "buildStepAnnotations": {
+    "BZ1": {
+      "why": "The + lead faces the 5 V supply and the − lead goes to the transistor, so current can only flow one way through the buzzer.",
+      "mistake": "The buzzer in backwards: it stays silent whatever the code does."
+    },
+    "Q1": {
+      "why": "The transistor switches the buzzer’s current, so the GPIO pin supplies only the small base current.",
+      "mistake": "Emitter, base and collector swapped. With the flat face toward you and the leads down, the order is E, B, C from the left."
+    },
+    "R1": {
+      "why": "The 1 kΩ resistor limits the base current to a few milliamps, well inside what a GPIO pin can give."
+    },
+    "W4": {
+      "why": "GPIO17 reaches the base through R1, so the buzzer sounds while the code drives GPIO17 HIGH."
+    }
+  }
+}

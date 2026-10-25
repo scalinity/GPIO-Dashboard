@@ -1,0 +1,191 @@
+{
+  "id": "ic-l293d",
+  "name": "L293D quadruple half-H driver (DIP-16)",
+  "category": "ic",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "1,2EN",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "1A",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [1, 0]
+    },
+    {
+      "id": "3",
+      "label": "1Y",
+      "role": "driver-out",
+      "electricalType": "output",
+      "offsetPitch": [2, 0]
+    },
+    {
+      "id": "4",
+      "label": "GND",
+      "role": "ground",
+      "electricalType": "power-in",
+      "offsetPitch": [3, 0]
+    },
+    {
+      "id": "5",
+      "label": "GND",
+      "role": "ground",
+      "electricalType": "power-in",
+      "offsetPitch": [4, 0]
+    },
+    {
+      "id": "6",
+      "label": "2Y",
+      "role": "driver-out",
+      "electricalType": "output",
+      "offsetPitch": [5, 0]
+    },
+    {
+      "id": "7",
+      "label": "2A",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [6, 0]
+    },
+    {
+      "id": "8",
+      "label": "VCC2",
+      "role": "power",
+      "electricalType": "power-in",
+      "offsetPitch": [7, 0]
+    },
+    {
+      "id": "9",
+      "label": "3,4EN",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [7, 3]
+    },
+    {
+      "id": "10",
+      "label": "3A",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [6, 3]
+    },
+    {
+      "id": "11",
+      "label": "3Y",
+      "role": "driver-out",
+      "electricalType": "output",
+      "offsetPitch": [5, 3]
+    },
+    {
+      "id": "12",
+      "label": "GND",
+      "role": "ground",
+      "electricalType": "power-in",
+      "offsetPitch": [4, 3]
+    },
+    {
+      "id": "13",
+      "label": "GND",
+      "role": "ground",
+      "electricalType": "power-in",
+      "offsetPitch": [3, 3]
+    },
+    {
+      "id": "14",
+      "label": "4Y",
+      "role": "driver-out",
+      "electricalType": "output",
+      "offsetPitch": [2, 3]
+    },
+    {
+      "id": "15",
+      "label": "4A",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [1, 3]
+    },
+    {
+      "id": "16",
+      "label": "VCC1",
+      "role": "power",
+      "electricalType": "power-in",
+      "offsetPitch": [0, 3]
+    }
+  ],
+  "internalConnections": [["4", "5", "12", "13"]],
+  "footprint": {
+    "kind": "rigid",
+    "straddleTrench": true
+  },
+  "sim": {
+    "model": "l293d",
+    "params": {
+      "vcc1MinV": 4.5,
+      "vcc1MaxV": 7,
+      "vcc2MinV": 4.5,
+      "vcc2MaxV": 36,
+      "vcc2AtLeastVcc1": true,
+      "vihMinV": 2.3,
+      "vilMaxV": 1.5,
+      "vohBelowVcc2TypV": 1.4,
+      "vohBelowVcc2MaxV": 1.8,
+      "volTypV": 1.2,
+      "volMaxV": 1.8,
+      "outputTestMa": 600,
+      "ioContinuousMaxMa": 600,
+      "ioPeakMaxMa": 1200,
+      "outputClampDiodes": true,
+      "clampHighVfTypV": 1.3,
+      "clampLowVfTypV": 1.3,
+      "outputAbsMinV": -3,
+      "outputAbsMaxOverVcc2V": 3,
+      "iihAMaxUa": 100,
+      "iihEnMaxUa": 10,
+      "iilAMagMaxUa": 10,
+      "iilEnMagMaxUa": 100,
+      "icc1AllHighMaxMa": 22,
+      "icc1AllLowMaxMa": 60,
+      "icc1HiZMaxMa": 24,
+      "icc2AllHighMaxMa": 24,
+      "icc2AllLowMaxMa": 6,
+      "icc2HiZMaxMa": 4,
+      "tPlhNs": 800,
+      "tPhlNs": 400,
+      "tTlhNs": 300,
+      "tThlNs": 300,
+      "tempMinC": 0,
+      "tempMaxC": 70
+    }
+  },
+  "properties": {},
+  "bodyMm": [19.8, 6.35, 5.08],
+  "geometry": {
+    "family": "dip",
+    "params": {
+      "pinCount": 16,
+      "bodyLengthMm": 19.8,
+      "bodyWidthMm": 6.35,
+      "bodyHeightMm": 5.08,
+      "pitchMm": 2.54,
+      "rowSpacingMm": 7.62,
+      "leadWidthMinMm": 0.38,
+      "leadWidthMaxMm": 0.53,
+      "leadLengthMinMm": 3.18,
+      "standoffMinMm": 0.51
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://www.ti.com/lit/ds/symlink/l293d.pdf",
+      "https://www.ti.com/lit/ml/mpdi002c/mpdi002c.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.3.1%20Motor.html"
+    ],
+    "notes": "Pin numbers and names: TI L293, L293D datasheet SLRS008D, section 5, NE 16-pin PDIP top view and Pin Functions table (page 3). VCC1 (pin 16) is the logic supply and VCC2 (pin 8) the motor supply, modeled as two distinct power pins. Pins 4, 5, 12 and 13 are all listed as GROUND (\"device ground and heat sink pin\", datasheet Figure 6 shows them as one GND node); modeling them as one internal net is an inference from that single shared function, since the datasheet never uses the words \"connected internally\". Recommended operating conditions (page 4): VCC1 4.5 to 7 V, VCC2 from VCC1 up to 36 V (the features list and pin table say 4.5 to 36 V, so vcc2MinV is 4.5 and vcc2AtLeastVcc1 records the stricter rule), VIH 2.3 V minimum, VIL 1.5 V maximum, 0 to 70 C. Table heading prints VIL as \"low-level output voltage\", a typo for input. Absolute maximums (page 4): 600 mA continuous per output and 1.2 A peak (non-repetitive, up to 100 us) for the L293D, output voltage from -3 V to VCC2 + 3 V. Electrical characteristics (page 5): VOH = VCC2 - 1.4 V typical (minimum VCC2 - 1.8 V) at IOH = -0.6 A, VOL 1.2 V typical and 1.8 V maximum at IOL = 0.6 A, clamp voltages VCC2 + 1.3 V and 1.3 V typical at 0.6 A, input and supply currents (the iil values are stored as magnitudes of the negative datasheet figures). Delays are the typical L293DNE figures (page 5) at VCC1 = 5 V, VCC2 = 24 V, 30 pF. The output stage is a totem pole and is high impedance when its enable is low (function table, page 8). Output clamp diodes are integrated in the L293D and absent in the L293 (section 8.1, page 7). Kit status: the component-list image shows an L293D x1 and project 1.3.1 uses it. The datasheet's only package data for the NE PDIP is the 19.80 x 6.35 mm nominal body in the Device Information table; it contains no NE drawing, so height (5.08 mm max), pitch, row spacing (7.62 mm) and lead sizes are taken from TI drawing MPDI002C (the generic N R-PDIP-T16 outline), and the NE-specific height and lead dimensions are unverified."
+  }
+}

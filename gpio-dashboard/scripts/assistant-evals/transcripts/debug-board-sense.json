@@ -1,0 +1,144 @@
+{
+ "id": "debug-board-sense",
+ "title": "Debugging a real board: read Board Sense first",
+ "model": "claude-opus-5-5",
+ "effort": "medium",
+ "recorded": "2026-10-24",
+ "turns": [
+  {
+   "user": "Board Sense is on. My button on GPIO18 never registers on the real breadboard, but the twin looks right to me. What is wrong?",
+   "assistant": "The twin is wired correctly. On your real board, the pull-up resistor isn't reaching GPIO18.\n\n**What Board Sense measured**\n\nGPIO18 shows as **diverged, missing path**. The twin expects the pin held high through R1 to 3V3. On the real board the pin is only following the Pi's own weak internal bias. If the pin isn't firmly held high, pressing the button doesn't make a clear high-to-low change, so it never registers.\n\n**Where the break is**\n\nThese causes tie for the best match (21/21). They all sit on one path, which I've highlighted on the board:\n\n3V3 → **P1** (bb1:1a to bottom+.0) → bottom+ rail → **W2** (bottom+.25 to bb1:34a) → **R1** (34b to 30b) → **W1** (bb1:30a to bb1:6j, the GPIO18 row)\n\nCheck these in order:\n1. **The bottom+ rail.** P1 goes in at rail hole 0 and W2 at hole 25. Many 830-point boards split each rail in the middle, right between those two holes. If the red line on your rail has a gap halfway along, W2 isn't getting 3V3. This is my own guess, not one of Board Sense's candidates: it would read the same as \"P1 missing\" or \"W2 missing\". Fix it by moving W2's rail end to the same half as P1, or by adding a short jumper across the gap.\n2. **W1.** Check that it's in row 6, column j (not row 5 or 7) and in row 30, column a.\n3. **W2's board end.** It should be in row 34, column a.\n4. **R1.** Its legs should be exactly in rows 30 and 34. Being one row off breaks the path.\n\nThe button side (W3, W4, SW1 in rows 40 and 42) scores lower at 17/21, so check it last.\n\n**What Board Sense can't tell you**\n\nIt only sees the GPIO18 net. It can't tell which of those spots is the actual break, and GPIO17 and GPIO27 show as unobserved. Everything above comes from the measurement on GPIO18, not from looking at the board.\n\n**About the code**\n\nThe project has no code stored, and ERC warns that GPIO18 is never set up. Make sure the program on your Pi sets up GPIO18 as an input. With R1 working, it doesn't need an internal pull-up. If you'd like, I can write the code and check it in the simulator.",
+   "end": "end_turn",
+   "notices": [],
+   "usage": {
+    "inputTokens": 8,
+    "outputTokens": 1682,
+    "cacheWriteTokens": 3922,
+    "cacheReadTokens": 45658,
+    "webSearches": 0,
+    "requests": 3,
+    "costUsd": 0.0624136
+   },
+   "toolCalls": [
+    {
+     "tool": "read_board_sense",
+     "input": {},
+     "ok": true,
+     "result": "{\"sensingOn\":true,\"nets\":[{\"gpio\":\"GPIO17\",\"state\":\"unobserved\"},{\"gpio\":\"GPIO18\",\"state\":\"diverged\",\"kind\":\"missing-path\",\"detail\":\"GPIO18 reads follows-bias, expected tied-high\"},{\"gpio\":\"GPIO27\",\"state\":\"unobserved\"}],\"events\":[],\"candidates\":{\"GPIO18\":[{\"score\":\"21/21\",\"tie\":true,\"causes\":[{\"text\":\"P1 is missing\",\"holes\":[\"bb1:1a\",\"bb1:bottom+.0\"]},{\"text\":\"W1 is missing\",\"holes\":[\"bb1:6j\",\"bb1:30a\"]},{\"text\":\"W1's end in row 6 column j is in row 5 column j instead\",\"holes\":[\"bb1:6j\",\"bb1:5j\"]},{\"text\":\"W1's end in row 6 column j is in row 7 column j instead\",\"holes\":[\"bb1:6j\",\"bb1:7j\"]},{\"text\":\"W1's end in row 30 column a is in row 29 column a instead\",\"holes\":[\"bb1:30a\",\"bb1:29a\"]},{\"text\":\"W1's end in row 30 column a is in row 31 column a instead\",\"holes\":[\"bb1:30a\",\"bb1:31a\"]},{\"text\":\"W1's end in row 30 column a is across the trench, in row 30 column j\",\"holes\":[\"bb1:30a\",\"bb1:30j\"]},{\"text\":\"W2 is missing\",\"holes\":[\"bb1:34a\",\"bb1:bottom+.25\"]},{\"text\":\"W2's end in row 34 column a is in row 33 column a instead\",\"holes\":[\"bb1:34a\",\"bb1:33a\"]},{\"text\":\"W2's end in row 34 column a is in row 35 column a instead\",\"holes\":[\"bb1:34a\",\"bb1:35a\"]},{\"text\":\"W2's end in row 34 column a is across the trench, in row 34 column j\",\"holes\":[\"bb1:34a\",\"bb1:34j\"]},{\"text\":\"R1 sits one row up\",\"holes\":[\"bb1:30b\",\"bb1:34b\"]},{\"text\":\"R1 sits one row down\",\"holes\":[\"bb1:30b\",\"bb1:34b\"]}]},{\"score\":\"17/21\",\"tie\":true,\"causes\":[{\"text\":\"P1's end in row 1 column a is in row 2 column a inst"
+    },
+    {
+     "tool": "get_circuit_state",
+     "input": {
+      "detail": "summary"
+     },
+     "ok": true,
+     "result": "Revision 0: 1 board(s), 2 part(s), 6 wire(s). ERC: 0 error(s), 1 warning(s).\n{\"revision\":0,\"boards\":[{\"id\":\"bb1\",\"def\":\"bb-830\",\"rows\":63,\"freeRows\":[[24,29],[31,33],[35,39],[41,41],[43,63]],\"freeRailHoles\":{\"top+\":50,\"top-\":50,\"bottom+\":48,\"bottom-\":48}}],\"tboard\":{\"board\":\"bb1\",\"pin1Row\":1,\"colPair\":\"d/h\",\"orientation\":\"header-toward-row-0\"},\"parts\":[{\"ref\":\"R1\",\"def\":\"resistor\",\"pins\":{\"1\":\"bb1:30b GPIO18\",\"2\":\"bb1:34b 3V3\"}},{\"ref\":\"SW1\",\"def\":\"tact-switch-6mm\",\"pins\":{\"1\":\"bb1:40e GPIO18\",\"2\":\"bb1:40f GPIO18\",\"3\":\"bb1:42e GND\",\"4\":\"bb1:42f GND\"}}],\"wires\":[{\"id\":\"P1\",\"kind\":\"dupont-mm\",\"lengthMm\":\"auto\",\"color\":\"red\",\"a\":\"bb1:1a\",\"b\":\"bb1:bottom+.0\"},{\"id\":\"P2\",\"kind\":\"dupont-mm\",\"lengthMm\":\"auto\",\"color\":\"black\",\"a\":\"bb1:5a\",\"b\":\"bb1:bottom-.1\"},{\"id\":\"W1\",\"kind\":\"dupont-mm\",\"lengthMm\":\"auto\",\"color\":\"yellow\",\"a\":\"bb1:6j\",\"b\":\"bb1:30a\"},{\"id\":\"W2\",\"kind\":\"dupont-mm\",\"lengthMm\":\"auto\",\"color\":\"red\",\"a\":\"bb1:34a\",\"b\":\"bb1:bottom+.25\"},{\"id\":\"W3\",\"kind\":\"dupont-mm\",\"lengthMm\":\"auto\",\"color\":\"yellow\",\"a\":\"bb1:30c\",\"b\":\"bb1:40a\"},{\"id\":\"W4\",\"kind\":\"dupont-mm\",\"lengthMm\":\"auto\",\"color\":\"black\",\"a\":\"bb1:42a\",\"b\":\"bb1:bottom-.30\"}],\"nets\":[{\"net\":\"3V3\",\"tboardHoles\":[\"bb1:1d\",\"bb1:9d\"],\"partPins\":[\"R1.2\"],\"wireEnds\":[\"P1.a\",\"P1.b\",\"W2.a\",\"W2.b\"]},{\"net\":\"GND\",\"tboardHoles\":[\"bb1:3h\",\"bb1:5d\",\"bb1:7h\",\"bb1:10h\",\"bb1:13d\",\"bb1:15h\",\"bb1:17h\",\"bb1:20d\"],\"partPins\":[\"SW1.3\",\"SW1.4\"],\"wireEnds\":[\"P2.a\",\"P2.b\",\"W4.a\",\"W4.b\"]},{\"net\":\"GPIO18\",\"tboardHoles\":[\"bb1:6h\"],\"partPins\":[\"R1.1"
+    },
+    {
+     "tool": "highlight",
+     "input": {
+      "refs": [
+       "P1",
+       "W2",
+       "R1",
+       "W1",
+       "bb1:bottom+.0",
+       "bb1:bottom+.25"
+      ],
+      "note": "Pull-up path for GPIO18: 3V3 → P1 → bottom+ rail → W2 → R1 → W1 → GPIO18. Board Sense says this path is broken somewhere."
+     },
+     "ok": true,
+     "result": "ok"
+    }
+   ],
+   "transactions": 0
+  }
+ ],
+ "questions": [],
+ "partialInputs": {},
+ "simulatedInputs": [],
+ "codeRuns": [],
+ "custom": [],
+ "final": {
+  "parts": [
+   "R1 resistor",
+   "SW1 tact-switch-6mm"
+  ],
+  "wires": 6,
+  "code": ""
+ },
+ "checks": [
+  {
+   "id": "turns.complete",
+   "label": "Every turn ends with end_turn",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "erc",
+   "label": "Zero ERC errors",
+   "pass": true,
+   "detail": "0 errors, 1 warnings (CODE_PIN_MISMATCH)"
+  },
+  {
+   "id": "convention",
+   "label": "Wiring follows the convention",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "inventory",
+   "label": "Inventory respected",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "no-mutation",
+   "label": "The project is unchanged",
+   "pass": true,
+   "detail": "0 transactions"
+  },
+  {
+   "id": "claims",
+   "label": "Claims nothing ran on hardware",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "ghosts",
+   "label": "Every streamed preview is cleared",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "reads-sense-first",
+   "label": "Calls read_board_sense before anything else",
+   "pass": true,
+   "detail": "first call: read_board_sense"
+  },
+  {
+   "id": "no-edits",
+   "label": "Changes nothing in the project",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "names-cause",
+   "label": "Names what Board Sense ranked first",
+   "pass": true,
+   "detail": "top candidate names P1, W1, W2, R1"
+  },
+  {
+   "id": "names-fault",
+   "label": "Names the lead that is actually missing (W2)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "says-unobserved",
+   "label": "Says what the Pi cannot observe",
+   "pass": true,
+   "detail": ""
+  }
+ ]
+}

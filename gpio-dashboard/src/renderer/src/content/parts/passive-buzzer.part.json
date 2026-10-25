@@ -1,0 +1,59 @@
+{
+  "id": "passive-buzzer",
+  "name": "Passive buzzer (12 mm magnetic transducer)",
+  "category": "audio",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "+",
+      "label": "+ (marked lead)",
+      "role": "positive",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "-",
+      "label": "- (unmarked lead)",
+      "role": "negative",
+      "electricalType": "passive",
+      "offsetPitch": [3, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": { "kind": "rigid" },
+  "sim": {
+    "model": "passive-buzzer",
+    "params": {
+      "coilOhm": 45,
+      "coilTolOhm": 4,
+      "ratedV": 5,
+      "operatingMinV": 4,
+      "operatingMaxV": 7,
+      "currentMa": 70,
+      "resonantHz": 2400,
+      "soundMinDb": 85
+    }
+  },
+  "properties": {},
+  "bodyMm": [12, 12, 9],
+  "geometry": {
+    "family": "buzzer",
+    "params": {
+      "bodyDiaMm": 12,
+      "heightMm": 9,
+      "leadPitchMm": 7.6,
+      "leadDiaMm": 0.6,
+      "leadLengthLongMm": 5.5,
+      "leadLengthShortMm": 4
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://www.soberton.com/wp-content/uploads/2022/03/WT-1209T.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.2.2%20Passive%20Buzzer.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.2.1%20Active%20Buzzer.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "The kit's passive buzzer is an unbranded 12 mm magnetic transducer with no internal oscillator (a bare coil on a board; SunFounder's Active Buzzer page identifies it by the visible green board). SunFounder gives no datasheet for it, and no datasheet for a passive 12 mm part with a 7.6 mm lead pitch was found. The electrical values come from the Soberton WT-1209T electromagnetic buzzer sheet (revision A/2022, opened, page 1), the closest externally driven 12 mm magnetic buzzer found: rated 5 Vo-p, operating 4 to 7 Vo-p, at most 70 mA at 2.4 kHz (50 percent duty square wave, 5 Vo-p), at least 85 dB, coil resistance 45 +/-4 ohm, resonant frequency 2400 Hz, diameter 12.0 mm, height 9.0 mm, lead dia 0.6 mm, lead lengths 4.0 and 5.5 mm. These are NOT confirmed for the kit's unit: coil resistance in particular differs between makers of 12 mm transducers, so measure the kit's buzzer with a multimeter and treat coilOhm as a placeholder until then. Conflict on lead pitch: the WT-1209T drawing gives 6.5 +/-0.2 mm. SunFounder's Fritzing diagram (1.2.2.png) seats the passive buzzer's leads 3 rows apart, the same as the active buzzer's 7.6 mm pitch, and the two parts look identical in size in its photos. This file follows the kit diagram: 3 pitches (7.62 mm), offsets [0,0] and [3,0], rigid, and the 3D lead pitch is set to match the grid. The 1.1 mm difference to the WT-1209T would be absorbed by leaning the leads. Polarity: a magnetic coil conducts either way and only the phase of the sound changes; the kit's body is marked + on one lead (SunFounder's component photo) and the symbol on its page marks + and -, so the pin roles follow that marking but the electrical type is passive, and the sim must not flag a reversed buzzer as a fault. SunFounder's passive circuit is the same low-side NPN switch as the active one, driven with PWM at the note frequency. Its page repeats the active page's reversed polarity wording (positive pin to the collector, negative pin to 3.3 V); its wiring diagram again feeds the + lead from the T-board 5V0 pin and puts the - lead on the collector."
+  }
+}

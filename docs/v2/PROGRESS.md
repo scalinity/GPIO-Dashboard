@@ -1,0 +1,329 @@
+# Progress
+
+Memory across context resets. After any restart, re-read SPEC.md, PLAN.md and this
+file before continuing. Each entry: milestone/task · status · verified (command →
+result) · assumed · open issues.
+
+Worktree: `/Users/danny/Documents/Tools/GPIO Dashboard/.worktrees/v2-breadboard-studio`
+(branch `v2-breadboard-studio`). Never edit the main checkout.
+
+Environment facts a fresh session needs:
+- `BLENDER_BIN=/Applications/Blender.app/Contents/MacOS/Blender` (5.2.2 LTS).
+- `toktx`/`ktx` 4.4.2 in `~/.local/bin` (ADR-0005). ngspice 47 via Homebrew.
+- `PI_HOST` is unset, so hardware-in-the-loop flows run against the mocks.
+- The Anthropic key lives only in the main checkout's `.env`. Load it into the memory of
+  an eval or live-proxy-test process only; never print, copy or log it.
+- Reference photos stay in the main checkout (the repo is public): see
+  docs/v2/reference/IMAGES.md.
+- Throwaway Python: `uv run -q --with numpy --with pillow python -I <script>`.
+- Commit messages: conventional style, no attribution trailers.
+
+---
+
+## Pre-flight (2026-10-23)
+
+| Step | Status | Verified |
+|------|--------|----------|
+| 1 SPEC exists | done | `docs/v2/SPEC.md`, 2275 lines, read in full |
+| 2 secrets | done | `git log --all --oneline -- .env` → empty. `git check-ignore -v .env` at the main root → matched only by `.git/info/exclude:9` (no root .gitignore rule, as expected) |
+| 3 worktree + first commit | done | `fa8f0f2` adds SPEC.md and the root .gitignore `.env`/`.env.*`/`!.env.example`. `git check-ignore -v .env` in the worktree → `.gitignore:5`. `.env.example` not ignored (exit 1). No `docs/v2/reference/tboard/` to copy. Worktree path per ADR-0001 |
+| 4 reference photos | done | 6 JPEGs read with vision; sizes + SHA-256 in `reference/IMAGES.md`. Repo `PUBLIC` → not copied |
+| 5 toolchain | done | BASELINE.md. Blender 5.2.2 LTS present; KTX 4.4.2 installed (ADR-0005); ngspice 47 installed; Blender MCP configured, but no live Blender (`localhost:9876` refused) |
+| 6 baseline | done | cargo test 24 pass / 15 ignored; live-tests 15/15; npm test 7/7; **lint FAIL 134 errors (pre-existing)**; build OK; `npm run dev` window renders; Pi not tested (PI_HOST unset) |
+| 7 PLAN.md | done | docs/v2/PLAN.md |
+
+## M0 Baseline and foundations — done (pushed at 37c2050)
+
+| Task | Status | Verified / notes |
+|------|--------|------------------|
+| 0.1 BASELINE.md | done | see file |
+| 0.9 T-board geometry ADR | done | ADR-0004; `scripts/reference/tboard_photo_measure.py` → aspect 1.0022, row spacing 6.013 pitch |
+| 0.2 lint green | done | `npm run lint` → 0 errors, 167 warnings (baseline 134 errors, 174 warnings) |
+| 0.3 TS strict + typecheck | done | `npm run typecheck` → exit 0 (TS 6.0.3, ADR-0007) |
+| 0.4 ESLint boundary rules | done | `boundaries.test.ts`: 25 cases pass (rules exist as errors; forbidden imports and window.api rejected; native/anthropic and core allowed) |
+| 0.5 Vitest in npm test | done | `npm test` → node 7/7 + Vitest 25/25 |
+| 0.6 VERSIONS.md | done | docs/VERSIONS.md |
+| 0.7 COOP/COEP + CSP | done | ADR-0008. Dev and prod both report crossOriginIsolated true, SharedArrayBuffer true, IPC ok (overlay, real window). CSP per SPEC 15 in tauri.conf.json; loopback responses carry Tauri's computed CSP |
+| 0.8 WebGPU probe in the Tauri window | done | navigator.gpu adapter present in dev and prod; recorded in BASELINE.md |
+| suite | green | cargo test 30 pass / 15 ignored; live-tests 15/15; npm test node 7/7 + Vitest 25/25; lint 0 errors (167 warnings); typecheck ok; `npm run build` ok |
+
+## M1 Native additions — done
+
+| Task | Status | Verified / notes |
+|------|--------|------------------|
+| 1.7 D17 run deadline | done | `TUTORIAL_TIMEOUT` removed; `run.timeLimitSec` setting (null = no limit); a limited run is killed on the remote. Live: `closing_the_channel_alone_leaves_a_quiet_script_running` (observes the baseline orphan), `a_run_that_hits_its_time_limit_is_killed_on_the_remote` |
+| 1.8 D18 tunnel | done | `Ssh::open_tunnel` (direct-tcpip) + `ws.rs` `Route::Tunnel`; agent.py bind fixed to 127.0.0.1. Live: `the_agent_socket_runs_through_the_ssh_tunnel_to_a_loopback_only_server` (peer process is sshd; telemetry in, `sense_pause` out) |
+| ws send path | done | `Ws::send`, ordered, queued until auth. Unit: `sent_messages_reach_the_agent_in_order_after_auth`. Callers arrive in M6 (2 dead-code warnings until then) |
+| 1.6 remove OpenRouter | done | ai.rs, 4 commands, `window.api.ai`, AiChatPanel wiring removed; `assistant.*` settings defaults |
+| 1.2 key commands | done | `settings_set/has/clear_anthropic_key`; unit `no_anthropic_key_command_returns_the_key` |
+| 1.3 projects.rs | done | Authored by a Sonnet subagent and reviewed; 21 tests; commands list/read/write/delete/export/import (dialogs from Rust) |
+| 1.4 ssh_i2c_scan | done | i2c.rs parser (16 tests, Sonnet subagent, reviewed); live `an_i2c_scan_without_i2c_tools_reports_why` |
+| 1.5 bridge + native/ | done | api.js `projects`, `ssh.i2cScan`, `anthropic.{request,abort,setKey,hasKey,clearKey}` (Channel injected for tests); native/{bridge,projects,ssh,anthropic}.ts; `nativeAnthropicFetch` (8 Vitest cases: streaming, head-before-body, 4xx passthrough, errors before/after the head, abort, cancel, null-body statuses) |
+| 1.1 anthropic.rs | done | Authored by a Sonnet subagent (19 tests; its own mutation check: 15/15 caught); production code reviewed line by line. `anthropic-workspace-id` added to the forwarded headers (ADR-0010). Commands `anthropic_request` (Channel: JSON head/end/error, raw chunks) and `anthropic_abort`; `proxy_events_become_json_messages_and_raw_chunks` |
+| 1.9 live proxy test | done | `live_count_tokens_through_the_real_proxy_path`, key loaded from the main .env into that cargo process only → 1 passed (HTTP 200, numeric input_tokens). Output filtered for `sk-ant`; nothing printed |
+
+M1 exit suite (2026-10-24, at afc0796 + the live-tests.sh fix):
+- `cargo test`: 85 passed / 20 ignored.
+- `live-tests.sh`: 19/19. It now skips the Anthropic live test, which needs a key in its own process. Run that one with `cargo test live_count_tokens_through_the_real_proxy_path -- --ignored`; it passed earlier the same day.
+- `npm test`: node 7/7 + Vitest 37/37. Lint 0 errors (167 warnings). Typecheck ok. `npm run build` ok.
+- Production app, read from the overlay: origin `http://127.0.0.1:57852`, crossOriginIsolated true, SharedArrayBuffer true, IPC ok.
+- The subagent worktrees were removed after a diff confirmed their work is integrated (5.4 GB freed).
+
+### Research carried into M2 (verified 2026-10-23; turn each into data with its source)
+- **Pi 5 header pins**: the official table "Pin names, types, and typical functions" in
+  `raspberrypi/documentation` master@1bf32ac,
+  `documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc`. All 40 rows
+  parse; the GP numbers cross-check against the T-board label table from the photos. A
+  parser that handles empty function cells and the one-line header row was tried in the
+  scratchpad; rebuild it as a committed script, or transcribe with a test.
+- **RP1 electrical values**: ADR-0009 (V_IL ≤ 0.8, V_IH ≥ 2.0, R_PU 37/55/86 kΩ,
+  R_PD 35/55/98 kΩ, I_IL ≤ 3 µA, I_OL/I_OH per drive strength, 16 mA per pin / 50 mA
+  total, GP2/GP3 1.8 kΩ pull-ups).
+- **BB830** (datasheet BPS-MAR-BB830+BB830T-001 Rev 3.05, SHA-256 `bf594dc5…cbd61bcf85c`,
+  from datasheet.octopart.com; AN0002 included):
+  - 165.1 × 54.6 × 8.5 mm, 63 rows, 0.1″ square holes.
+  - Rails: 4 × 50 holes in groups of 5, holes in line with the circuit rows.
+  - AN0002 §3.3 and §4: the BR1's outer strips are on 0.1″ centres from the circuit
+    area, and the BB830's sit 0.05″ further out. So the BB830 rail lines are **0.25″
+    and 0.35″** from the outermost circuit column (a or j). This matches §3.2: the
+    BB400's outer strips sit 0.25″ from the circuit area, with holes offset 0.050″ along
+    the rows.
+  - Rail holes along the rows: the datasheet's internal-connections diagram, and the
+    top-down kit photo measured with `bb_rows` (column a → 63 rows; left inner rail → 50
+    holes), agree on rows **3–7, 9–13, …, 57–61** (start 3 + 6k, k = 0..9).
+  - Across the board, the kit photo gives inner/outer rail at 2.66/3.76 pitch (left) and
+    2.93/4.01 pitch (right) from the nearest circuit column, with the trench at 2.96
+    pitch. That's nearer 2.5/3.5 (BB830) than 1.5/2.5. The generic board sits about 0.3
+    pitch further out: record it as a photo difference, and keep the BB830 values.
+  - The BB400 datasheet URL returned HTML, not a PDF. Find another copy in M2.
+- **Kit photo legend** (IMAGES.md): one side is `+` outer / `−` inner, the other `+` inner
+  / `−` outer.
+
+## M2 circuit-core — done (2026-10-24)
+
+| Task | Status | Verified / notes |
+|------|--------|------------------|
+| 2.1 model + schemas | done | `core/model/types.ts`, zod `schema.ts` typed against it (PartDef, CircuitDoc). Add ops carry an optional `index` and RemoveBoard exists, so undo is exact |
+| 2.2 boards | done | bb-830 and bb-400 (0261319). The BB400 datasheet Rev 6 was fetched through `mcp__fcpi__firecrawl_scrape` (direct curl gets a bot challenge); body 84.0 x 54.3 x 8.5 mm, 30 rows, rails per AN0002; its dimension table does not reconcile and is recorded as unused |
+| 2.3 Pi header + RP1 constants | done | `pi5-header.json` generated by `scripts/reference/pi_header_from_docs.py` from the official docs at 1bf32ac; `pi5-board.json` from the mechanical drawing (read visually); RP1 values in ADR-0009 (constants file still to write for the sim, M3) |
+| 2.4 T-board / ribbon / leads | done | `tboard.json` (ADR-0004), `ribbon.json`, `leads/dupont.json` (housing 12.0 mm and pin 5.5 mm, photo-calibrated); T-board tests (14) including the label ↔ header identity through the ribbon |
+| 2.5 kit part defs | done | 38 definitions in four batches by Sonnet subagents, each from cited manufacturer datasheets with a facts test per part; integrated through the generic part test in this tree (e54fa74, 35c967a, d4e2adf). Kit vs spec differences: ADR-0011. Stand-in datasheets for kit parts with no named model are in each part's notes |
+| 2.6 ops/undo | done | `core/ops/apply.ts`; fast-check: any edit sequence undoes to a strictly equal doc (300 runs) |
+| 2.7 netlist + engine | done | union-find netlist (13 tests; the wire-end union bug was found by a test and fixed); engine diffs + preview; **≤1 ms budget test passes** (median of warm runs on a full bb-830 scene) |
+| 2.8 validation | done | `core/ops/validate.ts`: holes, T-board body (edge-column lean), spans, rigid footprints and rotation, trench, off-board, gender mating |
+| 2.9 reach + ERC v1 | done | `core/reach`, `core/erc` (16 rules, each firing and quiet), `core/code/pins.ts`. PHYSICAL_COLLISION (warning; separating-axis test on `bodyMm` outlines, 0.3 mm tolerance) runs against the real library: neighbouring 5 mm LEDs, side-by-side resistors, a resistor under a DIP. Sim-based rules (PIN_OVERCURRENT, RAIL_BUDGET, LED current) come with M3 |
+| 2.10 serialization | done | `.gpiob` parse/serialize/migrate; 4 tests |
+| store | done | `state/circuitStore.ts`: single writer, exact undo/redo, undoTurn, open; 7 tests |
+| regressions | D1-D4, D15 done | `core/regressions.test.ts` |
+
+Suite at 65cf521: Vitest 98 core/state/content tests green; typecheck clean; lint 0 errors.
+**Lesson (0261319):** Vitest 5's on-disk transform cache (`fsModuleCache`) kept a stale `import.meta.glob` expansion, so new content files were silently left out of tests. It is now off in vitest.config.ts. After the fix: 16 files, 236 tests green. Integrate subagent content only through the generic test in this tree.
+M2 exit suite (2026-10-24):
+- `cargo test`: 85 passed / 20 ignored. `live-tests.sh`: 19/19.
+- `npm test`: node 7/7 + Vitest 491/491 (23 files). Lint 0 errors (167 warnings, all prettier/react-refresh in v1 files). Typecheck clean. `npm run build` produced the .app and .dmg.
+- All subagent worktrees removed after file-by-file comparison with the integrated copies.
+
+## M3 simulation — done (2026-10-24)
+
+| Task | Status | Verified / notes |
+|------|--------|------------------|
+| 3.1 solver | done | `core/sim/solver.ts`: dense LU with partial pivoting, Newton with pnjlim limiting, 1 V step damping, gmin stepping (1e-2 → 1e-12), BE first step then trapezoidal. Singular and non-convergent circuits throw. 16 hand-worked tests (divider, Norton source, switch, diode KCL, NPN saturation and active β, PNP, RC and RL against analytic curves within 0.1%) |
+| 3.2 device models | done | Primitives in `devices.ts`; `fit.ts` (ADR-0012); `circuit.ts` builds every library part (LEDs/RGB/displays/bar graph as fitted dies, BJTs, switches, pot, LDR, NTC, passive-buzzer coil (R only: no inductance in its datasheet), power module). 15 behaviours: dc-motor, active-buzzer (mine); 74HC595, L293D, ADC0834, relay module, keypad, joystick, HC-SR501 (Sonnet subagent, 136 tests, 13 mutations each caught); DHT11, HC-SR04, SG90, LCD1602 (PCF8574 + HD44780), ADS1115, ADS7830 (Sonnet subagent, 107 tests). `circuit.test.ts`: all 38 parts build and solve. Relay polarity settled: S high energises (SunFounder module page and Davinci lesson 1.3.4; the Basic kit page's comments contradict its own prints). Integration test: GPIO17 → relay → COM-NO lights an LED after the 10 ms operate time |
+| 3.3 ngspice fixtures | done | `scripts/reference/ngspice_fixtures.py` → `core/sim/fixtures/ngspice.json` (ngspice 47). 23 fixtures, all within ±2%; `fit.ts` reproduces the parameters ngspice was given. **Finding:** ngspice floors diode IS at 1e-28 A; InGaN dies use N = 3 (ADR-0012) |
+| session | done | `session.ts`: stimulus, behaviour fixed point (tolerance 1e-6), behaviour timers and listened PWM edges in time, PWM-averaged snapshots (exact over 2^n on/off states up to 4 pins). GPIO reads are low/high/ambiguous/**floating** (Thévenin resistance × the 3 µA max input leakage > VIL) |
+| sim ERC | done | `checks.ts`: PIN_OVERCURRENT (16 mA), RAIL_BUDGET (50 mA all GPIOs), LED_NO_LIMIT current vs `ifMaxMa`. No 3V3/5V limit is invented (ADR-0014) |
+| 3.4 probe-signature mode | done | `probe.ts`: bias test at both ends of the pull range; pair test as a transient from precharge with a 10–100 pF node range and 100 µs settle (ADR-0013); skips by pin role with reasons; observability. 9 hand-worked tests incl. SPEC 14.5's own example (tied-high released, tied-low pressed, follows-bias one row off), LED path unobservable, GPIO2 tied-high from the board pull-up. Mutation check: replacing node capacitance with nothing fails the isolated-net test. 26-pin prediction in the worker: 94 ms on the button sample |
+| 3.5 sim.worker + Workbench | done | `workers/simHost.ts` (pure, tested) + `sim.worker.ts`; `state/simClient.ts`, `state/workbenchStore.ts` (zustand, no effects); `pages/WorkbenchPage.tsx`, `panels/ErcPanel.tsx`, `panels/SimPanel.tsx`. Two sample circuits in `content/samples/` (this app's own, not the kit's tutorials). Checked in Chromium against `vite` on localhost:5173: blink sample GPIO17 HIGH → 3.069 V, 5.49 mA, D1 lit; button sample GPIO18 reads low → high (held) → low; probe prediction GPIO18 tied-low observable, GPIO2/3 tied-high. `web:build` emits the worker as its own chunk |
+
+M3 exit suite (2026-10-24, at 3f7d886):
+- `cargo test`: 85 passed / 20 ignored. `live-tests.sh` not re-run: no Rust changed since the M2 run (19/19).
+- `npm test`: node 7/7 + Vitest 817/817 (43 files). Lint 0 errors. Typecheck clean. `npm run build`: app bundled and signed.
+
+Notes carried into M5 (Pyodide shims):
+- I2C devices are transaction-level (`behavior.i2c`); after each transaction the session must settle (call `update`) so time-stamped behaviour (ADS1115 conversion start) uses the transaction time.
+- The DHT11 counts its power-up wait from its first powered update: start sessions at t = 0.
+- The kit's code is at https://github.com/lafvintech/Basic-Starter-Kit-for-Raspberry-Pi (from its "Download the Code" page); `python/ADCDevice.py` drives the ADS7830 at 0x48 with cmd 0x84.
+
+## M4 correctness audit and verified content — done (2026-10-24)
+
+| Task | Status | Verified / notes |
+|------|--------|------------------|
+| 4.1 inventory | done in M2 | `content/inventory.json` + test (checked against `PART_DEFS`) |
+| 4.2 audit | done | `docs/v2/AUDIT.md`: a section per tutorial (26 shipped + LCD1602 held back), pins, depictions, other facts, README, and the D1–D18 register. Non-tutorial audit by a Sonnet subagent (81 rows); I closed its six open facts: the Live Monitor dropped output pins (pinctrl drive field), System Info read field names the agent never sends, GPIO cleanup was a no-op (now `pinctrl set <program's pins> ip pn` after Stop, pins 2–27), chip detection by label (gpiochip4→0 since Aug 2024), alternate functions named, temperature colours at the documented throttling points. README: an interim README states only what exists (full rewrite M12) |
+| 4.3 tutorials | done | 26 tutorials by three Sonnet subagents + the exemplar; 13.1 checks green (365 tests incl. the cross-check). **LCD1602 not shipped**: the 5 V backpack's pull-ups put ~3.8 V on GPIO2/3 and the PCF8574's 3.5 V VIH rules out a 3.3 V bus; a safe build needs an I2C level shifter (no part). Its content is kept on local branch `held/lcd1602-tutorial` (not pushed). Notable kit conflicts recorded per tutorial: Active Buzzer and Relay text vs diagram/prints (followed the diagram and the module), Tilt Switch kit diagram grounds ID_SD, Morse kit diagram feeds the buzzer from 3V3 (below the 4 V minimum; used 5V0), Thermistor kit text inverts hot/voltage, Adjustable Fan's table lists seven GPIOs for a three-GPIO circuit |
+| 4.4 steps | done | `core/steps/steps.ts`, 13 golden tests |
+| 4.5 retire SVG | done | Breadboard page, SVG renderer and `data/tutorials.js` removed; Tutorials page shows verified content; `content/tutorials/regressions.test.ts` guards D6–D13 (33 tests) |
+| 4.6 cross-check | done | `src/renderer/src/audit.test.ts` green |
+
+Decisions this milestone: ADR-0015 (collisions are ERC warnings), ADR-0016 (tutorial code is written for this app; the kit's code is GPL-3.0 at lafvintech/Basic-Starter-Kit-for-Raspberry-Pi and this repo has no license, so nothing is copied).
+
+Core fixes found while building M4: `codePins` counts `SMBus(1)` as I2C use of GPIO2/3 (a10d20a); floating detection uses a bounded 1 V / 1 GΩ probe, since the 1 nA probe failed to converge on a floating node beside a diode (091c59f).
+
+README: SPEC schedules the rewrite for M12, but M4's exit needs zero open findings, so the false claims the audit lists get corrected at M4 and the full rewrite stays in M12.
+
+M5 groundwork in the working tree (not committed until M4 is pushed): `pyodide@314.0.7` (exact), Vite plugin serving and emitting `/pyodide/*`, `workers/bridge.ts` (virtual time, 5 µs per call), shims in `workers/python/` (RPi.GPIO, gpiozero subset, smbus/smbus2 with Linux errno 121, time prelude), `workers/python.ts`, `workers/codeCheck.ts` (+ test: runs each tutorial's code per assertion; blinking-led passes, and a mutation that never drives LOW fails), `workers/pyodide.worker.ts`. ADR-0017 to write with the commit.
+
+## M5 code in the loop — done (2026-10-24)
+
+| Task | Status | Verified / notes |
+|------|--------|------------------|
+| 5.1 Pyodide + shims | done | `pyodide@314.0.7` from npm, served/emitted at `/pyodide/` by a Vite plugin; RPi.GPIO, gpiozero subset, smbus/smbus2 shims on `workers/bridge.ts` in virtual time (ADR-0017); `python.test.ts` (8) incl. Linux errno 121, EOF stdin, a late stop not leaking into the next call |
+| 5.2 compile check + Run in Sim | done | Workbench Code panel (editor via callback ref, no effects), Check → line/column diagnostics, Run in Sim (real time, 10×, max) with Stop through Pyodide's interrupt buffer and part inputs through shared memory; checked in Chromium (Blinking LED at real time ≈ one line per 0.5 s, D1 5.79 mA, Stop → done; a syntax error → "line 1, column 8: expected ':'"). `codeCheck.test.ts`: each tutorial's own code drives every code-driven assertion: 134 of 157 assertions across 26 tutorials; the other 23 are circuit facts (`"code": false`) under stimuli the program never sets. All pass in ~4 s |
+| 5.3 project-level Run on Pi | done | `state/runStore.ts`: upload to `/tmp/gpio_dashboard/project_<id>.py`, run, kill on Stop, then `pinctrl set <program's pins> ip pn`; ERC errors open an override dialog; the Tutorials page uses the same path. `runStore.test.ts` against a mocked native layer (D14 run part). On-Pi checks are in `HIL_CHECKLIST.md` (PI_HOST unset) |
+
+Simulator speed found on the way: an event-free `advanceTo` only moves the clock, and input readings are cached between settles (044edf4); without it, polling loops solved the circuit twice per 5 µs call.
+
+M4 + M5 exit suite (2026-10-24, at 4f98426):
+- `cargo test`: 86 passed / 20 ignored. `live-tests.sh`: 19/19.
+- `npm test`: node 7/7 + Vitest 1427/1427 (51 files, including every tutorial's code checks). Lint 0 errors (35 warnings). Typecheck clean. `pi-agent` unittest OK. `npm run build`: .app and .dmg.
+
+Open threads:
+- LCD1602 tutorial waits for an I2C level-shifter part (branch `held/lcd1602-tutorial`, local only).
+- HIL items in `docs/v2/HIL_CHECKLIST.md`.
+- Theory templates have no arithmetic, so derived values (a divider's ratio) are written out in a few theory files.
+
+## M6 Board Sense — done (2026-10-24)
+
+Protocol (fixed; agent and app build to it): app → agent `sense_start {config:{pins,settleUs,periodMs}}`, `sense_stop`, `sense_pause` (agent replies `sense_paused` once every line is released), `sense_resume`; agent → app `sense_sweep {data:{t,pins,skipped,bias:{pin:{up,down}},pairs:{a:{up:{b:0|1},down:{b:0|1}}}}}` with raw levels only, `sense_event {data:{kind:'error',message}}`. The agent only measures; all interpretation is in `core/sense`.
+
+| Task | Status | Verified / notes |
+|------|--------|------------------|
+| 6.1 sense.py | done | 875e6ca (Sonnet subagent, reviewed): bias and pair sweeps, raw levels only; every LineSettings is built in one place as an INPUT with pull-up, pull-down or disabled bias; GPIO0/1, pins outside 2–27, alternate functions, gpiod consumers and (a618e2c) pins left as outputs are skipped; lines released at the end of every sweep and on pause/stop/error/disconnect before `sense_paused`. 52 fake-gpiod tests. `agent.rs` deploys sense.py; a test checks every non-test .py is deployed. 31c6801: install.sh asked apt for `python3-gpiod`, which exists nowhere (audit facts-11); it now installs `python3-libgpiod`, and gpiod 2 into a venv when apt's binding is 1.x (ADR-0019) |
+| 6.2 transport | done | db7cdbe: `sense_start/stop/pause/resume` (pause waits ≤ 1 s for the ack, waiter registered before sending), `gpio:sense` (timestamp-only repeats dropped), `gpio:sense-event`; 4 new cargo tests (90 total) |
+| 6.3 run waits for sense_paused | done | `state/runStore.ts` + `state/senseStore.ts`: with sensing on, Run on Pi pauses it and refuses to start without the ack within 1 s, then resumes; `runStore.test.ts` covers both |
+| 6.4 reconciliation | done | c041f43 `core/sense/{sense,candidates,mockAgent}.ts`: states, settling over two sweeps, events, candidates ranked with ties. Tests on SPEC 18 fixtures 1, 3, 4, 5 (three faults, true cause in top 3), 6 (Blinking LED unobserved). Observability fixed: tied bias, or another GPIO following both up and down (ADR-0013) |
+| 6.5 Board tab + walkthrough | done | `panels/BoardPanel.tsx` (Workbench Board tab): toggle (Pi or simulated board), net states, skipped pins, events, likely causes (sim worker), fixture walkthrough with generated steps, "Use as the twin" and recorded results; checked in Chromium against the mock (fixture 3 → GPIO18 matched; empty board → unobserved). Headless build-step confirmation `core/sense/buildSteps.ts` (confirmed / waiting / diverged / not electrically verifiable) |
+| 6.6 presence spike | done (dropped) | ADR-0018: needs the Pi; not built; fixture 7 listed as not built |
+| 6.7 HIL fixtures | done | `HIL_CHECKLIST.md` fixtures 1–7; 1–4 holes generated and checked by `core/sense/hil.test.ts` |
+
+M6 exit suite (2026-10-24, at 31c6801):
+- `cargo test`: 91 passed / 20 ignored. `live-tests.sh`: 19/19.
+- `npm test`: node + Vitest 1450/1450 (54 files, including every tutorial's code checks). Lint 0 errors (35 warnings). Typecheck clean. `pi-agent` unittest 58/58. `npm run build`: .app and .dmg.
+- Board Sense was never started against a real Pi (PI_HOST unset). The bench fixtures and the agent install are on `HIL_CHECKLIST.md`.
+
+## M7 3D Studio and hero assets — done (2026-10-24)
+
+94b1a34 pins the studio HDRI (Poly Haven Studio Small 09, 1k, CC0) in `scripts/assets/sources.json` and ships it as `public/env/studio_small_09_1k.hdr`. Download cache: `~/.cache/gpio-dashboard-assets/`.
+
+GLB runtime contract (fixed in both lane briefs): `public/models/<name>.glb`, meshopt + KTX2; 1 glTF unit = 1 mm; glTF +Y up, so core (x, y, z) is three (x, z, −y); a breadboard's origin is its core local origin (row-1 end, column-a edge, top surface z = 0); the Pi's 40 header pins are not in pi5.glb and are instanced from `pi5-header.json`.
+
+| Lane | Model | Scope | Status |
+|------|-------|-------|--------|
+| A1 assets | Opus subagent, worktree | 7.1 + bb-830, bb-400, pi5 | **merged** (3610bdc…369f324; ADR-0020…0024). bb-830 23,332 tris 1.50 MB; bb-400 11,292 tris 0.77 MB; pi5 195,000 tris 4.98 MB (no-graphics STEP, MIT licence carried in its manifest); models 7.3 MB total. `assets:check`: 830/830 and 400/400 holes measured from the GLB within 0.004 mm, Pi mounting holes and header base within 0.002 mm, hashes, budgets, KTX2; `--rebuild`: hashes exact, SSIM 1.0000 ×7; controls fail as they should. Guard `content/models.test.ts`. Full build ≈5–6 min. Contract additions: meshopt quantization on mesh nodes (read positions via world matrices); pi5 frame = `pi5-board.json`, z = 0 at the table, PCB z 1.480–2.756, `header` empty at (32.5, 52.5, 2.756); colliders `{boxes:[{name,min,max}], capsules:[{name,a,b,radius}]}`. Follow-up done: `reach.ts` Pi pin tips 13.1 → 11.326 mm from the STEP |
+| B1 studio | Opus subagent, worktree | 7.3 + core of 7.4 | **merged** (ADR-0025…0028). three 0.186.1, R3F 9.8.2; WebGPU in Chromium and the Tauri window, 60 fps, zero frames when still; hover strip + net in one frame. Integration fix ac00b01: preset buttons did nothing (orbit controls' pointer capture on the container took their clicks); toolbar moved outside, e2e guards it (fails without the fix). Screenshots with real GLBs: Pi and bb-830 placed per their frames, rails and legend as the data says |
+| A2 assets | Sonnet, worktree | T-board, IDC, ribbon maps, Dupont | **merged** (ADR-0037…0041). tboard.glb 13,448 tris 1.63 MB (z = 0 under the spacers; `socket` empty at the rim centre (−11.4, 7.62, 15.3); pin 1 at the +y end of the key-side row, a photo-5 reading, HIL item); idc-socket.glb (origin mating face −z; `pin1`, `cable-a` conductor-1 end, `cable-b`); ribbon-ridges.ktx2 1280×64 (tile 2.54 mm along), ribbon-colors.ktx2 40×1 sRGB (sample nearest at (i+0.5)/40); dupont-male/female.glb (`wire` empty, +z). Models total 9.6 MB. **Look-dev follow-up (7.7):** the socket rests on the shroud rim (9.0 mm wide from photo proportions); real IDC sockets insert into the shroud — read the 3M 891 drawing's width visually and model the insertion |
+| A3a assets | Sonnet, worktree | on-board part families | **merged** (2b333fa, d150d2e; ADR-0029…0032): 13 Blender families, 18 GLBs (179 KB, no textures; GTAO supplies occlusion), registry `scripts/assets/parts.ts`, `verify-parts.ts`, `blender/partkit.py`, `parts/index.json`. pin empties checked on the offsetPitch grid; `seatMm` = height of the pins' origin above the board (studio lifts the root by it); lens uses KHR_materials_transmission (check its cost in the Tauri window); 5-band resistor not built. A2 and A3b told to rebase onto f4c1c5e |
+| A3b assets | Sonnet, worktree | displays, ICs, modules | **merged** (b596b83, fc1e6cd + docs; ADR-0043…0046): 21 parts, 0.67 MB; dc-motor and ads1115 from Adafruit STEP (MIT, pinned in sources.json, licence in manifest and GLB), the rest Blender from datasheets; pivots for animated nodes (`horn`, `rotor`, `armature`, `stick`), `lcd-screen` quad 56.2 × 11.5 mm with 0–1 UVs; modules' origin = lowest x, y, z. **All 38 part defs have models** (index.json 38/38). Models 10 MB. Conflicts resolved in assets.ts (step type + ktx2), build.ts (licence source moved into A2's `provenance()`), README, DECISIONS. Full `assets:check --rebuild` of every asset still to run at the M7 exit |
+| B3 studio | Opus, worktree | 7.4 + 7.6 | **merged** (2e71ee5, 16d146d, 74022ef; ADR-0033…0036). Studio shell (top bar with project menu, Simulate, Run on Pi via the ERC gate, Undo/Redo, pill; Part Library; Properties schema-driven incl. E12/E24 bands; Inspect: Labels; drawer Code/ERC/Sim/Steps/Board), gestures propose ops and `circuitStore.check()` judges (green/red holes), wire tool with convention, selection boxes, keys, projects gallery/save/open via native/projects. `workbenchStore.follow()` keeps sim/ERC/steps/Board Sense on every commit. **M7 exit 'hand-build the Blinking LED with live ERC' passes in e2e** (parts and leads deep-equal the tutorial, steps equal, undo to empty deep-equal). Vitest 1507, e2e 7/7. Known: `engine.test.ts` <1 ms budget failed once under load average ~17 (lanes running Blender); recheck idle at the exit suite. Not built (later lanes): bodies, housings, overlays beyond Labels, route hints, insertion animation, Claude tab |
+| B2 studio | Opus, worktree | bench contents | **merged** (ADR-0047…0051): Pi pins, T-board, IDC sockets + ribbon (design-curve arch until M8), Dupont housings by gender, every part body with runtime leads; instanced per model file; `view.part(id)` handle (`setColor`, `setEmission`, `setTransform`; no per-copy texture yet), `view.piPin`, `view.report()`; 150 ms insertion; disposal. Lead ends ≤7.3e-6 mm across all 26 tutorials (28 of 38 defs drawn); 60 fps orbiting in the Tauri window. Vitest 1553, e2e 8/8. **Open:** ribbon arch is stiff until physics; socket on the rim (asset); rigid servo/keypad cables pass through boards (M8 or asset); core `ASSUMED_HEIGHTS_MM.modulePin` 10 mm vs model pin heights (studio uses the model, reach still the assumption); 5-band resistor shows its 4-band reading; T-board solder cones over-bright; stray text over the drawer's Code tab in the lane's Tauri shots (check) |
+| B4 studio | Sonnet, worktree | 7.5 + D5 | **merged** (ff393ce…578ca5d; ADR-0052…0059): Voltages tags, Current dashes (lead currents by KCL in `flow.ts`), Nets list, emission (LEDs, segments, bars, dots, relay), LCD per-copy canvas texture, animated plunger/shaft/horn/rotor/armature, halos linked to ERC, read-only Board Sense overlay (auto-ranks causes on a diverged net), Simulate clicks + T-board pin GPIO menu, issues recomputed per snapshot during a run. e2e 21/21 incl. **D5: all 38 defs draw a body**; 60 fps with dashes in the Tauri window. **Follow-up (core):** add per-pin currents to the sim Snapshot, then delete `flow.ts`'s copies of circuit.ts formulas. LCD draws ASCII/arrows/yen/CGRAM only; pot/servo/relay/bar/matrix rotation signs not yet seen by eye. 61bc93f: the 1 ms connectivity budget test retries twice (failed only under load avg 13–17, passes alone) |
+| L look-dev | Sonnet, worktree (base 3270752) | 7.7: LOOKDEV side-by-sides in the Tauri window, committed renders in docs/v2/lookdev/; fix IDC insertion into the shroud (3M 891 drawing), solder-cone brightness, stage; R4 drape and D3 marked M8; owns Stage.tsx, renderer.ts, scripts/assets/blender/**; ADR-L-n | running |
+| L look-dev | Sonnet, worktree | 7.7 | **merged** (ADR-0065…0067): IDC socket plugs 5.08 mm into the shroud (3M 891 sheet: 6.10 × 51.6 mm body, 55.4 mm ears; `socket` empty z 15.3 → 10.22); matt tin, low-glare mask, Pi mask colour; neutral stage, exposure 1.7, AgX then a saturation grade, bloom threshold 2; renders in `docs/v2/lookdev/` (8 PNGs, app only). LOOKDEV: every item passes except R4 drape and D3 (M8). f82a979: LED emission gain tied to `BLOOM_THRESHOLD` (the threshold change had halved the bloom) |
+| P physics core | Sonnet, worktree | M8 8.1–8.3 | **on local branch `m8-base` (471696d)** = v2 at 2db545b + the solver (21d4c6f…6373b7f) + ADR-0060…0064; lane worktree removed (content identical). Replay `m8-base` onto v2 after M7's exit push. Open items handed to P2 below |
+| M9-core | Sonnet, worktree | core gaps | **on `m9-base` (fast-forwarded to 1290eda)**: d99c453 validateDoc checks props (`BAD_PROP`, `propProblem` shared with tools); acd8de7 `customParts` in the document (`custom-` prefix, `AddCustomPart`/`RemoveCustomPart`, `docPartDefs` per document), `SetBuildStepAnnotations` + `stepKey` (`part:R1`), SCHEMA_VERSION 2 with a 1→2 migration, PartDefSchema allows `sources: []` (library parts still must cite); ADR-C9-1…4. Vitest 1933. AssistantContext drops `registerPartDef`/`annotateBuildSteps`. UI and evals lanes told to rebase onto 1290eda. SPEC 5/7 not edited (ADRs record it) |
+| M9-UI | Opus, worktree | 9.3–9.4 | **on `m9-base` (fast-forwarded to 9ddba7c)**, 9 commits; ADR-U9-1…6. Store lock during a turn (other writers get `LOCKED`, undo/redo/open no-op) and turn-grouped undo; assistant's own sim worker and Pyodide with a recording bridge; ghosts in the shown document (never simulated), review strip from the turn's document change, violet tints until Keep/Undo all; capture_view reads the frame it drew (≤1568 px, camera restored; works in WKWebView); key via an uncontrolled field to the Keychain (booleans only), keys pasted in chat refused, transcripts `<id>.transcript.json` redacted in Rust (`redact_keys`); dev replay seam `VITE_ASSISTANT_REPLAY=blink` behind `import.meta.env.DEV`. Vitest 1947, cargo 94, e2e 35/35. Reviewed: key path, redaction, prod gating. **At M9 integration:** gate the top bar's Undo/Redo on `useAssistant.running` (StudioPage.tsx); ghost `props` (LED lens colour); ghosts for custom parts defined in the same batch. Live strict+eager still unverified (evals lane) |
+| M9-evals | Sonnet, worktree (base 0220889) | 9.5: Node harness, ≥10 scored prompts (blink, parking sensor with ECHO protection, undo-all, …), live with the key read from .env into the eval process only, scrubbed replay fixtures, live checks (strict+eager, top-level cache_control, 20 strict tools, server tools, cargo proxy live test), docs/v2/EVALS.md; ADR-E9-n | running |
+| P3 physics | Opus, worktree | M8 close | **merged** (32aa34c…d6cdf6d; ADR-0078…0081): direct banded bending solve per chain (Deul et al. 2018), leadEI 10 N·mm² and ribbonEI 400 from the copper, contact mass scaling ×16, route hints by reach. Leads stand straight up and arc ~79 mm high, none off the board; Node heaviest scene 1.5–1.9 ms mean; Tauri worker 1.82–1.85 ms (was 3.9), stop ≈0.92 s. LOOKDEV R4 and D3 pass (captures ribbon-drape.png, dupont-drape.png). **Tauri fps 56 mean on 4-Digit 7-Segment (was 51) — under 60; not physics** |
+| F perf | Sonnet, worktree | frame budget | **merged** (ADR-0082): GPU is not the limit (timestamp queries: DPR 1, AO ¼/off, bloom off moved fps within noise); the main thread's per-object cost in three's render path is (452 draws/frame). One geometry pass (colour pass writes normal + velocity MRT; pre-pass gone; AO lags one frame in motion) and shadow map every 2nd frame: draws 452 → ~225, heaviest scene `view.frame` −37%, fps 33.9 → 44.6 interleaved; look unchanged (mean pixel diff 0.3/255). Final medians 55.3/57.6/55.9 fps at load 8–11 with another app (KasaHub) at 240% CPU. **60 fps on every drag not demonstrated → M12** (levers: per-frame buffer churn — 19 vertex/index buffers created mapped each frame; 145 shadow casters incl. leads; render bundle for statics; bloom off when nothing glows). Dev overlay gains a 'frame cost' row |
+| P2 physics | Sonnet, worktree from m8-base | solver second pass | **merged** (ADR-0072…0077): canonical contact order fixed piles never sleeping; windowed sleep speed; wake only from moving bodies; ribbon sheet vs boxes (SAT); `LeadDef.wireMm`; leadEI 2e6, ribbonEI 5e7; heaviest scene 2.5–4.0 ms mean in Node at 165 mm wire (opening settle 4.0–4.4). Integration fixes by me: lead transport field renamed `wireMm` (89ff835); loads wait for the renderer's KTX2 setup (3096d4d: a project opened during renderer start lost its textures, ribbon drew grey; e2e guards it, fails without the fix); module-drag e2e grabs the body from above with the overlay hidden. Vitest 1655, e2e 29/29 at ba8742d. Open: lead stiffness saturates (P3) |
+| B5 studio | Opus, worktree from m8-base | 8.4–8.5 | **merged** onto v2 after M7's push (solver 673457c…564c111, worker 10b03d2-equivalents …69e1965; ADR-0060…0064 solver, 0068…0071 worker). Worker + double-buffered SAB (8192 particles, torn-read check), whole-scene diffs, settle ≤1 s offscreen, CPU tube/strip refit (TSL prototype measured, not kept), route hints (≤3, settle from a curve through them), colliders from *.colliders.json. Lane numbers: 60 fps in Tauri on the heaviest tutorial, worker 4.27–5.11 ms (over 4), stop 1.3–1.5 s, penetration ≤0.118 mm. **On merged v2 (with look-dev's new socket exits): 6/7 physics e2e fail 'ribbon in pi/44' (OBJ5053 micro-HDMI box, 0.77–1.30 mm) and drags exceed 2 s to stop; parts.spec 74HC595 'keeps rendering'.** Both are P2's items (ribbon contacts vs thin boxes; `wakeTouching` wakes still neighbours). Evidence sent to P2. Do not push until green |
+| M9 assistant core | Sonnet, worktree | 9.1–9.2 | **on local branch `m9-base` (0220889)** = v2 at ba8742d + the assistant core (a6123cf, 62cba64, 4fc44db; ADRs still `ADR-M9-<n>`, renumber at replay) + 0220889 (fallback drops eager first and keeps strict, then strict, both tested; SDK pinned 1.3.0 exactly). Full Vitest 1888 there. Lane worktree removed (content identical). Replay after M8's exit push |
+
+M7 exit suite (2026-10-24, at f82a979):
+- `cargo test`: 91 passed / 20 ignored. `live-tests.sh`: 19/19.
+- `npm test`: node 7/7 + Vitest 1573/1573 (68 files). Lint 0 errors (35 warnings, all baseline). Typecheck clean. e2e 21/21 (the first run lost port 5193 to a parallel lane's server; rerun clean).
+- `assets:check -- --rebuild` of every asset: passed (556 checks; geometry hashes exact, textures SSIM ≥ 0.99). Models 10 MB of 40.
+- `npm run build`: .app and .dmg (19.2 MiB).
+- Exit criteria: hand-built Blinking LED with live ERC (e2e); asset checks pass; LOOKDEV passes except R4 drape and D3, which are physics (M8); D5 regression passes (all 38 part types draw a body).
+- Carried to M8 and later: ribbon arch and lead drape until physics; rigid servo/keypad cables pass through boards; core `ASSUMED_HEIGHTS_MM.modulePin` vs model pin heights; per-pin currents in the sim Snapshot (then delete `flow.ts`'s copied formulas); 5-band resistor model; LCD katakana.
+
+Part GLB contract (A3a/A3b/studio): `public/models/parts/<defId>[-<variant>].glb` + `index.json` `{defId: [{file, when?}]}`; bodies only, leads at runtime from `pin-<pinId>` empties; rigid origin at pins[0] hole, board top z = 0; flex-2lead origin at the pins' midpoint, pins[0] toward −x, `extras.seatMm`; modules on the table (z = 0), header pins in the model, `pin-*` at pin tips; animated nodes `plunger`, `shaft`, `horn`, `rotor`, `armature`; TSL-driven `band-1..4`, `lens`/`lens-r|g|b` or `die-*`, `seg-*`, `bar-n`, `dot-r-c`, `lcd-screen`.
+
+Next after A2/A3/B3: B2 renders part bodies + runtime leads, T-board, ribbon (design curve until M8), Dupont housings, Pi header pins; 7.5 overlays, LED glow, animated parts, Board Sense overlay; 7.7 LOOKDEV side-by-sides in the Tauri window.
+
+Earlier plan, kept for reference — next after A1/B1: T-board, IDC, ribbon maps, Dupont housings, part families (follow A1's pattern); 7.4 drag-place/Properties/Labels; 7.5 overlays, LED glow, animated parts, Board Sense overlay; 7.6 drawer + projects gallery; 7.7 LOOKDEV.md.
+
+## M8 Real-time physics — done (2026-10-24)
+
+Lanes and merges are in the M7 section's table (P, P2, B5, P3, F rows); the solver, worker and Studio integration went onto v2 after M7's push.
+
+M8 exit suite (2026-10-24, at 7483bd8):
+- `cargo test`: 91 passed / 20 ignored. `live-tests.sh`: 19/19.
+- `npm test`: node 7/7 + Vitest 1658/1658 (78 files). Lint 0 errors (35 warnings). Typecheck clean. e2e 29/29 (7 physics flows: open settles offscreen, drags of the Pi, board, module, lead end and T-board follow and re-settle, penetration ≤0.5 mm, stop ≤2 s; route hint survives reopen; textures load when a project opens during renderer start). `assets:check` passed (no asset changed in M8). `npm run build`: .app and .dmg.
+- Exit criteria: physics tests pass; drag e2e flows pass; physics budget holds in the Tauri window (worker 1.82–1.85 ms mean vs 4 ms; stop ≈0.92 s after the last input). LOOKDEV R4 and D3 pass (leads stand up and arc; ribbon drapes in one arch).
+- **Not met yet: 60 fps on every drag of the heaviest tutorial** (acceptance 9). Measured medians 55–58 fps at load 8–11 beside another app at 240% CPU; the remaining cost is main-thread per-object rendering. Carried to M12's performance budgets with the levers listed in the F row; a quiet-machine measurement is the final check.
+
+## M9 Assistant — done (2026-10-24)
+
+m9-base replayed onto v2 after M8's push (16 commits: assistant core, fallback fix + SDK pin, core gaps, Claude drawer UI); ADRs numbered 0083–0089 (assistant core), 0090–0093 (core gaps), 0094–0099 (UI). d860bcf: part ghosts carry props (LED ghosts in their colour); the top bar's Undo/Redo are disabled during a turn (e2e now asserts it). Vitest 1950, e2e 35/35. Waiting on the evals lane (live checks, ≥10 scored prompts, replay fixtures) for M9's exit: blink ERC-clean in one turn with matching code and convention wiring, Undo all deep-equal, D14 assistant+undo parts. Open: ghosts of custom parts defined in the same batch are not drawn.
+
+Evals merged (d3a7612-equivalents …; ADR-0100…0104; `docs/v2/EVALS.md`): live with the key in the eval process only, 12 prompts, 11 at 100% (blink ERC-clean one turn; parking sensor ECHO behind a divider; parking-direct caught by OVERVOLTAGE_GPIO and fixed same turn; undo deep-equal in all 11 building runs); datasheet 11/14 (org refuses web search). ≈$14 live in all. Rust proxy live test passed twice. Replay `npm run evals` reproduces it; Vitest 2046.
+**Live findings → M9 fixes lane (X9, running, base d9f566f):** (1) 20 strict tools exceed the grammar budget (`The compiled grammar is too large…`), fallback step 1 also refused → every live session ran plain without eager, so acceptance 5's early ghosts are lost; 11 mutation tools fit strict, eager works without strict → strict-set+eager → plain+eager → plain; (2) web-search refusal ends the turn → retry without web tools; (3) `simulate` can't press SW1 (`NO_SUCH_INPUT`); (4) `signal.pause()` returns at once in Pyodide; (5) `simModel: none` breaks simulate; (6) gpiozero shim has 5 of 15 classes. Then re-record live and prove the first request accepted with strict+eager.
+
+M9 fixes merged (ADR-0105…0108): 11 strict tools + eager on 12 mutation tools, first live request 200 with no fallback; refused web tools dropped from the first request; simulator inputs are declared properties (tact switch `pressed`); `simModel: none` adds no devices; `signal.pause` waits in virtual time; gpiozero shim covers the 15 classes `codePins` reads. Live re-record: 11/12 prompts 100% (datasheet 11/14, org refuses web search), $3.16; 962 partial inputs before completion, 420 enough for a ghost. D14 marked Fixed in AUDIT (no finding open or scheduled).
+
+M9 exit suite (2026-10-24, at 2755e33 + E2E_PORT):
+- `cargo test`: 94 passed / 20 ignored. `live-tests.sh`: 19/19. Rust proxy live test passed twice in the evals lane (proxy unchanged since).
+- `npm test`: node 7/7 + Vitest 2128/2128 (101 files). Lint 0 errors (35 warnings). Typecheck clean. e2e 35/35 (first run lost port 5193 to the M10 lane; `E2E_PORT` added, rerun clean). `npm run evals` replay matches the live run. `assets:check` passed. `npm run build`: .app and .dmg.
+- Exit criteria: blink an LED on GPIO17 from empty ends ERC-clean in one turn with matching code and convention wiring (live, 14/14); Undo all restores the empty document deep-equal (live and e2e); D14's assistant and undo parts pass.
+- Open: web search refused at the organization level (account setting); ghosts of custom parts defined in the same streaming batch are not drawn; keypad keys can't be pressed in `simulate` (text input); a fetched datasheet costs ≈$0.45.
+
+
+## M10 Build Mode in the Studio — done (2026-10-24)
+
+M10 lane merged onto v2 after M9's push (10 commits; ADR-0109…0115): tutorials open as templates and fork (`openTemplate`, `forkTemplate`); `useBuild` store (Next/Back/Done, progress in localStorage per project/tutorial); `stepScene` (docUpTo, ghost, rings); DOM pulsing rings so a held step draws zero frames; framing ≤600 ms, DoF option off by default; Board Sense confirmations via signatures in a worker + `judge`/`changedPins` (two sweeps to believe); empty checkpoint slot (ADR-0115). e2e 74/74 in its worktree: **all 26 tutorials (411 steps) play through Build Mode**; Button W3 confirms against the mock, other steps 'not electrically verifiable'; a wrong W3 shows divergence + ranked causes. Tauri 3D not checked: the Mac session is locked (WKWebView hidden), so visuals were checked with headless WebGPU.
+
+M10 exit suite (2026-10-24, at 3cfb0dc + Vitest 30 s timeout):
+- `cargo test`: 94 passed / 20 ignored (Rust unchanged since M9; live-tests not re-run).
+- `npm test`: node 7/7; Vitest 2256 passed / 2 skipped (heavy full-probe tutorials, FULL_PROBE=1 opt-in). The first run timed out four simulation-heavy tests at the 5 s default under load average 4–7 with the M11 lane running; `testTimeout: 30_000` added, rerun clean at load 11. Lint 0 errors. Typecheck clean. e2e 74/74. `npm run evals` replay matches. `assets:check` passed. `npm run build`: .app and .dmg.
+- Exit criteria: every tutorial plays through Build Mode (26 tutorials, 411 steps, e2e); against the mock sense agent observable steps confirm themselves and unobservable ones are labelled (Button W3; Blinking LED all labelled). On the user's Pi: HIL checklist. Tauri-window visuals of Build Mode not seen (Mac session locked); checked in headless WebGPU.
+
+| Lane | Model | Scope | Status |
+|------|-------|-------|--------|
+| S core sense | Sonnet, worktree | step checks | **merged** (ADR-0116…0119): `changedPins` in core (a pin counts only on its own bias or a pair reading against another observable pin), `stepSignatures`/`stepSignaturesOf` once + `judgeStep` (~0.1 ms); probe retries at reltol 1e-4/vntol 1e-7 then returns an `unsolved` (all-ambiguous) signature instead of throwing; `docUpTo` by step key; full-probe tutorial tests (heavy two opt-in via FULL_PROBE=1). Full probe over 411 steps: 34 confirmed (24 spurious) → 10 confirmed (W3 on the buzzers/button/morse, W6 on tilt/ultrasonic, W30–33 on four-digit), 401 unobservable. 1a092b6: the simulated-board Build Mode test gets a 30 s timeout. **Open (hardware safety, before running Board Sense on four-digit):** GPIO5/6/12/13 reach S8550 PNP bases through 1 kΩ (R9–R12); the probe's role-skip only checks parts directly on a GPIO's net, so bias changes reach the bases and could faintly light a digit — extend the skip rule or list it on HIL_CHECKLIST |
+| M11 twin | Sonnet, worktree (base 2fcbcba) | Live Pi state in 3D (Inspect toggle, read-only), divergence badges (telemetry 14.4 + Board Sense), Build Mode checkpoints (I2C scan, press the button, toggle LED via the ERC-gated run path, user click only), mocked HIL e2e flows that skip without PI_HOST, HIL_CHECKLIST additions; ADR-T11-n | running |
+
+## M11 Hardware twin — done (2026-10-24)
+
+M11 lane merged (7890f4d…f6ac615; ADR-0120…0126): `useLive` (telemetry through the connection, read-only, publishes only on change); header pins and T-board strips painted by level/direction/function and the bench lit by a sim of its own while "Live Pi state" is on; four telemetry divergence kinds held 600 ms; badges outside the orbit element with explanation cards (telemetry + Board Sense); checkpoints derived from the circuit (`i2c-scan`, `press`, `toggle-led`, ≤3 toggles, never GPIO0–3), a passed checkpoint ticks its step; toggles go through the ERC-gated Run on Pi path on a click only; `store/gpioStore.js` now reports pull/function changes. e2e 101 passed / 3 skipped (real-Pi flows) in the lane.
+1b35442 (integrator): the I2C scan flow runs against the mock Pi only — `i2cdetect` clocks probes on SDA/SCL, which the kickoff forbids in automated real-Pi flows; the real-Pi block keeps the telemetry read and the print-only run; HIL_CHECKLIST and ADR-0126 say so. fbae85e: HIL item to watch the 4-digit digits while sensing (PNP bases behind 1 kΩ).
+
+M11 exit suite (2026-10-24, at fbae85e): `cargo test` 94 passed / 20 ignored; `live-tests.sh` 19/19; `npm test` node 7/7 + Vitest 2321 passed / 2 skipped (FULL_PROBE opt-in); lint 0 errors; typecheck clean; e2e 101 passed / 2 skipped (real-Pi flows, PI_HOST unset); evals replay matches; `assets:check` passed; build .app and .dmg. Exit criteria: the automated HIL flows pass against the mocks (no Pi reachable); HIL_CHECKLIST.md lists everything that needs the user's hands or the Pi (Hardware twin section, checkpoints on the bench, Board Sense fixtures 1–8, Tauri-window checks).
+
+## M12 Polish and acceptance — done (2026-10-24)
+
+| Lane | Model | Scope | Status |
+|------|-------|-------|--------|
+| M12 perf | Sonnet, worktree | frame budget | **merged** (ADR-0127…0131): a board drag rebuilt every part's lead tubes per pointer move (GPU buffers/frame 75→0); tubes kept through rigid moves; leads and pieces <4 mm out of the shadow map; bloom drawn only while something passes its threshold; strip index shared across a drag; render bundle tried and dropped (three 0.186 throws). Headless WebGPU (session locked): frame + handler 8.4→4.5 ms (four-digit), 6.1→4.2, 6.9→3.2; 60 fps unthrottled; 52.6–57.3 fps with the main thread slowed 2×. Tauri-window fps after M12 not measured: HIL_CHECKLIST 'Studio frame rate in the app window' |
+| M12 docs | Sonnet, worktree | README + ARCHITECTURE | **merged** (211c4a5…3eb7227 equivalents): README rewritten via the `readme` skill (two accuracy passes; every number sourced), `docs/ARCHITECTURE.md` with a Mermaid diagram (renders) and an ADR index; AUDIT D16 Fixed, README rows updated. Its finding fixed by me in 80f8595: `ws.rs` dropped repeat sweeps while the reconciler needs a repeat to believe a change, so on a real Pi a change would stay 'settling' (mock had no filter) — every sweep now forwarded. README rows about 60 fps and M8 figures to refresh after the perf lane |
+
+| Final report | Sonnet, worktree (base 20b9ab8) | draft `docs/v2/FINAL_REPORT.md` from repo evidence, every number re-run | **merged** (926 lines; 11 Met / 7 Partly met / 0 Not met before M12 fills; 11 `[[INTEGRATOR…]]` placeholders for item 4/D16, 9, 16, README/ARCHITECTURE). Follow-ups done by me: EVALS.md '28 tutorials' → 26; `e2e/labels.spec.ts` (acceptance 8's Labels had no automated test) |
+
+Final acceptance run (2026-10-24 17:17 EDT, at 21d1081): `cargo test` 94 passed / 20 ignored; `live-tests.sh` 19/19; `npm test` node 7/7 + Vitest 2321 passed / 2 skipped; pi-agent 58 OK; lint 0 errors; typecheck clean; e2e 102 passed / 3 skipped (FRAME_RATE opt-in, two real-Pi flows); evals replay as recorded; `assets:check -- --rebuild` passed (every geometry hash exact, SSIM 1.0000, 556 checks); `npm run build` .app and .dmg (19.45 MiB).
+
+`docs/v2/FINAL_REPORT.md` finished (ac057fb): SPEC 20 — 13 Met, 5 Partly met (9 Tauri-window 60 fps, 10 and 12 real Pi, 15 look-dev gaps, 16 README findings guarded by review), 0 Not met; 131 ADRs. README rows for the frame rate updated (04fca8b). PR to main opened, not merged.
+
+## Completion round before the merge — done (2026-10-25)
+
+| Lane | Model | Scope | Status |
+|------|-------|-------|--------|
+| Review (native, renderer) | GPT-6.1 Sol, read-only (NativePeers) | PR #1 against the safety invariants | 10 findings: 8 fixed, 2 against a stricter wording than SPEC 11.6 and ADR-0124 |
+| Native fixes | Sonnet, worktree | Board Sense bias, host-key algorithm, project size | **merged** (14ffb98, 2a9e54d, ba52a86; ADR-0134, 0135) |
+| Renderer fixes | Sonnet, worktree | import boundary, sim-current Run gate, send lock, custom-part undo, Stop during upload | **merged** (c16e0aa…32e56f1; ADR-0132, 0133) |
+| README tests | Sonnet, in place | criterion 16 | **merged** (7f7271b): `readme.test.ts`, one test per audit row; caught 126→131 ADRs and 9→11 e2e files |
+| Fix review | GPT-6.1 Sol | the nine fix commits | 3 gaps, fixed by the integrator (6d59b38, f6780a6, 4065c34) |
+| Fix review 3 | GPT-6.1 Sol | those three | 2 major and 2 minor: fixed (cf1c5d4, 8f017a3, 5d1540b); `.mts`/`.cts` left out, as the repo has none |
+| Fix review 4 | GPT-6.1 Sol | those three | 1 major (the Board Sense hold taken after the pause): fixed (dcc3e20); the review loop stops here, a narrower pre-existing IPC-ordering race recorded as an open thread |
+
+Integrator work, in the Tauri window and on the real Pi (`hil/2026-10-25-real-pi.md`):
+- Item 9: 60 fps on four scenes, three rounds, in the Tauri window at load 10 to 16; 0 frames idle.
+- Real Pi (Kali, Pi 5): connect, deploy, telemetry, twin, Board Sense, Run on Pi (gate, print-only,
+  GPIO26 drive), terminal, system information, I2C checkpoint. The first deploy timed out on the
+  Pi's OpenSSH: the agent start backgrounded a subshell holding the channel (75bad7e, ADR-0136).
+  I2C enabled on the Pi at the owner's request.
+- Assistant live in the window with the real key from the Keychain: ghosts during the stream, Undo
+  all deep-equal.
+- Look-dev: D1 via the Blender MCP (Dupont models), D4 in the Studio (37 leads within 0.49 mm of
+  165 mm), retakes on the final render path; R2's Pi end is hidden under the ribbon's loop.
+- Blender MCP: the official add-on installed and used against a live Blender (`--online-mode`) for
+  the app icon (f47aefe, ADR-0137; `scripts/icon/app_icon.py`) and an independent check of the GLBs.

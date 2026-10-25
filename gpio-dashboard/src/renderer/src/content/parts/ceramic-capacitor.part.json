@@ -1,0 +1,75 @@
+{
+  "id": "ceramic-capacitor",
+  "name": "Ceramic capacitor, radial",
+  "category": "passive",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "Lead 1",
+      "role": "passive",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "Lead 2",
+      "role": "passive",
+      "electricalType": "passive",
+      "offsetPitch": [2, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": {
+    "kind": "flex-2lead",
+    "minSpan": 2,
+    "maxSpan": 20
+  },
+  "sim": {
+    "model": "capacitor",
+    "params": {
+      "ratedVoltageV": 50,
+      "dfMax": 0.025,
+      "tccMax": 0.15
+    }
+  },
+  "properties": {
+    "capacitance": {
+      "type": "number",
+      "label": "Capacitance",
+      "unit": "F",
+      "min": 1e-11,
+      "max": 3.3e-6,
+      "default": 1e-7
+    },
+    "ratedVoltage": {
+      "type": "number",
+      "label": "Rated voltage",
+      "unit": "V",
+      "min": 50,
+      "max": 200,
+      "default": 50
+    }
+  },
+  "bodyMm": [4.83, 2.29, 4.83],
+  "geometry": {
+    "family": "ceramic-cap",
+    "params": {
+      "bodyLengthMm": 4.83,
+      "bodyHeightMm": 4.83,
+      "bodyThicknessMm": 2.29,
+      "bodyTolMm": 0.25,
+      "leadSpacingMm": 5.08,
+      "leadSpacingTolMm": 0.38,
+      "leadDiameterMm": 0.635,
+      "leadLengthMinMm": 31.75
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://content.kemet.com/datasheets/KEM_C1059_RADIAL_MOLDED_X7R.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "Datasheet: KEMET C1059 'Radial, Molded, X7R Dielectric, 50-200 VDC' (8/21/2023), C052 style (0.20 in lead spacing), part C052K104K5R5CA = 0.1 µF, 50 V, X7R. Table 1A p.4 lists 0.1 µF (code 104) at 50 V. Dimension table p.2: C05X length 4.83±0.25, height 4.83±0.25, thickness 2.29±0.25, lead spacing 5.08±0.38, lead diameter 0.635 (+0.102/-0.051), lead length min 31.75 mm. Electrical table p.3: X7R capacitance change ±15% over -55 to +125 °C (tccMax 0.15) and dissipation factor max 2.5% for 50 V to 250 V parts (dfMax 0.025). Overview p.1: tolerances ±10% and ±20%, capacitance offerings 10 pF to 3.3 µF and voltage ratings 50, 100 and 200 V (these set the property limits). Kit: the component list image shows 'Capacitor 104 x4', which is 10 x 10^4 pF = 100 nF, hence the 1e-7 F default. The kit photo shows orange coated disc capacitors, whose dielectric (X7R, Y5V or Z5U), voltage and dimensions are not stated by SunFounder; the KEMET molded X7R part is a documented reference with the same 0.1 µF, 50 V rating and the common 5.08 mm lead spacing. Spans: the native lead spacing is 5.08±0.38 mm (2 pitches), so minSpan is 2. Bending the leads to 1 pitch is not covered by the datasheet. maxSpan 20 = floor((5.08 + 2 x (31.75 - 8)) / 2.54); the 8 mm per lead bend/insertion allowance is a modelling assumption, not a datasheet value. bodyMm is [length, thickness, height] at nominal drawing size."
+  }
+}

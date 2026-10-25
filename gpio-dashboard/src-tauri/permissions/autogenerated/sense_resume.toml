@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sense-resume"
+description = "Enables the sense_resume command without any pre-configured scope."
+commands.allow = ["sense_resume"]
+
+[[permission]]
+identifier = "deny-sense-resume"
+description = "Denies the sense_resume command without any pre-configured scope."
+commands.deny = ["sense_resume"]

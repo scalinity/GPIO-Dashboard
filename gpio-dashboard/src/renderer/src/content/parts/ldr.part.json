@@ -1,0 +1,77 @@
+{
+  "id": "ldr",
+  "name": "Photoresistor (LDR), GL5528",
+  "category": "sensor",
+  "kitTags": ["kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "Lead 1",
+      "role": "passive",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "Lead 2",
+      "role": "passive",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": {
+    "kind": "flex-2lead",
+    "minSpan": 1,
+    "maxSpan": 20
+  },
+  "sim": {
+    "model": "ldr",
+    "params": {
+      "r10LuxMinOhm": 10000,
+      "r10LuxMaxOhm": 20000,
+      "r10LuxOhm": 15000,
+      "darkMinOhm": 1000000,
+      "gamma": 0.6,
+      "ratedPowerW": 0.1,
+      "maxVoltageV": 150,
+      "peakWavelengthNm": 540
+    }
+  },
+  "properties": {
+    "lux": {
+      "type": "number",
+      "label": "Illuminance",
+      "unit": "lx",
+      "min": 0,
+      "default": 100
+    }
+  },
+  "bodyMm": [5.1, 2.1, 4.3],
+  "geometry": {
+    "family": "ldr",
+    "params": {
+      "discDiameterMm": 5.1,
+      "discDiameterTolMm": 0.1,
+      "flatHeightMm": 4.3,
+      "flatHeightTolMm": 0.2,
+      "thicknessMm": 2.1,
+      "thicknessTolMm": 0.2,
+      "leadPitchMm": 3.0,
+      "leadPitchTolMm": 0.1,
+      "leadDiameterMm": 0.5,
+      "leadDiameterTolMm": 0.05,
+      "leadLengthMm": 34,
+      "leadLengthTolMm": 1
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://evelta.com/content/datasheets/361-LDR-Senba.pdf",
+      "https://cdn.sparkfun.com/datasheets/Sensors/LightImaging/SEN-09088.pdf",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/2.2.1%20Photoresistor.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "Datasheet: Senba Optical & Electronic 'GL55 Series CdS Photoresistor Manual' (6 pages), type GL5528. Types table p.1: max voltage 150 V, max power 100 mW, -30 to +70 °C, spectral peak 540 nm. Table p.2 (rows follow the type order GL5516, GL5528, GL5537-1, GL5537-2, GL5539, GL5549): GL5528 is the second row, light resistance at 10 lux 10-20 kΩ, dark resistance 1 MΩ, γ 0.6, response 20 ms rising and 30 ms falling. γ = log(R10/R100) / log(100/10). Dimensions p.3: disc ø5.1±0.1, 4.3±0.2 across the flats, thickness 2.1±0.2, leads ø0.50±0.05, length 34±1, pitch 3.0±0.1 mm. r10LuxOhm 15000 is the midpoint of the 10-20 kΩ range, a derived value and not a datasheet typical; the cell-to-cell spread is the full range. Model: R(E) = R10 x (E / 10 lux)^(-γ). CONFLICT between sources: the SparkFun-hosted GL5528 sheet (SEN-09088) gives light resistance 8-20 kΩ at 10 lux, γ 0.7 (error ±0.1), dark resistance 1.0 MΩ min, outline thickness 2.4 max, lead pitch 3.4 and length 36±2 mm. The manufacturer manual is followed. The two differences that matter for the sim are the 8 kΩ lower bound and γ 0.7 against 0.6; neither is safety relevant. Kit: 'Photoresistor x2' on the component list image; SunFounder 2.2.1 names no model, so GL5528 (the most common GL55 cell) is an unverified match. Other GL55 bins from the same table: GL5516 5-10 kΩ, dark 0.5 MΩ, γ 0.5; GL5537-1 20-30 kΩ, 2 MΩ, 0.6; GL5537-2 30-50 kΩ, 3 MΩ, 0.7; GL5539 50-100 kΩ, 5 MΩ, 0.8; GL5549 100-200 kΩ, 10 MΩ, 0.9 (row-to-type mapping inferred from order). Spans: minSpan 1 (native pitch 3.0 mm bends to 2.54 mm); maxSpan 20 = floor((3.0 + 2 x (33 - 8)) / 2.54) with 33 mm the minimum lead length and an 8 mm per lead bend/insertion allowance that is a modelling assumption. bodyMm is [disc width, thickness, flat-to-top height] at nominal size."
+  }
+}

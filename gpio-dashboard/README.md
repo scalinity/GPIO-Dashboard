@@ -1,488 +1,300 @@
 # GPIO Dashboard
 
-### A Desktop IDE for Raspberry Pi GPIO — Visual Wiring, Live Monitoring, and AI-Assisted Tutorials
+### A desktop bench for the Raspberry Pi 5: a modelled breadboard in 3D, a circuit simulator, and a Claude assistant that builds circuits
 
 ![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
-![Rust](https://img.shields.io/badge/Rust-stable-000000?logo=rust&logoColor=white)
 ![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![Vite 7](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white)
-![Tailwind 3](https://img.shields.io/badge/Tailwind-3-06B6D4?logo=tailwindcss&logoColor=white)
-![Zustand 5](https://img.shields.io/badge/Zustand-5-764ABC)
-![Python 3](https://img.shields.io/badge/Python-3-3776AB?logo=python&logoColor=white)
-![Raspberry Pi 5](https://img.shields.io/badge/Raspberry%20Pi-5-C51A4A?logo=raspberrypi&logoColor=white)
-![OpenRouter AI](https://img.shields.io/badge/AI-OpenRouter-8A2BE2)
+![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-backend-000000?logo=rust&logoColor=white)
+![three.js WebGPU](https://img.shields.io/badge/three.js-WebGPU-000000?logo=threedotjs&logoColor=white)
+![Raspberry Pi 5](https://img.shields.io/badge/Raspberry%20Pi-5-A22846?logo=raspberrypi&logoColor=white)
+![macOS](https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple&logoColor=white)
 
-**GPIO Dashboard** is a production-grade cross-platform desktop application (macOS, Windows, Linux) that transforms a developer laptop into a fully instrumented IDE for Raspberry Pi hardware development. It fuses a Tauri (Rust) + React control plane with a self-deploying Python agent on the Pi to deliver **10 Hz live GPIO telemetry**, a **photo-realistic breadboard** with animated wiring overlays, an **interactive 40-pin pinout explorer**, an **embedded xterm.js SSH terminal**, an **in-app Python editor** with remote execution, and a **multi-model AI coding assistant** grounded in per-tutorial hardware context. The system ships with an **18-project SunFounder Basic Starter Kit curriculum** — each project carrying theory, wiring diagram, runnable code, and AI-generated variants — designed to take a learner from "blink an LED" to "read a temperature sensor over I2C" without leaving the window.
+**GPIO Dashboard** (version 2, "Breadboard Studio") is a desktop app for learning electronics on a Raspberry Pi 5 with the SunFounder Basic Starter Kit and a solderless breadboard. It models the bench itself: the breadboard, the Pi 5, the 40-pin T-board on its rainbow ribbon cable, the jumper leads and 38 parts, with dimensions and electrical limits taken from datasheets, the official Raspberry Pi documentation and the Pi 5's STEP file, and every lead seated in a hole that exists. One circuit document drives the rest: the netlist, the electrical rule checks and a modified-nodal-analysis simulation are computed from it, the build steps and wiring tables are generated from it, and the Python that runs in the simulator or on the Pi is checked against it. A Claude assistant builds and edits circuits through typed tools, and a link to the Pi runs the project's code and reads the real board's connectivity back.
+
+The engineering rule behind it is that ground truth is computed, never asserted. The language model decides intent and topology; deterministic code owns geometry, connectivity, validation and electrics, and the assistant quotes the numbers those return. Every edit to a circuit, whether from a mouse gesture, the assistant, the code editor or undo, goes through one validated dispatcher, and hardware stays behind the user's own click.
+
+> **Status.** The features below exist in the code and are covered by the automated tests under [Testing](#testing). The version 2 features have not been run against a real Pi 5: no Pi was reachable while it was built (`PI_HOST` unset), so the hardware paths are tested against mock servers and a throwaway local `sshd`. Every check that needs the Pi or the bench is listed, with no item ticked, in [`docs/v2/HIL_CHECKLIST.md`](../docs/v2/HIL_CHECKLIST.md). Milestone-by-milestone evidence is in [`docs/v2/PROGRESS.md`](../docs/v2/PROGRESS.md), the specification is [`docs/v2/SPEC.md`](../docs/v2/SPEC.md), and the design is described in [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md). macOS is the only platform it has been built and run on.
+
+<p align="center">
+  <img src="../docs/v2/lookdev/bench-iso.png" alt="The default bench in the Studio: a Pi 5, the T-board on its ribbon cable and a full-size breadboard" width="49%">
+  <img src="../docs/v2/lookdev/dupont-drape.png" alt="The 4-Digit 7-Segment tutorial as a project, with its jumper leads drawn by the cable solver" width="49%">
+</p>
+<p align="center"><sub>The Studio's own renders, from the app window. Left: the default bench. Right: a tutorial circuit, its leads settled by the cable solver.</sub></p>
 
 ---
 
 ## Table of Contents
 
 - [Motivation](#motivation)
-- [Core Capabilities](#core-capabilities)
-- [Tutorial Curriculum](#tutorial-curriculum)
-- [AI Code Generation](#ai-code-generation)
+- [What it does](#what-it-does)
+- [What needs your hardware or account](#what-needs-your-hardware-or-account)
+- [Safety and correctness](#safety-and-correctness)
 - [Architecture](#architecture)
-- [Pi Agent Internals](#pi-agent-internals)
-- [Security Model](#security-model)
-- [Technical Highlights](#technical-highlights)
-- [Tech Stack](#tech-stack)
-- [Project Scale](#project-scale)
-- [Getting Started](#getting-started)
+- [Technical highlights](#technical-highlights)
+- [Tech stack](#tech-stack)
+- [Project scale](#project-scale)
+- [Getting started](#getting-started)
+- [Testing](#testing)
 - [Building](#building)
-- [Roadmap](#roadmap)
-- [License](#license)
+- [Not built, and open](#not-built-and-open)
+- [Documentation](#documentation)
 
 ---
 
 ## Motivation
 
-Learning hardware is bottlenecked by friction: toggling between a schematic PDF, a wiring tutorial tab, an SSH session, a text editor, a datasheet, and a multimeter breaks flow every few minutes and makes it hard to form the mental model of what the pins are actually doing. The GPIO sysfs and `pinctrl` tools answer "is the pin high or low right now?" but only when you ask — they give no temporal picture and no visual mapping to the breadboard in front of you.
+A breadboard circuit that does not work gives almost no feedback. The Pi will not say that an LED has no resistor, that a lead sits one row off, or that a sensor's 5 V output is about to meet a 3.3 V GPIO, and a tutorial that is wrong in one of those ways teaches the wrong lesson at best. The first version of this app drew a flat two-dimensional breadboard, and an audit of it ([`docs/v2/AUDIT.md`](../docs/v2/AUDIT.md)) recorded 242 rows (findings and the 18-item defect register), 11 of them marked unsafe for hardware: a buzzer driven straight from a GPIO at nearly twice a pin's rating, a four-digit display whose digit pins would carry 35 to 40 mA against 16 mA, and an ultrasonic sensor whose 5 V echo output needs a divider the diagram never wired. Ten of its eighteen tutorial diagrams drew no components at all.
 
-GPIO Dashboard closes that loop. It brings the **wiring diagram, the live pin state, the code, the terminal, and an AI tutor** onto a single canvas, then keeps them in sync in real time. You point at physical pin 11 on the visual header; the renderer highlights BCM17, the breadboard shows exactly which row the jumper goes to, the live monitor shows the pin switching HIGH at 2 Hz, and your editor is one keystroke away from running the same script on the physical Pi. When something is wrong, you can describe it in natural language and the AI panel generates the fix with the tutorial's theory, components, and wiring already in its context window.
-
-This is the project I wanted when I was starting with microcontrollers — an honest learning environment that respects that hardware is visual, temporal, and unforgiving, and that the right answer to "which pin is pin 11?" is to just show you, in color, on the device.
+Version 2 starts from that audit. Each of the 26 tutorials was rebuilt as a circuit document from the kit's own pages, the part datasheets and the official Raspberry Pi documentation, and must pass the rule check, its simulation assertions and a code-versus-wiring check on every test run. Only then does it get a 3D bench, an assistant and a hardware twin, so those are built on content that has been checked rather than copied.
 
 ---
 
-## Core Capabilities
+## What it does
 
-### Live GPIO Monitoring at 10 Hz
+The app has six tabs: **Connect**, **Pinout**, **Tutorials**, **Workbench**, **Studio** and **Monitor**, plus a terminal panel (Ctrl/Cmd + backtick).
 
-A Python agent runs on the Pi and streams the state of all 28 BCM GPIO pins to the desktop app over WebSocket ten times a second. State is read via `pinctrl` — a hardware register read that **does not claim the pin**, so monitoring never conflicts with running scripts, `gpiod` consumers, or kernel drivers. When `gpiod` is available, line state is enriched with consumer name, friendly line name, and `used` flag so you can see *who* owns a pin, not just what voltage it's at.
+### Studio: the bench in 3D
 
-- **Fast path deduplication** in the Rust backend skips `JSON.parse` on unchanged payloads (the hottest code path in the system)
-- **Per-pin change tracking** in the Zustand store flashes only mutated pins, avoiding whole-table repaints
-- **Pin subscription filtering** — clients can request state for a subset of pins to reduce bandwidth during focused work
-- **Animated change highlight** with a 200ms decay visually reinforces every edge without being distracting
+- **The bench.** A bb-830 (63 rows) or bb-400 breadboard, the Pi 5, the T-board, an IDC socket and ribbon cable, Dupont and solid jumper leads, and the 38 parts. Each model is a GLB built headlessly from committed scripts and pinned sources ([asset pipeline](../docs/ARCHITECTURE.md#5-the-asset-pipeline-step-and-blender-to-glb)); a test measures the holes in the model against the logical holes.
+- **Building by hand.** Drag a part from the library: free holes glow green and taken ones red, judged by the same validation the document uses. A wire tool (W), schema-driven Properties (resistor bands, LED colour, and so on), Undo and Redo, and camera presets.
+- **Real-time cables.** The ribbon and every flexible lead are simulated in a worker with an in-house XPBD solver. Drag the Pi, a board, the T-board, a module or a lead end, and the cables follow, drape over what is under them and settle, then the scene stops rendering.
+- **Inspect.** Hole labels, per-net voltages, current flow dashes (from Kirchhoff's current law over the simulation), a net list, ERC halos on parts over their rating, and parts animated from the simulation: LEDs glow, and a servo horn, relay armature, motor rotor and LCD text follow their part's state.
+- **Rendering.** three.js `WebGPURenderer` with node (TSL) materials, ambient occlusion, bloom and temporal anti-aliasing, tone-mapped with AgX. It uses WebGPU where the webview offers it (the Tauri window of the development Mac did) and three's WebGL2 fallback otherwise. Frames are drawn while something moves, plus a few to settle, and none after that.
 
-### Interactive 40-Pin Pinout Explorer
+### Circuit core: netlist, rules and simulation
 
-Complete Raspberry Pi 5 header with physical, BCM, and WiringPi numbering, color-coded by pin type (GPIO / 3V3 / 5V / GND / I2C / SPI / UART / PCM / EEPROM), with alt-function listings and real-world usage notes (e.g. *"GPIO2: I2C1 Data, has 1.8kΩ pull-up to 3.3V"*). Clicking a pin opens a detail drawer with live state, pull-up/down configuration, direction, and current function. Connected pins fade in with a glow animation tied to the live telemetry stream.
+- **Netlist and connectivity.** A union-find netlist over breadboard strips, rails, the T-board and leads, updated per change with typed events down to the hole.
+- **Electrical rule check.** 17 rules, each covered by tests, including `OVERVOLTAGE_GPIO` (a 5 V net on a GPIO), `LED_NO_LIMIT`, `BJT_NO_BASE_RESISTOR`, `INDUCTIVE_NO_DRIVER`, `PIN_OVERCURRENT` (16 mA), `RAIL_BUDGET` (50 mA across all GPIOs), `FLOATING_INPUT`, `LEAD_TOO_SHORT` and `CODE_PIN_MISMATCH`.
+- **Simulation.** A modified-nodal-analysis solver (dense LU, Newton with limiting and gmin stepping, backward Euler then trapezoidal) with models for every library part and 15 behaviour models for modules and ICs (HC-SR04, DHT11, 74HC595, L293D, ADS7830, an HD44780 behind a PCF8574, and others). 22 reference circuits are checked against ngspice 47 within 2 %.
 
-### Photo-Realistic Breadboard Canvas
+### Code in the loop
 
-An SVG breadboard component renders the classic 63-row, 10-column layout with power rails and an authoritative coordinate system. A T-Cobbler adapter glyph maps every header pin to a breadboard tie-point. The **WiringOverlay** component overlays tutorial wiring as animated Bézier-curved jumpers — each wire draws itself in sequence using SVG stroke-dasharray animation, with color cues that match jumper conventions (red = power, black = ground, orange = GPIO signal). Components (LEDs, resistors, sensors, buttons) render as inline SVG primitives at the exact row/column they belong in.
+- **Run in Sim.** The project's Python runs in Pyodide against the simulated circuit, in virtual time, with `RPi.GPIO`, a gpiozero subset and `smbus` shims. It paces at real time, 10x or as fast as possible, and Stop interrupts it as Ctrl+C does.
+- **Run on Pi.** Uploads the program to the Pi, streams its output and stops it on request, returning the pins it used to inputs. ERC errors block a run unless you override them.
+- **Code panel.** CodeMirror with line and column diagnostics from a compile check.
 
-### Embedded SSH Terminal & Python Editor
+### Tutorials and Build Mode
 
-- **xterm.js terminal** with WebLinks + FitAddon running against a full PTY on the Pi (`xterm-256color`), resizable via `IPC → window_change`, and keyboard-toggleable via <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>`</kbd>
-- **CodeMirror 6 editor** with Python language support, One-Dark theme, multi-cursor, and direct remote execution
-- **Streaming remote execution**: code is uploaded to `/tmp/gpio_dashboard/` by streaming it into `cat` over an SSH exec channel (no temp files on disk), launched via `python3 -u` with line-buffered stdout/stderr, and output is piped back to the renderer in real time
-- **Graceful process termination**: per-tutorial `pkill -f` scoped to the uploaded filename, followed by a safe `GPIO.cleanup()` kicked from a one-liner to reset any pins the script left in OUTPUT mode
+- **26 tutorials**: the kit's 17 projects in the kit's order, then nine extras, six of which are tagged "needs parts not in the kit" (4-digit 7-segment, servo, PIR, ultrasonic, keypad, joystick).
+- **Generated, not typed.** Each tutorial is a circuit document plus theory text. Its wiring table and 411 build steps in total (each with a "why" and a common mistake where one is annotated) are generated from the document.
+- **Build Mode** plays a tutorial or project step by step in the Studio: the next holes are ringed, the camera frames them and the bench shows what is built so far. Tutorials open as read-only templates and fork into projects. Progress is kept per project in browser storage.
+- **Held back.** The LCD1602 tutorial is not shipped: its 5 V backpack puts about 3.8 V on GPIO2 and GPIO3, and a safe build needs an I2C level shifter the kit does not have (audit finding `lcd1602-1`).
 
-### Multi-Session Shell Management
+### Claude assistant
 
-The `SSHManager` maintains a `Map<sessionId, Shell>` so multiple terminal panes can multiplex over a single SSH connection. Each shell has independent resize, data streaming, and lifecycle. Graceful shutdown drains up to 3 seconds per shell before the SSH client itself is terminated.
+- **Builds from a sentence.** "Blink an LED on GPIO17" in the drawer's **Claude** tab places parts and leads on the bench, writes the code and checks its own work with ERC and a simulation; in the live evaluation that finished ERC-clean in one turn. Parts appear as ghosts while a tool call is still streaming and become physical when it commits.
+- **22 tools**: circuit state, part search, custom parts, boards, placement, wiring, ERC, simulation, code, a view capture, Board Sense (read only), focus and highlight, build-step annotations and a question to the user. Web search and web fetch are optional.
+- **One undo.** A turn's changes undo together ("Undo all" restores the earlier document exactly). While a turn runs, the bench is read-only and Stop is always in sight.
+- **Evaluated.** Twelve recorded prompts replay offline (`npm run evals`): a blink, a button toggle, a parking sensor (the HC-SR04 echo goes through a divider; wired directly it is caught by `OVERVOLTAGE_GPIO` and fixed in the same turn), undo, a second button, an RGB LED, a transistor-driven buzzer, a potentiometer ADC, a Board Sense debugging session, an explanation and a datasheet lookup. Live, eleven of the twelve scored fully; the datasheet prompt scored 11 of 14 because the account's organization refused web search ([`docs/v2/EVALS.md`](../docs/v2/EVALS.md)).
 
-### System Info HUD
+### Board Sense and the hardware twin
 
-CPU temperature, memory usage, uptime, IP, hostname, Pi model, and disk usage are broadcast every 5 seconds via a parallel WebSocket channel. Displayed in the navbar so you always know the state of the machine you're pushing code to.
+- **Board Sense** infers which GPIOs are joined on the real board by changing only the bias of input lines. Per pin it reads with the pull-up, then the pull-down; per driving pin it lets one pin take a pull while the others float and reads which of them follow. The app compares the result with what the document predicts and reports changes, divergences and ranked likely causes, each a single fault tried on the document (a part reversed, a part or lead end one row off, a lead on the wrong rail). It is off until switched on, and it also runs against a simulated board, with no Pi. A strip's five holes are one electrical node, so the measurement localizes to a strip; naming the hole is a ranked guess.
+- **Live Pi state** (an Inspect toggle) paints the Pi's header pins and the T-board strips from telemetry, lights the bench from the real pin levels, and badges four kinds of divergence between the Pi and the document.
+- **Build Mode confirmation and checkpoints.** Where a step's wiring is electrically observable, Board Sense confirms it; steps that cannot be observed are labelled "not electrically verifiable". Most are: on a full probe of the shipped tutorials, 10 of the 411 steps confirm and the rest are not electrically verifiable ([ADR-0116](../docs/v2/DECISIONS.md); the two slowest tutorials' probes run only with `FULL_PROBE=1`). Hardware checkpoints (an I2C scan, press the button, toggle an LED) run only on a click.
 
----
+### The Pi link
 
-## Tutorial Curriculum
-
-The app ships with **18 fully-authored tutorials** adapted from the SunFounder Basic Starter Kit, spanning six categories:
-
-| Category     | Count | Representative Projects                                                        |
-| ------------ | ----- | ------------------------------------------------------------------------------ |
-| **Output**   | 6     | Blinking LED · RGB LED (PWM) · Breathing LED · Flowing LEDs · Active Buzzer · Relay Module |
-| **Input**    | 2     | Button-Controlled LED · 4×4 Matrix Keypad                                      |
-| **Display**  | 3     | LCD1602 via I2C · 7-Segment Display · 4-Digit 7-Segment Display                |
-| **Sensor**   | 4     | PIR Motion Sensor · DHT11 Temperature & Humidity · Ultrasonic Distance · Analog Joystick (ADC) |
-| **Motor**    | 2     | DC Motor with L293D H-Bridge · Servo Motor                                     |
-| **Advanced** | 1     | Shift Register (74HC595)                                                       |
-
-Each tutorial is a self-contained specification containing:
-
-- **Components BOM** (quantity + part)
-- **Theory section** (2-4 paragraphs of clinical explanation — *how the LED's forward voltage drop works, why PWM tricks the eye, what I2C's pull-ups do*)
-- **Wiring table** (human-readable step-by-step instructions)
-- **Declarative wiring diagram** — a structured object describing `wires[]`, `components[]`, `highlightPins[]`, `highlightRows[]` that the renderer turns into an animated SVG overlay
-- **Canonical Python source** using `RPi.GPIO` in BCM mode with `try/finally` cleanup discipline
-- **Difficulty** (Beginner / Intermediate / Advanced) with color-coded pills
-- **Tips** — gotchas the student will hit if they skim
-
-Completion state is persisted to the app's JSON settings file so the library remembers what you've finished across launches.
+- **Connect** over SSH (key or password) and deploy, install and start the small Python agent from the same tab.
+- **Pinout**: the 40-pin header with each pin's name, BCM and WiringPi numbers and RP1 functions, checked against the official Raspberry Pi documentation and the RP1 datasheet.
+- **Monitor**: live pin levels, modes and pulls from `pinctrl`, plus temperature, memory, disk and uptime, sampled by the agent (pins at 10 Hz, system information every 5 s). The agent listens only on the Pi's loopback address; the app reaches it through the SSH connection.
+- **Projects** are `.gpiob` files in the app's data folder, with import and export. The assistant's transcript is saved beside its project.
 
 ---
 
-## AI Code Generation
+## What needs your hardware or account
 
-A per-tutorial chat panel powered by OpenRouter generates custom Python code tailored to the tutorial's hardware context. The system prompt is constructed from the tutorial's structured fields — title, description, components (`"1x RGB LED, 3x 220Ω Resistor"`), wiring table, theory excerpt (first 2000 chars), and the user's current editor buffer (first 8000 chars) — then bounded by a set of invariants that keep the output runnable:
+| Feature | What it needs |
+| --- | --- |
+| Studio, Workbench, simulation, ERC, Build Mode, tutorials, projects, Board Sense on a simulated board, replayed evals | Only this app. No Pi, no account, no network. |
+| Claude assistant | An Anthropic API key, added in the Claude tab's **Settings**. It is saved in the macOS Keychain, and once saved it never returns to the webview. Each turn costs API tokens. |
+| Web search and web fetch in the assistant | The Settings toggle is on by default, but the API accepts web search only if the key's organization allows it. When a request is refused, the app drops the web tools and continues without them ([ADR-0106](../docs/v2/DECISIONS.md)). |
+| Connect, Monitor, Run on Pi, the terminal | A Raspberry Pi 5 on Raspberry Pi OS with SSH enabled. |
+| Board Sense, Live Pi state, Build Mode checkpoints | The Pi with the agent running, and (for Board Sense and the checkpoints) your bench wired as the document says. |
 
-```
-Rules:
-- Output ONLY valid Python code, no markdown fences
-- Use import RPi.GPIO as GPIO
-- Use BCM pin numbering: GPIO.setmode(GPIO.BCM)
-- Always include GPIO.cleanup() in a try/finally block
-- Use only the GPIO pins mentioned in the wiring above
-- Keep code simple, well-commented, and educational
-```
+---
 
-### Supported Models
+## Safety and correctness
 
-| Model                         | Provider     | Notes                                  |
-| ----------------------------- | ------------ | -------------------------------------- |
-| `claude-opus-4.6`             | Anthropic    | Default — strongest reasoning          |
-| `gpt-5.4`                     | OpenAI       | Fast general-purpose                   |
-| `minimax-m2.5`                | MiniMax      | Cost-effective                         |
-| `gemini-3.1-pro-preview`      | Google       | Strong at Python library knowledge     |
-| `grok-4.20-multi-agent-beta`  | xAI          | Multi-agent variant                    |
-
-### Configurable Reasoning Effort
-
-Thinking level (`off` / `low` / `medium` / `high`) is passed through via OpenRouter's `reasoning.effort` parameter, letting the user trade latency for solution quality based on tutorial difficulty.
-
-### Streaming Response Pipeline
-
-- Server-Sent Events (SSE) stream token-by-token through `reqwest` in the Rust backend
-- The in-flight request is cancelled on every new request (no overlapping completions)
-- Per-chunk deltas are forwarded to the renderer as `ai:chunk` events and appended to the editor buffer live
-- Lines are split on raw bytes, so a multi-byte UTF-8 character cut across network chunks is decoded whole
-
-### Hardened Against Abuse
-
-- **Model allowlist** — only whitelisted IDs are forwarded to OpenRouter; unknown models silently fall back to the default
-- **Thinking level allowlist** — enum-validated before hitting the API
-- **Prompt length cap** — 4000 character hard limit to prevent token stuffing
-- **API key in the OS keychain** — stored through the `keyring` crate (macOS Keychain) and never written to the settings file or returned to the renderer
-- **No key in renderer** — all outbound HTTPS from the Rust backend; renderer only sees the streamed content
+- **Hardware stays behind a click.** Only a click on Run on Pi, a checkpoint button or the Board Sense toggle runs code on the Pi or touches a pin. The assistant has no path to hardware: the interface it works through has no hardware members, and a lint rule keeps it from importing the SSH, GPIO, terminal or project-write modules.
+- **Once saved, the Anthropic key never returns to the webview.** You type it into a Settings field once, which hands it to Rust and clears the field. The SDK is built with a placeholder key. Every request goes through a Rust command that allows three endpoints (`POST /v1/messages`, `POST /v1/messages/count_tokens`, `GET /v1/models`), forwards four request headers, adds the key from the Keychain, refuses redirects and streams the reply back. No command returns the key, only whether one is saved. A key pasted into the chat is refused, and Rust redacts anything shaped like a key from saved transcripts. The page's CSP allows connections only to its own origin and Tauri's IPC, so it could not call the API directly anyway.
+- **ERC gates Run on Pi.** An ERC error blocks a run until you override it. The assistant's circuits are checked the same way: every operation is validated before it commits, and an invalid one is rejected and leaves the document unchanged (fuzz-tested).
+- **Board Sense cannot drive a pin.** The agent builds every line request as an input in one place and skips GPIO0 and GPIO1, pins outside 2 to 27, and pins with an alternate function or an owner. Lines are released at the end of every sweep, and a run on the Pi waits for the agent to confirm the release.
+- **The Pi agent is loopback-only.** It binds `127.0.0.1`, authenticates with a token generated at start-up, and is reached through an SSH tunnel.
+- **SSH host keys are trusted on first use**, like OpenSSH's `accept-new`. The first connection to a host and port records its key in `known_hosts` in the app config directory (`~/Library/Application Support/com.gpio-dashboard/` on macOS); later connections must present the same key. A changed key is refused with a message naming the file and line, and is never retried automatically. After reinstalling a Pi, delete that line to connect again. Servers that present a host certificate are refused, since the certificate authority is not checked.
+- **The saved SSH password lives in the Keychain** and is read back to fill the Connect form.
+- **Documented, not guessed.** Every dimension, pinout and electrical limit is recorded with its source: datasheets, the official Pi documentation and the Pi 5 STEP file. The T-board and the jumper leads have no published drawing, so their geometry comes from calibrated measurements of product photographs, and the open points are on the hardware checklist.
 
 ---
 
 ## Architecture
 
 ```
-   ┌────────────────────────────────────────────────┐
-   │                Tauri Desktop App                │
-   │                                                 │
-   │  ┌─────────────────────────────────────────┐   │
-   │  │        Webview Renderer (React 19)       │   │
-   │  │                                          │   │
-   │  │  Pages:     Connect · Pinout ·           │   │
-   │  │             Breadboard · Tutorials ·     │   │
-   │  │             Monitor                      │   │
-   │  │  Stores:    uiStore · connectionStore ·  │   │
-   │  │             gpioStore · tutorialStore    │   │
-   │  │  Editors:   CodeMirror 6 · xterm.js      │   │
-   │  │  Canvas:    SVG breadboard + overlays    │   │
-   │  └───────────────────┬─────────────────────┘   │
-   │                      │ window.api (api.js)       │
-   │  ┌───────────────────▼─────────────────────┐   │
-   │  │   Bridge (invoke / listen shim)          │   │
-   │  │   ssh · gpio · terminal · agent ·        │   │
-   │  │   settings · ai                          │   │
-   │  └───────────────────┬─────────────────────┘   │
-   │                      │ Tauri IPC (commands.rs)   │
-   │  ┌───────────────────▼─────────────────────┐   │
-   │  │           Rust Backend (tokio)           │   │
-   │  │                                          │   │
-   │  │  SshManager  (russh: connect/exec/shell) │   │
-   │  │  WsClient     (tungstenite: GPIO feed)   │   │
-   │  │  agent        (upload/install/start)     │   │
-   │  │  settings.json + OS keychain             │   │
-   │  │  OpenRouter SSE proxy                     │   │
-   │  └──────┬───────────────────┬──────────────┘   │
-   └─────────┼───────────────────┼──────────────────┘
-             │ SSH port 22       │ WebSocket port 8765
-             │ (SCP + exec)      │ (GPIO + sysinfo + exec)
-   ┌─────────▼───────────────────▼──────────────────┐
-   │             Raspberry Pi (Debian/RPi OS)        │
-   │                                                 │
-   │  ┌─────────────────────────────────────────┐   │
-   │  │         pi-agent (Python asyncio)        │   │
-   │  │                                          │   │
-   │  │   agent.py         — WebSocket server    │   │
-   │  │   gpio_monitor.py  — pinctrl + gpiod     │   │
-   │  │   code_executor.py — subprocess + SIGINT │   │
-   │  │   system_info.py   — /proc + /sys        │   │
-   │  └──────────────────┬──────────────────────┘   │
-   │                     │                           │
-   │                 /dev/gpiochipN                   │
-   │                 /sys/class/thermal                │
-   │                 /proc/meminfo                     │
-   │                     │                           │
-   │  ┌──────────────────▼──────────────────────┐   │
-   │  │       40-pin GPIO Header                 │   │
-   │  │       28 BCM pins · I2C · SPI · UART    │   │
-   │  └─────────────────────────────────────────┘   │
-   └─────────────────────────────────────────────────┘
+                 ┌──────────────────────────────────────────────┐
+                 │  Webview: React 19 + TypeScript              │
+  gestures ─┐    │                                              │
+  assistant ┼──► │  circuitStore.dispatch  (the only writer)    │
+ code edits ┘    │     │ validates, commits, can undo           │
+                 │     ▼                                        │
+                 │  core/  netlist · ERC · sim · steps · sense  │     workers:
+                 │     │                                        │     sim · pyodide ·
+                 │     ▼                                        │     physics · assistant
+                 │  Studio (three.js WebGPU) · panels · drawer  │
+                 └─────────────┬────────────────────────────────┘
+                   invoke · events · channels
+                 ┌─────────────▼────────────────────────────────┐
+                 │  Rust (Tauri 2): ssh · ws · agent deploy ·   │
+                 │  Anthropic proxy · projects · settings       │
+                 └───────┬───────────────────────────┬──────────┘
+                    HTTPS│                      SSH  │ (exec, PTY, tunnel)
+              api.anthropic.com        Raspberry Pi 5: Python agent on 127.0.0.1
 ```
 
-### Desktop App (Tauri + React)
+The full diagram, the data flows and the module boundaries are in [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md). In short:
 
-A two-tier architecture: the React UI runs in the operating system's own webview (WKWebView on macOS), and a Rust backend owns everything privileged. File I/O, SSH, WebSocket, OpenRouter API calls, and keychain access all execute in Rust; the renderer reaches them only through the explicit, namespaced `window.api` object (`window.api.ssh`, `window.api.gpio`, `window.api.terminal`, `window.api.agent`, `window.api.settings`, `window.api.ai`). `src/renderer/src/api.js` implements that object on top of Tauri's `invoke` (commands in `src-tauri/src/commands.rs`) and `listen` (events), so the React components never import Tauri directly. Because the webview is the OS's, the app ships without a bundled browser engine.
-
-The window is titleless: on macOS the title bar is an overlay, so the traffic-light buttons sit on top of the app's own navbar, which doubles as the drag region (`data-tauri-drag-region`).
-
-### Control Plane (SSH) vs. Data Plane (WebSocket)
-
-**Two separate channels** to the Pi:
-
-- **SSH (port 22)** — used for trust-establishing operations: agent deploy, install, start/stop, code SCP, shell sessions, one-shot commands, GPIO cleanup
-- **WebSocket (port 8765)** — used for high-frequency streaming: 10 Hz GPIO telemetry, 0.2 Hz system info, live stdout from running scripts, agent status
-
-The WebSocket is token-authenticated with a `secrets.token_urlsafe(32)` generated at agent startup, printed to the agent log, scraped by the desktop app via `head -5 agent.log`, then **immediately scrubbed from the file** with `sed -i '/AUTH_TOKEN=/d'` so the token never persists on disk.
-
-### State Management (Zustand)
-
-Four disjoint stores with narrow responsibilities:
-
-| Store              | Concern                                                                |
-| ------------------ | ---------------------------------------------------------------------- |
-| `uiStore`          | Active tab, terminal visibility, panel layout                          |
-| `connectionStore`  | SSH + agent status, connection config draft, error surface             |
-| `gpioStore`        | 28-pin live state, per-pin change set, system info snapshot            |
-| `tutorialStore`    | Selected tutorial, editor buffer, execution status, AI stream, history |
-
-Per-pin selectors (`usePinState(bcm)`, `usePinChanged(bcm)`) ensure each `<PinRow>` only re-renders on changes to *its own* pin — the live monitor scales cleanly to all 28 pins changing every 100ms without frame drops.
+- **One writer.** `circuitStore.dispatch` is the only code that changes a circuit document, so gestures, the assistant and undo cannot disagree. An assistant turn locks the store to itself while it runs.
+- **Pure core.** `core/` and `physics/` import nothing from React, the DOM, Tauri or `window.api`; ESLint enforces it, and a test proves the rules exist and reject what they should.
+- **Heavy work in workers.** The simulator, Pyodide, the cable solver and the assistant's own simulator and Python run off the main thread. The cable solver shares positions with the renderer through a double-buffered `SharedArrayBuffer`, which needs cross-origin isolation (the packaged app serves its frontend from a loopback origin that sets the headers).
+- **Rust owns the network and the Keychain.** SSH, the agent socket and the Anthropic proxy are Rust commands; the webview reaches them through a typed wrapper layer, and its CSP allows no other connection.
 
 ---
 
-## Pi Agent Internals
+## Technical highlights
 
-A compact asyncio Python server (~565 lines across four modules) that runs on the Pi and exposes three capabilities over a single WebSocket connection.
-
-### GPIO Monitor (`gpio_monitor.py`)
-
-Reads pin state via the `pinctrl` command — which queries hardware registers and **does not claim any pin**, so monitoring can coexist with running scripts. Parses the output with a compiled regex against lines like `2: ip    pd | hi // GPIO2 = input`, mapping:
-
-| Field     | Values                                          |
-| --------- | ----------------------------------------------- |
-| Direction | `ip` → IN · `op` → OUT · (other) → ALT function |
-| Pull      | `pu` → UP · `pd` → DOWN · `pn`/`--` → NONE      |
-| Level     | `hi` → HIGH · `lo` → LOW                        |
-
-Auto-detects the correct `gpiochip` based on Pi model — `gpiochip4` on Pi 5, `gpiochip0` on Pi 4 and earlier — by reading `/sys/firmware/devicetree/base/model`.
-
-When `gpiod` is available, enriches each pin with `consumer`, `name`, and `used` fields read via `Chip.get_line_info()` — giving you visibility into *which process or kernel driver* is holding a pin.
-
-### Code Executor (`code_executor.py`)
-
-Async subprocess manager for running user scripts with proper POSIX process group handling:
-
-- Scripts run with `start_new_session=True` so signals hit the entire process group, not just the Python interpreter
-- `stop()` sends `SIGINT` to the whole group (matching Ctrl+C semantics — respects `KeyboardInterrupt` handlers that let scripts do `GPIO.cleanup()`)
-- Falls back to `SIGKILL` after a 3-second grace window
-- Stdout and stderr are read concurrently via `asyncio.Queue` and `asyncio.wait(return_when=FIRST_COMPLETED)` — no deadlocks, no line interleaving within a stream
-
-### System Info (`system_info.py`)
-
-Collects host vitals from `/sys` and `/proc` with no external dependencies:
-
-- **CPU temp** — `/sys/class/thermal/thermal_zone0/temp` (milli-°C → °C)
-- **Memory** — `/proc/meminfo` (MemTotal, MemAvailable → percent used)
-- **Uptime** — `/proc/uptime` (→ "2d 3h 45m")
-- **IP** — UDP socket trick to find the interface that would route to 8.8.8.8
-- **Disk** — `os.statvfs('/')` (total/used/free GB + percent)
-- **Model** — `/sys/firmware/devicetree/base/model`
-
-### Idempotent Install Script (`install.sh`)
-
-`bash install.sh` installs `python3-gpiod`, `python3-websockets`, `python3-rpi-lgpio` (RPi.GPIO drop-in for the Pi 5's new pinctrl framework), and `raspi-utils` / `raspberrypi-utils` for `pinctrl`. Adds the install user to the `gpio` group if it exists. Safe to re-run.
+- **One document, many views.** Instructions, 3D view, ERC, simulation and code are derived from or checked against one `CircuitDoc`; a test cross-checks every tutorial's code pins against its netlist.
+- **A single-writer dispatcher with exact undo.** Every operation records its inverse; a property test (fast-check, 300 runs) shows that any edit sequence undoes to a strictly equal document.
+- **A connectivity budget.** Recomputing and diffing connectivity for a net-splitting removal on a full bb-830 scene takes under 1 ms in a test on the median of warm runs (the test retries twice, because it failed only on a heavily loaded machine).
+- **Probing by bias alone.** Board Sense infers joined nets from pull-up and pull-down readings of input lines, including a precharge-and-float pair test, with the pull resistances and node capacitances as ranges ([ADR-0013](../docs/v2/DECISIONS.md)). Pins whose observability cannot be established are reported unobserved rather than guessed.
+- **A simulator checked against a reference.** 22 circuits compared with ngspice 47 within 2 %; diode and LED model parameters are fitted from one datasheet point per part ([ADR-0012](../docs/v2/DECISIONS.md)).
+- **Virtual-time Python.** Pyodide and the simulated circuit share one worker, and every shim call advances a virtual clock by 5 microseconds, so a polling loop makes progress and an HC-SR04 echo timing measures the circuit's pulse.
+- **Direct banded solves for cables.** The ribbon and each lead are chains solved along their length (after Deul et al., 2018), with a hash-grid broad phase, islands and sleep. In the Tauri window the worker's step averaged 1.82 to 1.85 ms against a 4 ms budget, and the cables went to sleep about 0.9 s after the last input, on the heaviest scene (4-Digit 7-Segment) ([`docs/v2/PROGRESS.md`](../docs/v2/PROGRESS.md), M8).
+- **Assets built from sources.** `npm run assets:build` regenerates every GLB headlessly: pinned sources, STEP read with `occt-import-js`, Blender 5.2 LTS (modelling and AO bake), then gltf-transform with meshopt and KTX2. `assets:check` re-measures every hole and pin from the committed GLBs and checks their hashes and budgets; with `--rebuild` it also rebuilds into a temporary folder and compares geometry hashes and texture similarity.
+- **Streaming ghosts.** The assistant loop reads the stream itself, so a tool call's partial JSON can draw a ghost before its input is complete. The eval harness counts it: in the recorded `pot-adc` run, 15 partial inputs of the `place_part` calls arrived before the calls completed, and 9 of them were enough to draw a ghost ([ADR-0083](../docs/v2/DECISIONS.md), [ADR-0096](../docs/v2/DECISIONS.md)).
+- **Strict tools within a grammar budget.** The API refuses a request whose strict tool schemas compile to too large a grammar, so 11 of the 22 tools are strict and 12 stream eagerly; a refused first request drops one flag at a time ([ADR-0105](../docs/v2/DECISIONS.md)).
+- **Render only when something moves.** One geometry pass, a shadow map redrawn every second frame, and a frame loop that goes idle after temporal anti-aliasing converges; a held build step draws zero frames ([ADR-0026](../docs/v2/DECISIONS.md), [ADR-0082](../docs/v2/DECISIONS.md), [ADR-0110](../docs/v2/DECISIONS.md)).
+- **Reproducible evals.** A live run is recorded with every secret and opaque token scrubbed, and Vitest replays it with no key and no network ([ADR-0101](../docs/v2/DECISIONS.md)).
+- **137 recorded decisions.** [`docs/v2/DECISIONS.md`](../docs/v2/DECISIONS.md) holds ADR-0001 to ADR-0137, with context, options and consequences.
 
 ---
 
-## Security Model
+## Tech stack
 
-Defense-in-depth for a tool that connects to a remote machine and executes arbitrary code.
-
-### Credential Protection
-
-- **OS keychain storage** via the `keyring` crate for both the SSH password and the OpenRouter API key — macOS Keychain, Windows Credential Manager, or Secret Service on Linux. Secrets are never written to the settings file
-- **Renderer never sees secrets in bulk** — `settings_get_all` returns only the plain settings file, which contains neither `connection.password` nor `ai.apiKey`
-- **Key stays in the Rust backend** — the renderer only sees `hasApiKey: boolean`, never the key itself
-- **`.pub` handling** — if the user selects `id_rsa.pub` as the SSH key, the app automatically reads the private key alongside it, matching OpenSSH's behavior
-- **Dedicated `settings_set_password` / `settings_set_api_key` commands** — writes go straight to the keychain; an empty password removes the entry
-- **Keychain failures are not "no password"** — only a missing entry reads as empty; a keychain error is logged (SSH password) or reported to the AI panel (API key) instead of being treated as absent
-
-### SSH Host Keys
-
-Host keys are trusted on first use, like OpenSSH's `accept-new`. The first connection to a host and port records its key in `known_hosts` in the app config directory (`~/Library/Application Support/com.gpio-dashboard/` on macOS); later connections must present the same key. A changed key is refused with a message naming the file and line, and is never retried automatically. After reinstalling a Pi, delete that line to connect again. Servers that present a host certificate are refused, since the certificate authority is not checked.
-
-### Input Validation & Allowlisting
-
-| Surface                 | Allowlist / Validator                                                  |
-| ----------------------- | ---------------------------------------------------------------------- |
-| Tutorial script filename | `/^[a-zA-Z0-9_-]+\.py$/` — rejects path separators, `..`, shell metacharacters |
-| SCP remote path         | Must start with `/tmp/gpio_dashboard/`, no `..`                        |
-| SSH username (deploy)   | `/^[a-zA-Z0-9_-]+$/` — prevents path injection via `/home/${user}`     |
-| SSH port                | 1–65535; anything else is reported as `Invalid port` in the normal result shape |
-| Settings keys           | Hard-coded allowlist of 9 `ui.*` / `connection.*` / `ai.*` keys        |
-| AI model                | Set-membership check against 5 known OpenRouter model IDs              |
-| AI thinking level       | Enum: `off` / `low` / `medium` / `high`                                |
-| AI prompt               | `typeof === 'string'` + non-empty + ≤ 4000 chars                       |
-
-### Process Isolation
-
-- **No Node.js in the renderer** — the webview can only call the commands the app registers. The main window holds Tauri's default core permissions (events and window queries) plus dragging and maximize; no filesystem, shell or HTTP plugin is exposed to it
-- **Content Security Policy** set in `tauri.conf.json`: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src ipc: http://ipc.localhost`
-- **External links** — clicks on `http(s)` anchors and `window.open` calls are routed to the system browser through the `open_external` command (http/https only), so the app never navigates away from itself
-- **Webview zoom disabled** (Ctrl+wheel is prevented in the renderer) so wheel events reach the breadboard's pan/zoom handler, preventing silent DOM scaling surprises
-
-### Automatic Reconnection with Safety Limits
-
-- **SSH** — exponential backoff (1s → 2s → … → 30s cap), max 10 attempts, **auth errors and changed host keys suppress reconnect** (otherwise brute-force amplification, or silently re-trusting a swapped server)
-- **WebSocket** — same backoff schedule, same 10-attempt ceiling
-- **Graceful teardown** on quit — stops the remote agent, closes shells, then disconnects SSH (bounded to 5 seconds if the Pi is unreachable)
-
-### GPIO Cleanup Guardrail
-
-After any tutorial exits — whether via normal completion, Ctrl+C, or kill — the app can fire `GPIO.setmode(BCM); GPIO.cleanup()` over SSH to reset every pin to INPUT with no pull. This recovers from the classic "I left pin 17 as OUTPUT HIGH and now it's stuck at 3.3V" failure mode that damages circuits and confuses debugging.
+| Layer | Technology |
+| --- | --- |
+| **Shell** | Tauri 2 (macOS, overlay title bar) |
+| **Backend** | Rust: `russh` (SSH), `tokio-tungstenite` (agent socket), `reqwest` (Anthropic proxy), `keyring` (Keychain), `tauri-plugin-dialog` |
+| **UI** | React 19, Vite 7, Tailwind 3, Zustand 5, CodeMirror 6, xterm.js 6; new modules in strict TypeScript 6 |
+| **3D** | three.js 0.186 `WebGPURenderer` with TSL, `@react-three/fiber` 9, GLB with meshopt and KTX2 |
+| **Physics** | In-house XPBD cable solver in a Web Worker, `SharedArrayBuffer` double buffer |
+| **Simulation** | In-house MNA solver and device models, validated against ngspice 47 |
+| **Code in the loop** | Pyodide 314.0.7 (Python 3.14) with RPi.GPIO, gpiozero and smbus shims |
+| **Assistant** | `@anthropic-ai/sdk` 1.3.0 through a Rust proxy; Claude Opus 5.5 by default, with Sonnet 5.5, Haiku 5.5 and Fable 5.1 selectable |
+| **Asset build** | Blender 5.2 LTS, `occt-import-js`, gltf-transform, KTX-Software (build time only) |
+| **Pi agent** | Python 3, `websockets` 12, libgpiod 2, `pinctrl` |
+| **Tests** | Vitest 5, `node --test`, `cargo test`, `unittest`, Playwright (Chromium), fast-check |
+| **Lint** | ESLint 9 with boundary rules, Prettier 3, `tsc --noEmit` |
 
 ---
 
-## Technical Highlights
+## Project scale
 
-- **Hot-path dedup** in the WebSocket client compares raw JSON strings before parsing — a measurable CPU win at 10 Hz × 28 pins × 6+ fields per pin
-- **Per-pin Zustand selectors** mean the live monitor's table rows are individually memoized; changing one pin re-renders exactly one `<PinRow>`
-- **SVG wiring overlays** use `stroke-dasharray` animation for the classic "draw-in" effect with a staggered `begin` offset per wire
-- **Coordinate system** (`breadboardCoords.js`) — a single source of truth for the breadboard's row/column geometry, shared by the static render, the wiring overlay, and the T-Cobbler glyph
-- **Auto-detected Pi model** — runtime detection via device tree so the agent works on Pi 4, Pi 5, and Zero without configuration
-- **Streaming code execution with process-group kill** — scripts respond to Ctrl+C semantics (so user `finally:` blocks that call `GPIO.cleanup()` actually run) instead of being SIGKILL'd
-- **Pin subscription protocol** — clients can send `{"type":"subscribe","pins":[17,18,22]}` to get filtered state updates, reducing bandwidth when focused on a small set of pins
-- **Agent log auth-token scrubbing** — token is scraped once on startup, then `sed -i '/AUTH_TOKEN=/d'` removes the line from the log file so subsequent `head agent.log` calls can't recover it
-- **Uploads over an exec channel** — file contents are piped into `cat > file` on the Pi, so binary buffers stream directly without temp files on either host and without needing the SFTP subsystem
-- **Multi-session shell muxing** — one SSH client, many concurrent PTY streams, each with independent resize and lifecycle
-- **Abortable AI streaming** — every new prompt cancels the previous request, guaranteeing exactly one in-flight completion per tutorial
+Counted from the repository when this README was written; the commands in the Source column reproduce them.
 
----
-
-## Tech Stack
-
-| Layer                  | Technology                                                                         |
-| ---------------------- | ---------------------------------------------------------------------------------- |
-| **Desktop Shell**      | Tauri 2 (Rust backend, OS webview, overlay title bar, native file dialog)          |
-| **Renderer**           | React 19, Vite 7, Tailwind CSS 3                                                   |
-| **State**              | Zustand 5 with per-pin selectors                                                   |
-| **Code Editor**        | CodeMirror 6 (`@codemirror/lang-python`, `@codemirror/theme-one-dark`)             |
-| **Terminal Emulator**  | xterm.js 6 with FitAddon and WebLinksAddon                                         |
-| **Iconography**        | lucide-react                                                                       |
-| **Typography**         | Inter Variable (self-hosted) + JetBrains Mono                                      |
-| **SSH**                | `russh` (pure-Rust async SSH client: exec, PTY shell, keepalive)                   |
-| **WebSocket (client)** | `tokio-tungstenite`                                                                |
-| **HTTP (AI)**          | `reqwest` with streaming responses                                                 |
-| **Persistence**        | JSON settings file + OS keychain (`keyring`) for secrets                           |
-| **Build / Package**    | `tauri build` (`.app` + `.dmg` on macOS; the host platform's bundle types elsewhere) |
-| **Pi Agent**           | Python 3, `asyncio`, `websockets` 12, `gpiod` 2, `pinctrl` (raspi-utils)           |
-| **AI Provider**        | OpenRouter (Claude, GPT, Gemini, Grok, MiniMax) with SSE streaming                 |
-| **Linting / Format**   | ESLint 9 (flat config), Prettier 3                                                 |
+| Metric | Count | Source |
+| --- | --- | --- |
+| Tutorials | 26 (17 kit projects, 9 extras) | `src/renderer/src/content/tutorials/*/tutorial.json` |
+| Build steps, all tutorials | 411 | `buildSteps()` over every tutorial |
+| Simulation assertions, all tutorials | 157 | each `tutorial.json` `assertions` |
+| Library parts | 38 | `content/parts/*.part.json` |
+| 3D model files | 46 GLB (7 bench, 39 part), 10 MB | `public/models` |
+| ERC rules | 17 | `core/erc/erc.ts`, `core/sim/checks.ts` |
+| Device behaviour models | 15 | `core/sim/behaviors/` |
+| ngspice reference circuits | 22 | `core/sim/fixtures/ngspice.json` |
+| Assistant tools | 22 | `assistant/tools/index.ts` |
+| TypeScript and TSX files | 351 (114 of them Vitest files) | `git ls-files` |
+| Rust files / Pi-agent Python files | 13 / 7 (2 of the Python files are tests) | `git ls-files` |
+| Blender scripts | 36 | `scripts/assets/blender/` |
+| Vitest | 2,321 tests pass, 2 skipped; 113 files run, 1 skipped | `npx vitest run` |
+| Rust | 94 tests pass, 20 ignored | `cargo test` |
+| Node bridge / Pi agent | 7 / 58 tests pass | `node --test`, `python3 -m unittest` |
+| End-to-end tests (listed, not run for this table) | 105 in 11 files | `npx playwright test --list` |
+| Recorded decisions | 137 | `docs/v2/DECISIONS.md` |
+| Audit rows | 242 (11 unsafe for hardware), every one closed | `docs/v2/AUDIT.md`, `audit.test.ts` |
 
 ---
 
-## Project Scale
+## Getting started
 
-| Metric                              | Count                                     |
-| ----------------------------------- | ----------------------------------------- |
-| JS / JSX source files (app)         | ~30                                       |
-| JS / JSX lines of code              | ~5,700                                    |
-| Rust source files (backend)         | 7 (plus 2 test-support files)             |
-| Rust lines of code                  | ~2,000 (plus ~1,100 of tests)             |
-| Python source files (agent)         | 4                                         |
-| Python lines of code                | ~565                                      |
-| React components                    | 17                                        |
-| Zustand stores                      | 4                                         |
-| Tauri commands                      | 28                                        |
-| Backend → renderer event channels   | 10                                        |
-| `window.api` namespaces             | 6 (ssh · gpio · terminal · agent · settings · ai) |
-| Tutorials shipped                   | 18                                        |
-| Tutorial categories                 | 6                                         |
-| GPIO pins monitored                 | 28 (BCM 0-27)                             |
-| Header pins modeled                 | 40                                        |
-| Pin type classifications            | 9 (GPIO / 3V3 / 5V / GND / I2C / SPI / UART / PCM / EEPROM) |
-| GPIO polling rate                   | 10 Hz                                     |
-| System info rate                    | 0.2 Hz (every 5s)                         |
-| OpenRouter models supported         | 5                                         |
-| AI reasoning levels                 | 4 (off · low · medium · high)             |
-| Packaging                           | `tauri build` bundles for the host platform |
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- **Desktop:** Node.js 20+, npm 10+, and the Rust stable toolchain ([rustup](https://rustup.rs)). On macOS, install the Xcode Command Line Tools; other platforms need the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
-- **Raspberry Pi:** Pi 4 or Pi 5 running Debian/Raspberry Pi OS with SSH enabled
-- **OpenRouter API key** (optional — only needed for the AI panel)
-
-### Install
+Prerequisites: Node.js 22.12 or later (the lowest Vitest 5 accepts; the project's checks were run on Node 26 with npm 11) and the Rust stable toolchain ([rustup](https://rustup.rs)). On macOS, install the Xcode Command Line Tools; other platforms would need the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) and have not been tried. For the hardware features, a Raspberry Pi 5 running Raspberry Pi OS with SSH enabled.
 
 ```bash
 npm install
+npm run dev        # the app, with the renderer hot-reloading
+npm run web:dev    # just the renderer, in a browser at localhost:5173 (no Rust backend: no Pi, Keychain, saved projects or assistant)
 ```
 
-### Development
+The committed 3D models are used as they are; Blender is needed only to rebuild them (`BLENDER_BIN=/Applications/Blender.app/Contents/MacOS/Blender npm run assets:build`, see [`scripts/assets/README.md`](scripts/assets/README.md)). The Pi agent files in `pi-agent/` are compiled into the app (`src-tauri/src/agent.rs`), so restart `npm run dev` after editing them.
+
+**First run.** The Studio, Workbench and tutorials work immediately. To use the assistant, open the Claude tab, press **Settings** and paste an Anthropic API key. To use the Pi, open **Connect**, enter its address and user, choose key or password, and connect; then deploy, install and start the agent from the same tab, and **Monitor** shows live pins once it is running.
+
+## Testing
 
 ```bash
-npm run dev
+npm test                         # Node tests for the bridge, then the Vitest suite
+npm run lint && npm run typecheck
+npm run assets:check             # the committed models: holes, pins, hashes, budgets
+npm run evals                    # replay the recorded assistant runs (no key, no network)
+npm run e2e                      # Playwright in Chromium; run `npx playwright install chromium` once first
+(cd src-tauri && cargo test)     # backend unit tests, and WebSocket and Anthropic-proxy tests against mock servers
+src-tauri/live-tests.sh          # SSH tests against throwaway local sshd servers (macOS)
+(cd pi-agent && python3 -m unittest -v)
 ```
 
-Starts the Vite dev server (HMR for the renderer), compiles the Rust backend, and opens the app window. The first build compiles the Rust dependencies, which takes a few minutes; later runs are incremental and rebuild the backend automatically when `src-tauri/` changes.
-
-The Pi agent files in `pi-agent/` are compiled into the app (see `src-tauri/src/agent.rs`), so restart `npm run dev` after editing them. `npm run web:dev` serves just the renderer for previewing the UI in a browser, without the backend.
-
-### Testing
-
-```bash
-(cd src-tauri && cargo test)   # backend unit tests plus WebSocket and OpenRouter tests against mock servers
-npm test                       # the renderer bridge (Node's built-in test runner)
-src-tauri/live-tests.sh        # SSH tests against throwaway local sshd servers (macOS)
-```
-
-`live-tests.sh` starts two OpenSSH servers on `127.0.0.1` with freshly generated keys (one refuses PTYs), runs the ignored integration tests against them, and removes everything afterwards. It also runs the keychain test, which uses your login keychain under a temporary entry name.
-
-### First-Run Flow
-
-1. Open the **Connect** tab. Enter your Pi's hostname or IP, username (`pi`), and pick SSH key or password auth.
-2. Click **Connect** — the app establishes SSH and verifies the session.
-3. Click **Deploy Agent** — `pi-agent/` is SCP'd to `/home/<user>/gpio-dashboard-agent/`.
-4. Click **Install Agent** — runs `bash install.sh` on the Pi (installs Python deps + pinctrl).
-5. Click **Start Agent** — launches `agent.py` under `nohup`, captures the one-time auth token, opens the WebSocket.
-6. The GPIO, Pinout, Breadboard, and Tutorials tabs are now fully live.
-
----
+`live-tests.sh` starts two OpenSSH servers on `127.0.0.1` with freshly generated keys (one refuses PTYs), runs the ignored integration tests against them, and removes everything afterwards. One more ignored Rust test calls the real Anthropic API through the proxy: `npm run evals:proxy` runs it, and `npm run evals:live` runs the assistant's evaluation prompts the same way. Both read `ANTHROPIC_API_KEY` from the repository root's git-ignored `.env` (or a file named by `--key-file`) into that process's memory only.
 
 ## Building
 
 ```bash
-# Bundles for the host platform (macOS: .app + .dmg)
-npm run build
-
-# Just the .app, skipping the .dmg
-npm run build -- --bundles app
+npm run build                    # macOS: .app and .dmg in src-tauri/target/release/bundle/
+npm run build -- --bundles app   # just the .app
 ```
 
-Outputs land in `src-tauri/target/release/bundle/`. On macOS the bundle is ad-hoc signed. Keychain access is tied to the app's code signature, so macOS may ask you to re-approve access to the saved SSH password and API key after a rebuild. Set `APPLE_SIGNING_IDENTITY` to a certificate in your keychain (for example an Apple Development identity) before building to keep a stable identity across rebuilds.
+On macOS the bundle is ad-hoc signed. Keychain access is tied to the app's code signature, so macOS may ask you to re-approve access to the saved SSH password and API key after a rebuild. Set `APPLE_SIGNING_IDENTITY` to a certificate in your keychain before building to keep a stable identity across rebuilds.
 
 ---
 
-## Roadmap
+## Not built, and open
 
-| Direction                         | Description                                                                                                |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **Logic Analyzer View**           | Time-series chart of pin transitions with configurable buffer, CSV export, and trigger conditions          |
-| **mDNS Discovery**                | Auto-discover Pis on the LAN via `_workstation._tcp.local` so connection setup is zero-config              |
-| **systemd Service Install**       | Optional `install.sh` flag to register the agent as a system service for always-on monitoring              |
-| **I2C / SPI Bus Explorer**        | `i2cdetect`-style visualization + live read/write for connected peripherals (sensors, displays, EEPROMs)  |
-| **PWM Scope**                     | Oscilloscope-style visualization of PWM outputs with measured frequency and duty cycle                     |
-| **Breadboard Editor**             | Drag-and-drop component placement that generates the declarative `wiringDiagram` object automatically     |
-| **Tutorial Authoring UI**         | In-app editor for the tutorial JSON schema so users can publish their own projects                         |
-| **Multi-Pi Support**              | Named connections, per-Pi state, fast switching between multiple target boards                            |
-| **Hardware Abstraction Layer**    | Plugin API for non-Pi SBCs (Jetson, Rock Pi, Orange Pi) using the same renderer and tutorial format       |
-| **On-Device LLM Option**          | Route AI requests through a local `llama.cpp` server for offline / air-gapped learning environments        |
+| Direction | State |
+| --- | --- |
+| **Presence sensing** | Not built. Detecting a lead that touches nothing needs a timing spike on the Pi's RP1; none was run ([ADR-0018](../docs/v2/DECISIONS.md)). Board Sense reports such a lead as unobserved. |
+| **Everything on the hardware checklist** | Unverified on a real Pi: the agent install, the Live Monitor, Run on Pi, every Board Sense bench fixture, the T-board's pin-1 end and column assumptions, and the twin's checkpoints ([`HIL_CHECKLIST.md`](../docs/v2/HIL_CHECKLIST.md)). |
+| **60 fps on every drag** | Medians on the heaviest tutorial were 55 to 58 fps in the Tauri window on a loaded machine (M8). M12 then halved the main thread's cost of a board drag and draws the bloom only while something glows (ADR-0127 to ADR-0131), measured in headless Chromium on WebGPU: 60 fps unthrottled, 52 to 57 with the main thread slowed 2×. 60 fps on every drag in the Tauri window is not yet demonstrated; [`HIL_CHECKLIST.md`](../docs/v2/HIL_CHECKLIST.md) has the check. |
+| **Animated parts, checked by eye** | The rotation direction of the potentiometer, servo, relay, bar graph and matrix animations has not been confirmed visually, and the LCD draws ASCII, arrows, the yen sign and custom characters only, not katakana ([`PROGRESS.md`](../docs/v2/PROGRESS.md), M7). |
+| **LCD1602 tutorial** | Not shipped until the part library has an I2C level shifter. |
+| **Other platforms** | Windows and Linux packaging, and other controllers (Arduino, ESP32) are out of scope ([`SPEC.md`](../docs/v2/SPEC.md) section 21); the controller definition is data, so another controller could be added as data. |
+| **Hole-level sensing** | Impossible electrically: the five holes of a strip are one node, so Board Sense localizes to strips. |
 
----
+## Documentation
+
+| Document | What it holds |
+| --- | --- |
+| [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) | The system as built: processes, data flow, module boundaries, asset pipeline, Board Sense, the key's path |
+| [`docs/v2/SPEC.md`](../docs/v2/SPEC.md) | The v2 specification |
+| [`docs/v2/PLAN.md`](../docs/v2/PLAN.md), [`PROGRESS.md`](../docs/v2/PROGRESS.md) | The milestone plan and each milestone's exit evidence |
+| [`docs/v2/DECISIONS.md`](../docs/v2/DECISIONS.md) | ADR-0001 to ADR-0137 |
+| [`docs/v2/AUDIT.md`](../docs/v2/AUDIT.md) | The correctness audit: every tutorial, part depiction, hard-coded fact and README claim, with sources |
+| [`docs/v2/HIL_CHECKLIST.md`](../docs/v2/HIL_CHECKLIST.md) | Checks that need the Pi or the bench |
+| [`docs/v2/EVALS.md`](../docs/v2/EVALS.md), [`LOOKDEV.md`](../docs/v2/LOOKDEV.md) | The assistant's evaluations and the look-development checklist |
+| [`docs/VERSIONS.md`](../docs/VERSIONS.md) | Dependency and tool versions, with the reason for each |
 
 ## License
 
-See repository license file.
+This repository has no license file. The kit's own sample code is GPL-3.0 and none of it is copied: the tutorials' code and theory are written for this app ([ADR-0016](../docs/v2/DECISIONS.md)). Bundled third-party sources are recorded with their licences in `scripts/assets/sources.json` and each model's manifest (the Pi 5 STEP file and two Adafruit STEP files are MIT; the studio HDRI is CC0). The T-board's shape is measured from product photographs, which are not in this repository, with Adafruit's T-Cobbler Plus board file (Creative Commons Attribution-ShareAlike) as a prior for the few values the photographs cannot give (corner radius, mounting-hole diameter, board thickness; [ADR-0004](../docs/v2/DECISIONS.md)).
 
 ---
 
 <p align="center">
-  <em>Making the invisible visible — because the best way to learn a pin is to watch it flip.</em>
+  <em>Computed, not asserted: a bench where the model proposes the circuit and deterministic code decides whether it is allowed.</em>
 </p>

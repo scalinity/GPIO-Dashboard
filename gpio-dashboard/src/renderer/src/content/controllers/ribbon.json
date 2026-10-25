@@ -1,0 +1,25 @@
+{
+  "id": "ribbon-40",
+  "name": "40-way rainbow ribbon cable with two 2x20 IDC sockets",
+  "conductors": 40,
+  "pitchMm": 1.27,
+  "widthMm": 50.8,
+  "thicknessMm": 0.95,
+  "lengthMm": 200,
+  "colors": ["brown", "red", "orange", "yellow", "green", "blue", "violet", "grey", "white", "black"],
+  "conductor1Color": "brown",
+  "clampedEndMm": 6,
+  "provenance": {
+    "sources": [
+      "https://www.farnell.com/datasheets/296632.pdf",
+      "https://agelectronica.lat/pdfs/textos/C/CP-40-MULTICOLOR.PDF"
+    ],
+    "values": {
+      "conductors, pitchMm, widthMm": "Farnell colour-coded ribbon datasheet: 40-way width 50.80 mm (+/-0.40), 1.27 mm pitch; CP-40: 40 cores, 50.80 mm, 1.27 mm",
+      "thicknessMm": "CP-40 datasheet: thickness 0.95 +/- 0.1 mm",
+      "colors": "Farnell and CP-40: brown, red, orange, yellow, green, blue, violet, grey, white, black, repeated four times; conductor 1 is brown",
+      "lengthMm": "Listing photo 'Ribbon and BreadBoard.jpg': Size 200*50mm",
+      "clampedEndMm": "SPEC 10.5: the first and last ~6 mm are clamped in the socket frames"
+    }
+  }
+}

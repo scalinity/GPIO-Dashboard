@@ -195,7 +195,7 @@ fn streaming_keeps_split_characters_and_supports_kill_and_timeout() {
         let result = ssh
             .execute_streaming(
                 "printf 'h\\xc3\\xa9llo \\xe2\\x9c'; sleep 0.6; printf '\\x93 done\\n'; echo err 1>&2",
-                Duration::from_secs(10),
+                Some(Duration::from_secs(10)),
             )
             .await
             .unwrap();
@@ -211,7 +211,7 @@ fn streaming_keeps_split_characters_and_supports_kill_and_timeout() {
         });
         let started = std::time::Instant::now();
         let killed = ssh
-            .execute_streaming("sleep 30", Duration::from_secs(60))
+            .execute_streaming("sleep 30", Some(Duration::from_secs(60)))
             .await
             .unwrap();
         assert_eq!(killed, json!({"code": null}));
@@ -219,12 +219,12 @@ fn streaming_keeps_split_characters_and_supports_kill_and_timeout() {
 
         // The timeout reports itself and the next stream still works.
         let timed_out = ssh
-            .execute_streaming("sleep 30", Duration::from_secs(1))
+            .execute_streaming("sleep 30", Some(Duration::from_secs(1)))
             .await
             .unwrap();
         assert_eq!(timed_out, json!({"code": -1, "timedOut": true}));
         let after = ssh
-            .execute_streaming("true", Duration::from_secs(5))
+            .execute_streaming("true", Some(Duration::from_secs(5)))
             .await
             .unwrap();
         assert_eq!(after, json!({"code": 0}));
@@ -373,7 +373,9 @@ fn a_stalled_server_cannot_hang_streaming_or_shell_creation() {
         signal("-STOP", &pids);
         let outcome = tokio::time::timeout(Duration::from_secs(25), async {
             let started = std::time::Instant::now();
-            let streamed = ssh.execute_streaming("true", Duration::from_secs(2)).await;
+            let streamed = ssh
+                .execute_streaming("true", Some(Duration::from_secs(2)))
+                .await;
             let streaming_took = started.elapsed();
             let started = std::time::Instant::now();
             let shell = ssh.create_shell("stalled").await;
@@ -420,11 +422,10 @@ fn stop_ends_a_running_tutorial_script_on_the_remote() {
 
         let runner = ssh.clone();
         let command = crate::commands::tutorial_run_command(&file);
-        let run_task = tauri::async_runtime::spawn(async move {
-            runner
-                .execute_streaming(&command, Duration::from_secs(120))
-                .await
-        });
+        let run_task =
+            tauri::async_runtime::spawn(
+                async move { runner.execute_streaming(&command, None).await },
+            );
         wait_for("the script to start", || running(&file) > 0).await;
 
         // What the app does when Stop is pressed.
@@ -545,5 +546,165 @@ fn a_changed_host_key_is_refused_and_not_retried() {
         tokio::time::sleep(Duration::from_secs(3)).await;
         assert_eq!(statuses(&events), ["connecting", "error"]);
         assert_eq!(known_hosts_lines(&path), before);
+    });
+}
+
+/// Uploads a script that sleeps quietly for two minutes and returns its filename.
+async fn upload_quiet_script(ssh: &Ssh, tag: &str) -> (String, String) {
+    let file = format!("tutorial_{tag}_{}.py", std::process::id());
+    let remote = format!("/tmp/gpio_dashboard/{file}");
+    ssh.execute("mkdir -p /tmp/gpio_dashboard", Duration::from_secs(5))
+        .await
+        .unwrap();
+    ssh.put_bytes(b"import time\ntime.sleep(120)\n".to_vec(), &remote)
+        .await
+        .unwrap();
+    (file, remote)
+}
+
+fn clean_up(file: &str, remote: &str) {
+    let _ = std::process::Command::new("pkill")
+        .args(["-f", file])
+        .status();
+    let _ = std::fs::remove_file(remote);
+}
+
+/// D17, observed: ending the stream only closes the SSH channel, and a script that is not
+/// writing output keeps running on the remote. This is why a run that ends must also be
+/// killed explicitly.
+#[test]
+#[ignore = "needs a local sshd; run src-tauri/live-tests.sh"]
+fn closing_the_channel_alone_leaves_a_quiet_script_running() {
+    run(async {
+        let (ssh, _) = connected("k_ed25519").await;
+        let (file, remote) = upload_quiet_script(&ssh, "orphan").await;
+        let command = crate::commands::tutorial_run_command(&file);
+        let result = ssh
+            .execute_streaming(&command, Some(Duration::from_secs(1)))
+            .await
+            .unwrap();
+        assert_eq!(result, json!({"code": -1, "timedOut": true}));
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        let survivors = running(&file);
+        clean_up(&file, &remote);
+        assert!(survivors > 0, "expected the script to outlive its channel");
+        ssh.disconnect().await;
+    });
+}
+
+/// D17, fixed: a run ended by the optional time limit is killed on the remote.
+#[test]
+#[ignore = "needs a local sshd; run src-tauri/live-tests.sh"]
+fn a_run_that_hits_its_time_limit_is_killed_on_the_remote() {
+    run(async {
+        let (ssh, _) = connected("k_ed25519").await;
+        let (file, remote) = upload_quiet_script(&ssh, "limit").await;
+        let result = crate::commands::run_script(&ssh, &file, Some(Duration::from_secs(1))).await;
+        assert_eq!(result, json!({"code": -1, "timedOut": true}));
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        let survivors = running(&file);
+        clean_up(&file, &remote);
+        assert_eq!(survivors, 0, "the script outlived its time limit");
+        ssh.disconnect().await;
+    });
+}
+
+/// D18: the agent's WebSocket runs through the SSH session to a server that listens only on
+/// the loopback interface, and messages flow both ways.
+#[test]
+#[ignore = "needs a local sshd; run src-tauri/live-tests.sh"]
+fn the_agent_socket_runs_through_the_ssh_tunnel_to_a_loopback_only_server() {
+    use crate::ws::{Route, Ws};
+    use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::{accept_async, tungstenite::Message};
+
+    run(async {
+        let (ssh, _) = connected("k_ed25519").await;
+        // Stands in for the Pi agent, bound to 127.0.0.1 exactly as agent.py binds.
+        let agent = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = agent.local_addr().unwrap().port();
+
+        let (emit, events) = capture();
+        let ws = Ws::new(emit);
+        ws.connect(
+            Route::Tunnel {
+                ssh: ssh.clone(),
+                port,
+            },
+            Some("tok-d18".into()),
+        );
+        let (stream, _) = tokio::time::timeout(Duration::from_secs(10), agent.accept())
+            .await
+            .expect("the tunnel reaches the agent")
+            .unwrap();
+
+        // The client end of the agent's connection belongs to sshd, not to this process.
+        let clients = server_side_pids(port);
+        let names: Vec<String> = clients
+            .iter()
+            .map(|pid| {
+                let out = std::process::Command::new("ps")
+                    .args(["-o", "comm=", "-p", pid])
+                    .output()
+                    .unwrap();
+                String::from_utf8_lossy(&out.stdout).trim().to_string()
+            })
+            .collect();
+        assert!(
+            names.iter().any(|name| name.contains("sshd")),
+            "the agent's peer is {names:?}, not sshd"
+        );
+
+        let mut conn = accept_async(stream).await.unwrap();
+        let auth = conn.next().await.unwrap().unwrap().into_text().unwrap();
+        assert!(auth.as_str().contains("tok-d18"));
+        conn.send(Message::text(
+            r#"{"type": "gpio_state", "pins": {"17": 1}}"#,
+        ))
+        .await
+        .unwrap();
+        wait_for("telemetry through the tunnel", || {
+            events
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|(event, payload)| event == "gpio:state" && payload == &json!({"17": 1}))
+        })
+        .await;
+
+        ws.send(&json!({"type": "sense_pause"})).unwrap();
+        let sent = tokio::time::timeout(Duration::from_secs(5), conn.next())
+            .await
+            .expect("a command reaches the agent")
+            .unwrap()
+            .unwrap()
+            .into_text()
+            .unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(sent.as_str()).unwrap(),
+            json!({"type": "sense_pause"})
+        );
+
+        ws.disconnect();
+        ssh.disconnect().await;
+    });
+}
+
+/// The I2C scan runs over SSH and reports why it failed when the host lacks i2c-tools,
+/// as this Mac does. (The grid parser is covered by i2c.rs; the real scan by the HIL run.)
+#[test]
+#[ignore = "needs a local sshd; run src-tauri/live-tests.sh"]
+fn an_i2c_scan_without_i2c_tools_reports_why() {
+    run(async {
+        let (ssh, _) = connected("k_ed25519").await;
+        let result = crate::commands::i2c_scan(&ssh, 1).await;
+        assert_eq!(result["success"], false);
+        let error = result["error"].as_str().unwrap();
+        assert!(error.contains("i2cdetect"), "{error}");
+        assert_eq!(
+            crate::commands::i2c_scan(&ssh, 99).await["error"],
+            "Invalid I2C bus 99: use 0 to 31"
+        );
+        ssh.disconnect().await;
     });
 }

@@ -1,0 +1,950 @@
+{
+ "id": "parking-sensor",
+ "title": "Parking sensor with HC-SR04, passive buzzer and 3 LEDs",
+ "model": "claude-opus-5-5",
+ "effort": "high",
+ "recorded": "2026-10-24",
+ "turns": [
+  {
+   "user": "parking sensor with HC-SR04 + passive buzzer + 3 LEDs",
+   "assistant": "Now the wiring.I've built the parking sensor in the twin. The latest ERC shows 0 errors and 0 warnings, and the code matches the wiring.\n\n**What I built**\n- **HC-SR04:** VCC to 5V, GND to GND, TRIG to GPIO23. ECHO reaches GPIO24 through a voltage divider: R5 (1 kΩ) and R6 (2 kΩ).\n- **3 LEDs:** green on GPIO17, yellow on GPIO27, red on GPIO22. Each has its own 220 Ω resistor and goes to GND (rows 26–45, left side).\n- **Passive buzzer:** switched from 5 V by a PN2222 transistor (Q1). GPIO18 drives it through a 1 kΩ base resistor (R4). A 1N4007 diode (D1) sits across the buzzer.\n- **Program (gpiozero):**\n  - Over 50 cm: green, silent.\n  - 20–50 cm: yellow.\n  - Under 20 cm: red.\n  - Beeps get faster as you get closer, and under 8 cm the tone is continuous.\n\n**How it works, with the sim numbers**\n- **ECHO divider:** the HC-SR04's ECHO pin outputs 5 V, which would damage a 3.3 V GPIO. The divider brings it down to 5 V × 2k/(1k+2k) = **3.33 V**.\n- **LED resistors:** (3.3 V − ~2 V) / 220 Ω ≈ 6 mA. The sim gives **5.1 / 5.3 / 5.5 mA** for green, yellow and red.\n- **Buzzer:** it gets a 2 kHz square wave at 50% duty. The GPIO only supplies **2.4 mA** of base current, and the 5 V rail carries the buzzer current.\n- **Diode:** the buzzer is a coil, so D1 absorbs the voltage spike when the transistor switches off.\n- **Code sim at 30 cm:** it read 29.9 cm, lit only yellow, and beeped every ~0.41 s, as intended.\n\n**What to check on the bench**\n- **Divider resistors:** don't swap R5 and R6. 1 kΩ goes from ECHO (row 50) and 2 kΩ goes to GND. If you don't have a 2 kΩ, two 1 kΩ in series work.\n- **LEDs:** the long leg (anode) goes toward the resistor.\n- **Diode:** the band goes to the 5 V row (row 38).\n- **PN2222:** with the flat face toward you, the legs are Emitter, Base, Collector from left to right.\n- **Buzzer:** its + (marked lead) goes on the 5 V side.\n- **HC-SR04:** it uses 4 male-female leads. Check VCC goes to 5V, not 3V3, or you'll get erratic readings.\n- **Ribbon cable:** the coloured (usually brown or red) edge is pin 1, at row 1 of the T-board.\n\nI couldn't check the layout by eye because there's no 3D view in this session. I moved the buzzer to rows 46/49 after ERC flagged it as overlapping the diode. It now links to the diode rows with two short leads (W17, W18).",
+   "end": "end_turn",
+   "notices": [],
+   "usage": {
+    "inputTokens": 40,
+    "outputTokens": 11615,
+    "cacheWriteTokens": 20801,
+    "cacheReadTokens": 484922,
+    "webSearches": 0,
+    "requests": 19,
+    "costUsd": 0.4334494
+   },
+   "toolCalls": [
+    {
+     "tool": "get_circuit_state",
+     "input": {
+      "detail": "summary"
+     },
+     "ok": true,
+     "result": "Revision 0: 1 board(s), 0 part(s), 0 wire(s). ERC: 0 error(s), 0 warning(s).\n{\"revision\":0,\"boards\":[{\"id\":\"bb1\",\"def\":\"bb-830\",\"rows\":63,\"freeRows\":[[24,63]],\"freeRailHoles\":{\"top+\":50,\"top-\":50,\"bottom+\":50,\"bottom-\":50}}],\"tboard\":{\"board\":\"bb1\",\"pin1Row\":1,\"colPair\":\"d/h\",\"orientation\":\"header-toward-row-0\"},\"parts\":[],\"wires\":[],\"nets\":[],\"erc\":[],\"code\":{\"library\":\"RPi.GPIO\",\"lines\":0,\"uses\":[],\"unresolved\":[]}}"
+    },
+    {
+     "tool": "search_parts",
+     "input": {
+      "query": "ultrasonic"
+     },
+     "ok": true,
+     "result": "[{\"id\":\"hc-sr04\",\"name\":\"HC-SR04 ultrasonic ranging module\",\"category\":\"sensor\",\"inInventory\":false,\"tags\":[\"not in kit\"],\"footprint\":{\"kind\":\"offboard\"},\"pins\":[{\"id\":\"VCC\",\"label\":\"Vcc\",\"role\":\"power\",\"connector\":\"male-pin\"},{\"id\":\"TRIG\",\"label\":\"Trig\",\"role\":\"logic-in\",\"connector\":\"male-pin\"},{\"id\":\"ECHO\",\"label\":\"Echo\",\"role\":\"logic-out\",\"connector\":\"male-pin\"},{\"id\":\"GND\",\"label\":\"Gnd\",\"role\":\"ground\",\"connector\":\"male-pin\"}],\"properties\":{\"distanceCm\":{\"type\":\"number\",\"label\":\"Distance to object\",\"unit\":\"cm\",\"min\":2,\"max\":400,\"default\":100}},\"sim\":\"hc-sr04\",\"datasheet\":\"https://cdn.sparkfun.com/datasheets/Sensors/Proximity/HCSR04.pdf\"}]"
+    },
+    {
+     "tool": "ask_user",
+     "input": {
+      "question": "The HC-SR04 isn't in your kit's inventory. Do you have one on hand, so I can build with it?",
+      "options": [
+       "Yes, I have an HC-SR04",
+       "No, suggest an alternative"
+      ]
+     },
+     "ok": true,
+     "result": "{\"answer\":\"Yes, I have an HC-SR04\"}"
+    },
+    {
+     "tool": "search_parts",
+     "input": {
+      "query": "passive buzzer"
+     },
+     "ok": true,
+     "result": "[{\"id\":\"passive-buzzer\",\"name\":\"Passive buzzer (12 mm magnetic transducer)\",\"category\":\"audio\",\"inInventory\":true,\"tags\":[\"kit\"],\"footprint\":{\"kind\":\"rigid\"},\"pins\":[{\"id\":\"+\",\"label\":\"+ (marked lead)\",\"role\":\"positive\"},{\"id\":\"-\",\"label\":\"- (unmarked lead)\",\"role\":\"negative\"}],\"properties\":{},\"sim\":\"passive-buzzer\",\"datasheet\":\"https://www.soberton.com/wp-content/uploads/2022/03/WT-1209T.pdf\"}]"
+    },
+    {
+     "tool": "search_parts",
+     "input": {
+      "query": "pn2222"
+     },
+     "ok": true,
+     "result": "[{\"id\":\"pn2222\",\"name\":\"PN2222A NPN transistor (TO-92)\",\"category\":\"semiconductor\",\"inInventory\":true,\"tags\":[\"kit\"],\"footprint\":{\"kind\":\"rigid\"},\"pins\":[{\"id\":\"1\",\"label\":\"Emitter\",\"role\":\"emitter\"},{\"id\":\"2\",\"label\":\"Base\",\"role\":\"base\"},{\"id\":\"3\",\"label\":\"Collector\",\"role\":\"collector\"}],\"properties\":{},\"sim\":\"npn\",\"datasheet\":\"https://www.megastar.com/content/pdfs/PN2222A-D.pdf\"}]"
+    },
+    {
+     "tool": "search_parts",
+     "input": {
+      "query": "resistor"
+     },
+     "ok": true,
+     "result": "[{\"id\":\"ldr\",\"name\":\"Photoresistor (LDR), GL5528\",\"category\":\"sensor\",\"inInventory\":true,\"tags\":[\"kit\"],\"footprint\":{\"kind\":\"flex-2lead\",\"minSpan\":1,\"maxSpan\":20},\"pins\":[{\"id\":\"1\",\"label\":\"Lead 1\",\"role\":\"passive\"},{\"id\":\"2\",\"label\":\"Lead 2\",\"role\":\"passive\"}],\"properties\":{\"lux\":{\"type\":\"number\",\"label\":\"Illuminance\",\"unit\":\"lx\",\"min\":0,\"default\":100}},\"sim\":\"ldr\",\"datasheet\":\"https://evelta.com/content/datasheets/361-LDR-Senba.pdf\"},{\"id\":\"resistor\",\"name\":\"Resistor, 1/4 W axial\",\"category\":\"passive\",\"inInventory\":true,\"tags\":[\"kit\"],\"footprint\":{\"kind\":\"flex-2lead\",\"minSpan\":1,\"maxSpan\":16},\"pins\":[{\"id\":\"1\",\"label\":\"Lead 1\",\"role\":\"passive\"},{\"id\":\"2\",\"label\":\"Lead 2\",\"role\":\"passive\"}],\"properties\":{\"resistance\":{\"type\":\"number\",\"label\":\"Resistance\",\"unit\":\"Ω\",\"min\":1,\"max\":4700000,\"default\":220},\"tolerance\":{\"type\":\"enum\",\"label\":\"Tolerance\",\"options\":[\"5%\",\"1%\"],\"default\":\"5%\"}},\"sim\":\"resistor\",\"datasheet\":\"https://yageogroup.com/content/Resource%20Library/Datasheet/YAGEO-CFR_DATASHEET.pdf\"}]"
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "resistor",
+      "at": "bb1:26a",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "resistance",
+        "value": 220
+       }
+      ],
+      "ref": "R1",
+      "span": 3
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R1\",\"pins\":{\"1\":{\"hole\":\"bb1:26a\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:26b\",\"bb1:26c\",\"bb1:26d\",\"bb1:26e\"]},\"2\":{\"hole\":\"bb1:29a\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:29b\",\"bb1:29c\",\"bb1:29d\",\"bb1:29e\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "led",
+      "at": "bb1:29c",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "color",
+        "value": "green"
+       }
+      ],
+      "ref": "LED1",
+      "span": 2
+     },
+     "ok": true,
+     "result": "{\"ref\":\"LED1\",\"pins\":{\"A\":{\"hole\":\"bb1:29c\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:29b\",\"bb1:29d\",\"bb1:29e\"]},\"K\":{\"hole\":\"bb1:31c\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:31a\",\"bb1:31b\",\"bb1:31d\",\"bb1:31e\"]}},\"warnings\":[\"LED1.A shares its strip with R1.2, so it joins their net\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "resistor",
+      "at": "bb1:33a",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "resistance",
+        "value": 220
+       }
+      ],
+      "ref": "R2",
+      "span": 3
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R2\",\"pins\":{\"1\":{\"hole\":\"bb1:33a\",\"net\":\"N4\",\"freeInStrip\":[\"bb1:33b\",\"bb1:33c\",\"bb1:33d\",\"bb1:33e\"]},\"2\":{\"hole\":\"bb1:36a\",\"net\":\"N5\",\"freeInStrip\":[\"bb1:36b\",\"bb1:36c\",\"bb1:36d\",\"bb1:36e\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "led",
+      "at": "bb1:36c",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "color",
+        "value": "yellow"
+       }
+      ],
+      "ref": "LED2",
+      "span": 2
+     },
+     "ok": true,
+     "result": "{\"ref\":\"LED2\",\"pins\":{\"A\":{\"hole\":\"bb1:36c\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:36b\",\"bb1:36d\",\"bb1:36e\"]},\"K\":{\"hole\":\"bb1:38c\",\"net\":\"N4\",\"freeInStrip\":[\"bb1:38a\",\"bb1:38b\",\"bb1:38d\",\"bb1:38e\"]}},\"warnings\":[\"LED2.A shares its strip with R2.2, so it joins their net\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "resistor",
+      "at": "bb1:40a",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "resistance",
+        "value": 220
+       }
+      ],
+      "ref": "R3",
+      "span": 3
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R3\",\"pins\":{\"1\":{\"hole\":\"bb1:40a\",\"net\":\"N7\",\"freeInStrip\":[\"bb1:40b\",\"bb1:40c\",\"bb1:40d\",\"bb1:40e\"]},\"2\":{\"hole\":\"bb1:43a\",\"net\":\"N8\",\"freeInStrip\":[\"bb1:43b\",\"bb1:43c\",\"bb1:43d\",\"bb1:43e\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "led",
+      "at": "bb1:43c",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "color",
+        "value": "red"
+       }
+      ],
+      "ref": "LED3",
+      "span": 2
+     },
+     "ok": true,
+     "result": "{\"ref\":\"LED3\",\"pins\":{\"A\":{\"hole\":\"bb1:43c\",\"net\":\"N5\",\"freeInStrip\":[\"bb1:43b\",\"bb1:43d\",\"bb1:43e\"]},\"K\":{\"hole\":\"bb1:45c\",\"net\":\"N6\",\"freeInStrip\":[\"bb1:45a\",\"bb1:45b\",\"bb1:45d\",\"bb1:45e\"]}},\"warnings\":[\"LED3.A shares its strip with R3.2, so it joins their net\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "resistor",
+      "at": "bb1:50a",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "resistance",
+        "value": 1000
+       }
+      ],
+      "ref": "R5",
+      "span": 3
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R5\",\"pins\":{\"1\":{\"hole\":\"bb1:50a\",\"net\":\"N10\",\"freeInStrip\":[\"bb1:50b\",\"bb1:50c\",\"bb1:50d\",\"bb1:50e\"]},\"2\":{\"hole\":\"bb1:53a\",\"net\":\"N11\",\"freeInStrip\":[\"bb1:53b\",\"bb1:53c\",\"bb1:53d\",\"bb1:53e\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "resistor",
+      "at": "bb1:53b",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "resistance",
+        "value": 2000
+       }
+      ],
+      "ref": "R6",
+      "span": 3
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R6\",\"pins\":{\"1\":{\"hole\":\"bb1:53b\",\"net\":\"N11\",\"freeInStrip\":[\"bb1:53c\",\"bb1:53d\",\"bb1:53e\"]},\"2\":{\"hole\":\"bb1:56b\",\"net\":\"N12\",\"freeInStrip\":[\"bb1:56a\",\"bb1:56c\",\"bb1:56d\",\"bb1:56e\"]}},\"warnings\":[\"R6.1 shares its strip with R5.2, so it joins their net\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "pn2222",
+      "at": "bb1:30h",
+      "orientation": 0,
+      "props": [],
+      "ref": "Q1"
+     },
+     "ok": true,
+     "result": "{\"ref\":\"Q1\",\"pins\":{\"1\":{\"hole\":\"bb1:30h\",\"net\":\"N7\",\"freeInStrip\":[\"bb1:30j\",\"bb1:30i\",\"bb1:30g\",\"bb1:30f\"]},\"2\":{\"hole\":\"bb1:31h\",\"net\":\"N8\",\"freeInStrip\":[\"bb1:31j\",\"bb1:31i\",\"bb1:31g\",\"bb1:31f\"]},\"3\":{\"hole\":\"bb1:32h\",\"net\":\"N9\",\"freeInStrip\":[\"bb1:32j\",\"bb1:32i\",\"bb1:32g\",\"bb1:32f\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "hc-sr04",
+      "at": "auto",
+      "orientation": 0,
+      "props": [],
+      "ref": "U1"
+     },
+     "ok": true,
+     "result": "{\"ref\":\"U1\",\"pins\":{\"VCC\":{\"hole\":\"off-board\",\"net\":\"N19\"},\"TRIG\":{\"hole\":\"off-board\",\"net\":\"N18\"},\"ECHO\":{\"hole\":\"off-board\",\"net\":\"N16\"},\"GND\":{\"hole\":\"off-board\",\"net\":\"N17\"}}}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "resistor",
+      "at": "bb1:31f",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "resistance",
+        "value": 1000
+       }
+      ],
+      "ref": "R4",
+      "span": 4
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R4\",\"pins\":{\"1\":{\"hole\":\"bb1:31f\",\"net\":\"N8\",\"freeInStrip\":[\"bb1:31j\",\"bb1:31i\",\"bb1:31g\"]},\"2\":{\"hole\":\"bb1:35f\",\"net\":\"N13\",\"freeInStrip\":[\"bb1:35j\",\"bb1:35i\",\"bb1:35h\",\"bb1:35g\"]}},\"warnings\":[\"R4.1 shares its strip with Q1.2, so it joins their net\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "passive-buzzer",
+      "at": "auto",
+      "orientation": 0,
+      "props": [],
+      "ref": "BZ1",
+      "near": "Q1"
+     },
+     "ok": true,
+     "result": "{\"ref\":\"BZ1\",\"pins\":{\"+\":{\"hole\":\"bb1:32e\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:32a\",\"bb1:32b\",\"bb1:32c\",\"bb1:32d\"]},\"-\":{\"hole\":\"bb1:35e\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:35a\",\"bb1:35b\",\"bb1:35c\",\"bb1:35d\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "move_part",
+     "input": {
+      "ref": "BZ1",
+      "at": "bb1:38h",
+      "orientation": 0
+     },
+     "ok": true,
+     "result": "{\"ref\":\"BZ1\",\"pins\":{\"+\":{\"hole\":\"bb1:38h\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:38j\",\"bb1:38i\",\"bb1:38g\",\"bb1:38f\"]},\"-\":{\"hole\":\"bb1:41h\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:41j\",\"bb1:41i\",\"bb1:41g\",\"bb1:41f\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "net": "GPIO17"
+      },
+      "to": {
+       "partPin": {
+        "ref": "R1",
+        "pin": "1"
+       }
+      },
+      "color": "green"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W1\",\"kind\":\"dupont-mm\",\"color\":\"green\",\"lengthMm\":200,\"a\":\"bb1:6a\",\"b\":\"bb1:26b\"},\"net\":\"GPIO17\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "net": "GPIO27"
+      },
+      "to": {
+       "partPin": {
+        "ref": "R2",
+        "pin": "1"
+       }
+      },
+      "color": "yellow"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W2\",\"kind\":\"dupont-mm\",\"color\":\"yellow\",\"lengthMm\":200,\"a\":\"bb1:7a\",\"b\":\"bb1:33b\"},\"net\":\"GPIO27\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "net": "GPIO22"
+      },
+      "to": {
+       "partPin": {
+        "ref": "R3",
+        "pin": "1"
+       }
+      },
+      "color": "orange"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W3\",\"kind\":\"dupont-mm\",\"color\":\"orange\",\"lengthMm\":200,\"a\":\"bb1:8a\",\"b\":\"bb1:40b\"},\"net\":\"GPIO22\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "LED1",
+        "pin": "K"
+       }
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W4\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:31a\",\"b\":\"bb1:20a\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "LED2",
+        "pin": "K"
+       }
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W5\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:38a\",\"b\":\"bb1:20b\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "LED3",
+        "pin": "K"
+       }
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W6\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:45a\",\"b\":\"bb1:20c\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "net": "GPIO18"
+      },
+      "to": {
+       "partPin": {
+        "ref": "R4",
+        "pin": "2"
+       }
+      },
+      "color": "blue"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W7\",\"kind\":\"dupont-mm\",\"color\":\"blue\",\"lengthMm\":200,\"a\":\"bb1:6j\",\"b\":\"bb1:35j\"},\"net\":\"GPIO18\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "Q1",
+        "pin": "1"
+       }
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W8\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:30j\",\"b\":\"bb1:17j\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "Q1",
+        "pin": "3"
+       }
+      },
+      "to": {
+       "partPin": {
+        "ref": "BZ1",
+        "pin": "-"
+       }
+      },
+      "color": "white"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W9\",\"kind\":\"dupont-mm\",\"color\":\"white\",\"lengthMm\":200,\"a\":\"bb1:32i\",\"b\":\"bb1:41i\"},\"net\":\"N2\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "BZ1",
+        "pin": "+"
+       }
+      },
+      "to": {
+       "net": "5V"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W10\",\"kind\":\"dupont-mm\",\"color\":\"red\",\"lengthMm\":200,\"a\":\"bb1:38j\",\"b\":\"bb1:2j\"},\"net\":\"5V\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "VCC"
+       }
+      },
+      "to": {
+       "net": "5V"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W11\",\"kind\":\"dupont-mf\",\"color\":\"red\",\"lengthMm\":200,\"a\":\"U1.VCC\",\"b\":\"bb1:1j\"},\"net\":\"5V\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "GND"
+       }
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W12\",\"kind\":\"dupont-mf\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"U1.GND\",\"b\":\"bb1:10j\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "TRIG"
+       }
+      },
+      "to": {
+       "net": "GPIO23"
+      },
+      "color": "purple"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W13\",\"kind\":\"dupont-mf\",\"color\":\"purple\",\"lengthMm\":200,\"a\":\"U1.TRIG\",\"b\":\"bb1:8j\"},\"net\":\"GPIO23\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "ECHO"
+       }
+      },
+      "to": {
+       "partPin": {
+        "ref": "R5",
+        "pin": "1"
+       }
+      },
+      "color": "yellow"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W14\",\"kind\":\"dupont-mf\",\"color\":\"yellow\",\"lengthMm\":200,\"a\":\"U1.ECHO\",\"b\":\"bb1:50e\"},\"net\":\"N6\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "R5",
+        "pin": "2"
+       }
+      },
+      "to": {
+       "net": "GPIO24"
+      },
+      "color": "gray"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W15\",\"kind\":\"dupont-mm\",\"color\":\"gray\",\"lengthMm\":200,\"a\":\"bb1:53c\",\"b\":\"bb1:9j\"},\"net\":\"GPIO24\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "R6",
+        "pin": "2"
+       }
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W16\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:56a\",\"b\":\"bb1:17i\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "run_erc",
+     "input": {},
+     "ok": true,
+     "result": "{\"errors\":0,\"warnings\":6,\"info\":0,\"issues\":[{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO17\"],\"message\":\"GPIO17 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO17 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO18\"],\"message\":\"GPIO18 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO18 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO22\"],\"message\":\"GPIO22 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO22 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO23\"],\"message\":\"GPIO23 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO23 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO24\"],\"message\":\"GPIO24 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO24 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO27\"],\"message\":\"GPIO27 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO27 in the code, or move the lead to the pin the code uses.\"}]}"
+    },
+    {
+     "tool": "simulate",
+     "input": {
+      "mode": "op",
+      "durationMs": 0,
+      "stimulus": {
+       "gpio": [
+        {
+         "pin": 17,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 27,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 22,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 18,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        },
+        {
+         "pin": 23,
+         "level": "low",
+         "freqHz": 0,
+         "duty": 0
+        }
+       ],
+       "inputs": [
+        {
+         "part": "U1",
+         "key": "distanceCm",
+         "value": 20
+        }
+       ]
+      }
+     },
+     "ok": true,
+     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":3.084,\"GPIO18\":3.198,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":3.069,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":3.076,\"N1\":0.107,\"N2\":1.956,\"N3\":1.908,\"N4\":1.86,\"N5\":0.777,\"N6\":0},\"leds\":[{\"die\":\"LED1.D\",\"mA\":5.129,\"brightness\":0.513},{\"die\":\"LED2.D\",\"mA\":5.311,\"brightness\":0.531},{\"die\":\"LED3.D\",\"mA\":5.494,\"brightness\":0.549}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":3.084,\"mA\":5.129},{\"pin\":\"GPIO18\",\"volts\":3.198,\"mA\":2.421},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":3.069,\"mA\":5.494},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"vol"
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "diode-1n4007",
+      "at": "bb1:41g",
+      "orientation": 180,
+      "props": [],
+      "ref": "D1",
+      "span": 3
+     },
+     "ok": true,
+     "result": "{\"ref\":\"D1\",\"pins\":{\"A\":{\"hole\":\"bb1:41g\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:41j\",\"bb1:41f\"]},\"K\":{\"hole\":\"bb1:38g\",\"net\":\"5V\",\"freeInStrip\":[\"bb1:38i\",\"bb1:38f\"]}},\"warnings\":[\"D1.A shares its strip with W9.b, BZ1.-, so it joins their net\",\"D1.K shares its strip with W10.a, BZ1.+, so it joins their net\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "write_code",
+     "input": {
+      "library": "gpiozero",
+      "source": "\"\"\"Parking sensor: HC-SR04 + 3 LEDs + passive buzzer.\nGreen  > 50 cm   : all clear, silent\nYellow 20-50 cm  : getting close, slow beeps\nRed    < 20 cm   : close, fast beeps; under 8 cm a steady tone = STOP\n\"\"\"\nfrom gpiozero import DistanceSensor, LED, PWMOutputDevice\nfrom time import sleep\n\nsensor = DistanceSensor(echo=24, trigger=23, max_distance=2.0)\ngreen = LED(17)\nyellow = LED(27)\nred = LED(22)\nbuzzer = PWMOutputDevice(18, frequency=2000, initial_value=0)  # drives Q1\n\nFAR = 50     # cm\nNEAR = 20    # cm\nSTOP = 8     # cm\n\ndef beep(gap):\n    \"\"\"One short beep, then silence for `gap` seconds.\"\"\"\n    buzzer.value = 0.5     # 50 % duty square wave = loudest tone\n    sleep(0.05)\n    buzzer.value = 0\n    sleep(gap)\n\ntry:\n    while True:\n        cm = sensor.distance * 100\n        print(f\"{cm:6.1f} cm\")\n\n        green.value = cm > FAR\n        yellow.value = NEAR < cm <= FAR\n        red.value = cm <= NEAR\n\n        if cm > FAR:\n            buzzer.value = 0\n            sleep(0.2)\n        elif cm <= STOP:\n            buzzer.value = 0.5         # steady tone\n            sleep(0.1)\n        else:\n            # closer -> shorter gap between beeps (0.05 s .. 0.65 s)\n            gap = 0.05 + 0.6 * (cm - STOP) / (FAR - STOP)\n            beep(gap)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    buzzer.off()\n    green.off(); yellow.off(); red.off()\n    print(\"Bye\")\n"
+     },
+     "ok": true,
+     "result": "{\"syntax\":\"ok\",\"gpioUsed\":[{\"gpio\":24,\"mode\":\"in\",\"pull\":\"none\"},{\"gpio\":23,\"mode\":\"out\"},{\"gpio\":17,\"mode\":\"out\"},{\"gpio\":27,\"mode\":\"out\"},{\"gpio\":22,\"mode\":\"out\"},{\"gpio\":18,\"mode\":\"pwm\"}],\"unresolved\":[],\"crossCheck\":\"matches the wiring\"}",
+     "committed": 1
+    },
+    {
+     "tool": "run_erc",
+     "input": {},
+     "ok": true,
+     "result": "{\"errors\":0,\"warnings\":1,\"info\":0,\"issues\":[{\"code\":\"PHYSICAL_COLLISION\",\"severity\":\"warning\",\"refs\":[\"BZ1\",\"D1\"],\"message\":\"BZ1 and D1 overlap by about 4.8 mm, so they cannot both sit straight on the board.\",\"fix\":\"Move D1 along the board, or leave an empty row between them.\"}]}"
+    },
+    {
+     "tool": "set_part_props",
+     "input": {
+      "ref": "U1",
+      "props": [
+       {
+        "name": "distanceCm",
+        "value": 30
+       }
+      ]
+     },
+     "ok": true,
+     "result": "{\"ref\":\"U1\",\"props\":{\"distanceCm\":30}}",
+     "committed": 1
+    },
+    {
+     "tool": "move_part",
+     "input": {
+      "ref": "BZ1",
+      "at": "bb1:46h",
+      "orientation": 0
+     },
+     "ok": true,
+     "result": "{\"ref\":\"BZ1\",\"pins\":{\"+\":{\"hole\":\"bb1:46h\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:46j\",\"bb1:46i\",\"bb1:46g\",\"bb1:46f\"]},\"-\":{\"hole\":\"bb1:49h\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:49j\",\"bb1:49i\",\"bb1:49g\",\"bb1:49f\"]}},\"leadsLeftBehind\":[\"W9\",\"W10\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "BZ1",
+        "pin": "+"
+       }
+      },
+      "to": {
+       "partPin": {
+        "ref": "D1",
+        "pin": "K"
+       }
+      },
+      "color": "red"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W17\",\"kind\":\"dupont-mm\",\"color\":\"red\",\"lengthMm\":200,\"a\":\"bb1:46g\",\"b\":\"bb1:38h\"},\"net\":\"5V\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "BZ1",
+        "pin": "-"
+       }
+      },
+      "to": {
+       "partPin": {
+        "ref": "D1",
+        "pin": "A"
+       }
+      },
+      "color": "white"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W18\",\"kind\":\"dupont-mm\",\"color\":\"white\",\"lengthMm\":200,\"a\":\"bb1:49g\",\"b\":\"bb1:41h\"},\"net\":\"N1\"}",
+     "committed": 1
+    },
+    {
+     "tool": "run_erc",
+     "input": {},
+     "ok": true,
+     "result": "{\"errors\":0,\"warnings\":0,\"info\":0,\"issues\":[]}"
+    },
+    {
+     "tool": "run_code_in_sim",
+     "input": {
+      "seconds": 3
+     },
+     "ok": true,
+     "result": "{\"stdout\":\"  29.9 cm\\n  29.9 cm\\n  29.9 cm\\n  29.9 cm\\n  29.9 cm\\n  29.9 cm\\n  29.9 cm\\n  29.9 cm\\nBye\",\"error\":null,\"events\":[\"0.000 GPIO18 pwm 2000 Hz 0%\",\"0.000 GPIO23 high\",\"0.000 GPIO23 low\",\"0.002 GPIO17 low\",\"0.002 GPIO27 high\",\"0.002 GPIO22 low\",\"0.002 GPIO18 pwm 2000 Hz 50%\",\"0.052 GPIO18 pwm 2000 Hz 0%\",\"0.414 GPIO23 high\",\"0.414 GPIO23 low\",\"0.416 GPIO17 low\",\"0.416 GPIO27 high\",\"0.416 GPIO22 low\",\"0.416 GPIO18 pwm 2000 Hz 50%\",\"0.466 GPIO18 pwm 2000 Hz 0%\",\"0.829 GPIO23 high\",\"0.829 GPIO23 low\",\"0.831 GPIO17 low\",\"0.831 GPIO27 high\",\"0.831 GPIO22 low\",\"0.831 GPIO18 pwm 2000 Hz 50%\",\"0.881 GPIO18 pwm 2000 Hz 0%\",\"1.243 GPIO23 high\",\"1.243 GPIO23 low\",\"1.245 GPIO17 low\",\"1.245 GPIO27 high\",\"1.245 GPIO22 low\",\"1.245 GPIO18 pwm 2000 Hz 50%\",\"1.295 GPIO18 pwm 2000 Hz 0%\",\"1.657 GPIO23 high\",\"1.657 GPIO23 low\",\"1.659 GPIO17 low\",\"1.659 GPIO27 high\",\"1.659 GPIO22 low\",\"1.659 GPIO18 pwm 2000 Hz 50%\",\"1.709 GPIO18 pwm 2000 Hz 0%\",\"2.072 GPIO23 high\",\"2.072 GPIO23 low\",\"2.074 GPIO17 low\",\"2.074 GPIO27 high\",\"2.074 GPIO22 low\",\"2.074 GPIO18 pwm 2000 Hz 50%\",\"2.124 GPIO18 pwm 2000 Hz 0%\",\"2.486 GPIO23 high\",\"2.486 GPIO23 low\",\"2.488 GPIO17 low\",\"2.488 GPIO27 high\",\"2.488 GPIO22 low\",\"2.488 GPIO18 pwm 2000 Hz 50%\",\"2.538 GPIO18 pwm 2000 Hz 0%\",\"2.900 GPIO23 high\",\"2.900 GPIO23 low\",\"2.902 GPIO17 low\",\"2.902 GPIO27 high\",\"2.902 GPIO22 low\",\"2.902 GPIO18 pwm 2000 Hz 50%\",\"2.952 GPIO18 pwm 2000 Hz 0%\",\"3.315 GPIO18 pwm 2000 Hz 0%\",\"3.315 GPIO17 low\",\"3.315 GPIO27 low\",\"3.315 GPIO"
+    },
+    {
+     "tool": "capture_view",
+     "input": {
+      "preset": "top"
+     },
+     "ok": false,
+     "result": "{\"INTERNAL_ERROR\":\"capture_view is not available in this session: there is no 3D stage here (headless evaluation). Check the layout from the hole positions and nets that get_circuit_state returns.\"}"
+    },
+    {
+     "tool": "highlight",
+     "input": {
+      "refs": [
+       "R5",
+       "R6"
+      ],
+      "note": "Voltage divider: the 5 V ECHO signal comes down to 3.3 V before it reaches GPIO24"
+     },
+     "ok": true,
+     "result": "ok"
+    },
+    {
+     "tool": "annotate_build_steps",
+     "input": {
+      "annotations": [
+       {
+        "step": "R5",
+        "why": "R5 (1 kΩ) and R6 (2 kΩ) make a divider: 5 V × 2/3 = 3.33 V on GPIO24.",
+        "mistake": "Swapping R5 and R6 puts 1.67 V on the pin, and the Pi may not read that as high. Leaving the divider out puts 5 V on a 3.3 V pin."
+       },
+       {
+        "step": "Q1",
+        "why": "The transistor switches the buzzer from 5 V, so the GPIO only supplies about 2.4 mA of base current.",
+        "mistake": "With the flat face toward you the pins are E-B-C from left to right. If it is turned round, the buzzer won't sound."
+       },
+       {
+        "step": "D1",
+        "why": "The buzzer is a coil. The diode soaks up the voltage spike when the transistor switches off.",
+        "mistake": "The band (cathode) goes to the 5 V row (38). Put the other way round, it shorts 5 V through Q1."
+       },
+       {
+        "step": "LED1",
+        "why": "The 220 Ω resistor limits the LED to about 5 mA, well under the Pi's 16 mA per pin.",
+        "mistake": "The long leg (anode) goes toward the resistor. A reversed LED just stays dark."
+       }
+      ]
+     },
+     "ok": true,
+     "result": "{\"annotated\":4}",
+     "committed": 1
+    }
+   ],
+   "transactions": 36
+  }
+ ],
+ "questions": [
+  {
+   "question": "The HC-SR04 isn't in your kit's inventory. Do you have one on hand, so I can build with it?",
+   "options": [
+    "Yes, I have an HC-SR04",
+    "No, suggest an alternative"
+   ],
+   "answer": "Yes, I have an HC-SR04"
+  }
+ ],
+ "partialInputs": {
+  "place_part": {
+   "snapshots": 122,
+   "ghosts": 70
+  },
+  "move_part": {
+   "snapshots": 12,
+   "ghosts": 0
+  },
+  "connect": {
+   "snapshots": 150,
+   "ghosts": 48
+  }
+ },
+ "simulatedInputs": [
+  {
+   "part": "U1",
+   "key": "distanceCm",
+   "value": 20
+  }
+ ],
+ "codeRuns": [
+  {
+   "seconds": 3,
+   "endedAt": 3.314614428529224,
+   "events": 61,
+   "error": null
+  }
+ ],
+ "custom": [],
+ "final": {
+  "parts": [
+   "R1 resistor",
+   "LED1 led",
+   "R2 resistor",
+   "LED2 led",
+   "R3 resistor",
+   "LED3 led",
+   "R5 resistor",
+   "R6 resistor",
+   "Q1 pn2222",
+   "U1 hc-sr04",
+   "R4 resistor",
+   "BZ1 passive-buzzer",
+   "D1 diode-1n4007"
+  ],
+  "wires": 18,
+  "code": "\"\"\"Parking sensor: HC-SR04 + 3 LEDs + passive buzzer.\nGreen  > 50 cm   : all clear, silent\nYellow 20-50 cm  : getting close, slow beeps\nRed    < 20 cm   : close, fast beeps; under 8 cm a steady tone = STOP\n\"\"\"\nfrom gpiozero import DistanceSensor, LED, PWMOutputDevice\nfrom time import sleep\n\nsensor = DistanceSensor(echo=24, trigger=23, max_distance=2.0)\ngreen = LED(17)\nyellow = LED(27)\nred = LED(22)\nbuzzer = PWMOutputDevice(18, frequency=2000, initial_value=0)  # drives Q1\n\nFAR = 50     # cm\nNEAR = 20    # cm\nSTOP = 8     # cm\n\ndef beep(gap):\n    \"\"\"One short beep, then silence for `gap` seconds.\"\"\"\n    buzzer.value = 0.5     # 50 % duty square wave = loudest tone\n    sleep(0.05)\n    buzzer.value = 0\n    sleep(gap)\n\ntry:\n    while True:\n        cm = sensor.distance * 100\n        print(f\"{cm:6.1f} cm\")\n\n        green.value = cm > FAR\n        yellow.value = NEAR < cm <= FAR\n        red.value = cm <= NEAR\n\n        if cm > FAR:\n            buzzer.value = 0\n            sleep(0.2)\n        elif cm <= STOP:\n            buzzer.value = 0.5         # steady tone\n            sleep(0.1)\n        else:\n            # closer -> shorter gap between beeps (0.05 s .. 0.65 s)\n            gap = 0.05 + 0.6 * (cm - STOP) / (FAR - STOP)\n            beep(gap)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    buzzer.off()\n    green.off(); yellow.off(); red.off()\n    print(\"Bye\")\n"
+ },
+ "checks": [
+  {
+   "id": "turns.complete",
+   "label": "Every turn ends with end_turn",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "erc",
+   "label": "Zero ERC errors",
+   "pass": true,
+   "detail": "0 errors, 0 warnings"
+  },
+  {
+   "id": "convention",
+   "label": "Wiring follows the convention",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "inventory",
+   "label": "Inventory respected",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "code.syntax",
+   "label": "The project has code that compiles",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "code.pins",
+   "label": "Code pins match the netlist",
+   "pass": true,
+   "detail": "GPIO 17, 18, 22, 23, 24, 27"
+  },
+  {
+   "id": "claims",
+   "label": "Claims nothing ran on hardware",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "ghosts",
+   "label": "Every streamed preview is cleared",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "parts",
+   "label": "An HC-SR04, a passive buzzer and 3 LEDs",
+   "pass": true,
+   "detail": "resistor, led, resistor, led, resistor, led, resistor, resistor, pn2222, hc-sr04, resistor, passive-buzzer, diode-1n4007"
+  },
+  {
+   "id": "echo.protected",
+   "label": "ECHO is protected by a divider or level shifter",
+   "pass": true,
+   "detail": "U1.ECHO divides down to GPIO24"
+  },
+  {
+   "id": "echo.volts",
+   "label": "No GPIO net rises above 3.6 V while the sensor measures",
+   "pass": true,
+   "detail": "3.30 V at most"
+  },
+  {
+   "id": "overvoltage.handled",
+   "label": "An OVERVOLTAGE_GPIO report, if any, was fixed in the same turn",
+   "pass": true,
+   "detail": "ECHO wired directly first: false; OVERVOLTAGE_GPIO seen: false; turns: 1"
+  },
+  {
+   "id": "code.directions",
+   "label": "The code reads ECHO and drives TRIG, the buzzer and the LEDs",
+   "pass": true,
+   "detail": "1 input(s), 5 output(s)"
+  },
+  {
+   "id": "undo.all",
+   "label": "Undo all restores the starting document exactly",
+   "pass": true,
+   "detail": "36 of 36 transactions undone"
+  }
+ ]
+}

@@ -1,0 +1,259 @@
+{
+ "id": "second-button-speed",
+ "title": "Add a second button that changes the blink speed",
+ "model": "claude-opus-5-5",
+ "effort": "high",
+ "recorded": "2026-10-24",
+ "turns": [
+  {
+   "user": "add a second button, on GPIO22, that changes how fast the LED blinks each time it is pressed",
+   "assistant": "I added the second button and rewrote the program.\n\n**What I built**\n- **SW2**, a tact switch across the centre gap at rows 44 and 46.\n- **W6** (blue) goes from GPIO22 (hole 8a) to row 44 (hole 44a).\n- **W7** (black) goes from GND (hole 20c) to row 46 (hole 46a).\n- There's no external pull-up resistor this time. The code turns on the Pi's internal pull-up for GPIO22, which is enough for a button.\n\n**How it works**\nYour old code only switched the LED on and off, so I made a choice: the **GPIO27 button now starts and stops blinking**, and the **new GPIO22 button steps through four speeds**: 1 s, 0.5 s, 0.25 s, then 0.1 s, then back to 1 s. Each number is the on time, and the off time is the same. Pressing the button connects GPIO22 to GND, so the pin reads low and the program moves to the next speed. If the LED is blinking, it restarts at the new speed straight away. `bounce_time=0.05` ignores the contact chatter that would otherwise skip a speed.\n\n**Checks**\n- **ERC:** 0 errors, 0 warnings.\n- **Simulation:** with SW2 pressed, GPIO22 reads 0 V, and GPIO27 sits at 3.3 V through R1. With the LED lit, R2 (220 Ω) passes 5.5 mA: (3.07 V − 1.86 V) / 220 Ω. That's well under the 16 mA pin limit.\n- **Code check:** the syntax check passed, and the code's pins match the wiring (17 out, 27 and 22 in with pull-ups).\n- **Code run:** I ran the code for 10 s of simulated time. It started cleanly, but I can't press buttons in the code run, so the blink and speed changes haven't been tested. Try them on the bench.\n- **Layout picture:** I couldn't take one (no 3D view in this session). I checked the layout from the hole list instead.\n\n**What to check on the bench**\n- SW2 must sit across the centre gap, with its legs in rows 44 and 46. If it's turned 90°, its legs are joined all the time and the speed will keep changing.\n- The blue lead goes to row 8, the same row as GPIO22 on the T-board (column d), and the black lead goes to a GND row such as row 20.\n- The LED's long leg (anode) is still in row 38 and the short leg in row 40.\n\nWant a different set of speeds, or should the speed button also start the blinking when it's stopped?",
+   "end": "end_turn",
+   "notices": [],
+   "usage": {
+    "inputTokens": 16,
+    "outputTokens": 2748,
+    "cacheWriteTokens": 7241,
+    "cacheReadTokens": 124048,
+    "webSearches": 0,
+    "requests": 7,
+    "costUsd": 0.1160386
+   },
+   "toolCalls": [
+    {
+     "tool": "get_circuit_state",
+     "input": {
+      "detail": "full"
+     },
+     "ok": true,
+     "result": "Revision 10: 1 board(s), 4 part(s), 5 wire(s). ERC: 0 error(s), 0 warning(s).\n{\"revision\":10,\"boards\":[{\"id\":\"bb1\",\"def\":\"bb-830\",\"rows\":63,\"freeRows\":[[25,25],[27,27],[29,33],[35,37],[39,39],[41,63]],\"freeRailHoles\":{\"top+\":50,\"top-\":50,\"bottom+\":50,\"bottom-\":50}}],\"tboard\":{\"board\":\"bb1\",\"pin1Row\":1,\"colPair\":\"d/h\",\"orientation\":\"header-toward-row-0\",\"pins\":{\"1\":\"bb1:1d 3V3\",\"2\":\"bb1:1h 5V\",\"3\":\"bb1:2d GPIO2\",\"4\":\"bb1:2h 5V\",\"5\":\"bb1:3d GPIO3\",\"6\":\"bb1:3h GND\",\"7\":\"bb1:4d GPIO4\",\"8\":\"bb1:4h GPIO14\",\"9\":\"bb1:5d GND\",\"10\":\"bb1:5h GPIO15\",\"11\":\"bb1:6d GPIO17\",\"12\":\"bb1:6h GPIO18\",\"13\":\"bb1:7d GPIO27\",\"14\":\"bb1:7h GND\",\"15\":\"bb1:8d GPIO22\",\"16\":\"bb1:8h GPIO23\",\"17\":\"bb1:9d 3V3\",\"18\":\"bb1:9h GPIO24\",\"19\":\"bb1:10d GPIO10\",\"20\":\"bb1:10h GND\",\"21\":\"bb1:11d GPIO9\",\"22\":\"bb1:11h GPIO25\",\"23\":\"bb1:12d GPIO11\",\"24\":\"bb1:12h GPIO8\",\"25\":\"bb1:13d GND\",\"26\":\"bb1:13h GPIO7\",\"27\":\"bb1:14d GPIO0\",\"28\":\"bb1:14h GPIO1\",\"29\":\"bb1:15d GPIO5\",\"30\":\"bb1:15h GND\",\"31\":\"bb1:16d GPIO6\",\"32\":\"bb1:16h GPIO12\",\"33\":\"bb1:17d GPIO13\",\"34\":\"bb1:17h GND\",\"35\":\"bb1:18d GPIO19\",\"36\":\"bb1:18h GPIO16\",\"37\":\"bb1:19d GPIO26\",\"38\":\"bb1:19h GPIO20\",\"39\":\"bb1:20d GND\",\"40\":\"bb1:20h GPIO21\"}},\"parts\":[{\"ref\":\"SW1\",\"def\":\"tact-switch-6mm\",\"props\":{\"mode\":\"momentary\",\"pressed\":false},\"pins\":{\"1\":\"bb1:24e GPIO27\",\"2\":\"bb1:24f GPIO27\",\"3\":\"bb1:26e GND\",\"4\":\"bb1:26f GND\"}},{\"ref\":\"R1\",\"def\":\"resistor\",\"props\":{\"resistance\":10000,\"tolerance\":\"5%\"},\"pins\":{\"1\":\"bb1:24j GPIO27\",\"2\":\"bb1:28j 3V3\"}},{\"ref\":\"R2\",\"def\":\"resistor"
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "tact-switch-6mm",
+      "at": "bb1:44e",
+      "orientation": 0,
+      "props": [],
+      "ref": "SW2"
+     },
+     "ok": true,
+     "result": "{\"ref\":\"SW2\",\"pins\":{\"1\":{\"hole\":\"bb1:44e\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:44a\",\"bb1:44b\",\"bb1:44c\",\"bb1:44d\"]},\"2\":{\"hole\":\"bb1:44f\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:44j\",\"bb1:44i\",\"bb1:44h\",\"bb1:44g\"]},\"3\":{\"hole\":\"bb1:46e\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:46a\",\"bb1:46b\",\"bb1:46c\",\"bb1:46d\"]},\"4\":{\"hole\":\"bb1:46f\",\"net\":\"N3\",\"freeInStrip\":[\"bb1:46j\",\"bb1:46i\",\"bb1:46h\",\"bb1:46g\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "net": "GPIO22"
+      },
+      "to": {
+       "partPin": {
+        "ref": "SW2",
+        "pin": "1"
+       }
+      },
+      "color": "blue"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W6\",\"kind\":\"dupont-mm\",\"color\":\"blue\",\"lengthMm\":200,\"a\":\"bb1:8a\",\"b\":\"bb1:44a\"},\"net\":\"GPIO22\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "net": "GND"
+      },
+      "to": {
+       "partPin": {
+        "ref": "SW2",
+        "pin": "3"
+       }
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W7\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:20c\",\"b\":\"bb1:46a\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "write_code",
+     "input": {
+      "library": "gpiozero",
+      "source": "from gpiozero import LED, Button\nfrom signal import pause\n\nled = LED(17)\n# GPIO27 has an external 10k pull-up; the internal one is on too (harmless, in parallel).\nblink_button = Button(27, pull_up=True, bounce_time=0.05)\n# GPIO22 relies on the Pi's internal pull-up; pressing pulls it to GND.\nspeed_button = Button(22, pull_up=True, bounce_time=0.05)\n\n# Half-periods in seconds: on-time = off-time. Each press of the speed button moves to the next.\nSPEEDS = [1.0, 0.5, 0.25, 0.1]\nspeed_index = 0\nblinking = False\n\ndef start_blink():\n    t = SPEEDS[speed_index]\n    led.blink(on_time=t, off_time=t)   # runs in the background\n\ndef toggle_blink():\n    global blinking\n    blinking = not blinking\n    if blinking:\n        start_blink()\n        print(\"Blinking at %.2f s\" % SPEEDS[speed_index])\n    else:\n        led.off()\n        print(\"Stopped\")\n\ndef next_speed():\n    global speed_index\n    speed_index = (speed_index + 1) % len(SPEEDS)\n    print(\"Speed: %.2f s on / %.2f s off\" % (SPEEDS[speed_index], SPEEDS[speed_index]))\n    if blinking:\n        start_blink()   # restart with the new timing\n\nblink_button.when_pressed = toggle_blink\nspeed_button.when_pressed = next_speed\n\nprint(\"GPIO27 button: start/stop blinking. GPIO22 button: change speed. Ctrl+C to quit.\")\ntry:\n    pause()\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    led.off()\n"
+     },
+     "ok": true,
+     "result": "{\"syntax\":\"ok\",\"gpioUsed\":[{\"gpio\":17,\"mode\":\"out\"},{\"gpio\":27,\"mode\":\"in\",\"pull\":\"up\"},{\"gpio\":22,\"mode\":\"in\",\"pull\":\"up\"}],\"unresolved\":[],\"crossCheck\":\"matches the wiring\"}",
+     "committed": 1
+    },
+    {
+     "tool": "run_erc",
+     "input": {},
+     "ok": true,
+     "result": "{\"errors\":0,\"warnings\":0,\"info\":0,\"issues\":[]}"
+    },
+    {
+     "tool": "simulate",
+     "input": {
+      "mode": "op",
+      "durationMs": 0,
+      "stimulus": {
+       "gpio": [
+        {
+         "pin": 17,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        }
+       ],
+       "inputs": [
+        {
+         "part": "SW2",
+         "key": "pressed",
+         "value": true
+        }
+       ]
+      }
+     },
+     "ok": true,
+     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":3.069,\"GPIO18\":0,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":0,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":3.3,\"N1\":1.86},\"leds\":[{\"die\":\"D1.D\",\"mA\":5.494,\"brightness\":0.549}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":3.069,\"mA\":5.494},{\"pin\":\"GPIO18\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":3.3,\"mA\":0}],\"rails\":{\"3V3_mA\":0,\"5V_mA\":0},\"resistors\":[{\"ref\":\"R1\",\"ohms\":10000,\"volts\":0,\"mA\":0,\"mW\":0},{\"ref\":\"R2\",\"ohms\":220,\"volt"
+    },
+    {
+     "tool": "run_code_in_sim",
+     "input": {
+      "seconds": 10
+     },
+     "ok": true,
+     "result": "{\"stdout\":\"GPIO27 button: start/stop blinking. GPIO22 button: change speed. Ctrl+C to quit.\",\"error\":null,\"events\":[\"10.000 GPIO17 low\"],\"eventCount\":1}"
+    },
+    {
+     "tool": "capture_view",
+     "input": {
+      "preset": "top"
+     },
+     "ok": false,
+     "result": "{\"INTERNAL_ERROR\":\"capture_view is not available in this session: there is no 3D stage here (headless evaluation). Check the layout from the hole positions and nets that get_circuit_state returns.\"}"
+    }
+   ],
+   "transactions": 4
+  }
+ ],
+ "questions": [],
+ "partialInputs": {
+  "place_part": {
+   "snapshots": 8,
+   "ghosts": 4
+  },
+  "connect": {
+   "snapshots": 15,
+   "ghosts": 6
+  }
+ },
+ "simulatedInputs": [
+  {
+   "part": "SW2",
+   "key": "pressed",
+   "value": true
+  }
+ ],
+ "codeRuns": [
+  {
+   "seconds": 10,
+   "endedAt": 10.000029999999832,
+   "events": 1,
+   "error": null
+  }
+ ],
+ "custom": [],
+ "final": {
+  "parts": [
+   "SW1 tact-switch-6mm",
+   "R1 resistor",
+   "R2 resistor",
+   "D1 led",
+   "SW2 tact-switch-6mm"
+  ],
+  "wires": 7,
+  "code": "from gpiozero import LED, Button\nfrom signal import pause\n\nled = LED(17)\n# GPIO27 has an external 10k pull-up; the internal one is on too (harmless, in parallel).\nblink_button = Button(27, pull_up=True, bounce_time=0.05)\n# GPIO22 relies on the Pi's internal pull-up; pressing pulls it to GND.\nspeed_button = Button(22, pull_up=True, bounce_time=0.05)\n\n# Half-periods in seconds: on-time = off-time. Each press of the speed button moves to the next.\nSPEEDS = [1.0, 0.5, 0.25, 0.1]\nspeed_index = 0\nblinking = False\n\ndef start_blink():\n    t = SPEEDS[speed_index]\n    led.blink(on_time=t, off_time=t)   # runs in the background\n\ndef toggle_blink():\n    global blinking\n    blinking = not blinking\n    if blinking:\n        start_blink()\n        print(\"Blinking at %.2f s\" % SPEEDS[speed_index])\n    else:\n        led.off()\n        print(\"Stopped\")\n\ndef next_speed():\n    global speed_index\n    speed_index = (speed_index + 1) % len(SPEEDS)\n    print(\"Speed: %.2f s on / %.2f s off\" % (SPEEDS[speed_index], SPEEDS[speed_index]))\n    if blinking:\n        start_blink()   # restart with the new timing\n\nblink_button.when_pressed = toggle_blink\nspeed_button.when_pressed = next_speed\n\nprint(\"GPIO27 button: start/stop blinking. GPIO22 button: change speed. Ctrl+C to quit.\")\ntry:\n    pause()\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    led.off()\n"
+ },
+ "checks": [
+  {
+   "id": "turns.complete",
+   "label": "Every turn ends with end_turn",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "erc",
+   "label": "Zero ERC errors",
+   "pass": true,
+   "detail": "0 errors, 0 warnings"
+  },
+  {
+   "id": "convention",
+   "label": "Wiring follows the convention",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "inventory",
+   "label": "Inventory respected",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "code.syntax",
+   "label": "The project has code that compiles",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "code.pins",
+   "label": "Code pins match the netlist",
+   "pass": true,
+   "detail": "GPIO 17, 22, 27"
+  },
+  {
+   "id": "claims",
+   "label": "Claims nothing ran on hardware",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "ghosts",
+   "label": "Every streamed preview is cleared",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "reads-first",
+   "label": "Reads the project before editing it",
+   "pass": true,
+   "detail": "first call: get_circuit_state"
+  },
+  {
+   "id": "kept",
+   "label": "Keeps the parts that were there",
+   "pass": true,
+   "detail": "4 of 4"
+  },
+  {
+   "id": "buttons",
+   "label": "Two buttons",
+   "pass": true,
+   "detail": "2 button(s)"
+  },
+  {
+   "id": "code.requested-pins",
+   "label": "The code uses the GPIOs the prompt names",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "undo.all",
+   "label": "Undo all restores the starting document exactly",
+   "pass": true,
+   "detail": "4 of 4 transactions undone"
+  }
+ ]
+}

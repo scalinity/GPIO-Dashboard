@@ -7,15 +7,26 @@ import Navbar from './components/Navbar'
 import TerminalPanel from './components/TerminalPanel'
 import ConnectPage from './pages/ConnectPage'
 import PinoutPage from './pages/PinoutPage'
-import BreadboardPage from './pages/BreadboardPage'
 import TutorialsPage from './pages/TutorialsPage'
 import MonitorPage from './pages/MonitorPage'
+import WorkbenchPage from './pages/WorkbenchPage'
+import StudioPage from './pages/StudioPage'
+import DevOverlay from './dev/DevOverlay'
+import { useRun } from './state/runStore'
+
+// Dev only: `VITE_ASSISTANT_REPLAY=blink npm run dev` replays a recorded Claude turn in the app,
+// with no key and no network (state/assistantReplay.ts). Production builds drop this branch.
+if (import.meta.env.DEV && import.meta.env.VITE_ASSISTANT_REPLAY === 'blink') {
+  useUiStore.getState().setActiveTab('studio')
+  import('./state/assistantReplay').then((m) => m.replayOnLoad())
+}
 
 const PAGES = {
   connect: ConnectPage,
   pinout: PinoutPage,
-  breadboard: BreadboardPage,
   tutorials: TutorialsPage,
+  workbench: WorkbenchPage,
+  studio: StudioPage,
   monitor: MonitorPage
 }
 
@@ -53,35 +64,12 @@ function App() {
     if (window.api?.ssh?.onTutorialOutput) {
       cleanups.push(
         window.api.ssh.onTutorialOutput(({ stream, data }) => {
-          useTutorialStore.getState().addOutput({ stream, data })
-        })
-      )
-    }
-
-    if (window.api?.ai?.onChunk) {
-      cleanups.push(
-        window.api.ai.onChunk(({ content }) => {
-          useTutorialStore.getState().appendAiChunk(content)
-        })
-      )
-    }
-    if (window.api?.ai?.onDone) {
-      cleanups.push(
-        window.api.ai.onDone(() => {
-          useTutorialStore.getState().finishAiGeneration()
-        })
-      )
-    }
-    if (window.api?.ai?.onError) {
-      cleanups.push(
-        window.api.ai.onError(({ error }) => {
-          useTutorialStore.getState().handleAiError(error)
+          useRun.getState().addOutput({ stream, data })
         })
       )
     }
 
     useTutorialStore.getState().loadCompleted()
-    useTutorialStore.getState().loadAiSettings()
 
     return () => cleanups.forEach((fn) => typeof fn === 'function' && fn())
   }, [])
@@ -116,6 +104,7 @@ function App() {
         <ActivePage />
       </main>
       <TerminalPanel />
+      <DevOverlay />
     </div>
   )
 }

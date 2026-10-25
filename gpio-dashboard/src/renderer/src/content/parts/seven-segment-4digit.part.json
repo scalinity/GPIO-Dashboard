@@ -1,0 +1,145 @@
+{
+  "id": "seven-segment-4digit",
+  "name": "4-digit 7-segment display, common anode (0.56 in, 12-pin)",
+  "category": "display",
+  "kitTags": ["not in kit"],
+  "pins": [
+    {
+      "id": "1",
+      "label": "e",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [0, 0]
+    },
+    {
+      "id": "2",
+      "label": "d",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [1, 0]
+    },
+    {
+      "id": "3",
+      "label": "dp",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [2, 0]
+    },
+    {
+      "id": "4",
+      "label": "c",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [3, 0]
+    },
+    {
+      "id": "5",
+      "label": "g",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [4, 0]
+    },
+    {
+      "id": "6",
+      "label": "D4",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [5, 0]
+    },
+    {
+      "id": "7",
+      "label": "b",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [5, 6]
+    },
+    {
+      "id": "8",
+      "label": "D3",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [4, 6]
+    },
+    {
+      "id": "9",
+      "label": "D2",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [3, 6]
+    },
+    {
+      "id": "10",
+      "label": "f",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [2, 6]
+    },
+    {
+      "id": "11",
+      "label": "a",
+      "role": "cathode",
+      "electricalType": "passive",
+      "offsetPitch": [1, 6]
+    },
+    {
+      "id": "12",
+      "label": "D1",
+      "role": "anode",
+      "electricalType": "passive",
+      "offsetPitch": [0, 6]
+    }
+  ],
+  "internalConnections": [],
+  "footprint": {
+    "kind": "rigid",
+    "straddleTrench": true
+  },
+  "sim": {
+    "model": "seven-segment-4digit",
+    "params": {
+      "commonType": "anode",
+      "digitCount": 4,
+      "ledsPerDigit": 8,
+      "multiplexed": true,
+      "vfTypV": 1.9,
+      "vfMaxV": 2.3,
+      "ifTestMa": 10,
+      "ifMaxMa": 30,
+      "ifPeakMa": 160,
+      "peakDutyPct": 10,
+      "peakPulseMs": 0.1,
+      "vrMaxV": 5
+    }
+  },
+  "properties": {},
+  "bodyMm": [50.3, 19, 8.1],
+  "geometry": {
+    "family": "seven-segment-4digit",
+    "params": {
+      "pinCount": 12,
+      "digitCount": 4,
+      "bodyLengthMm": 50.3,
+      "bodyWidthMm": 19,
+      "bodyHeightMm": 8.1,
+      "digitHeightMm": 14.2,
+      "digitWidthMm": 8,
+      "digitPitchMm": 12.7,
+      "segmentWidthMm": 1.5,
+      "slantDeg": 8,
+      "decimalPoint": "right",
+      "pitchMm": 2.54,
+      "rowSpacingMm": 15.24,
+      "leadDiaMm": 0.5,
+      "leadLengthMm": 4
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://www.kingbrightusa.com/images/catalog/SPEC/CA56-12EWA.pdf",
+      "https://www.kingbrightusa.com/images/catalog/SPEC/CC56-12EWA.pdf",
+      "https://sunfounder-vincent-kit-for-arduino.readthedocs.io/el/latest/components/component_4_digit.html",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+    ],
+    "notes": "Pinout, dimensions and ratings: Kingbright CA56-12EWA (0.56 in four digit, common anode, right-hand decimal; spec DSAP8253 rev V.1A), page 1 package drawing and internal circuit: digit commons Dig1 = 12, Dig2 = 9, Dig3 = 8, Dig4 = 6; segments a = 11, b = 7, c = 4, d = 2, e = 1, f = 10, g = 5, DP = 3 (shared by all four digits); body 50.3 x 19 x 8.1 mm, digit pitch 12.7 mm, 15.24 mm between pin rows (6 pitches), 2.54 mm pin pitch, 0.5 mm leads 4 mm long. Ratings (page 2): VF 1.9 V typical and 2.3 V maximum at 10 mA, DC IF 30 mA, peak 160 mA at 1/10 duty and 0.1 ms, VR 5 V. Numbering is counter-clockwise from pin 1 at the bottom left of the top view (pins 1 to 6 along the bottom, 7 to 12 back along the top, so pin 12 sits above pin 1). Because the digits are multiplexed, the per-segment duty is 1/4 or less in use. SunFounder's Vincent kit page for its 4-digit display states common anode and draws the same pin numbering (a = 11, b = 7, c = 4, d = 2, e = 1, f = 10, g = 5, dp = 3, D1 = 12, D2 = 9, D3 = 8, D4 = 6), so the Kingbright datasheet matches the SunFounder part. Kingbright's common-cathode CC56-12EWA has identical pin numbers with every LED reversed, and this definition models only the common-anode version; other 12-pin four-digit modules exist in both polarities, so check the marking of a physical module. Not in the SunFounder Basic Starter Kit for Raspberry Pi: its component-list image shows no 4-digit display. The SunFounder part's own manufacturer and marking were not found. VF and current ratings are for Kingbright's high-efficiency-red chip."
+  }
+}

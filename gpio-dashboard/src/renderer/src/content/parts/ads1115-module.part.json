@@ -1,0 +1,151 @@
+{
+  "id": "ads1115-module",
+  "name": "ADS1115 16-bit ADC breakout (Adafruit 1085)",
+  "category": "module",
+  "kitTags": ["not in kit"],
+  "pins": [
+    {
+      "id": "VDD",
+      "label": "VIN",
+      "role": "power",
+      "electricalType": "power-in",
+      "offsetPitch": [0, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "GND",
+      "label": "GND",
+      "role": "ground",
+      "electricalType": "power-in",
+      "offsetPitch": [1, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "SCL",
+      "label": "SCL",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [2, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "SDA",
+      "label": "SDA",
+      "role": "logic-io",
+      "electricalType": "bidirectional",
+      "offsetPitch": [3, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "ADDR",
+      "label": "ADDR",
+      "role": "logic-in",
+      "electricalType": "input",
+      "offsetPitch": [4, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "ALRT",
+      "label": "ALRT",
+      "role": "logic-out",
+      "electricalType": "open-collector",
+      "offsetPitch": [5, 0],
+      "connector": "male-pin"
+    },
+    {
+      "id": "A0",
+      "label": "A0",
+      "role": "analog-in",
+      "electricalType": "input",
+      "offsetPitch": [4, 5],
+      "connector": "male-pin"
+    },
+    {
+      "id": "A1",
+      "label": "A1",
+      "role": "analog-in",
+      "electricalType": "input",
+      "offsetPitch": [3, 5],
+      "connector": "male-pin"
+    },
+    {
+      "id": "A2",
+      "label": "A2",
+      "role": "analog-in",
+      "electricalType": "input",
+      "offsetPitch": [2, 5],
+      "connector": "male-pin"
+    },
+    {
+      "id": "A3",
+      "label": "A3",
+      "role": "analog-in",
+      "electricalType": "input",
+      "offsetPitch": [1, 5],
+      "connector": "male-pin"
+    }
+  ],
+  "internalConnections": [],
+  "footprint": { "kind": "offboard" },
+  "sim": {
+    "model": "ads1115",
+    "params": {
+      "vccMinV": 2,
+      "vccMaxV": 5,
+      "chipVddMinV": 2,
+      "chipVddMaxV": 5.5,
+      "i2cPullupOhm": 10000,
+      "i2cPullupTo": "VDD",
+      "i2cIdleHighLevel": "VDD",
+      "alrtPullupOhm": 10000,
+      "alrtPullupTo": "VDD",
+      "addrPulldownOhm": 10000,
+      "addrPulldownTo": "GND",
+      "i2cAddress": "0x48",
+      "i2cAddressAddrGnd": "0x48",
+      "i2cAddressAddrVdd": "0x49",
+      "i2cAddressAddrSda": "0x4A",
+      "i2cAddressAddrScl": "0x4B",
+      "resolutionBits": 16,
+      "singleEndedChannels": 4,
+      "differentialChannels": 2,
+      "pgaRangesV": "6.144,4.096,2.048,1.024,0.512,0.256",
+      "dataRatesSps": "8,16,32,64,128,250,475,860",
+      "analogInMaxAboveVddV": 0.3,
+      "digitalInMaxV": 5.5,
+      "supplyCurrentContinuousUa": 150,
+      "i2cStandardKHz": 100,
+      "i2cFastKHz": 400,
+      "i2cHighSpeedKHz": 3400
+    }
+  },
+  "properties": {},
+  "bodyMm": [25.4, 17.8, 4.6],
+  "geometry": {
+    "family": "module",
+    "params": {
+      "variant": "adafruit-1085-stemma-qt",
+      "boardLengthMm": 25.4,
+      "boardWidthMm": 17.8,
+      "boardHeightMm": 4.6,
+      "headerRows": 2,
+      "headerPinsPerRow": 6,
+      "headerPitchMm": 2.54,
+      "headerRowSpacingPitchApprox": 5,
+      "mountingHoles": 4
+    }
+  },
+  "provenance": {
+    "sources": [
+      "https://www.ti.com/lit/ds/symlink/ads1115.pdf",
+      "https://learn.adafruit.com/adafruit-4-channel-adc-breakouts/pinouts",
+      "https://learn.adafruit.com/adafruit-4-channel-adc-breakouts/downloads",
+      "https://www.adafruit.com/product/1085",
+      "https://cdn-learn.adafruit.com/assets/assets/000/036/145/medium800/sensors_schem.png?1475541078",
+      "https://cdn-learn.adafruit.com/assets/assets/000/112/763/medium800/arduino_compatibles_schem.png?1656508168",
+      "https://cdn-learn.adafruit.com/assets/assets/000/112/696/medium800/arduino_compatibles_front_backads1115.png?1656446850",
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/_images/Basic_List.jpg"
+    ],
+    "notes": "KIT: the SunFounder Basic Starter Kit ships an ADS7830 module (see ads7830-module), not an ADS1115; there is no ADS1115 lesson, so 'not in kit'. PIN ORDER AND LAYOUT: the Adafruit front-photo pinout (STEMMA QT revision, product 1085) prints a bottom row VIN, GND, SCL, SDA, ADDR, ALRT and a top row A+, A3, A2, A1, A0, A- on the same 2.54 mm columns about 5 pitches apart (the row spacing is measured from the photo, +-0.3 pitch). Offsets put the bottom row at y = 0 and the A inputs on the top row. The A+ and A- pads are ADC power and ground outputs (VIN and GND through ferrites): 'these are OUTPUTs not inputs', so they are not modelled as pins. The silkscreen prints 'VIN' on this revision; the task brief and the chip datasheet call the pin VDD, so the pin id is VDD with the printed label VIN. The original Adafruit board (Eagle 'ADS1115_16Bit_I2C_ADC_v0.2') had a single 10-pin header (JP1) carrying VDD, GND, SCL, SDA, ADDR, ALERT and AIN0-AIN3 (the symbol's pin order is not a reliable physical order); the same signals are used here with the two-row layout of the current revision. CONNECTOR: Adafruit says the board 'Comes with a bit of 0.1 in standard header', unsoldered; the part assumes that header is soldered with its pins down as male pins. SUPPLY: Adafruit says 'Acceptable voltages are 2V to 5V' and the back silkscreen reads 'VLogic/Vin: 2-5VDC'; the TI datasheet (SBAS444E) says VDD 2.0-5.5 V (absolute maximum 7 V). The board limit 2-5 V is used for vccMinV and vccMaxV and the chip limit is kept as chipVddMinV and chipVddMaxV: conflict, the board limit is followed. I2C PULL-UPS: Adafruit's pinout page says 'SDA: This pin has a 10K pullup to VIN' and the same for SCL; both Adafruit schematics (the original and the 2022 rev C) show 10K resistors from SCL, SDA and ALERT to VDD and a 10K resistor from ADDR to GND ('Default I2C Address = 1001000'). The ALERT pull-up and the ADDR pull-down are read from the low-resolution schematic images, not from page text. So the I2C lines idle at the supply voltage: at a 5 V supply SDA and SCL sit at 5 V (SPEC 8 OVERVOLTAGE_GPIO); at 3.3 V they are Pi-safe. ADDRESS: TI datasheet Table 7-2: ADDR to GND = 1001000b (0x48), VDD = 0x49, SDA = 0x4A, SCL = 0x4B; the Adafruit table image agrees; the board's A0 jumper adds 1. PGA / DATA RATE: TI Table 7-1 full-scale ranges +-6.144, +-4.096, +-2.048, +-1.024, +-0.512, +-0.256 V; data rates 8, 16, 32, 64, 128, 250, 475 and 860 SPS; 150 uA in continuous conversion. Do not apply more than VDD + 0.3 V to an analog input (TI). The digital pins SDA, SCL, ADDR and ALERT/RDY have a 5.5 V maximum (TI absolute maximum). I2C modes: standard 100 kHz, fast 400 kHz, high-speed 3.4 MHz (TI section 7). SIZE: Adafruit product page 25.4 x 17.8 x 4.6 mm. The 4 mounting holes are counted from the photo."
+  }
+}

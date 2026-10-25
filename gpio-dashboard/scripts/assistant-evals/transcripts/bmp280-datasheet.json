@@ -1,0 +1,411 @@
+{
+ "id": "bmp280-datasheet",
+ "title": "A BMP280 breakout, from its datasheet",
+ "model": "claude-opus-5-5",
+ "effort": "high",
+ "recorded": "2026-10-24",
+ "turns": [
+  {
+   "user": "I have a BMP280 breakout; read temperature over I2C",
+   "assistant": "The BMP280 is wired into the twin, and I wrote a Python program that reads its temperature over I2C.\n\n**What I built**\nThe library didn't have a BMP280, so I added your purple 6-pin GY-BMP280 as a custom part (U1). I couldn't open a datasheet in this session, so the pin roles come from the order printed on the board. Six male-female leads go from the module to the T-board strips:\n\n| BMP280 pin | Net | Hole |\n|---|---|---|\n| VCC | 3V3 | bb1:9a |\n| GND | GND | bb1:7j |\n| SCL | GPIO3 (SCL1) | bb1:3a |\n| SDA | GPIO2 (SDA1) | bb1:2a |\n| CSB | 3V3 | bb1:9b |\n| SDO | GND | bb1:10j |\n\n**How it works**\n- **Power:** VCC goes to 3.3 V, not 5 V. Many of these purple boards have no voltage regulator, and the chip is a 3.6 V part.\n- **Pull-ups:** GPIO2 and GPIO3 already have pull-ups on the Pi for I2C, so you don't need extra resistors.\n- **CSB to 3V3** keeps the chip in I2C mode.\n- **SDO to GND** fixes the I2C address at 0x76. On some boards SDO is left floating, so the address can change from one power-up to the next.\n- **The program** (uses `smbus2`) checks the chip ID (0x58 for a BMP280) and loads the sensor's factory calibration values. Once a second it reads the raw 20-bit temperature, converts it with Bosch's correction formula and prints °C.\n\n**Checks:** ERC shows 0 errors and 0 warnings. One info note remains: the part has no datasheet attached. The code passes the syntax check and its pins match the wiring (GPIO2 and GPIO3 as I2C). The simulator has no BMP280 model, so I couldn't simulate the temperature readings. It only showed that SDA and SCL sit at 3.3 V when idle and that the sensor draws nothing from the GPIOs.\n\n**What to check on the bench**\n1. **Labels:** read the pin labels printed on your module, not their position. Some clones put the pins in a different order.\n2. **Power pins:** VCC must go to the **3V3** strip (row 9), never 5V.\n3. **Enable I2C:** run `sudo raspi-config` → Interface Options → I2C, then `pip install smbus2`.\n4. **Find the sensor:** run `i2cdetect -y 1`, and you should see **76**. If it shows 77, SDO isn't really grounded. If nothing shows, SDA and SCL are probably swapped.\n5. **Chip check:** if the program says the chip ID is 0x60, your board is actually a BME280 (which also senses humidity). The temperature code still works on it.\n\nDo you want pressure readings too? It's the same chip, with more calibration values and one more formula.",
+   "end": "end_turn",
+   "notices": [
+    {
+     "code": "web-tools-refused",
+     "message": "The API refused web search (“Web search is not enabled for this organization”), so this conversation runs without it. The “Web search and fetch, for datasheets” setting turns the web tools off for new conversations."
+    }
+   ],
+   "usage": {
+    "inputTokens": 244,
+    "outputTokens": 5280,
+    "cacheWriteTokens": 22847,
+    "cacheReadTokens": 161042,
+    "webSearches": 0,
+    "requests": 9,
+    "costUsd": 0.2530194
+   },
+   "toolCalls": [
+    {
+     "tool": "get_circuit_state",
+     "input": {
+      "detail": "summary"
+     },
+     "ok": true,
+     "result": "Revision 0: 1 board(s), 0 part(s), 0 wire(s). ERC: 0 error(s), 0 warning(s).\n{\"revision\":0,\"boards\":[{\"id\":\"bb1\",\"def\":\"bb-830\",\"rows\":63,\"freeRows\":[[24,63]],\"freeRailHoles\":{\"top+\":50,\"top-\":50,\"bottom+\":50,\"bottom-\":50}}],\"tboard\":{\"board\":\"bb1\",\"pin1Row\":1,\"colPair\":\"d/h\",\"orientation\":\"header-toward-row-0\"},\"parts\":[],\"wires\":[],\"nets\":[],\"erc\":[],\"code\":{\"library\":\"RPi.GPIO\",\"lines\":0,\"uses\":[],\"unresolved\":[]}}"
+    },
+    {
+     "tool": "search_parts",
+     "input": {
+      "query": "BMP280"
+     },
+     "ok": false,
+     "result": "{\"NO_MATCH\":\"Nothing matches \\\"BMP280\\\"; try one word, or define_custom_part\"}"
+    },
+    {
+     "tool": "ask_user",
+     "input": {
+      "question": "Which BMP280 board do you have? The pinout and supply are different between them.",
+      "options": [
+       "Purple 6-pin GY-BMP280 (VCC GND SCL SDA CSB SDO)",
+       "Adafruit BMP280 (VIN 3Vo GND SCK SDO SDI CS)",
+       "Not sure"
+      ]
+     },
+     "ok": true,
+     "result": "{\"answer\":\"Purple 6-pin GY-BMP280 (VCC GND SCL SDA CSB SDO)\"}"
+    },
+    {
+     "tool": "web_fetch",
+     "server": true,
+     "input": {
+      "url": "https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf"
+     },
+     "ok": false,
+     "result": "url_not_in_prior_context"
+    },
+    {
+     "tool": "define_custom_part",
+     "input": {
+      "template": "module-with-header",
+      "name": "GY-BMP280 pressure/temperature breakout (6-pin)",
+      "pins": [
+       {
+        "id": "VCC",
+        "label": "VCC",
+        "role": "power",
+        "electricalType": "power-in",
+        "connector": "male-pin"
+       },
+       {
+        "id": "GND",
+        "label": "GND",
+        "role": "ground",
+        "electricalType": "power-in",
+        "connector": "male-pin"
+       },
+       {
+        "id": "SCL",
+        "label": "SCL",
+        "role": "logic-in",
+        "electricalType": "input",
+        "connector": "male-pin"
+       },
+       {
+        "id": "SDA",
+        "label": "SDA",
+        "role": "logic-io",
+        "electricalType": "bidirectional",
+        "connector": "male-pin"
+       },
+       {
+        "id": "CSB",
+        "label": "CSB",
+        "role": "logic-in",
+        "electricalType": "input",
+        "connector": "male-pin"
+       },
+       {
+        "id": "SDO",
+        "label": "SDO",
+        "role": "logic-in",
+        "electricalType": "input",
+        "connector": "male-pin"
+       }
+      ],
+      "internalConnections": [],
+      "simModel": "none"
+     },
+     "ok": true,
+     "result": "{\"id\":\"custom-gy-bmp280-pressure-temperature-breakout-6-pin\",\"footprint\":{\"kind\":\"offboard\"},\"pins\":[{\"id\":\"VCC\",\"role\":\"power\",\"connector\":\"male-pin\"},{\"id\":\"GND\",\"role\":\"ground\",\"connector\":\"male-pin\"},{\"id\":\"SCL\",\"role\":\"logic-in\",\"connector\":\"male-pin\"},{\"id\":\"SDA\",\"role\":\"logic-io\",\"connector\":\"male-pin\"},{\"id\":\"CSB\",\"role\":\"logic-in\",\"connector\":\"male-pin\"},{\"id\":\"SDO\",\"role\":\"logic-in\",\"connector\":\"male-pin\"}],\"datasheet\":null}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "custom-gy-bmp280-pressure-temperature-breakout-6-pin",
+      "at": "auto",
+      "orientation": 0,
+      "props": [],
+      "ref": "U1"
+     },
+     "ok": true,
+     "result": "{\"ref\":\"U1\",\"pins\":{\"VCC\":{\"hole\":\"off-board\",\"net\":\"N6\"},\"GND\":{\"hole\":\"off-board\",\"net\":\"N2\"},\"SCL\":{\"hole\":\"off-board\",\"net\":\"N3\"},\"SDA\":{\"hole\":\"off-board\",\"net\":\"N4\"},\"CSB\":{\"hole\":\"off-board\",\"net\":\"N1\"},\"SDO\":{\"hole\":\"off-board\",\"net\":\"N5\"}}}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "VCC"
+       }
+      },
+      "to": {
+       "net": "3V3"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W1\",\"kind\":\"dupont-mf\",\"color\":\"red\",\"lengthMm\":200,\"a\":\"U1.VCC\",\"b\":\"bb1:9a\"},\"net\":\"3V3\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "GND"
+       }
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W2\",\"kind\":\"dupont-mf\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"U1.GND\",\"b\":\"bb1:7j\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "SCL"
+       }
+      },
+      "to": {
+       "net": "GPIO3"
+      },
+      "color": "yellow"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W3\",\"kind\":\"dupont-mf\",\"color\":\"yellow\",\"lengthMm\":200,\"a\":\"U1.SCL\",\"b\":\"bb1:3a\"},\"net\":\"GPIO3\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "SDA"
+       }
+      },
+      "to": {
+       "net": "GPIO2"
+      },
+      "color": "blue"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W4\",\"kind\":\"dupont-mf\",\"color\":\"blue\",\"lengthMm\":200,\"a\":\"U1.SDA\",\"b\":\"bb1:2a\"},\"net\":\"GPIO2\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "CSB"
+       }
+      },
+      "to": {
+       "net": "3V3"
+      },
+      "color": "orange"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W5\",\"kind\":\"dupont-mf\",\"color\":\"orange\",\"lengthMm\":200,\"a\":\"U1.CSB\",\"b\":\"bb1:9b\"},\"net\":\"3V3\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "U1",
+        "pin": "SDO"
+       }
+      },
+      "to": {
+       "net": "GND"
+      },
+      "color": "green"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W6\",\"kind\":\"dupont-mf\",\"color\":\"green\",\"lengthMm\":200,\"a\":\"U1.SDO\",\"b\":\"bb1:10j\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "run_erc",
+     "input": {},
+     "ok": true,
+     "result": "{\"errors\":0,\"warnings\":2,\"info\":1,\"issues\":[{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO2\"],\"message\":\"GPIO2 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO2 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO3\"],\"message\":\"GPIO3 is wired to the circuit, but the code never sets it up.\",\"fix\":\"Set up GPIO3 in the code, or move the lead to the pin the code uses.\"},{\"code\":\"PART_WITHOUT_DATASHEET\",\"severity\":\"info\",\"refs\":[\"U1\"],\"message\":\"GY-BMP280 pressure/temperature breakout (6-pin) has no datasheet, so its pin roles are only hints.\",\"fix\":\"Find the datasheet and add it to the part.\"}]}"
+    },
+    {
+     "tool": "simulate",
+     "input": {
+      "mode": "op",
+      "durationMs": 0,
+      "stimulus": {
+       "gpio": [],
+       "inputs": []
+      }
+     },
+     "ok": true,
+     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":0,\"GPIO18\":0,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":0,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":0},\"leds\":[],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO18\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":0,\"mA\":0}],\"rails\":{\"3V3_mA\":0,\"5V_mA\":0},\"resistors\":[],\"parts\":{},\"errors\":0,\"warnings\":2,\"info\":1,\"issues\":[{\"code\":\"CODE_PIN_MISMATCH\",\"severity\":\"warning\",\"refs\":[\"GPIO2\"],\"message\":\"GPIO2 is wired "
+    },
+    {
+     "tool": "write_code",
+     "input": {
+      "library": "RPi.GPIO",
+      "source": "#!/usr/bin/env python3\n\"\"\"Read temperature from a GY-BMP280 over I2C (bus 1: SDA=GPIO2, SCL=GPIO3).\n\nEnable I2C first:  sudo raspi-config -> Interface Options -> I2C\nInstall the library: pip install smbus2\nCheck the address:   i2cdetect -y 1   (expect 76, because SDO is tied to GND)\n\"\"\"\nimport time\nimport struct\nfrom smbus2 import SMBus\n\nI2C_BUS = 1\nADDR = 0x76          # SDO -> GND gives 0x76 (SDO -> 3V3 would give 0x77)\n\nREG_ID = 0xD0        # chip ID, 0x58 for a BMP280\nREG_RESET = 0xE0\nREG_CTRL_MEAS = 0xF4\nREG_CONFIG = 0xF5\nREG_TEMP = 0xFA      # 0xFA..0xFC, 20-bit raw temperature\nREG_CALIB = 0x88     # dig_T1..dig_T3 start here\n\n\ndef read_calibration(bus):\n    raw = bytes(bus.read_i2c_block_data(ADDR, REG_CALIB, 6))\n    # dig_T1 is unsigned 16-bit, dig_T2 and dig_T3 are signed, all little-endian\n    return struct.unpack('<Hhh', raw)\n\n\ndef read_raw_temp(bus):\n    msb, lsb, xlsb = bus.read_i2c_block_data(ADDR, REG_TEMP, 3)\n    return (msb << 12) | (lsb << 4) | (xlsb >> 4)\n\n\ndef compensate(adc_t, t1, t2, t3):\n    # Floating-point formula from the Bosch BMP280 datasheet\n    var1 = (adc_t / 16384.0 - t1 / 1024.0) * t2\n    var2 = ((adc_t / 131072.0 - t1 / 8192.0) ** 2) * t3\n    return (var1 + var2) / 5120.0\n\n\ndef main():\n    with SMBus(I2C_BUS) as bus:\n        chip_id = bus.read_byte_data(ADDR, REG_ID)\n        if chip_id != 0x58:\n            print(\"Unexpected chip ID 0x%02X (0x60 means a BME280)\" % chip_id)\n        bus.write_byte_data(ADDR, REG_RESET, 0xB6)   # soft reset\n        time.sleep(0.01)\n        t1, t2, t3 = read_calibration(bus)\n        bus.write_byte_data(ADDR, REG_CONFIG, 0xA0)     # 1 s standby, no filter\n        bus.write_byte_data(ADDR, REG_CTRL_MEAS, 0x27)  # temp x1, press x1, normal mode\n        time.sleep(0.1)\n\n        try:\n            while True:\n                temp_c = compensate(read_raw_temp(bus), t1, t2, t3)\n                print(\"Temperature: %.2f C\" % temp_c)\n                time.sleep(1)\n        except KeyboardInterrupt:\n            print(\"\\nStopped.\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
+     },
+     "ok": true,
+     "result": "{\"syntax\":\"ok\",\"gpioUsed\":[{\"gpio\":2,\"mode\":\"i2c\"},{\"gpio\":3,\"mode\":\"i2c\"}],\"unresolved\":[],\"crossCheck\":\"matches the wiring\"}",
+     "committed": 1
+    },
+    {
+     "tool": "run_erc",
+     "input": {},
+     "ok": true,
+     "result": "{\"errors\":0,\"warnings\":0,\"info\":1,\"issues\":[{\"code\":\"PART_WITHOUT_DATASHEET\",\"severity\":\"info\",\"refs\":[\"U1\"],\"message\":\"GY-BMP280 pressure/temperature breakout (6-pin) has no datasheet, so its pin roles are only hints.\",\"fix\":\"Find the datasheet and add it to the part.\"}]}"
+    },
+    {
+     "tool": "capture_view",
+     "input": {
+      "preset": "iso"
+     },
+     "ok": false,
+     "result": "{\"INTERNAL_ERROR\":\"capture_view is not available in this session: there is no 3D stage here (headless evaluation). Check the layout from the hole positions and nets that get_circuit_state returns.\"}"
+    }
+   ],
+   "transactions": 9
+  }
+ ],
+ "questions": [
+  {
+   "question": "Which BMP280 board do you have? The pinout and supply are different between them.",
+   "options": [
+    "Purple 6-pin GY-BMP280 (VCC GND SCL SDA CSB SDO)",
+    "Adafruit BMP280 (VIN 3Vo GND SCK SDO SDI CS)",
+    "Not sure"
+   ],
+   "answer": "Purple 6-pin GY-BMP280 (VCC GND SCL SDA CSB SDO)"
+  }
+ ],
+ "partialInputs": {
+  "place_part": {
+   "snapshots": 10,
+   "ghosts": 5
+  },
+  "connect": {
+   "snapshots": 48,
+   "ghosts": 17
+  }
+ },
+ "simulatedInputs": [],
+ "codeRuns": [],
+ "custom": [
+  {
+   "id": "custom-gy-bmp280-pressure-temperature-breakout-6-pin",
+   "name": "GY-BMP280 pressure/temperature breakout (6-pin)",
+   "datasheet": []
+  }
+ ],
+ "final": {
+  "parts": [
+   "U1 custom-gy-bmp280-pressure-temperature-breakout-6-pin"
+  ],
+  "wires": 6,
+  "code": "#!/usr/bin/env python3\n\"\"\"Read temperature from a GY-BMP280 over I2C (bus 1: SDA=GPIO2, SCL=GPIO3).\n\nEnable I2C first:  sudo raspi-config -> Interface Options -> I2C\nInstall the library: pip install smbus2\nCheck the address:   i2cdetect -y 1   (expect 76, because SDO is tied to GND)\n\"\"\"\nimport time\nimport struct\nfrom smbus2 import SMBus\n\nI2C_BUS = 1\nADDR = 0x76          # SDO -> GND gives 0x76 (SDO -> 3V3 would give 0x77)\n\nREG_ID = 0xD0        # chip ID, 0x58 for a BMP280\nREG_RESET = 0xE0\nREG_CTRL_MEAS = 0xF4\nREG_CONFIG = 0xF5\nREG_TEMP = 0xFA      # 0xFA..0xFC, 20-bit raw temperature\nREG_CALIB = 0x88     # dig_T1..dig_T3 start here\n\n\ndef read_calibration(bus):\n    raw = bytes(bus.read_i2c_block_data(ADDR, REG_CALIB, 6))\n    # dig_T1 is unsigned 16-bit, dig_T2 and dig_T3 are signed, all little-endian\n    return struct.unpack('<Hhh', raw)\n\n\ndef read_raw_temp(bus):\n    msb, lsb, xlsb = bus.read_i2c_block_data(ADDR, REG_TEMP, 3)\n    return (msb << 12) | (lsb << 4) | (xlsb >> 4)\n\n\ndef compensate(adc_t, t1, t2, t3):\n    # Floating-point formula from the Bosch BMP280 datasheet\n    var1 = (adc_t / 16384.0 - t1 / 1024.0) * t2\n    var2 = ((adc_t / 131072.0 - t1 / 8192.0) ** 2) * t3\n    return (var1 + var2) / 5120.0\n\n\ndef main():\n    with SMBus(I2C_BUS) as bus:\n        chip_id = bus.read_byte_data(ADDR, REG_ID)\n        if chip_id != 0x58:\n            print(\"Unexpected chip ID 0x%02X (0x60 means a BME280)\" % chip_id)\n        bus.write_byte_data(ADDR, REG_RESET, 0xB6)   # soft reset\n        time.sleep(0.01)\n        t1, t2, t3 = read_calibration(bus)\n        bus.write_byte_data(ADDR, REG_CONFIG, 0xA0)     # 1 s standby, no filter\n        bus.write_byte_data(ADDR, REG_CTRL_MEAS, 0x27)  # temp x1, press x1, normal mode\n        time.sleep(0.1)\n\n        try:\n            while True:\n                temp_c = compensate(read_raw_temp(bus), t1, t2, t3)\n                print(\"Temperature: %.2f C\" % temp_c)\n                time.sleep(1)\n        except KeyboardInterrupt:\n            print(\"\\nStopped.\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
+ },
+ "checks": [
+  {
+   "id": "turns.complete",
+   "label": "Every turn ends with end_turn",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "erc",
+   "label": "Zero ERC errors",
+   "pass": true,
+   "detail": "0 errors, 0 warnings"
+  },
+  {
+   "id": "convention",
+   "label": "Wiring follows the convention",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "inventory",
+   "label": "Inventory respected",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "code.syntax",
+   "label": "The project has code that compiles",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "code.pins",
+   "label": "Code pins match the netlist",
+   "pass": true,
+   "detail": "GPIO 2, 3"
+  },
+  {
+   "id": "claims",
+   "label": "Claims nothing ran on hardware",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "ghosts",
+   "label": "Every streamed preview is cleared",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "custom-part",
+   "label": "Defines a custom part and places it",
+   "pass": true,
+   "detail": "1 defined"
+  },
+  {
+   "id": "datasheet",
+   "label": "The part cites a datasheet URL",
+   "pass": false,
+   "detail": ""
+  },
+  {
+   "id": "web-tools",
+   "label": "Looked the datasheet up with the web tools (a call that returned)",
+   "pass": false,
+   "detail": "web_fetch (failed)"
+  },
+  {
+   "id": "i2c",
+   "label": "The code uses I2C",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "mixed-turn",
+   "label": "Web and client tools both worked in one run",
+   "pass": false,
+   "detail": ""
+  },
+  {
+   "id": "undo.all",
+   "label": "Undo all restores the starting document exactly",
+   "pass": true,
+   "detail": "9 of 9 transactions undone"
+  }
+ ]
+}

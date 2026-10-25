@@ -1,0 +1,286 @@
+{
+ "id": "blink-led",
+ "title": "Blink an LED on GPIO17",
+ "model": "claude-opus-5-5",
+ "effort": "high",
+ "recorded": "2026-10-24",
+ "turns": [
+  {
+   "user": "blink an LED on GPIO17",
+   "assistant": "I've built an LED that blinks on GPIO17, once a second.\n\n**What I built**\n- **R1:** a 220 Ω resistor in holes bb1:30a to 34a.\n- **D1:** a red LED. The anode (+) is in 34c and the cathode (−) is in 36c.\n- **W1 (orange):** from the GPIO17 strip (row 6) to row 30, the resistor's free end.\n- **W2 (black):** from row 36, the LED's cathode, to the GND strip (row 20).\n- **Code:** a Python program (RPi.GPIO) that turns the LED on for 0.5 s, then off for 0.5 s, over and over. Ctrl+C stops it cleanly.\n\n**How it works**\nWhen GPIO17 goes high, current flows through the resistor and LED to ground. The resistor sets how much current flows.\n- **The arithmetic:** a red LED drops about 1.9 V, so (3.3 V − 1.9 V) / 220 Ω ≈ 6 mA. That's well under the Pi's 16 mA limit per pin.\n- **Simulation:** 5.5 mA through the LED and out of GPIO17.\n- **Error check:** 0 errors, 0 warnings.\n- **Code check:** in the simulated run, GPIO17 switched every 0.5 s (on at 0.0 s, off at 0.5 s, on at 1.0 s, and so on).\n\nI couldn't take a picture of the layout this session (the 3D view isn't available), so I checked the placement from the hole numbers.\n\n**What to check on the bench**\n- **LED direction:** the long leg (anode) goes in row 34, sharing a row with the resistor. The short leg, on the flat side of the rim, goes in row 36. If it's in backwards, it simply won't light. I've marked this on the board view.\n- **Ribbon cable:** the stripe on the ribbon (often brown or red) marks pin 1. Make sure it lines up with pin 1 on both the Pi and the T-board. If the cable is flipped, every pin is wrong.\n- **To run it:** `python3 blink.py` on the Pi.",
+   "end": "end_turn",
+   "notices": [],
+   "usage": {
+    "inputTokens": 18,
+    "outputTokens": 2150,
+    "cacheWriteTokens": 3795,
+    "cacheReadTokens": 124163,
+    "webSearches": 0,
+    "requests": 8,
+    "costUsd": 0.08687960000000002
+   },
+   "toolCalls": [
+    {
+     "tool": "get_circuit_state",
+     "input": {
+      "detail": "summary"
+     },
+     "ok": true,
+     "result": "Revision 0: 1 board(s), 0 part(s), 0 wire(s). ERC: 0 error(s), 0 warning(s).\n{\"revision\":0,\"boards\":[{\"id\":\"bb1\",\"def\":\"bb-830\",\"rows\":63,\"freeRows\":[[24,63]],\"freeRailHoles\":{\"top+\":50,\"top-\":50,\"bottom+\":50,\"bottom-\":50}}],\"tboard\":{\"board\":\"bb1\",\"pin1Row\":1,\"colPair\":\"d/h\",\"orientation\":\"header-toward-row-0\"},\"parts\":[],\"wires\":[],\"nets\":[],\"erc\":[],\"code\":{\"library\":\"RPi.GPIO\",\"lines\":0,\"uses\":[],\"unresolved\":[]}}"
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "resistor",
+      "at": "bb1:30a",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "resistance",
+        "value": 220
+       }
+      ],
+      "ref": "R1",
+      "span": 4
+     },
+     "ok": true,
+     "result": "{\"ref\":\"R1\",\"pins\":{\"1\":{\"hole\":\"bb1:30a\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:30b\",\"bb1:30c\",\"bb1:30d\",\"bb1:30e\"]},\"2\":{\"hole\":\"bb1:34a\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:34b\",\"bb1:34c\",\"bb1:34d\",\"bb1:34e\"]}}}",
+     "committed": 1
+    },
+    {
+     "tool": "place_part",
+     "input": {
+      "defId": "led",
+      "at": "bb1:34c",
+      "orientation": 0,
+      "props": [
+       {
+        "name": "color",
+        "value": "red"
+       }
+      ],
+      "ref": "D1",
+      "span": 2
+     },
+     "ok": true,
+     "result": "{\"ref\":\"D1\",\"pins\":{\"A\":{\"hole\":\"bb1:34c\",\"net\":\"N1\",\"freeInStrip\":[\"bb1:34b\",\"bb1:34d\",\"bb1:34e\"]},\"K\":{\"hole\":\"bb1:36c\",\"net\":\"N2\",\"freeInStrip\":[\"bb1:36a\",\"bb1:36b\",\"bb1:36d\",\"bb1:36e\"]}},\"warnings\":[\"D1.A shares its strip with R1.2, so it joins their net\"]}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "net": "GPIO17"
+      },
+      "to": {
+       "partPin": {
+        "ref": "R1",
+        "pin": "1"
+       }
+      },
+      "color": "orange"
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W1\",\"kind\":\"dupont-mm\",\"color\":\"orange\",\"lengthMm\":200,\"a\":\"bb1:6a\",\"b\":\"bb1:30b\"},\"net\":\"GPIO17\"}",
+     "committed": 1
+    },
+    {
+     "tool": "connect",
+     "input": {
+      "from": {
+       "partPin": {
+        "ref": "D1",
+        "pin": "K"
+       }
+      },
+      "to": {
+       "net": "GND"
+      }
+     },
+     "ok": true,
+     "result": "{\"wire\":{\"id\":\"W2\",\"kind\":\"dupont-mm\",\"color\":\"black\",\"lengthMm\":200,\"a\":\"bb1:36a\",\"b\":\"bb1:20a\"},\"net\":\"GND\"}",
+     "committed": 1
+    },
+    {
+     "tool": "write_code",
+     "input": {
+      "library": "RPi.GPIO",
+      "source": "import time\nimport RPi.GPIO as GPIO\n\nLED_PIN = 17  # BCM numbering\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(LED_PIN, GPIO.OUT, initial=GPIO.LOW)\n\ntry:\n    while True:\n        GPIO.output(LED_PIN, GPIO.HIGH)\n        print(\"LED on\")\n        time.sleep(0.5)\n        GPIO.output(LED_PIN, GPIO.LOW)\n        print(\"LED off\")\n        time.sleep(0.5)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.cleanup()\n"
+     },
+     "ok": true,
+     "result": "{\"syntax\":\"ok\",\"gpioUsed\":[{\"gpio\":17,\"mode\":\"out\"}],\"unresolved\":[],\"crossCheck\":\"matches the wiring\"}",
+     "committed": 1
+    },
+    {
+     "tool": "run_erc",
+     "input": {},
+     "ok": true,
+     "result": "{\"errors\":0,\"warnings\":0,\"info\":0,\"issues\":[]}"
+    },
+    {
+     "tool": "simulate",
+     "input": {
+      "mode": "op",
+      "durationMs": 0,
+      "stimulus": {
+       "gpio": [
+        {
+         "pin": 17,
+         "level": "high",
+         "freqHz": 0,
+         "duty": 0
+        }
+       ],
+       "inputs": []
+      }
+     },
+     "ok": true,
+     "result": "{\"t\":0,\"nets\":{\"3V3\":3.3,\"5V\":5,\"GND\":0,\"GPIO0\":0,\"GPIO1\":0,\"GPIO2\":3.3,\"GPIO3\":3.3,\"GPIO4\":0,\"GPIO5\":0,\"GPIO6\":0,\"GPIO7\":0,\"GPIO8\":0,\"GPIO9\":0,\"GPIO10\":0,\"GPIO11\":0,\"GPIO12\":0,\"GPIO13\":0,\"GPIO14\":0,\"GPIO15\":0,\"GPIO16\":0,\"GPIO17\":3.069,\"GPIO18\":0,\"GPIO19\":0,\"GPIO20\":0,\"GPIO21\":0,\"GPIO22\":0,\"GPIO23\":0,\"GPIO24\":0,\"GPIO25\":0,\"GPIO26\":0,\"GPIO27\":0,\"N1\":1.86},\"leds\":[{\"die\":\"D1.D\",\"mA\":5.494,\"brightness\":0.549}],\"gpio\":[{\"pin\":\"GPIO0\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO1\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO2\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO3\",\"volts\":3.3,\"mA\":0},{\"pin\":\"GPIO4\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO5\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO6\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO7\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO8\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO9\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO10\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO11\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO12\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO13\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO14\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO15\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO16\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO17\",\"volts\":3.069,\"mA\":5.494},{\"pin\":\"GPIO18\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO19\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO20\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO21\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO22\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO23\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO24\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO25\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO26\",\"volts\":0,\"mA\":0},{\"pin\":\"GPIO27\",\"volts\":0,\"mA\":0}],\"rails\":{\"3V3_mA\":0,\"5V_mA\":0},\"resistors\":[{\"ref\":\"R1\",\"ohms\":220,\"volts\":1.209,\"mA\":5.494,\"mW\":6.64}],\"parts\":{},\"errors\":0,"
+    },
+    {
+     "tool": "run_code_in_sim",
+     "input": {
+      "seconds": 3
+     },
+     "ok": true,
+     "result": "{\"stdout\":\"LED on\\nLED off\\nLED on\\nLED off\\nLED on\\nLED off\",\"error\":null,\"events\":[\"0.000 GPIO17 high\",\"0.500 GPIO17 low\",\"1.000 GPIO17 high\",\"1.500 GPIO17 low\",\"2.000 GPIO17 high\",\"2.500 GPIO17 low\"],\"eventCount\":6}"
+    },
+    {
+     "tool": "capture_view",
+     "input": {
+      "preset": "top"
+     },
+     "ok": false,
+     "result": "{\"INTERNAL_ERROR\":\"capture_view is not available in this session: there is no 3D stage here (headless evaluation). Check the layout from the hole positions and nets that get_circuit_state returns.\"}"
+    },
+    {
+     "tool": "highlight",
+     "input": {
+      "refs": [
+       "D1"
+      ],
+      "note": "Long leg (anode) goes in row 34, next to the resistor. Short leg (flat side of the rim) goes in row 36, toward GND."
+     },
+     "ok": true,
+     "result": "ok"
+    }
+   ],
+   "transactions": 5
+  }
+ ],
+ "questions": [],
+ "partialInputs": {
+  "place_part": {
+   "snapshots": 18,
+   "ghosts": 11
+  },
+  "connect": {
+   "snapshots": 16,
+   "ghosts": 7
+  }
+ },
+ "simulatedInputs": [],
+ "codeRuns": [
+  {
+   "seconds": 3,
+   "endedAt": 3.0000349999999996,
+   "events": 6,
+   "error": null
+  }
+ ],
+ "custom": [],
+ "final": {
+  "parts": [
+   "R1 resistor",
+   "D1 led"
+  ],
+  "wires": 2,
+  "code": "import time\nimport RPi.GPIO as GPIO\n\nLED_PIN = 17  # BCM numbering\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(LED_PIN, GPIO.OUT, initial=GPIO.LOW)\n\ntry:\n    while True:\n        GPIO.output(LED_PIN, GPIO.HIGH)\n        print(\"LED on\")\n        time.sleep(0.5)\n        GPIO.output(LED_PIN, GPIO.LOW)\n        print(\"LED off\")\n        time.sleep(0.5)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    GPIO.cleanup()\n"
+ },
+ "checks": [
+  {
+   "id": "turns.complete",
+   "label": "Every turn ends with end_turn",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "erc",
+   "label": "Zero ERC errors",
+   "pass": true,
+   "detail": "0 errors, 0 warnings"
+  },
+  {
+   "id": "convention",
+   "label": "Wiring follows the convention",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "inventory",
+   "label": "Inventory respected",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "code.syntax",
+   "label": "The project has code that compiles",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "code.pins",
+   "label": "Code pins match the netlist",
+   "pass": true,
+   "detail": "GPIO 17"
+  },
+  {
+   "id": "claims",
+   "label": "Claims nothing ran on hardware",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "ghosts",
+   "label": "Every streamed preview is cleared",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "sim.on",
+   "label": "GPIO17 high lights an LED within 1-16 mA",
+   "pass": true,
+   "detail": "D1.D 5.49 mA"
+  },
+  {
+   "id": "sim.off",
+   "label": "GPIO17 low leaves every LED dark",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "sim.program",
+   "label": "The program toggles GPIO17 in the simulator",
+   "pass": true,
+   "detail": "5 level changes in 3 s"
+  },
+  {
+   "id": "code.requested-pins",
+   "label": "The code uses the GPIOs the prompt names",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "id": "one-turn",
+   "label": "Built in one turn, with no question to the user",
+   "pass": true,
+   "detail": "1 turn(s), 0 question(s)"
+  },
+  {
+   "id": "undo.all",
+   "label": "Undo all restores the starting document exactly",
+   "pass": true,
+   "detail": "5 of 5 transactions undone"
+  }
+ ]
+}

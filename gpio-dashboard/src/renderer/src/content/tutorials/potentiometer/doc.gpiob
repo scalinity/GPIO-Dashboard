@@ -1,0 +1,375 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "name": "Potentiometer",
+    "created": "2026-10-24T00:00:00.000Z",
+    "updated": "2026-10-24T00:00:00.000Z",
+    "revision": 0,
+    "sourceTutorialId": "potentiometer"
+  },
+  "boards": [
+    {
+      "id": "bb1",
+      "defId": "bb-830",
+      "transform": {
+        "position": [
+          0,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    }
+  ],
+  "controller": {
+    "pi": {
+      "transform": {
+        "position": [
+          -120,
+          0
+        ],
+        "rotationDeg": 0
+      }
+    },
+    "tboard": {
+      "board": "bb1",
+      "pin1Row": 1,
+      "colPair": "d/h",
+      "orientation": "header-toward-row-0"
+    },
+    "ribbon": {
+      "lengthMm": 200
+    }
+  },
+  "parts": [
+    {
+      "id": "U1",
+      "defId": "ads7830-module",
+      "props": {},
+      "placement": {
+        "pins": {
+          "A0": null,
+          "A1": null,
+          "A2": null,
+          "A3": null,
+          "A4": null,
+          "A5": null,
+          "A6": null,
+          "A7": null,
+          "VCC": null,
+          "SDA": null,
+          "SCL": null,
+          "GND": null
+        },
+        "offboardPose": {
+          "position": [
+            60,
+            75
+          ],
+          "rotationDeg": 0
+        }
+      }
+    },
+    {
+      "id": "R1",
+      "defId": "potentiometer-10k",
+      "props": {},
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 30,
+            "col": "c"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 32,
+            "col": "c"
+          },
+          "3": {
+            "board": "bb1",
+            "area": "main",
+            "row": 34,
+            "col": "c"
+          }
+        }
+      }
+    },
+    {
+      "id": "R2",
+      "defId": "resistor",
+      "props": {
+        "resistance": 220,
+        "tolerance": "5%"
+      },
+      "placement": {
+        "pins": {
+          "1": {
+            "board": "bb1",
+            "area": "main",
+            "row": 40,
+            "col": "b"
+          },
+          "2": {
+            "board": "bb1",
+            "area": "main",
+            "row": 44,
+            "col": "b"
+          }
+        }
+      }
+    },
+    {
+      "id": "D1",
+      "defId": "led",
+      "props": {
+        "color": "red",
+        "size": "5mm"
+      },
+      "placement": {
+        "pins": {
+          "A": {
+            "board": "bb1",
+            "area": "main",
+            "row": 44,
+            "col": "c"
+          },
+          "K": {
+            "board": "bb1",
+            "area": "main",
+            "row": 45,
+            "col": "c"
+          }
+        }
+      }
+    }
+  ],
+  "wires": [
+    {
+      "id": "W1",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 34,
+          "col": "a"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W2",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 3,
+          "col": "j"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 30,
+          "col": "a"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W3",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 1,
+          "col": "b"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "VCC"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W4",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 5,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "GND"
+        }
+      },
+      "color": "black",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W5",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 2,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "SDA"
+        }
+      },
+      "color": "blue",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W6",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 3,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "SCL"
+        }
+      },
+      "color": "yellow",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W7",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 32,
+          "col": "a"
+        }
+      },
+      "b": {
+        "pin": {
+          "part": "U1",
+          "pin": "A0"
+        }
+      },
+      "color": "green",
+      "kind": "dupont-mf",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W8",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 9,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 40,
+          "col": "a"
+        }
+      },
+      "color": "red",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    },
+    {
+      "id": "W9",
+      "a": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 6,
+          "col": "a"
+        }
+      },
+      "b": {
+        "hole": {
+          "board": "bb1",
+          "area": "main",
+          "row": 45,
+          "col": "a"
+        }
+      },
+      "color": "orange",
+      "kind": "dupont-mm",
+      "lengthMm": "auto"
+    }
+  ],
+  "code": {
+    "language": "python",
+    "library": "RPi.GPIO",
+    "source": "import time\n\nimport RPi.GPIO as GPIO\nimport smbus\n\nLED_PIN = 17  # BCM numbering: header pin 11, the LED's cathode, so LOW lights it\nCHANNEL = 0  # the wiper is on input A0\n\nADC_ADDRESS = 0x48  # the ADS7830 module on I2C bus 1 (SDA is GPIO2, SCL is GPIO3)\n\n# Command byte: SD = 1 (single-ended), C2-C0 choose the input, PD1-PD0 = 01 (converter on).\n# The select codes for A0 to A7 are not in binary order (ADS7830 datasheet, Table 2).\nSELECT = (0, 4, 1, 5, 2, 6, 3, 7)\n\nbus = smbus.SMBus(1)\n\n\ndef read_adc(channel):\n    \"\"\"One 8-bit reading: 0 for 0 V up to 255 for the module's 3.3 V supply.\"\"\"\n    command = 0x84 | (SELECT[channel] << 4)\n    return bus.read_byte_data(ADC_ADDRESS, command)\n\n\nGPIO.setmode(GPIO.BCM)\nGPIO.setup(LED_PIN, GPIO.OUT, initial=GPIO.HIGH)\nled = GPIO.PWM(LED_PIN, 1000)\nled.start(100)  # HIGH all the time keeps the active-low LED dark\n\ntry:\n    while True:\n        value = read_adc(CHANNEL)\n        volts = value * 3.3 / 256\n        # Active low: the longer the pin stays HIGH, the dimmer the LED.\n        led.ChangeDutyCycle(value * 100 / 255)\n        print(f'ADC {value:3d}  {volts:.2f} V')\n        time.sleep(0.05)\nexcept KeyboardInterrupt:\n    pass\nfinally:\n    led.stop()\n    GPIO.cleanup()\n    bus.close()\n"
+  },
+  "buildStepAnnotations": {
+    "U1": {
+      "why": "The Pi has no analogue inputs. This module measures a voltage and reports it as a number over I2C.",
+      "mistake": "Powering the module from 5 V. Its I2C pull-ups are unverified, so it runs from 3.3 V to keep SDA and SCL at 3.3 V."
+    },
+    "R1": {
+      "why": "The two ends sit across 3.3 V and ground, so the middle pin carries a voltage that follows the knob.",
+      "mistake": "Putting the wiper on an end pin: the module then reads a fixed 0 V or 3.3 V."
+    },
+    "R2": {
+      "why": "The resistor limits the LED current to a few milliamps."
+    },
+    "D1": {
+      "why": "Current flows from anode to cathode only.",
+      "mistake": "The LED in backwards: it stays dark whatever the code does."
+    },
+    "W3": {
+      "why": "The module takes its power from the Pi 3.3 V pin, the same level as the I2C lines."
+    },
+    "W5": {
+      "why": "SDA is the I2C data line, on GPIO2."
+    },
+    "W6": {
+      "why": "SCL is the I2C clock line, on GPIO3."
+    },
+    "W7": {
+      "why": "The wiper goes to input A0, the channel the code reads."
+    },
+    "W9": {
+      "why": "The LED cathode is on GPIO17, so the LED is brightest when the code drives GPIO17 LOW."
+    }
+  }
+}

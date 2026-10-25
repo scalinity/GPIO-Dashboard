@@ -1,0 +1,1793 @@
+{
+ "date": "2026-10-24",
+ "model": "claude-opus-5-5",
+ "spentUsd": 2.2947318,
+ "prompts": [
+  {
+   "id": "blink-led",
+   "title": "Blink an LED on GPIO17",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 17"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.on",
+     "label": "GPIO17 high lights an LED within 1-16 mA",
+     "pass": true,
+     "detail": "D1.D 5.49 mA"
+    },
+    {
+     "id": "sim.off",
+     "label": "GPIO17 low leaves every LED dark",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.program",
+     "label": "The program toggles GPIO17 in the simulator",
+     "pass": true,
+     "detail": "5 level changes in 3 s"
+    },
+    {
+     "id": "code.requested-pins",
+     "label": "The code uses the GPIOs the prompt names",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "one-turn",
+     "label": "Built in one turn, with no question to the user",
+     "pass": true,
+     "detail": "1 turn(s), 0 question(s)"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "5 of 5 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 8,
+   "toolCalls": 11,
+   "inputTokens": 18,
+   "outputTokens": 2150,
+   "cacheWriteTokens": 3795,
+   "cacheReadTokens": 124163,
+   "webSearches": 0,
+   "costUsd": 0.08687960000000002,
+   "seconds": 23,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "place_part": {
+     "calls": 2,
+     "deltas": 20
+    },
+    "connect": {
+     "calls": 2,
+     "deltas": 18
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 34
+    },
+    "run_erc": {
+     "calls": 1,
+     "deltas": 1
+    },
+    "simulate": {
+     "calls": 1,
+     "deltas": 18
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 23
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 18,
+     "ghosts": 11
+    },
+    "connect": {
+     "snapshots": 16,
+     "ghosts": 7
+    }
+   }
+  },
+  {
+   "id": "button-toggles-led",
+   "title": "A button with a pull-up toggles an LED",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 17, 27"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.requested-pins",
+     "label": "The code uses the GPIOs the prompt names",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.released",
+     "label": "Released, GPIO27 reads high",
+     "pass": true,
+     "detail": "reads high (pull up)"
+    },
+    {
+     "id": "sim.pressed",
+     "label": "Pressed, GPIO27 reads low",
+     "pass": true,
+     "detail": "reads low"
+    },
+    {
+     "id": "parts",
+     "label": "A button and an LED",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.program",
+     "label": "Pressing the button changes GPIO17 in the program",
+     "pass": true,
+     "detail": "2 change(s) of GPIO17 after the press"
+    },
+    {
+     "id": "one-turn",
+     "label": "Built in one turn, with no question to the user",
+     "pass": true,
+     "detail": "1 turn(s), 0 question(s)"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "10 of 10 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 11,
+   "toolCalls": 19,
+   "inputTokens": 24,
+   "outputTokens": 4338,
+   "cacheWriteTokens": 8704,
+   "cacheReadTokens": 200226,
+   "webSearches": 0,
+   "costUsd": 0.1704212,
+   "seconds": 44,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "search_parts": {
+     "calls": 1,
+     "deltas": 5
+    },
+    "place_part": {
+     "calls": 4,
+     "deltas": 40
+    },
+    "connect": {
+     "calls": 5,
+     "deltas": 45
+    },
+    "run_erc": {
+     "calls": 2,
+     "deltas": 2
+    },
+    "simulate": {
+     "calls": 2,
+     "deltas": 48
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 47
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 20
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 36,
+     "ghosts": 21
+    },
+    "connect": {
+     "snapshots": 40,
+     "ghosts": 12
+    }
+   }
+  },
+  {
+   "id": "parking-sensor",
+   "title": "Parking sensor with HC-SR04, passive buzzer and 3 LEDs",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 17, 18, 22, 23, 24, 27"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "parts",
+     "label": "An HC-SR04, a passive buzzer and 3 LEDs",
+     "pass": true,
+     "detail": "resistor, led, resistor, led, resistor, led, resistor, resistor, pn2222, hc-sr04, resistor, passive-buzzer, diode-1n4007"
+    },
+    {
+     "id": "echo.protected",
+     "label": "ECHO is protected by a divider or level shifter",
+     "pass": true,
+     "detail": "U1.ECHO divides down to GPIO24"
+    },
+    {
+     "id": "echo.volts",
+     "label": "No GPIO net rises above 3.6 V while the sensor measures",
+     "pass": true,
+     "detail": "3.30 V at most"
+    },
+    {
+     "id": "overvoltage.handled",
+     "label": "An OVERVOLTAGE_GPIO report, if any, was fixed in the same turn",
+     "pass": true,
+     "detail": "ECHO wired directly first: false; OVERVOLTAGE_GPIO seen: false; turns: 1"
+    },
+    {
+     "id": "code.directions",
+     "label": "The code reads ECHO and drives TRIG, the buzzer and the LEDs",
+     "pass": true,
+     "detail": "1 input(s), 5 output(s)"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "36 of 36 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 19,
+   "toolCalls": 49,
+   "inputTokens": 40,
+   "outputTokens": 11615,
+   "cacheWriteTokens": 20801,
+   "cacheReadTokens": 484922,
+   "webSearches": 0,
+   "costUsd": 0.4334494,
+   "seconds": 118,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "search_parts": {
+     "calls": 4,
+     "deltas": 18
+    },
+    "ask_user": {
+     "calls": 1,
+     "deltas": 27
+    },
+    "place_part": {
+     "calls": 13,
+     "deltas": 135
+    },
+    "move_part": {
+     "calls": 2,
+     "deltas": 14
+    },
+    "connect": {
+     "calls": 18,
+     "deltas": 168
+    },
+    "run_erc": {
+     "calls": 3,
+     "deltas": 3
+    },
+    "simulate": {
+     "calls": 1,
+     "deltas": 50
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 102
+    },
+    "set_part_props": {
+     "calls": 1,
+     "deltas": 7
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 18
+    },
+    "annotate_build_steps": {
+     "calls": 1,
+     "deltas": 77
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 122,
+     "ghosts": 70
+    },
+    "move_part": {
+     "snapshots": 12,
+     "ghosts": 0
+    },
+    "connect": {
+     "snapshots": 150,
+     "ghosts": 48
+    }
+   }
+  },
+  {
+   "id": "parking-sensor-direct",
+   "title": "Parking sensor, ECHO wired straight to a GPIO first",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 17, 18, 22, 23, 24, 27"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "parts",
+     "label": "An HC-SR04, a passive buzzer and 3 LEDs",
+     "pass": true,
+     "detail": "hc-sr04, resistor, resistor, resistor, resistor, resistor, pn2222, led, led, led, resistor, passive-buzzer, diode-1n4007"
+    },
+    {
+     "id": "echo.protected",
+     "label": "ECHO is protected by a divider or level shifter",
+     "pass": true,
+     "detail": "U1.ECHO divides down to GPIO24"
+    },
+    {
+     "id": "echo.volts",
+     "label": "No GPIO net rises above 3.6 V while the sensor measures",
+     "pass": true,
+     "detail": "3.30 V at most"
+    },
+    {
+     "id": "overvoltage.handled",
+     "label": "An OVERVOLTAGE_GPIO report, if any, was fixed in the same turn",
+     "pass": true,
+     "detail": "ECHO wired directly first: true; OVERVOLTAGE_GPIO seen: true; turns: 1"
+    },
+    {
+     "id": "code.directions",
+     "label": "The code reads ECHO and drives TRIG, the buzzer and the LEDs",
+     "pass": true,
+     "detail": "1 input(s), 5 output(s)"
+    },
+    {
+     "id": "overvoltage.caught",
+     "label": "ERC reported OVERVOLTAGE_GPIO for the direct ECHO lead",
+     "pass": true,
+     "detail": "ECHO wired directly: true; reported: true"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "34 of 34 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 19,
+   "toolCalls": 48,
+   "inputTokens": 40,
+   "outputTokens": 11936,
+   "cacheWriteTokens": 25186,
+   "cacheReadTokens": 463790,
+   "webSearches": 0,
+   "costUsd": 0.457568,
+   "seconds": 122,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "search_parts": {
+     "calls": 5,
+     "deltas": 21
+    },
+    "place_part": {
+     "calls": 13,
+     "deltas": 129
+    },
+    "connect": {
+     "calls": 17,
+     "deltas": 126
+    },
+    "run_erc": {
+     "calls": 3,
+     "deltas": 3
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 18
+    },
+    "remove_wire": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "write_code": {
+     "calls": 2,
+     "deltas": 269
+    },
+    "simulate": {
+     "calls": 2,
+     "deltas": 83
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "annotate_build_steps": {
+     "calls": 1,
+     "deltas": 74
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 116,
+     "ghosts": 69
+    },
+    "connect": {
+     "snapshots": 109,
+     "ghosts": 37
+    }
+   }
+  },
+  {
+   "id": "undo-all",
+   "title": "Undo restores each earlier document",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 17, 27"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.requested-pins",
+     "label": "The code uses the GPIOs the prompt names",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.program",
+     "label": "GPIO17 and GPIO27 blink in opposition",
+     "pass": true,
+     "detail": "9 opposite, 8 equal pin states"
+    },
+    {
+     "id": "led.count",
+     "label": "Two LEDs",
+     "pass": true,
+     "detail": "2 LED(s)"
+    },
+    {
+     "id": "undo.turn2",
+     "label": "Undoing turn 2 restores the document before it",
+     "pass": true,
+     "detail": "5 of 5 transactions undone"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "5 of 5 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 2,
+   "requests": 16,
+   "toolCalls": 22,
+   "inputTokens": 36,
+   "outputTokens": 3806,
+   "cacheWriteTokens": 8161,
+   "cacheReadTokens": 282810,
+   "webSearches": 0,
+   "costUsd": 0.173631,
+   "seconds": 46,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 2,
+     "deltas": 8
+    },
+    "place_part": {
+     "calls": 4,
+     "deltas": 44
+    },
+    "connect": {
+     "calls": 4,
+     "deltas": 32
+    },
+    "run_erc": {
+     "calls": 3,
+     "deltas": 3
+    },
+    "simulate": {
+     "calls": 2,
+     "deltas": 43
+    },
+    "write_code": {
+     "calls": 2,
+     "deltas": 49
+    },
+    "run_code_in_sim": {
+     "calls": 2,
+     "deltas": 6
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 2,
+     "deltas": 34
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 40,
+     "ghosts": 21
+    },
+    "connect": {
+     "snapshots": 28,
+     "ghosts": 11
+    }
+   }
+  },
+  {
+   "id": "second-button-speed",
+   "title": "Add a second button that changes the blink speed",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 17, 22, 27"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "reads-first",
+     "label": "Reads the project before editing it",
+     "pass": true,
+     "detail": "first call: get_circuit_state"
+    },
+    {
+     "id": "kept",
+     "label": "Keeps the parts that were there",
+     "pass": true,
+     "detail": "4 of 4"
+    },
+    {
+     "id": "buttons",
+     "label": "Two buttons",
+     "pass": true,
+     "detail": "2 button(s)"
+    },
+    {
+     "id": "code.requested-pins",
+     "label": "The code uses the GPIOs the prompt names",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "4 of 4 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 7,
+   "toolCalls": 9,
+   "inputTokens": 16,
+   "outputTokens": 2748,
+   "cacheWriteTokens": 7241,
+   "cacheReadTokens": 124048,
+   "webSearches": 0,
+   "costUsd": 0.1160386,
+   "seconds": 36,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "place_part": {
+     "calls": 1,
+     "deltas": 9
+    },
+    "connect": {
+     "calls": 2,
+     "deltas": 17
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 92
+    },
+    "run_erc": {
+     "calls": 1,
+     "deltas": 1
+    },
+    "simulate": {
+     "calls": 1,
+     "deltas": 24
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 8,
+     "ghosts": 4
+    },
+    "connect": {
+     "snapshots": 15,
+     "ghosts": 6
+    }
+   }
+  },
+  {
+   "id": "rgb-led",
+   "title": "An RGB LED cycles red, green, blue",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 17, 22, 27"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.requested-pins",
+     "label": "The code uses the GPIOs the prompt names",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.dies",
+     "label": "Each GPIO lights its own colour, 1-16 mA",
+     "pass": true,
+     "detail": "GPIO17 LED1.R 5.3 mA; GPIO27 LED1.G 2.2 mA; GPIO22 LED1.B 2.2 mA"
+    },
+    {
+     "id": "sim.program",
+     "label": "The program drives all three GPIOs",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "one-turn",
+     "label": "Built in one turn, with no question to the user",
+     "pass": true,
+     "detail": "1 turn(s), 0 question(s)"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "11 of 11 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 11,
+   "toolCalls": 20,
+   "inputTokens": 24,
+   "outputTokens": 4333,
+   "cacheWriteTokens": 9945,
+   "cacheReadTokens": 199885,
+   "webSearches": 0,
+   "costUsd": 0.17645799999999998,
+   "seconds": 49,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "search_parts": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "place_part": {
+     "calls": 4,
+     "deltas": 40
+    },
+    "connect": {
+     "calls": 4,
+     "deltas": 37
+    },
+    "run_erc": {
+     "calls": 2,
+     "deltas": 2
+    },
+    "simulate": {
+     "calls": 2,
+     "deltas": 62
+    },
+    "set_part_props": {
+     "calls": 2,
+     "deltas": 13
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 34
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 20
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 36,
+     "ghosts": 18
+    },
+    "connect": {
+     "snapshots": 33,
+     "ghosts": 11
+    }
+   }
+  },
+  {
+   "id": "buzzer-driver",
+   "title": "An active buzzer sounded from GPIO18",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 18"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.requested-pins",
+     "label": "The code uses the GPIOs the prompt names",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "driver",
+     "label": "A transistor drives the buzzer",
+     "pass": true,
+     "detail": "1 transistor(s)"
+    },
+    {
+     "id": "not-direct",
+     "label": "The buzzer is on no GPIO net",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.sounds",
+     "label": "GPIO18 high sounds the buzzer; low silences it",
+     "pass": true,
+     "detail": "high: true, low: false"
+    },
+    {
+     "id": "sim.pin-current",
+     "label": "GPIO18 supplies under 16 mA",
+     "pass": true,
+     "detail": "2.45 mA"
+    },
+    {
+     "id": "one-turn",
+     "label": "Built in one turn, with no question to the user",
+     "pass": true,
+     "detail": "1 turn(s), 0 question(s)"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "11 of 11 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 13,
+   "toolCalls": 22,
+   "inputTokens": 28,
+   "outputTokens": 4185,
+   "cacheWriteTokens": 9530,
+   "cacheReadTokens": 236202,
+   "webSearches": 0,
+   "costUsd": 0.17870240000000004,
+   "seconds": 47,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "search_parts": {
+     "calls": 2,
+     "deltas": 9
+    },
+    "place_part": {
+     "calls": 3,
+     "deltas": 30
+    },
+    "connect": {
+     "calls": 5,
+     "deltas": 45
+    },
+    "run_erc": {
+     "calls": 2,
+     "deltas": 2
+    },
+    "simulate": {
+     "calls": 3,
+     "deltas": 54
+    },
+    "move_part": {
+     "calls": 1,
+     "deltas": 6
+    },
+    "remove_wire": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 38
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 3
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 16
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 27,
+     "ghosts": 10
+    },
+    "connect": {
+     "snapshots": 40,
+     "ghosts": 13
+    },
+    "move_part": {
+     "snapshots": 5,
+     "ghosts": 0
+    }
+   }
+  },
+  {
+   "id": "pot-adc",
+   "title": "A potentiometer read through the ADS7830",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 2, 3"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "parts",
+     "label": "A potentiometer and the ADS7830",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "sim.reads",
+     "label": "The first value printed follows the wiper (at 25% and at 75%)",
+     "pass": true,
+     "detail": "wiper 25%: want ~64 (or 191 wired the other way), printed 63; wiper 75%: want ~191 (or 64 wired the other way), printed 191"
+    },
+    {
+     "id": "i2c",
+     "label": "The code uses I2C on GPIO2 and GPIO3",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "one-turn",
+     "label": "Built in one turn, with no question to the user",
+     "pass": true,
+     "detail": "1 turn(s), 0 question(s)"
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "10 of 10 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 9,
+   "toolCalls": 19,
+   "inputTokens": 20,
+   "outputTokens": 3677,
+   "cacheWriteTokens": 7152,
+   "cacheReadTokens": 161034,
+   "webSearches": 0,
+   "costUsd": 0.1415868,
+   "seconds": 52,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "search_parts": {
+     "calls": 2,
+     "deltas": 9
+    },
+    "place_part": {
+     "calls": 2,
+     "deltas": 17
+    },
+    "connect": {
+     "calls": 7,
+     "deltas": 62
+    },
+    "run_erc": {
+     "calls": 2,
+     "deltas": 2
+    },
+    "simulate": {
+     "calls": 1,
+     "deltas": 17
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 98
+    },
+    "run_code_in_sim": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 18
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 15,
+     "ghosts": 9
+    },
+    "connect": {
+     "snapshots": 55,
+     "ghosts": 20
+    }
+   }
+  },
+  {
+   "id": "debug-board-sense",
+   "title": "Debugging a real board: read Board Sense first",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 1 warnings (CODE_PIN_MISMATCH)"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "no-mutation",
+     "label": "The project is unchanged",
+     "pass": true,
+     "detail": "0 transactions"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "reads-sense-first",
+     "label": "Calls read_board_sense before anything else",
+     "pass": true,
+     "detail": "first call: read_board_sense"
+    },
+    {
+     "id": "no-edits",
+     "label": "Changes nothing in the project",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "names-cause",
+     "label": "Names what Board Sense ranked first",
+     "pass": true,
+     "detail": "top candidate names P1, W1, W2, R1"
+    },
+    {
+     "id": "names-fault",
+     "label": "Names the lead that is actually missing (W2)",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "says-unobserved",
+     "label": "Says what the Pi cannot observe",
+     "pass": true,
+     "detail": ""
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "medium",
+   "turns": 1,
+   "requests": 3,
+   "toolCalls": 3,
+   "inputTokens": 8,
+   "outputTokens": 1682,
+   "cacheWriteTokens": 3922,
+   "cacheReadTokens": 45658,
+   "webSearches": 0,
+   "costUsd": 0.0624136,
+   "seconds": 23,
+   "notices": [],
+   "inputDeltas": {
+    "read_board_sense": {
+     "calls": 1,
+     "deltas": 1
+    },
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 29
+    }
+   },
+   "partialInputs": {}
+  },
+  {
+   "id": "explain-no-change",
+   "title": "A question that must not change the project",
+   "pass": true,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "no-mutation",
+     "label": "The project is unchanged",
+     "pass": true,
+     "detail": "0 transactions"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "no-edits",
+     "label": "Makes no tool call that changes the project",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "quotes-current",
+     "label": "Quotes the current in mA",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "grounded",
+     "label": "Looked at the circuit or simulated it",
+     "pass": true,
+     "detail": ""
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "medium",
+   "turns": 1,
+   "requests": 4,
+   "toolCalls": 3,
+   "inputTokens": 10,
+   "outputTokens": 1073,
+   "cacheWriteTokens": 2229,
+   "cacheReadTokens": 59594,
+   "webSearches": 0,
+   "costUsd": 0.0445638,
+   "seconds": 15,
+   "notices": [],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "simulate": {
+     "calls": 1,
+     "deltas": 18
+    },
+    "highlight": {
+     "calls": 1,
+     "deltas": 19
+    }
+   },
+   "partialInputs": {}
+  },
+  {
+   "id": "bmp280-datasheet",
+   "title": "A BMP280 breakout, from its datasheet",
+   "pass": false,
+   "checks": [
+    {
+     "id": "turns.complete",
+     "label": "Every turn ends with end_turn",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "erc",
+     "label": "Zero ERC errors",
+     "pass": true,
+     "detail": "0 errors, 0 warnings"
+    },
+    {
+     "id": "convention",
+     "label": "Wiring follows the convention",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "inventory",
+     "label": "Inventory respected",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.syntax",
+     "label": "The project has code that compiles",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "code.pins",
+     "label": "Code pins match the netlist",
+     "pass": true,
+     "detail": "GPIO 2, 3"
+    },
+    {
+     "id": "claims",
+     "label": "Claims nothing ran on hardware",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "ghosts",
+     "label": "Every streamed preview is cleared",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "custom-part",
+     "label": "Defines a custom part and places it",
+     "pass": true,
+     "detail": "1 defined"
+    },
+    {
+     "id": "datasheet",
+     "label": "The part cites a datasheet URL",
+     "pass": false,
+     "detail": ""
+    },
+    {
+     "id": "web-tools",
+     "label": "Looked the datasheet up with the web tools (a call that returned)",
+     "pass": false,
+     "detail": "web_fetch (failed)"
+    },
+    {
+     "id": "i2c",
+     "label": "The code uses I2C",
+     "pass": true,
+     "detail": ""
+    },
+    {
+     "id": "mixed-turn",
+     "label": "Web and client tools both worked in one run",
+     "pass": false,
+     "detail": ""
+    },
+    {
+     "id": "undo.all",
+     "label": "Undo all restores the starting document exactly",
+     "pass": true,
+     "detail": "9 of 9 transactions undone"
+    }
+   ],
+   "model": "claude-opus-5-5",
+   "effort": "high",
+   "turns": 1,
+   "requests": 9,
+   "toolCalls": 16,
+   "inputTokens": 244,
+   "outputTokens": 5280,
+   "cacheWriteTokens": 22847,
+   "cacheReadTokens": 161042,
+   "webSearches": 0,
+   "costUsd": 0.2530194,
+   "seconds": 79,
+   "notices": [
+    "web-tools-refused: The API refused web search (“Web search is not enabled for this organization”), so this conversation runs without it. The “Web search and fetch, for datasheets” setting turns the web tools off for new conversations."
+   ],
+   "inputDeltas": {
+    "get_circuit_state": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "search_parts": {
+     "calls": 1,
+     "deltas": 4
+    },
+    "ask_user": {
+     "calls": 1,
+     "deltas": 33
+    },
+    "define_custom_part": {
+     "calls": 1,
+     "deltas": 44
+    },
+    "place_part": {
+     "calls": 1,
+     "deltas": 11
+    },
+    "connect": {
+     "calls": 6,
+     "deltas": 54
+    },
+    "run_erc": {
+     "calls": 2,
+     "deltas": 2
+    },
+    "simulate": {
+     "calls": 1,
+     "deltas": 12
+    },
+    "write_code": {
+     "calls": 1,
+     "deltas": 166
+    },
+    "capture_view": {
+     "calls": 1,
+     "deltas": 4
+    }
+   },
+   "partialInputs": {
+    "place_part": {
+     "snapshots": 10,
+     "ghosts": 5
+    },
+    "connect": {
+     "snapshots": 48,
+     "ghosts": 17
+    }
+   }
+  }
+ ]
+}

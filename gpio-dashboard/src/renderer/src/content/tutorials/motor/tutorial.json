@@ -1,0 +1,253 @@
+{
+  "id": "motor",
+  "title": "Motor",
+  "order": 7,
+  "kitProject": "1.3.1",
+  "tags": [],
+  "summary": "Spin a DC motor both ways with an L293D driver. Three GPIO pins choose the direction, and the motor runs from the power module's 5 V, not from the Pi.",
+  "sources": {
+    "kit": "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.3.1%20Motor.html",
+    "datasheets": [
+      "https://www.ti.com/lit/ds/symlink/l293d.pdf",
+      "https://components101.com/sites/default/files/component_datasheet/Toy%20DC%20motor%20Datasheet.pdf",
+      "https://alessandra-flammini.unibs.it/EG_FED/EG_AA2324/FE/Laboratorio/Datasheet%20componenti/alimentatore%20per%20breadboard%20mb102-ps.pdf"
+    ],
+    "pi": [
+      "https://github.com/raspberrypi/documentation/blob/1bf32ac6915c1df0d7c68911599ad03080ebd4b4/documentation/asciidoc/computers/raspberry-pi/gpio-on-raspberry-pi.adoc"
+    ]
+  },
+  "assertions": [
+    {
+      "name": "Enable (GPIO22) LOW releases both outputs, so M1 is stopped whatever the inputs say",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": true
+        },
+        "22": {
+          "mode": "out",
+          "level": false
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "part": "U1",
+          "view": {
+            "powered": true,
+            "outputs": ["z", "z", "z", "z"]
+          }
+        },
+        {
+          "part": "M1",
+          "view": {
+            "spinning": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "Enable HIGH with GPIO17 HIGH and GPIO27 LOW drives M1 one way (the kit's clockwise)",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": true
+        },
+        "22": {
+          "mode": "out",
+          "level": true
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "part": "U1",
+          "view": {
+            "powered": true,
+            "outputs": ["low", "high", "z", "z"]
+          }
+        },
+        {
+          "part": "M1",
+          "view": {
+            "spinning": true
+          }
+        },
+        {
+          "pin": "M1.red",
+          "volts": {
+            "min": 3.5
+          }
+        },
+        {
+          "pin": "M1.black",
+          "volts": {
+            "max": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "Swapping the two inputs reverses the voltage across M1",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": false
+        },
+        "22": {
+          "mode": "out",
+          "level": true
+        },
+        "27": {
+          "mode": "out",
+          "level": true
+        }
+      },
+      "expect": [
+        {
+          "part": "U1",
+          "view": {
+            "powered": true,
+            "outputs": ["high", "low", "z", "z"]
+          }
+        },
+        {
+          "part": "M1",
+          "view": {
+            "spinning": true
+          }
+        },
+        {
+          "pin": "M1.red",
+          "volts": {
+            "max": 1
+          }
+        },
+        {
+          "pin": "M1.black",
+          "volts": {
+            "min": 3.5
+          }
+        }
+      ]
+    },
+    {
+      "name": "Both inputs HIGH with enable HIGH put both leads at the same level, so M1 brakes",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": true
+        },
+        "22": {
+          "mode": "out",
+          "level": true
+        },
+        "27": {
+          "mode": "out",
+          "level": true
+        }
+      },
+      "expect": [
+        {
+          "part": "U1",
+          "view": {
+            "outputs": ["high", "high", "z", "z"]
+          }
+        },
+        {
+          "part": "M1",
+          "view": {
+            "spinning": false
+          }
+        }
+      ],
+      "code": false
+    },
+    {
+      "name": "VCC1 and VCC2 sit at the power module's 5 V, and the chip's GND meets the Pi's GND",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": true
+        },
+        "22": {
+          "mode": "out",
+          "level": true
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "pin": "U1.16",
+          "volts": {
+            "min": 4.9,
+            "max": 5.1
+          }
+        },
+        {
+          "pin": "U1.8",
+          "volts": {
+            "min": 4.9,
+            "max": 5.1
+          }
+        },
+        {
+          "pin": "U1.5",
+          "volts": {
+            "max": 0.01
+          }
+        }
+      ]
+    },
+    {
+      "name": "The three control pins stay far below the 16 mA pin limit while the motor runs",
+      "gpio": {
+        "17": {
+          "mode": "out",
+          "level": true
+        },
+        "22": {
+          "mode": "out",
+          "level": true
+        },
+        "27": {
+          "mode": "out",
+          "level": false
+        }
+      },
+      "expect": [
+        {
+          "gpio": 22,
+          "currentA": {
+            "min": -0.001,
+            "max": 0.001
+          }
+        },
+        {
+          "gpio": 17,
+          "currentA": {
+            "min": -0.001,
+            "max": 0.001
+          }
+        },
+        {
+          "gpio": 27,
+          "currentA": {
+            "min": -0.001,
+            "max": 0.001
+          }
+        }
+      ]
+    }
+  ],
+  "checkpoints": []
+}
