@@ -425,10 +425,16 @@ export async function send(text: string): Promise<void> {
   let result: TurnResult | null = null
   try {
     if (!fetchOverride) {
+      // Stop must end the send even while the key check waits (on a Keychain prompt, say).
+      const stopped = new Promise<never>((_, reject) =>
+        turn.signal.addEventListener('abort', () => reject(turn.signal.reason), { once: true })
+      )
+      stopped.catch(() => {})
       let ready: boolean
       try {
-        ready = await hasKey()
+        ready = await Promise.race([hasKey(), stopped])
       } catch {
+        if (turn.signal.aborted) return
         push({ kind: 'error', id: itemId(), text: 'The assistant works in the app window only.' })
         return
       }

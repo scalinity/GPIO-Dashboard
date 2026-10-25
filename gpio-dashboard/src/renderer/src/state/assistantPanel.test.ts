@@ -282,7 +282,7 @@ describe('a replayed turn through the store', () => {
     }
   })
 
-  it('a Stop during the key check ends the send: no request, and the document is left unlocked', async () => {
+  it('a Stop during the key check ends the send at once: no request, and the document is left unlocked', async () => {
     store.newConversation()
     let resolveKey!: (value: boolean) => void
     const served = scriptedFetch([{ blocks: [text('Done.')], stop: 'end_turn' }])
@@ -292,8 +292,11 @@ describe('a replayed turn through the store', () => {
     const sent = store.send('first')
     await vi.waitUntil(() => resolveKey !== undefined)
     store.stop()
-    resolveKey(true)
+    // The send ends on Stop, without waiting for the key check to answer.
     await sent
+    expect(store.useAssistant.getState().running).toBe(false)
+    resolveKey(true)
+    await new Promise((r) => setTimeout(r, 20))
     expect(served.requests).toHaveLength(0)
     expect(circuit.locked).toBe(false)
     expect(store.useAssistant.getState().running).toBe(false)
