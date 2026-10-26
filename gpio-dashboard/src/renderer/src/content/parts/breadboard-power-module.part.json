@@ -17,7 +17,7 @@
       "label": "GND (J6 pin 2)",
       "role": "ground",
       "electricalType": "power-out",
-      "offsetPitch": [0, 1],
+      "offsetPitch": [0, -1],
       "connector": "male-pin"
     },
     {
@@ -33,7 +33,7 @@
       "label": "GND (J6 pin 4)",
       "role": "ground",
       "electricalType": "power-out",
-      "offsetPitch": [1, 1],
+      "offsetPitch": [1, -1],
       "connector": "male-pin"
     },
     {
@@ -49,7 +49,7 @@
       "label": "GND (J6 pin 6)",
       "role": "ground",
       "electricalType": "power-out",
-      "offsetPitch": [2, 1],
+      "offsetPitch": [2, -1],
       "connector": "male-pin"
     },
     {
@@ -65,7 +65,7 @@
       "label": "GND (J6 pin 8)",
       "role": "ground",
       "electricalType": "power-out",
-      "offsetPitch": [3, 1],
+      "offsetPitch": [3, -1],
       "connector": "male-pin"
     }
   ],
@@ -101,12 +101,12 @@
       "default": true
     }
   },
-  "bodyMm": [53, 35, 12],
+  "bodyMm": [33, 53, 14],
   "geometry": {
     "family": "module",
     "params": {
       "boardLengthMm": 53,
-      "boardWidthMm": 35,
+      "boardWidthMm": 33,
       "headerPins": 8,
       "headerPitchMm": 2.54
     }
@@ -115,8 +115,10 @@
     "sources": [
       "https://alessandra-flammini.unibs.it/EG_FED/EG_AA2324/FE/Laboratorio/Datasheet%20componenti/alimentatore%20per%20breadboard%20mb102-ps.pdf",
       "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/1.3.1%20Motor.html",
-      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html"
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/component_list.html",
+      "https://docs.sunfounder.com/projects/umsk/en/latest/01_components_basic/39-component_power.html",
+      "https://45-in-1-sensor-kit.readthedocs.io/en/latest/31.breadboard_power_supply_module.html"
     ],
-    "notes": "Plugs into the rail holes in real use; rail-plug footprint pending. The module's rail outputs (J2 to J5 on the schematic, selected per rail by a 5V/OFF/3.3V jumper) are not modelled yet, so only the 8-pin J6 header is a pin set, as an off-board module with male pins. SunFounder's component list shows 'Power Supply Module x1', an MB102 clone: a DC barrel jack, a USB-A socket, a push switch, a green LED, two 5V/OFF/3.3V rail jumpers and a 2 x 4 header marked 5V, 3.3V and GND. SunFounder gives no datasheet for it. The Handson Technology MB102 datasheet (opened; the copy is hosted by a university course site) is used: input 6.5 to 12 V DC or 5 V USB, 3.3 V and 5 V outputs, maximum output current below 700 mA, an external input on/off switch, 5.3 x 3.5 cm board, series diode and polarity reversal protection. Its schematic (Addicore YwRobot page, opened) shows two linear regulators (A1117-5 and A1117-3.3) and header J6: pins 1 and 3 are +3.3 V, pins 5 and 7 are +5 V, and pins 2, 4, 6 and 8 are ground; its note says not to jumper across the header, because 3.3 V or 5 V would short to ground. The pin ids are the J6 numbers. The offsets are a 2 x 4 layout hint. The datasheet wording '<700 mA' does not say whether this is per output or for both together, and the regulators are linear, so the usable current from a high input voltage will be lower than that figure; the sim should treat 700 mA as an upper limit for each output and warn about the shared input. The kit's own board may differ in small ways (SunFounder's photo shows the header labelled 5V on the first two rows and 3.3V on the other two, with GND beside it, which fits the J6 pairs). SunFounder's Motor page powers it from the kit's 9 V battery connector and takes its 5 V output to the breadboard rail, hence the 9 V default input. Board height is not in the datasheet; 12 mm is an estimate for collision checks only."
+    "notes": "Plugs into the rail holes in real use; rail-plug footprint pending. The module's rail outputs (J2 to J5 on the schematic, selected per rail by a 5V/OFF/3.3V jumper) are not modelled yet, so only the 8-pin J6 header is a pin set, as an off-board module with male pins. SunFounder's component list shows 'Power Supply Module x1', an MB102 clone: a DC barrel jack, a USB-A socket, a push switch, a green LED, two 5V/OFF/3.3V rail jumpers and a 2 x 4 header marked 5V, 3.3V and GND. SunFounder gives no datasheet for it. The Handson Technology MB102 datasheet (opened; the copy is hosted by a university course site) is used: input 6.5 to 12 V DC or 5 V USB, 3.3 V and 5 V outputs, maximum output current below 700 mA, an external input on/off switch, 5.3 x 3.5 cm board, series diode and polarity reversal protection. Its schematic (Addicore YwRobot page, opened) shows two linear regulators (A1117-5 and A1117-3.3) and header J6: pins 1 and 3 are +3.3 V, pins 5 and 7 are +5 V, and pins 2, 4, 6 and 8 are ground; its note says not to jumper across the header, because 3.3 V or 5 V would short to ground. The pin ids are the J6 numbers. The offsets follow SunFounder's photo of the board (39_power_module.png): seen from above with its printing upright, the two 3.3 V columns are on the side of the rail ears and the two 5 V columns toward the USB socket and DC jack, and the GND row lies one pitch from the supply row toward the USB socket's end. The datasheet wording '<700 mA' does not say whether this is per output or for both together, and the regulators are linear, so the usable current from a high input voltage will be lower than that figure; the sim should treat 700 mA as an upper limit for each output and warn about the shared input. The kit's own board may differ in small ways (SunFounder's photo shows the header labelled 5V on the first two rows and 3.3V on the other two, with GND beside it, which fits the J6 pairs). SunFounder's Motor page powers it from the kit's 9 V battery connector and takes its 5 V output to the breadboard rail, hence the 9 V default input. Board size 33 x 53 mm (Components101 and the 45-in-1 sensor kit give 53 x 33 mm, and SunFounder's photo measures 32.5 x 53; Handson's 3.5 cm is not used), the 53 mm across a breadboard's rails, with an ear at each end of one long side that carries a rail pin pair underneath. Height 14 mm, which no datasheet gives: the latching push switch K1 (8.5 x 8.5 mm, 12.5 to 13 mm tall in sellers' listings) on the 1.6 mm board; the DC jack stands 11 mm."
   }
 }

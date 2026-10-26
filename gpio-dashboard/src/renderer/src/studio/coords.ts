@@ -1,6 +1,7 @@
 // Core frames (mm, z up) in the three.js scene (mm, y up): a core point (x, y, z) is three
 // (x, z, −y). A rotation about core z by θ is a rotation about three's y by the same θ.
 import { Matrix4, Quaternion, Vector3 } from 'three/webgpu'
+import dupontJson from '../content/leads/dupont.json'
 import { boardDef } from '../core/defs/boards'
 import type { Rect } from '../core/defs/controllers'
 import { partDef } from '../core/defs/parts'
@@ -16,7 +17,7 @@ import type {
   Vec2
 } from '../core/model/types'
 import { docPartDefs } from '../core/netlist/netlist'
-import { ASSUMED_HEIGHTS_MM, toTable } from '../core/reach/reach'
+import { ASSUMED_HEIGHTS_MM, restHeightMm, toTable } from '../core/reach/reach'
 
 const up = new Vector3(0, 1, 0)
 
@@ -79,6 +80,11 @@ export interface ModuleModel {
   pins: Record<string, ModulePinFrame>
   /** Its footprint in core x and y, and its height. */
   rect: Rect
+  /**
+   * The footprints of its rigid pieces, which decide what it rests on: a cable or tail lies where
+   * the model draws it, so it does not lift a module whose ends are on the table.
+   */
+  rests: Rect[]
   top: number
 }
 
@@ -105,11 +111,56 @@ function modulePinLocal(doc: CircuitDoc, part: PartInstance, pin: string): Modul
   }
 }
 
+/**
+ * How far a module's lowest pin pointing sideways (a right-angle header lying flat) sits below the
+ * half-width of the Dupont housing that plugs onto it: lifted that much, the housing clears the
+ * surface the module rests on instead of passing through it.
+ */
+function housingClearance(model: ModuleModel): number {
+  const half = dupontJson.housing.widthMm / 2
+  let lift = 0
+  for (const { at, axis } of Object.values(model.pins))
+    if (Math.abs(axis.y) < 0.5) lift = Math.max(lift, half - at.y)
+  return lift
+}
+
+/** How far a module is raised above what it rests on, so housings on flat-lying pins clear it. */
+export function moduleLiftMm(defId: string): number {
+  const model = modules.get(defId)
+  return model ? housingClearance(model) : 0
+}
+
+/**
+ * How high an off-board module laid at `pose` rests: on the highest board under any of its rigid
+ * pieces, else on the table, raised by `moduleLiftMm`. Until its model has loaded, its first pin
+ * stands in for the footprint.
+ */
+export function moduleRestMm(doc: CircuitDoc, defId: string, pose: Transform2D): number {
+  const outlines: Vec2[][] = modules.get(defId)?.rests.map((r) => [
+    [r.xMin, r.yMin],
+    [r.xMax, r.yMin],
+    [r.xMax, r.yMax],
+    [r.xMin, r.yMax]
+  ]) ?? [[[0, 0]]]
+  const rest = Math.max(
+    0,
+    ...outlines.map((o) =>
+      restHeightMm(
+        doc,
+        o.map((c) => toTable(pose, c))
+      )
+    )
+  )
+  return rest + moduleLiftMm(defId)
+}
+
 /** Where an off-board module's connector pin is in the scene, or null if it isn't on the table. */
 export function modulePinInScene(doc: CircuitDoc, part: PartInstance, pin: string): Vector3 | null {
   const pose = part.placement.offboardPose
   const local = pose && modulePinLocal(doc, part, pin)
-  return local ? local.at.clone().applyMatrix4(poseMatrix(pose, 0)) : null
+  return local
+    ? local.at.clone().applyMatrix4(poseMatrix(pose, moduleRestMm(doc, part.defId, pose)))
+    : null
 }
 
 /**
@@ -135,7 +186,7 @@ export function endpointInScene(
   if (!local) return null
   const turn = (pose.rotationDeg * Math.PI) / 180
   return {
-    at: local.at.clone().applyMatrix4(poseMatrix(pose, 0)),
+    at: local.at.clone().applyMatrix4(poseMatrix(pose, moduleRestMm(doc, part.defId, pose))),
     turn,
     axis: local.axis.clone().applyAxisAngle(up, turn)
   }

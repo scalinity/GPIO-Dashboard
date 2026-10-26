@@ -1089,8 +1089,9 @@ decision and consequences. Numbering is stable; superseded records say so.
     baked from text and shapes; boards with a baked legend and male headers; the STEP helpers.
     `partkit.start()` takes an `add_args` for a family's own arguments.
   - Textures are allowed where a file's budget names a size: the DIPs' part-number marking, the
-    boards' silkscreen legend, the DHT11's grille, the relay's case top and terminal face, the
-    keypad's keys, the LCD's screen, the housings' socket holes. They are KTX2 (ETC1S), at most
+    boards' silkscreen legend (with the HC-SR04's transducer meshes and the DHT11 breakout's
+    resistor code mapped from it), the relay's case top and terminal face, the keypad's keys, the
+    LCD's screen, the housings' socket holes. They are KTX2 (ETC1S), at most
     1024 x 1024, and `assets:check` still demands none from a file whose budget names none. What
     is printed on a board has no geometry to be, and a 20 x 6 mm chip top is not worth a mesh
     per letter.
@@ -1105,14 +1106,15 @@ decision and consequences. Numbering is stable; superseded records say so.
   - A new module is a function in a `mod_*.py` file, an entry in `module.py`'s table and one in
     `parts.ts`'s `MODULES`.
 
-## ADR-0044 Off-board modules lie on the table with the definition's pin layout and a header on top
+## ADR-0044 Off-board modules lie flat with the definition's pin layout and their headers as built
 
 - **Context.** The part GLB contract puts an off-board module's origin at its footprint corner on
   the table, its header pins in the model, and `pin-<id>` at each pin tip, axis out along the pin.
   The definitions give each pin an `offsetPitch` from the first pin "as a layout hint", and their
   `bodyMm` as the module's [x, y, z]. Several real boards carry the header on the other side or
-  along their short edge (the HC-SR04, HC-SR501 and KY-023 plug into a breadboard upright; the
-  LCD's backpack is behind the glass), and no source read shows which.
+  as a right-angle header along an edge (the HC-SR04, DHT11 breakout, relay and KY-023 lay their
+  pins out of an edge; the HC-SR501's points down from its component side; the LCD's backpack is
+  behind the glass), as the kit's and the vendors' photographs show.
 - **Decision.**
   - The model's x axis runs along the header row and y across it, so a pin's `offsetPitch`
     maps onto the model without a rotation: pin i is at pin 1 + `offsetPitch` * 2.54 mm
@@ -1120,25 +1122,36 @@ decision and consequences. Numbering is stable; superseded records say so.
     model's. `assets:check` measures each pin against the first within 0.05 mm, the 2.54 mm pitch
     of header neighbours, and the origin: the model's lowest x, y and z are 0, which
     `module.py` sets by moving every top-level node after the variant is drawn.
-  - Every header is straight, on the board's top face, pins up (6 mm above a 2.5 mm base, 1.5 mm
+  - A straight header is on the board's top face, pins up (6 mm above a 2.5 mm base, 1.5 mm
     tails below), so a female Dupont housing mates from above whichever side the real board
-    has it on. The module rests on the tails. The empties are at the pin tips, +z up.
+    has it on. The module rests on the tails. The empties are at the pin tips, +z up. The
+    HC-SR501's real header points down from its component side; the model stands it on the lens
+    side's free end, beside a mounting hole, and runs the board's 32 mm along y to make room.
+  - A right-angle header is drawn as the board has it, its pins along -y out of the board's near
+    edge, with the empties at their tips pointing along -y: the HC-SR04's, whose base is on the
+    back (the module lies on its back and rests on the bent pins), and the DHT11 breakout's, the
+    relay's and the joystick's, whose bases are on top. A female housing slides on sideways, and
+    the module is raised so that it clears what the module rests on (ADR-0139).
+  - The LCD lies face up on its backpack, whose contrast trimmer is its lowest point. The
+    backpack's right-angle header stands its four pins in a column along y, GND by the 16-pin
+    edge, and points them past the module's -x end, the empties along -x.
   - Female connectors lie flat on the table with their sockets facing -y, away from the module:
     the keypad's 1 x 8 housing at the end of its 86 mm tail (flat, 0.35 mm), the SG90's 3-way
     housing at the end of its 250 mm cable (three 1.1 mm wires, straight), and the relay's three
     screw terminals, whose entries face out of the board's far edge (+y). `parts.ts` lists those
-    axes, and `assets:check` measures them within 1 degree.
+    axes and the right-angle headers', and `assets:check` measures them within 1 degree.
   - The servo's cable and the keypad's tail run along -y from the long side, not from the end
     the real part uses, because the definitions put the sockets in a row along x. The cable
     lengths are the definitions'; the motor's leads, which no source gives, are 100 mm.
   - The bare DHT11 is a rigid part: the origin on pin VDD's hole, empties down, and the housing
     2.0 mm above the board; its definition's 8 mm leads are the runtime's.
-  - The DHT11 breakout stands its sensor upright on the board (the sensor is 15.5 mm tall,
-    12 mm wide and 5.5 mm thick, as the Aosong drawing shows), so the definition's `bodyMm` height
-    of 5.5 mm is not the model's; `assets:check` compares that module's footprint only.
+  - The DHT11 breakout lays its sensor on its back, grille up (15.5 x 12 x 5.5 mm, as the Aosong
+    drawing shows), its legs bent down into the board and its top end 3.8 mm past the far edge, as
+    the kit's photographs show; `assets:check` compares that module's footprint, with the
+    overhang, only, because the board's size is read off a photo.
 - **Consequences.** A studio that rotates a module on the table rotates its pins with it. A
-  module whose real header is on the other side or edge looks different from its photo; the
-  README lists which. If a source later shows a header's real side, that module's script moves
+  module whose real header is on the other side or edge looks different from its photo (the
+  HC-SR501's); the README lists which. If a source later shows a header's real side, that module's script moves
   its header and its `axes` entry, and nothing else changes.
 
 ## ADR-0045 Two models come from Adafruit's STEP files; the others are drawn from their datasheets
@@ -1192,15 +1205,21 @@ decision and consequences. Numbering is stable; superseded records say so.
     drawings give none, so a lead and a gap show. The segments, bars and dots stand flush with the
     body's stated height and the face lies 0.05 mm below them, so the height is the stated one and
     the surfaces do not fight.
-  - The digit is Kingbright's: 14.22 mm tall, 8 mm across including the slant, segments 1.5 mm
-    wide, slanted 8 degrees (both drawings give these), and a decimal point 1.5 mm across at the
-    lower right.
+  - The digit is Kingbright's: 14.22 mm tall, 8 mm wide along a row (the kit's display measures
+    8.1 mm on its 12.7 mm face), segments 1.5 mm wide, slanted 8 degrees (both drawings give
+    these), and a decimal point 1.5 mm across at the lower right. Segments meet in mitres at the
+    digit's corners and in points at its middle, 0.3 mm apart, as on the kit's display.
+  - The displays look like the kit's own parts, from SunFounder's photos of them: a white housing,
+    a black face, white diffused segments, bars and dots, and the marking printed in black on the
+    side along pin 1's row, as geometry (`2510SR-1  420`, `CL5611AH`, `788BS`). The parts not in
+    the kit carry their makers' common-anode names: `CL5611BH` for the one digit and `5641BS` for
+    the four. The dot matrix has square corners, as the 788BS has; its marking shows pin 1's side.
   - The DIP has the half-round notch (1.0 mm radius, 0.5 mm deep) and the pin-1 dimple cut with
     an exact Boolean, the drafted body sides (0.25 mm), and its top marked with the part number
     (`SN74HC595N`, `ADC0834CCN`, `L293DNE`) in a KTX2 map.
 - **Consequences.** The studio places the dot matrix's pins from the definition and its dots from
-  the model; a dot is never more than 0.14 mm from the hole row it belongs to. The displays'
-  segment shapes are mine, from the drawing's outline; a lookdev pass can refine them.
+  the model; a dot is never more than 0.14 mm from the hole row it belongs to. The black face
+  keeps the displays readable on the white breadboard from the top and iso views.
 
 ## ADR-0047 The bench and the parts are instanced per model file, with handles per copy
 
@@ -3657,3 +3676,46 @@ declare it.
   the pin to an input. RPi.GPIO and gpiozero in the venv shadow the system's for the app's programs
   only; nothing outside `~/gpio-dashboard-agent` changes. On Raspberry Pi OS lgpio imports already,
   so no venv is made for it.
+
+## ADR-0139 An off-board module rests on the board it is laid over
+
+- **Context.** The studio laid an off-board module where the pointer's ray met the table, so a
+  module dropped over a breadboard was drawn inside it: the joystick's PCB sat in the bb-830's
+  8.5 mm body with its pins below the board's top, and its selection box, its pins' lead ends
+  and the plane a move dragged it along were all at table height. The rebuilt HC-SR04 and DHT11
+  breakout carry right-angle headers whose pins lie flat 0.3 mm above the module's lowest point,
+  so a 2.54 mm Dupont housing on them reached about 1 mm into whatever the module lay on.
+- **Decision.**
+  - A module rests on the top of the highest board that one of its model's rigid pieces
+    overlaps (no edge of either outline separates them), else on the table (`restHeightMm` in
+    `core/reach`, `moduleRestMm` in `studio/coords`). The flexible pieces, a servo's or motor's
+    cable and a keypad's tail, take no part, so a servo whose housing and case lie on the table
+    either side of a board stays on the table.
+  - The drawn module, its pins' frames, the leads ending on them, its selection box and a move's
+    drag plane all use that height. A module with a pin lying flat is raised by however far that
+    pin sits below half a housing's width; a module whose pins point up is not.
+  - A drop or move meets the pointer's ray with each surface's rest height, highest first, and
+    takes the first pose that rests the module on that surface, so the module stays under the
+    pointer and a still pointer leaves it where it is.
+  - Reach's lead ends take the board under the module's position, and the 10 mm assumed pin
+    height above it.
+- **Consequences.** A module can lie across a board's edge, resting on its top; nothing models it
+  tipping, or resting on parts already on the board. The model is rigid, so a cable or tail does
+  not drape: where both its ends lie on the table it passes through a board it crosses, and where
+  one end rests on a board the other is held at that height. Where a footprint crosses a board's
+  edge within the parallax between the two heights, no pose rests it under the pointer and the
+  table's is taken, so it steps onto the board a few millimetres from the pointer. Physics stays
+  visual (SPEC principle 8), so the rest height is geometry, not a simulated contact. Moving a
+  module off a board drops it back to the table.
+
+## ADR-0140 The side panels fold away for an immersive bench
+
+- **Context.** The Studio's part library and properties panels take about 30% of a laptop
+  window's width, and while arranging or looking over a bench they are not needed.
+- **Decision.** Each panel has a toggle in the top bar (left for the library, right for the
+  properties, each naming what it hides or shows and reporting its state as pressed), and the
+  keys `[` and `]` fold one each and `\` folds both, or shows both if either is hidden. The
+  canvas takes the freed width. The state lives in the studio store and is not saved with a
+  project.
+- **Consequences.** Placing a part needs the library shown; the keys bring it back without the
+  mouse. The run-blocked dialog anchors to the canvas's right edge either way.

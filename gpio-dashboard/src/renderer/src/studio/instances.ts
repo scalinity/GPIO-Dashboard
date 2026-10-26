@@ -116,6 +116,22 @@ export class ModelInstances {
     return new Box3().setFromObject(this.model)
   }
 
+  /**
+   * Each mesh's own bounds in the frame `bounds()` measures in (its children left out), but for
+   * meshes going by any of the `skipped` names, and for meshes with no vertices.
+   */
+  meshBounds(skipped: string[]): Box3[] {
+    // As Box3.setFromObject does for bounds(): the model's subtree from its parent as it stands.
+    this.model.updateWorldMatrix(false, true)
+    return this.pieces
+      .filter((p) => !skipped.some((name) => p.names.has(name)))
+      .map(({ source }) => {
+        if (!source.geometry.boundingBox) source.geometry.computeBoundingBox()
+        return source.geometry.boundingBox!.clone().applyMatrix4(source.matrixWorld)
+      })
+      .filter((box) => !box.isEmpty())
+  }
+
   /** A node's transform relative to the model (an empty such as `pin-1`, `socket` or `wire`). */
   node(name: string): Matrix4 | null {
     return this.model.getObjectByName(name)?.matrixWorld ?? null

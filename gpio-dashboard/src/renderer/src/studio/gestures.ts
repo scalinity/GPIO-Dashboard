@@ -4,7 +4,7 @@
 // circuitStore.check() for the green/red glow and commits it on release.
 import { Plane, type Ray, Vector3 } from 'three/webgpu'
 import { boardDef } from '../core/defs/boards'
-import { defOf } from './coords'
+import { defOf, moduleLiftMm, moduleRestMm } from './coords'
 import { holePosition, isValidHole } from '../core/geometry/breadboard'
 import { tboardPinHoles } from '../core/geometry/tboard'
 import type {
@@ -76,6 +76,30 @@ export function planePoint(ray: Ray, height: number): Vec2 | null {
 }
 
 const round = (v: number) => Math.round(v * 10) / 10
+
+/**
+ * Where the pointer lays an off-board module: `pose(at)` for the point under the pointer at a
+ * height the module rests at. Each surface is tried from the highest down and the first whose pose
+ * rests the module on it is taken, so the module stays under the pointer, and under a still one.
+ * Where none does (a footprint across a board's edge, within the parallax), the table's is taken.
+ */
+function laid(
+  doc: CircuitDoc,
+  defId: string,
+  ray: Ray,
+  pose: (at: Vec2) => Transform2D
+): Transform2D | null {
+  const lift = moduleLiftMm(defId)
+  const tops = new Set([0, ...doc.boards.map((b) => boardDef(b.defId).body.heightMm)])
+  let last: Transform2D | null = null
+  for (const top of [...tops].sort((a, b) => b - a)) {
+    const at = planePoint(ray, top + lift)
+    if (!at) continue
+    last = pose(at)
+    if (moduleRestMm(doc, defId, last) === top + lift) return last
+  }
+  return last
+}
 const moved = (t: Transform2D, from: Vec2, to: Vec2): Transform2D => ({
   ...t,
   position: [round(t.position[0] + to[0] - from[0]), round(t.position[1] + to[1] - from[1])]
@@ -92,11 +116,12 @@ export function propose(g: Gesture, p: Pointer, doc: CircuitDoc): Proposal | nul
     case 'place': {
       const def = defOf(doc, g.defId)
       if (def.footprint.kind === 'offboard') {
-        const at = planePoint(p.ray, 0)
-        if (!at) return null
-        const part = newPart(doc, g.defId, {
-          pose: { position: [round(at[0]), round(at[1])], rotationDeg: g.rotation }
-        })
+        const pose = laid(doc, g.defId, p.ray, (at) => ({
+          position: [round(at[0]), round(at[1])],
+          rotationDeg: g.rotation
+        }))
+        if (!pose) return null
+        const part = newPart(doc, g.defId, { pose })
         const pins = def.pins.map((pin) => ({ part: part.id, pin: pin.id }))
         const select = { kind: 'part', id: part.id } as const
         return {
@@ -159,9 +184,9 @@ export function propose(g: Gesture, p: Pointer, doc: CircuitDoc): Proposal | nul
     }
     case 'module': {
       const part = doc.parts.find((x) => x.id === g.id)
-      const at = planePoint(p.ray, 0)
-      if (!part || !at) return null
-      const placement = { ...part.placement, offboardPose: moved(g.pose, g.from, at) }
+      const pose = part && laid(doc, part.defId, p.ray, (at) => moved(g.pose, g.from, at))
+      if (!part || !pose) return null
+      const placement = { ...part.placement, offboardPose: pose }
       return {
         label: `Move ${part.id}`,
         ops: [{ type: 'MovePart', id: part.id, placement }],

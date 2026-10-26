@@ -335,3 +335,26 @@ lgpio did not build (Python 2 names in its SWIG interface). install.sh now build
 names mapped and puts rpi-lgpio in the agent's venv; Run on Pi uses that venv's Python (ADR-0138).
 On the real Pi the unmodified Breathing LED tutorial drove GPIO18 from Run on Pi, and Stop returned
 it to an input; every pin was then set back as found.
+
+## Studio fidelity: modules on the board, rebuilt parts, folding panels — done (2026-10-25)
+
+An off-board module dropped over the breadboard was drawn inside it (the joystick's PCB in the
+board's body), the 10-segment bar graph was placed but nearly invisible (a grey face on a white
+board), and the module models were simple boxes. The side panels could not be hidden.
+
+| Lane | Model | Scope | Status |
+|------|-------|-------|--------|
+| Displays | Opus, worktree | bar graph, 7-segment, 4-digit, 8 x 8 matrix after the kit's parts | **merged** (758dcf6) |
+| Sensors | Opus, worktree | HC-SR04, DHT11 and breakout, HC-SR501 | **merged** (8b2fd5e, e4116c6); HC-SR501 header kept on the lens side, pins up |
+| Boards | Opus, worktree | relay, joystick, MB102 power module | **merged** (3c37be4); relay and joystick get their right-angle headers |
+| Interfaces | Opus, worktree | LCD1602 with backpack, keypad, SG90, ADS7830 | **merged** (5b2eb52, 8dc7bb1); the LCD's header moved to its real side, pin ids kept |
+| Review | GPT-6.1 Sol, read-only (NativePeers) | rest height and panels | 2 major, 1 minor: all fixed (7540a31) |
+
+Integrator work: the rest height (ADR-0139), the panels (ADR-0140), ADR-0044 for the right-angle
+headers, and a pass in the Tauri window with real mouse drags (`cliclick`) and keys onto a clean
+bench for every rebuilt part. That pass found two faults the unit tests had missed, both fixed: a
+keypad laid across the board with no corner over it was drawn through it (d146035), and a servo
+whose cable crossed the board floated 8.5 mm at both ends (084716c). It also showed a drop lost
+when the window was raised from fully hidden and dragged on within 0.6 s; Playwright placed the
+same drop 10 of 10 times and the window placed it 4 of 4 times given 2 s to wake, so it is put down
+to the test's own timing.

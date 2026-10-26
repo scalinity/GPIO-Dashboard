@@ -193,8 +193,15 @@ const MODULES: Record<string, (p: Params, def: PartDefinition) => PartExpectatio
   'adafruit-1085-stemma-qt': (p) =>
     board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'boardHeightMm')),
   'lafvin-ads7830': (p) => board(num(p, 'boardLengthApproxMm'), num(p, 'boardWidthApproxMm'), ANY),
-  'dht11-3pin-breakout': (p) =>
-    board(num(p, 'boardLengthApproxMm'), num(p, 'boardWidthApproxMm'), ANY),
+  // The sensor lies on the board, its top end past the far edge; the right-angle header's pins
+  // leave the near edge along -y.
+  'dht11-3pin-breakout': (p, def) =>
+    board(
+      num(p, 'boardLengthApproxMm'),
+      num(p, 'boardWidthApproxMm') + num(p, 'sensorOverhangApproxMm'),
+      ANY,
+      { axes: Object.fromEntries(def.pins.map((q) => [q.id, [0, -1, 0] as Vec3])) }
+    ),
   // The bare sensor stands on a board; its 5.5 mm is its thickness, as its drawing says.
   'dht11-bare-4pin-sip': (p) => ({
     body: [
@@ -206,33 +213,45 @@ const MODULES: Record<string, (p: Params, def: PartDefinition) => PartExpectatio
     nodes: ['grille'],
     materials: []
   }),
-  'hc-sr04': (p) => board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'heightMm')),
+  // The right-angle header on the back leaves the near edge along -y.
+  'hc-sr04': (p, def) =>
+    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'heightMm'), {
+      axes: Object.fromEntries(def.pins.map((q) => [q.id, [0, -1, 0] as Vec3]))
+    }),
+  // The 32 mm runs along y, so that the header row (x) stands on the lens side's free end.
   'hc-sr501': (p) =>
-    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'heightMm'), { nodes: ['lens'] }),
+    board(num(p, 'boardWidthMm'), num(p, 'boardLengthMm'), num(p, 'heightMm'), { nodes: ['lens'] }),
+  // The 2 x 4 header's rows run across the board's width; the 53 mm spans a breadboard's rails.
   'breadboard-power-module': (p, def) =>
-    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), def.bodyMm[2]),
+    board(num(p, 'boardWidthMm'), num(p, 'boardLengthMm'), def.bodyMm[2]),
+  // The right-angle header runs across the board's width at one end, its pins out of that edge (-y);
+  // the screw terminals at the other end take a wire through the far edge (+y), at their own pitch.
   'relay-module-5v': (p, def) =>
-    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), def.bodyMm[2], {
+    board(num(p, 'boardWidthMm'), num(p, 'boardLengthMm'), def.bodyMm[2], {
       nodes: ['lens', 'armature'],
-      // The screw terminals take a wire from the board's edge, and sit at their own pitch.
       axes: Object.fromEntries(
-        def.pins
-          .filter((q) => q.connector === 'female-socket')
-          .map((q) => [q.id, [0, 1, 0] as Vec3])
+        def.pins.map((q) => [q.id, [0, q.connector === 'female-socket' ? 1 : -1, 0] as Vec3])
       ),
       terminalPitch: num(p, 'screwTerminalPitchMm')
     }),
-  'ky-023-joystick': (p, def) =>
-    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), def.bodyMm[2], { nodes: ['stick'] }),
-  'lcd1602a-i2c-backpack': (p) =>
-    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'moduleThicknessMaxMm'), {
-      nodes: ['lcd-screen'],
-      screen: HD44780_AREA_MM
+  // The right-angle header runs along a 26 mm edge, its pins out of it (-y). The cap's skirt
+  // overhangs the board's edge on one side, so the body is bodyMm, wider than the board.
+  'ky-023-joystick': (_p, def) =>
+    board(def.bodyMm[0], def.bodyMm[1], def.bodyMm[2], {
+      nodes: ['stick'],
+      axes: Object.fromEntries(def.pins.map((q) => [q.id, [0, -1, 0] as Vec3]))
     }),
-  // The pad is the body; its tail ends in a female housing lying flat, its sockets facing along
-  // the tail, away from the pad.
+  // The LCD lies face up on its backpack, whose right-angle header points out past the left end.
+  'lcd1602a-i2c-backpack': (p, def) =>
+    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'moduleHeightWithBackpackMm'), {
+      nodes: ['lcd-screen'],
+      screen: HD44780_AREA_MM,
+      axes: Object.fromEntries(def.pins.map((q) => [q.id, [-1, 0, 0] as Vec3]))
+    }),
+  // The pad is the body, 70 mm across its keys and 77 mm along its tail, which ends in a female
+  // housing lying flat, its sockets facing along the tail, away from the pad.
   'membrane-keypad-4x4': (p, def) =>
-    board(num(p, 'keypadLengthMm'), num(p, 'keypadWidthMm'), num(p, 'keypadThicknessMm'), {
+    board(num(p, 'keypadWidthMm'), num(p, 'keypadLengthMm'), num(p, 'keypadThicknessMm'), {
       exit: 'up',
       axes: Object.fromEntries(def.pins.map((q) => [q.id, [0, -1, 0] as Vec3])),
       bodyNodes: ['body']
@@ -477,10 +496,11 @@ const PARTS: PartEntry[] = [
     defId,
     texturePx: [512, 128] as [number, number]
   })),
-  { family: 'seven-segment', defId: 'seven-segment-ca' },
-  { family: 'seven-segment', defId: 'seven-segment-cc' },
+  // The displays' side marking is geometry; these three carry more of it than the family cap allows.
+  { family: 'seven-segment', defId: 'seven-segment-ca', triangles: 295 },
+  { family: 'seven-segment', defId: 'seven-segment-cc', triangles: 275 },
   { family: 'seven-segment-4digit', defId: 'seven-segment-4digit' },
-  { family: 'bar-graph', defId: 'bar-graph-10' },
+  { family: 'bar-graph', defId: 'bar-graph-10', triangles: 320 },
   { family: 'dot-matrix', defId: 'led-matrix-8x8' },
   {
     family: 'motor',
@@ -507,37 +527,49 @@ const PARTS: PartEntry[] = [
     family: 'module',
     defId: 'ads7830-module',
     texturePx: [512, 512],
-    triangles: 680,
+    triangles: 760,
     bytes: 40_000
   },
   {
     family: 'module',
     defId: 'breadboard-power-module',
     texturePx: [1024, 512],
-    triangles: 1300,
-    bytes: 50_000
+    triangles: 1560,
+    bytes: 74_000
   },
-  { family: 'module', defId: 'dht11-module', texturePx: [512, 512], triangles: 350, bytes: 34_000 },
-  { family: 'module', defId: 'dht11', texturePx: [256, 256], triangles: 20, bytes: 12_000 },
-  { family: 'module', defId: 'hc-sr04', texturePx: [1024, 512], triangles: 700, bytes: 30_000 },
-  { family: 'module', defId: 'hc-sr501', texturePx: [512, 512], triangles: 1130, bytes: 30_000 },
+  {
+    family: 'module',
+    defId: 'dht11-module',
+    texturePx: [512, 512],
+    triangles: 1220,
+    bytes: 34_000
+  },
+  { family: 'module', defId: 'dht11', texturePx: [256, 256], triangles: 570, bytes: 10_100 },
+  { family: 'module', defId: 'hc-sr04', texturePx: [1024, 512], triangles: 3900, bytes: 89_500 },
+  { family: 'module', defId: 'hc-sr501', texturePx: [512, 512], triangles: 3960, bytes: 63_500 },
   {
     family: 'module',
     defId: 'joystick-module',
     texturePx: [512, 512],
-    triangles: 800,
-    bytes: 32_000
+    triangles: 2800,
+    bytes: 49_000
   },
-  { family: 'module', defId: 'keypad-4x4', texturePx: [1024, 1024], triangles: 125, bytes: 56_000 },
-  { family: 'module', defId: 'lcd1602-i2c', texturePx: [1024, 512], triangles: 550, bytes: 30_000 },
+  { family: 'module', defId: 'keypad-4x4', texturePx: [1024, 1024], triangles: 125, bytes: 60_000 },
+  {
+    family: 'module',
+    defId: 'lcd1602-i2c',
+    texturePx: [1024, 512],
+    triangles: 1750,
+    bytes: 60_000
+  },
   {
     family: 'module',
     defId: 'relay-module-5v',
     texturePx: [512, 512],
-    triangles: 760,
-    bytes: 50_000
+    triangles: 1450,
+    bytes: 67_000
   },
-  { family: 'module', defId: 'sg90', texturePx: [256, 256], triangles: 530, bytes: 24_000 }
+  { family: 'module', defId: 'sg90', texturePx: [256, 256], triangles: 1160, bytes: 35_000 }
 ]
 
 const partPath = (defId: string) => `${PARTS_DIR}/${defId}.part.json`

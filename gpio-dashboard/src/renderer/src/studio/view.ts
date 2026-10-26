@@ -42,7 +42,14 @@ import '../state/liveDivergence'
 import '../state/liveSim'
 import { useLive } from '../state/liveStore'
 import { useSense } from '../state/senseStore'
-import { BUILDING_MESSAGE, edit, type Selection, type Tool, useStudio } from '../state/studioStore'
+import {
+  BUILDING_MESSAGE,
+  edit,
+  type Selection,
+  togglePanels,
+  type Tool,
+  useStudio
+} from '../state/studioStore'
 import { useWorkbench } from '../state/workbenchStore'
 import { BadgeLayer } from './badges'
 import { BenchLayer } from './bench'
@@ -50,7 +57,7 @@ import { bodyBox, pickBody, pointsBox } from './bodies'
 import { BUILD_GHOST } from './build'
 import { Cables, type CablesReport, placeColliders, type Placement, TABLE, toCore } from './cables'
 import { CameraTween, type Preset, presetView, sphereView } from './camera'
-import { defOf, endpointInScene, holeInScene, poseMatrix } from './coords'
+import { defOf, endpointInScene, holeInScene, moduleRestMm, poseMatrix } from './coords'
 import { cuePlaces } from './cues'
 import { FrameLoop, SETTLE_FRAMES } from './frameLoop'
 import { ghostIds, withGhosts } from './ghosts'
@@ -534,6 +541,9 @@ export class StudioView {
       else if (key === 'delete' || key === 'backspace') this.remove()
       else if (key === 'r') this.rotate(90)
       else if (key === 'w') this.setTool(useStudio.getState().tool === 'wire' ? 'select' : 'wire')
+      else if (key === '[') togglePanels('library')
+      else if (key === ']') togglePanels('properties')
+      else if (key === '\\') togglePanels('both')
       else if (KEYS[key]) this.preset(KEYS[key])
     }
     // Hover only over the canvas itself, and not while a button is down (orbiting).
@@ -743,7 +753,11 @@ export class StudioView {
       case 'part': {
         const part = doc.parts.find((x) => x.id === sel.id)!
         const pose = part.placement.offboardPose
-        if (pose) return table && { kind: 'module', id: part.id, from: table, pose }
+        if (pose) {
+          // Grabbed at the height it rests at, so it does not jump by the parallax to the table.
+          const from = planePoint(p.ray, moduleRestMm(doc, part.defId, pose))
+          return from && { kind: 'module', id: part.id, from, pose }
+        }
         const pin1 = part.placement.pins[defOf(doc, part.defId).pins[0]!.id]
         return pin1 ? { kind: 'part', id: part.id, grab: grabVector(doc, p.hole, pin1) } : null
       }

@@ -6,6 +6,7 @@
 // pin at the document's pose. Leads run from each pin empty into its hole. A part with no model
 // still gets its leads, as short stubs out of its holes.
 import {
+  type Box3,
   Color,
   type Group,
   Matrix4,
@@ -21,7 +22,14 @@ import type { CircuitDoc, HoleRef, PartDef, PartInstance } from '../core/model/t
 import { toTable } from '../core/reach/reach'
 import { resistorBands } from '../core/steps/steps'
 import type { Placement } from './cables'
-import { defOf, holeInScene, type ModulePinFrame, poseMatrix, setModuleModel } from './coords'
+import {
+  defOf,
+  holeInScene,
+  type ModulePinFrame,
+  moduleRestMm,
+  poseMatrix,
+  setModuleModel
+} from './coords'
 import { ModelInstances } from './instances'
 import { bentLeadGeometry, leadDiameterMm, leadPath, RADIAL } from './leads'
 import { modelNow, type PartFile, partIndexNow } from './loaders'
@@ -377,7 +385,9 @@ export class PartLayer {
       const origin = new Vector3().setFromMatrixPosition(first).setY(0)
       this.recordModule(def, model, origin)
       return {
-        pose: poseMatrix(pose, 0).multiply(new Matrix4().makeTranslation(origin.negate())),
+        pose: poseMatrix(pose, moduleRestMm(doc, part.defId, pose)).multiply(
+          new Matrix4().makeTranslation(origin.negate())
+        ),
         leads: []
       }
     }
@@ -478,14 +488,17 @@ export class PartLayer {
       const { at, dir } = frameOf(node, new Matrix4())
       pins[p.id] = { at: at.sub(origin), axis: dir }
     }
-    const { min, max } = model.bounds()
-    const rect = {
+    const rectOf = ({ min, max }: Box3) => ({
       xMin: min.x - origin.x,
       xMax: max.x - origin.x,
       yMin: origin.z - max.z,
       yMax: origin.z - min.z
-    }
-    setModuleModel(def.id, { pins, rect, top: max.y })
+    })
+    const bounds = model.bounds()
+    // A servo's or motor's cable and a keypad's tail are flexible: what the module rests on is
+    // decided by its rigid pieces, at either end of them.
+    const rests = model.meshBounds(['cable', 'tail']).map(rectOf)
+    setModuleModel(def.id, { pins, rect: rectOf(bounds), rests, top: bounds.max.y })
   }
 
   /**
