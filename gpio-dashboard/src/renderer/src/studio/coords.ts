@@ -80,6 +80,11 @@ export interface ModuleModel {
   pins: Record<string, ModulePinFrame>
   /** Its footprint in core x and y, and its height. */
   rect: Rect
+  /**
+   * The footprints of its rigid pieces, which decide what it rests on: a cable or tail lies where
+   * the model draws it, so it does not lift a module whose ends are on the table.
+   */
+  rests: Rect[]
   top: number
 }
 
@@ -126,26 +131,26 @@ export function moduleLiftMm(defId: string): number {
 }
 
 /**
- * How high an off-board module laid at `pose` rests: on the board under its footprint, else on the
- * table, raised by `moduleLiftMm`. Until its model has loaded, its first pin stands in for the
- * footprint.
+ * How high an off-board module laid at `pose` rests: on the highest board under any of its rigid
+ * pieces, else on the table, raised by `moduleLiftMm`. Until its model has loaded, its first pin
+ * stands in for the footprint.
  */
 export function moduleRestMm(doc: CircuitDoc, defId: string, pose: Transform2D): number {
-  const r = modules.get(defId)?.rect
-  const corners: Vec2[] = r
-    ? [
-        [r.xMin, r.yMin],
-        [r.xMax, r.yMin],
-        [r.xMax, r.yMax],
-        [r.xMin, r.yMax]
-      ]
-    : [[0, 0]]
-  return (
-    restHeightMm(
-      doc,
-      corners.map((c) => toTable(pose, c))
-    ) + moduleLiftMm(defId)
+  const outlines: Vec2[][] = modules.get(defId)?.rests.map((r) => [
+    [r.xMin, r.yMin],
+    [r.xMax, r.yMin],
+    [r.xMax, r.yMax],
+    [r.xMin, r.yMax]
+  ]) ?? [[[0, 0]]]
+  const rest = Math.max(
+    ...outlines.map((o) =>
+      restHeightMm(
+        doc,
+        o.map((c) => toTable(pose, c))
+      )
+    )
   )
+  return rest + moduleLiftMm(defId)
 }
 
 /** Where an off-board module's connector pin is in the scene, or null if it isn't on the table. */

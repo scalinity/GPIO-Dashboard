@@ -3685,20 +3685,28 @@ declare it.
   and the plane a move dragged it along were all at table height. The rebuilt HC-SR04 and DHT11
   breakout carry right-angle headers whose pins lie flat 0.3 mm above the module's lowest point,
   so a 2.54 mm Dupont housing on them reached about 1 mm into whatever the module lay on.
-- **Decision.** A module rests on the top of the highest board its model's footprint overlaps
-  (no edge of either outline separates them), else on the table (`restHeightMm` in `core/reach`, `moduleRestMm` in
-  `studio/coords`). The drawn module, its pins' frames, the leads ending on them, its selection
-  box and a move's drag plane all use that height. A module with a pin lying flat is raised by
-  however far that pin sits below half a housing's width; a module whose pins point up is not.
-  A drop or move meets the pointer's ray with each surface's rest height, highest first, and takes
-  the first pose that rests the module on that surface, so the module stays under the pointer and
-  a still pointer leaves it where it is. Reach's lead ends take the board under the module's
-  position, and the 10 mm assumed pin height above it.
+- **Decision.**
+  - A module rests on the top of the highest board that one of its model's rigid pieces
+    overlaps (no edge of either outline separates them), else on the table (`restHeightMm` in
+    `core/reach`, `moduleRestMm` in `studio/coords`). The flexible pieces, a servo's or motor's
+    cable and a keypad's tail, take no part, so a servo whose housing and case lie on the table
+    either side of a board stays on the table.
+  - The drawn module, its pins' frames, the leads ending on them, its selection box and a move's
+    drag plane all use that height. A module with a pin lying flat is raised by however far that
+    pin sits below half a housing's width; a module whose pins point up is not.
+  - A drop or move meets the pointer's ray with each surface's rest height, highest first, and
+    takes the first pose that rests the module on that surface, so the module stays under the
+    pointer and a still pointer leaves it where it is.
+  - Reach's lead ends take the board under the module's position, and the 10 mm assumed pin
+    height above it.
 - **Consequences.** A module can lie across a board's edge, resting on its top; nothing models it
-  tipping. Where its footprint crosses a board's edge within the parallax between the two heights,
-  no pose rests it under the pointer, and the table's is taken, so it steps onto the board a few
-  millimetres from the pointer. Physics stays visual (SPEC principle 8), so the rest height is
-  geometry, not a simulated contact. Moving a module off a board drops it back to the table.
+  tipping, or resting on parts already on the board. The model is rigid, so a cable or tail does
+  not drape: where both its ends lie on the table it passes through a board it crosses, and where
+  one end rests on a board the other is held at that height. Where a footprint crosses a board's
+  edge within the parallax between the two heights, no pose rests it under the pointer and the
+  table's is taken, so it steps onto the board a few millimetres from the pointer. Physics stays
+  visual (SPEC principle 8), so the rest height is geometry, not a simulated contact. Moving a
+  module off a board drops it back to the table.
 
 ## ADR-0140 The side panels fold away for an immersive bench
 

@@ -19,13 +19,25 @@ const pins = (axis: Vector3, height: number) => ({
 setModuleModel('joystick-module', {
   pins: pins(up, 10),
   rect: { xMin: 0, xMax: 34, yMin: 0, yMax: 26 },
+  rests: [{ xMin: 0, xMax: 34, yMin: 0, yMax: 26 }],
   top: 32
 })
 // A right-angle header lying flat, its pins 0.32 mm up: a 2.54 mm housing on them needs 0.95.
 setModuleModel('hc-sr04', {
   pins: pins(new Vector3(0, 0, 1), 0.32),
   rect: { xMin: 0, xMax: 45, yMin: 0, yMax: 20 },
+  rests: [{ xMin: 0, xMax: 45, yMin: 0, yMax: 20 }],
   top: 15
+})
+// A servo: its housing and its case at the two ends of a 250 mm cable along y.
+setModuleModel('sg90', {
+  pins: pins(new Vector3(0, 0, 1), 1.6),
+  rect: { xMin: -4, xMax: 30, yMin: 0, yMax: 262 },
+  rests: [
+    { xMin: -4, xMax: 4, yMin: 0, yMax: 14 },
+    { xMin: 0, xMax: 30, yMin: 238, yMax: 262 }
+  ],
+  top: 31
 })
 
 /** A pointer at the table point `at`, `height` mm up, from 45 degrees in front (toward -y). */
@@ -56,6 +68,12 @@ describe('laying an off-board module', () => {
     const part = placed('hc-sr04', [60, -40], lift)
     expect(part.placement.offboardPose!.position).toEqual([60, -40])
     expect(moduleRestMm(doc, part.defId, part.placement.offboardPose!)).toBeCloseTo(lift, 6)
+  })
+
+  it('rests a cabled module by its case and housing, not by its cable crossing the board', () => {
+    // As the Servo tutorial lays it: the housing in front of the board, the case beyond it.
+    expect(moduleRestMm(doc, 'sg90', { position: [60, -60], rotationDeg: 0 })).toBe(0)
+    expect(moduleRestMm(doc, 'sg90', { position: [60, 10], rotationDeg: 0 })).toBe(TOP)
   })
 
   it('leaves a module resting across the board edge where it is under a still pointer', () => {

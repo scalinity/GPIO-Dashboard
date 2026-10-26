@@ -6,6 +6,7 @@
 // pin at the document's pose. Leads run from each pin empty into its hole. A part with no model
 // still gets its leads, as short stubs out of its holes.
 import {
+  type Box3,
   Color,
   type Group,
   Matrix4,
@@ -487,14 +488,17 @@ export class PartLayer {
       const { at, dir } = frameOf(node, new Matrix4())
       pins[p.id] = { at: at.sub(origin), axis: dir }
     }
-    const { min, max } = model.bounds()
-    const rect = {
+    const rectOf = ({ min, max }: Box3) => ({
       xMin: min.x - origin.x,
       xMax: max.x - origin.x,
       yMin: origin.z - max.z,
       yMax: origin.z - min.z
-    }
-    setModuleModel(def.id, { pins, rect, top: max.y })
+    })
+    const bounds = model.bounds()
+    // A servo's or motor's cable and a keypad's tail are flexible: what the module rests on is
+    // decided by its rigid pieces, at either end of them.
+    const rests = model.meshBounds(['cable', 'tail']).map(rectOf)
+    setModuleModel(def.id, { pins, rect: rectOf(bounds), rests, top: bounds.max.y })
   }
 
   /**

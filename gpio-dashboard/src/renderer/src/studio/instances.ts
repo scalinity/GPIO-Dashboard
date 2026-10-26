@@ -116,6 +116,13 @@ export class ModelInstances {
     return new Box3().setFromObject(this.model)
   }
 
+  /** Each mesh's bounds in the model's frame, but for meshes going by any of the `skipped` names. */
+  meshBounds(skipped: string[]): Box3[] {
+    return this.pieces
+      .filter((p) => !skipped.some((name) => p.names.has(name)))
+      .map((p) => new Box3().setFromObject(p.source))
+  }
+
   /** A node's transform relative to the model (an empty such as `pin-1`, `socket` or `wire`). */
   node(name: string): Matrix4 | null {
     return this.model.getObjectByName(name)?.matrixWorld ?? null
