@@ -19,20 +19,8 @@ export default function ConnectPage() {
   const isConnected = status === 'connected'
   const inputDisabled = isConnecting || isConnected
 
-  const handleConnect = async () => {
+  const handleConnect = () => {
     clearError()
-    try {
-      await Promise.all([
-        window.api.settings.set('connection.host', config.host),
-        window.api.settings.set('connection.port', config.port),
-        window.api.settings.set('connection.username', config.username),
-        window.api.settings.set('connection.authMethod', config.authMethod),
-        window.api.settings.set('connection.keyPath', config.keyPath),
-        window.api.settings.setPassword(config.password)
-      ])
-    } catch {
-      // ignore save error
-    }
     connect()
   }
 

@@ -15,6 +15,9 @@ const AGENT_OUTDATED =
 /** The launch flow in progress (ADR-0141). Anything the user does to the connection ends it. */
 let launch = null
 
+/** How many status events the backend has sent; a connect reply defers to any newer one. */
+let statusEvents = 0
+
 /** The saved connection, without filling the form. */
 async function readSaved() {
   try {
@@ -31,11 +34,13 @@ async function readSaved() {
 
 /**
  * Opens the SSH session; resolves true once it is up. The command returns only then, so the
- * status is set here as well as by the status event, which may not have a listener yet at
- * launch. `live` says whether whoever asked still wants the answer.
+ * status is set here when no status event has come since (at launch the event may arrive before
+ * App listens for it); an event that did come is newer, and stands. `live` says whether whoever
+ * asked still wants the answer.
  */
-async function openSession(set, config, live = () => true) {
+async function openSession(set, get, config, live = () => true) {
   set({ status: 'connecting', error: null })
+  const events = statusEvents
   try {
     const result = await window.api.ssh.connect(config)
     if (!live()) return false
@@ -43,8 +48,8 @@ async function openSession(set, config, live = () => true) {
       set({ status: 'error', error: result.error || 'Connection failed' })
       return false
     }
-    set({ status: 'connected' })
-    return true
+    if (statusEvents === events) set({ status: 'connected' })
+    return get().status === 'connected'
   } catch (err) {
     if (live()) set({ status: 'error', error: err.message || String(err) })
     return false
@@ -88,16 +93,36 @@ const useConnectionStore = create((set, get) => ({
   /** Why the agent was not started at launch, or null. */
   agentNotice: null,
 
-  setConfig: (config) => set((state) => ({ config: { ...state.config, ...config } })),
-  setStatus: (status) => set({ status }),
+  /** The form's edits; the user taking the form over ends the launch flow. */
+  setConfig: (config) => {
+    launch = null
+    set((state) => ({ config: { ...state.config, ...config } }))
+  },
+  setStatus: (status) => {
+    statusEvents++
+    set({ status })
+  },
   setError: (error) => set({ error, status: 'error' }),
   clearError: () => set({ error: null }),
   setAgentStatus: (agentStatus) => set({ agentStatus }),
 
-  /** Resolves true once the session is up. */
+  /** The Connect button: saves the form as the saved connection, then connects with it. */
   connect: async () => {
     launch = null
-    return openSession(set, get().config)
+    const { config } = get()
+    try {
+      await Promise.all([
+        window.api.settings.set('connection.host', config.host),
+        window.api.settings.set('connection.port', config.port),
+        window.api.settings.set('connection.username', config.username),
+        window.api.settings.set('connection.authMethod', config.authMethod),
+        window.api.settings.set('connection.keyPath', config.keyPath),
+        window.api.settings.setPassword(config.password)
+      ])
+    } catch {
+      // ignore save error
+    }
+    return openSession(set, get, get().config)
   },
 
   /**
@@ -112,8 +137,8 @@ const useConnectionStore = create((set, get) => ({
     const live = () => launch === token
     const saved = await readSaved()
     if (!live() || !saved.host) return
-    get().setConfig(saved)
-    if (!(await openSession(set, get().config, live))) return
+    set((state) => ({ config: { ...state.config, ...saved } }))
+    if (!(await openSession(set, get, get().config, live))) return
     const agent = await window.api.agent.check()
     if (!live()) return
     launch = null

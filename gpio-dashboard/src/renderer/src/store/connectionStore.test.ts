@@ -11,13 +11,18 @@ type Store = ReturnType<typeof useConnectionStore.getState> & {
   setConfig: (config: Record<string, unknown>) => void
   connect: () => Promise<boolean>
   disconnect: () => Promise<void>
+  setStatus: (status: string) => void
 }
 const store = () => useConnectionStore.getState() as Store
 
 /** A `window.api` with the saved settings, the connect result and the agent check given. */
 function api(saved: Record<string, unknown>, connected: boolean, agent: Record<string, unknown>) {
   return {
-    settings: { get: vi.fn(async (key: string) => saved[key.replace('connection.', '')] ?? null) },
+    settings: {
+      get: vi.fn(async (key: string) => saved[key.replace('connection.', '')] ?? null),
+      set: vi.fn(async () => ({ success: true })),
+      setPassword: vi.fn(async () => ({ success: true }))
+    },
     ssh: {
       connect: vi.fn(async () =>
         connected ? { success: true } : { success: false, error: 'refused' }
@@ -108,6 +113,41 @@ describe('connectOnLaunch', () => {
     await launched
     expect(a.ssh.connect).toHaveBeenCalledOnce()
     expect(store().config.host).toBe('pi-b')
+  })
+
+  it('ends when the user presses Connect, before the form is saved', async () => {
+    const a = api(SAVED, true, { installed: true, current: true })
+    const gate = deferred<void>()
+    a.settings.get.mockImplementation(async (key: string) => {
+      await gate.promise
+      return (SAVED as Record<string, unknown>)[key.replace('connection.', '')] ?? null
+    })
+    const saving = deferred<{ success: boolean }>()
+    a.settings.set.mockImplementation(() => saving.promise)
+    vi.stubGlobal('window', { api: a })
+    const launched = store().connectOnLaunch()
+    // The form already holds Pi B; setConfig would end the launch itself, so set it directly.
+    useConnectionStore.setState({ config: { ...store().config, host: 'pi-b' } } as never)
+    const pressed = store().connect()
+    gate.resolve()
+    await launched
+    saving.resolve({ success: true })
+    await pressed
+    expect(a.ssh.connect).toHaveBeenCalledOnce()
+    expect(a.ssh.connect).toHaveBeenCalledWith(expect.objectContaining({ host: 'pi-b' }))
+  })
+
+  it('leaves a status event newer than the connect reply alone', async () => {
+    const a = api(SAVED, true, { installed: true, current: true })
+    // The session comes up, then closes before the command returns: the backend says so.
+    a.ssh.connect.mockImplementation(async () => {
+      store().setStatus('connected')
+      store().setStatus('connecting')
+      return { success: true }
+    })
+    await launch(a)
+    expect(store().status).toBe('connecting')
+    expect(a.agent.check).not.toHaveBeenCalled()
   })
 
   it('drops an agent check that answers after the user reconnected', async () => {
