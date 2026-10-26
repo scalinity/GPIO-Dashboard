@@ -1,6 +1,7 @@
 // Core frames (mm, z up) in the three.js scene (mm, y up): a core point (x, y, z) is three
 // (x, z, −y). A rotation about core z by θ is a rotation about three's y by the same θ.
 import { Matrix4, Quaternion, Vector3 } from 'three/webgpu'
+import dupontJson from '../content/leads/dupont.json'
 import { boardDef } from '../core/defs/boards'
 import type { Rect } from '../core/defs/controllers'
 import { partDef } from '../core/defs/parts'
@@ -106,11 +107,26 @@ function modulePinLocal(doc: CircuitDoc, part: PartInstance, pin: string): Modul
 }
 
 /**
+ * How far a module's lowest pin pointing sideways (a right-angle header lying flat) sits below the
+ * half-width of the Dupont housing that plugs onto it: lifted that much, the housing clears the
+ * surface the module rests on instead of passing through it.
+ */
+function housingClearance(model: ModuleModel): number {
+  const half = dupontJson.housing.widthMm / 2
+  let lift = 0
+  for (const { at, axis } of Object.values(model.pins))
+    if (Math.abs(axis.y) < 0.5) lift = Math.max(lift, half - at.y)
+  return lift
+}
+
+/**
  * How high an off-board module laid at `pose` rests: on the board under its footprint, else on the
- * table. Until its model has loaded, its first pin stands in for the footprint.
+ * table, raised so housings on flat-lying pins clear it. Until its model has loaded, its first pin
+ * stands in for the footprint.
  */
 export function moduleRestMm(doc: CircuitDoc, defId: string, pose: Transform2D): number {
-  const r = modules.get(defId)?.rect
+  const model = modules.get(defId)
+  const r = model?.rect
   const corners: Vec2[] = r
     ? [
         [r.xMin, r.yMin],
@@ -119,9 +135,12 @@ export function moduleRestMm(doc: CircuitDoc, defId: string, pose: Transform2D):
         [r.xMin, r.yMax]
       ]
     : [[0, 0]]
-  return restHeightMm(
-    doc,
-    corners.map((c) => toTable(pose, c))
+  const lift = model ? housingClearance(model) : 0
+  return (
+    restHeightMm(
+      doc,
+      corners.map((c) => toTable(pose, c))
+    ) + lift
   )
 }
 
