@@ -35,6 +35,12 @@ async function open(page: Page, origin: string, id: string, via: string) {
   // The dev overlay's counters sit over the canvas, as LOOKDEV's captures leave them out.
   await page.addStyleTag({ content: '[data-testid="dev-overlay"] { display: none !important }' })
   await page.getByRole('tab', { name: 'Studio' }).click()
+  // The panels and bars around the stage differ between builds, so in both the stage covers the
+  // window and the two canvases are the same size (after the tab is clicked: it would cover it).
+  await page.addStyleTag({
+    content:
+      '[data-testid="studio"] { position: fixed !important; inset: 0 !important; z-index: 2147483647 }'
+  })
   await page.evaluate(
     `Promise.all([import('/src/core/defs/tutorials.ts'), import('/src/state/circuit.ts')]).then(([t, c]) => {
       const doc = structuredClone(t.TUTORIALS.find((x) => x.meta.id === '${id}').doc)
