@@ -14,7 +14,7 @@ function UsageBar({ value, color }) {
 
 function InfoCard({ icon: Icon, label, children }) {
   return (
-    <div className="bg-white/[0.03] border border-white/[0.04] rounded-btn p-3 shadow-inner-highlight">
+    <div className="card p-3">
       <div className="flex items-center gap-2 mb-2">
         <Icon className="w-4 h-4 text-gray-500" />
         <span className="section-title">{label}</span>
@@ -59,7 +59,10 @@ export default function SystemInfo() {
       {/* CPU Temperature */}
       <InfoCard icon={Thermometer} label="CPU Temp">
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold tabular-nums" style={{ color: tempColor(temp) }}>
+          <span
+            className="font-mono text-2xl font-medium tabular-nums"
+            style={{ color: tempColor(temp) }}
+          >
             {temp.toFixed(1)}
           </span>
           <span className="text-sm text-gray-500">&deg;C</span>
@@ -70,8 +73,8 @@ export default function SystemInfo() {
       <InfoCard icon={Cpu} label="Memory">
         <div className="space-y-1.5">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-300 tabular-nums">{memPercent}%</span>
-            <span className="text-gray-500 tabular-nums">
+            <span className="font-mono text-gray-300 tabular-nums">{memPercent}%</span>
+            <span className="font-mono text-gray-500 tabular-nums">
               {mem.used_mb ? `${Math.round(mem.used_mb)}MB` : '--'}
               {' / '}
               {mem.total_mb ? `${Math.round(mem.total_mb)}MB` : '--'}
@@ -83,7 +86,9 @@ export default function SystemInfo() {
 
       {/* Uptime */}
       <InfoCard icon={Clock} label="Uptime">
-        <span className="text-sm text-gray-300 tabular-nums">{systemInfo.uptime || '--'}</span>
+        <span className="font-mono text-sm text-gray-300 tabular-nums">
+          {systemInfo.uptime || '--'}
+        </span>
       </InfoCard>
 
       {/* Model */}
@@ -102,8 +107,8 @@ export default function SystemInfo() {
       <InfoCard icon={HardDrive} label="Disk">
         <div className="space-y-1.5">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-300 tabular-nums">{diskPercent}%</span>
-            <span className="text-gray-500 tabular-nums">
+            <span className="font-mono text-gray-300 tabular-nums">{diskPercent}%</span>
+            <span className="font-mono text-gray-500 tabular-nums">
               {disk.used_gb ? `${disk.used_gb.toFixed(1)}GB` : '--'}
               {' / '}
               {disk.total_gb ? `${disk.total_gb.toFixed(1)}GB` : '--'}

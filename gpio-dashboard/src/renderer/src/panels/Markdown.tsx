@@ -5,11 +5,19 @@ import type { ReactNode } from 'react'
 
 function inline(text: string): ReactNode[] {
   return text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g).map((piece, i) => {
-    if (piece.startsWith('**')) return <strong key={i}>{piece.slice(2, -2)}</strong>
+    if (piece.startsWith('**'))
+      return (
+        <strong key={i} className="font-semibold text-gray-100">
+          {piece.slice(2, -2)}
+        </strong>
+      )
     if (piece.startsWith('*') && piece.length > 1) return <em key={i}>{piece.slice(1, -1)}</em>
     if (piece.startsWith('`')) {
       return (
-        <code key={i} className="font-mono text-accent-light">
+        <code
+          key={i}
+          className="rounded-[5px] bg-white/[0.07] px-1 font-mono text-[0.92em] text-accent"
+        >
           {piece.slice(1, -1)}
         </code>
       )

@@ -10,7 +10,7 @@ export default function PinDetail() {
 
   if (!selectedPin) {
     return (
-      <div className="w-80 glass-bg border-l border-white/[0.04] p-6 flex items-center justify-center">
+      <div className="w-80 glass-bg border-l border-white/[0.06] p-6 flex items-center justify-center">
         <p className="text-gray-500 text-sm text-center">Click a pin to see details</p>
       </div>
     )
@@ -19,7 +19,7 @@ export default function PinDetail() {
   const typeInfo = PIN_TYPES[selectedPin.type]
 
   return (
-    <div className="w-80 bg-surface-800/60 backdrop-blur-xl border-l border-white/[0.04] p-6 overflow-y-auto">
+    <div className="w-80 glass-bg border-l border-white/[0.06] p-6 overflow-y-auto">
       <div className="flex items-start justify-between mb-4">
         <h3 className="text-lg font-bold text-white">{selectedPin.name}</h3>
         <button

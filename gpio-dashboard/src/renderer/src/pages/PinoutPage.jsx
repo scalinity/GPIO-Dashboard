@@ -53,14 +53,18 @@ export default function PinoutPage() {
               <button
                 key={type}
                 onClick={() => togglePinTypeFilter(type)}
-                className="text-xs px-2.5 py-1 rounded-full font-medium transition-[background-color,color,opacity] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-                style={{
-                  backgroundColor: active ? info.color : 'transparent',
-                  color: active ? 'white' : info.color,
-                  border: `1px solid ${info.color}`,
-                  opacity: active ? 1 : 0.6
-                }}
+                aria-pressed={active}
+                className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
+                  active
+                    ? 'bg-on-bg text-on-text'
+                    : 'bg-white/[0.05] text-gray-300 hover:bg-white/[0.09]'
+                }`}
               >
+                <span
+                  aria-hidden
+                  className="h-2 w-2 rounded-full ring-1 ring-white/30"
+                  style={{ backgroundColor: info.color }}
+                />
                 {info.label}
               </button>
             )

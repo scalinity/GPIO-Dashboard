@@ -4,7 +4,7 @@ import useUiStore from '../store/uiStore'
 const STATUS_CONFIG = {
   disconnected: { color: 'bg-gray-500', label: 'Disconnected' },
   connecting: {
-    color: 'bg-amber-400 animate-pulse',
+    color: 'bg-amber-400 animate-pulse motion-reduce:animate-none',
     label: 'Connecting...',
     glow: 'shadow-glow-warn'
   },

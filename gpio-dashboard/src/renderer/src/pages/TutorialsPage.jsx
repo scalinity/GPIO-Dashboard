@@ -131,7 +131,9 @@ function Detail({ tutorial, onBack }) {
             <ArrowLeft className="w-4 h-4" />
           </button>
           <h2 className="text-lg font-semibold text-gray-100">{meta.title}</h2>
-          {meta.kitProject && <span className="text-xs text-gray-500">kit {meta.kitProject}</span>}
+          {meta.kitProject && (
+            <span className="font-mono text-xs text-gray-500">kit {meta.kitProject}</span>
+          )}
           {meta.tags.map((t) => (
             <span
               key={t}
@@ -190,7 +192,7 @@ function Detail({ tutorial, onBack }) {
               </a>
             ))}
         </div>
-        <div className="flex gap-1 pt-1" role="tablist">
+        <div className="seg-track mt-1 w-fit" role="tablist">
           {['theory', 'wiring', 'code'].map((t) => (
             <button
               key={t}
@@ -228,10 +230,10 @@ export default function TutorialsPage() {
       {items.map((t) => (
         <li key={t.meta.id}>
           <button
-            className="card w-full text-left"
+            className="card w-full text-left hover:border-accent/30"
             onClick={() => selectTutorial(t.meta.id, t.doc.code.source)}
           >
-            <div className="flex items-center gap-2 text-xs text-gray-500">
+            <div className="flex items-center gap-2 font-mono text-[11px] text-gray-500">
               {t.meta.kitProject ? `kit ${t.meta.kitProject}` : 'extra'}
               {t.meta.tags.map((tag) => (
                 <span key={tag} className="text-amber-400">
@@ -253,12 +255,12 @@ export default function TutorialsPage() {
         <h2 className="text-lg font-semibold text-gray-100">Tutorials</h2>
       </div>
       <section className="space-y-2">
-        <h3 className="text-sm font-semibold text-gray-300">The kit&apos;s projects</h3>
+        <h3 className="section-title">The kit&apos;s projects</h3>
         {list(kit)}
       </section>
       {extras.length > 0 && (
         <section className="space-y-2">
-          <h3 className="text-sm font-semibold text-gray-300">Extras</h3>
+          <h3 className="section-title">Extras</h3>
           {list(extras)}
         </section>
       )}

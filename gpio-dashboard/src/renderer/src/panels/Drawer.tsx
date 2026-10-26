@@ -39,7 +39,7 @@ export default function Drawer({ doc }: { doc: CircuitDoc }) {
             {id === 'claude' && working && (
               <span
                 aria-hidden
-                className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent-light"
+                className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-400 motion-reduce:animate-none"
               />
             )}
           </button>

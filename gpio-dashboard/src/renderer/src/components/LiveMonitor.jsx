@@ -22,15 +22,17 @@ const PinRow = React.memo(function PinRow({ pin }) {
   return (
     <tr
       className={`border-b border-white/[0.04] transition-colors duration-200 ${
-        changed ? 'bg-yellow-500/10' : 'even:bg-white/[0.015]'
+        changed ? 'bg-amber-500/10' : 'even:bg-white/[0.015]'
       }`}
     >
       <td className="px-3 py-2 text-sm font-mono tabular-nums text-gray-300">{pin.bcm}</td>
-      <td className="px-3 py-2 text-sm text-gray-500 tabular-nums">{pin.physical}</td>
+      <td className="px-3 py-2 text-sm font-mono text-gray-500 tabular-nums">{pin.physical}</td>
       <td className="px-3 py-2 text-sm text-gray-300">{pin.name}</td>
       <td className="px-3 py-2 text-sm">
         {state ? (
-          <span className={`inline-flex items-center gap-1 ${isOutput ? 'text-state-output' : 'text-state-input'}`}>
+          <span
+            className={`inline-flex items-center gap-1 ${isOutput ? 'text-state-output' : 'text-state-input'}`}
+          >
             {isOutput ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
             {isOutput ? 'OUT' : 'IN'}
           </span>
@@ -41,7 +43,9 @@ const PinRow = React.memo(function PinRow({ pin }) {
       <td className="px-3 py-2 text-sm">
         {state ? (
           <span className="inline-flex items-center gap-1.5">
-            <span className={`w-2 h-2 rounded-full ${isHigh ? 'bg-state-high shadow-[0_0_4px_rgba(34,197,94,0.5)]' : 'bg-state-low'}`} />
+            <span
+              className={`w-2 h-2 rounded-full ${isHigh ? 'bg-state-high shadow-[0_0_4px_rgba(34,197,94,0.5)]' : 'bg-state-low'}`}
+            />
             <span className={isHigh ? 'text-state-high font-medium' : 'text-gray-500'}>
               {isHigh ? 'HIGH' : 'LOW'}
             </span>
@@ -83,23 +87,22 @@ export default function LiveMonitor() {
     <div className="flex flex-col h-full">
       {/* Filter bar */}
       <div className="flex items-center gap-2 mb-3">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`px-3 py-1 text-xs font-medium rounded-btn transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
-              filter === f.key
-                ? 'bg-accent/20 text-accent-light border border-accent/30'
-                : 'text-gray-400 hover:text-gray-300 bg-white/[0.04] border border-transparent'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+        <div className="seg-track" role="group" aria-label="Filter">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              aria-pressed={filter === f.key}
+              className={`tab-button ${filter === f.key ? 'active' : ''}`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
 
         {hasPinData && (
           <div className="ml-auto flex items-center gap-2 text-xs text-gray-500">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse motion-reduce:animate-none" />
             ~10Hz
           </div>
         )}
