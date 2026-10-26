@@ -163,7 +163,11 @@ These are vendor product photos.
 
 2.3 Adaptation
 - The controller is the Pi 5 + ribbon + T-board, not an Arduino.
-- The UI chrome stays dark, clean, and minimal, using the existing Tailwind tokens. Impose no other palette.
+- The UI chrome is the night-lab HUD (ADR-0142):
+  - an ink ground (`#0b0f1a`) under dark navy glass cards, with a cool text ramp from `#eef2fa` down to the key hints' `#7d87a4`;
+  - five accents with fixed meanings: cyan `#7fe3ff` for measurement and selection, amber `#ffb454` for hardware and events, coral `#ff6b86` for limits and faults, violet `#b99cff` for the assistant and a second series, and green `#8fe8a8` for OK;
+  - Outfit for the interface and DM Mono for values, both served by the app, each followed by system faces for the glyphs it lacks; the terminal sets Menlo;
+  - one colour source, `styles/palette.cjs`, mapped into the Tailwind theme and onto CSS variables. Every text shade and accent reads at 4.5:1 or more on the surfaces it sits on.
 - The 3D stage is a neutral studio that reads well against the dark chrome.
 - No Embed. Explore/Fork becomes local Projects plus "Fork tutorial into my projects".
 - v2 goes beyond the reference with:
@@ -638,6 +642,8 @@ Wiring convention (my bench; tutorials, the placer, and the assistant all follow
 - Each part pin occupies exactly one hole, or is null (unplaced).
 - Each hole holds at most one lead: a pin, a T-board pin, or a wire end, never more than one.
 - Rigid footprints rotate in 90° steps. A DIP must straddle the trench.
+- Boards and the Pi may not overlap on the table. Their outlines may meet. An edit that adds an
+  overlap is refused; a project saved with one still opens.
 - A flexible two-lead part must span between minSpan and maxSpan.
 - Part bodies may not collide. Check this with bounding volumes.
 - T-board placement:
@@ -839,12 +845,19 @@ Validation:
   - ambient occlusion
   - bloom on lit LEDs
   - temporal anti-aliasing
-  - AgX tone mapping
   - smooth, eased camera motion
-- No gimmicks by default: no film grain, chromatic aberration, or lens dirt.
-- Look target:
-  - my reference photos (2.2), for the T-board, ribbon, IDC sockets, breadboard, and Dupont leads
-  - official imagery, for the Pi 5
+- Two looks, one switch apart (10.7), each a complete preset of stage, lights, environment, fog,
+  tone mapping, grade and finish:
+  - Lab, the default: the bench in a furnished electronics workroom at dusk, after the exhibit
+    house style. A warm key light, cool fog and ambient light, a procedural dusk environment, a
+    saturation lift then ACES Filmic, a faint film grain, a vignette, and depth of field that
+    keeps the bench sharp while the room melts. The lit circuit is the brightest thing in the
+    frame.
+  - Studio: a neutral studio, tone-mapped with AgX and graded after it (ADR-0067), with no grain
+    and no vignette. It is the look checked against the photos:
+    - my reference photos (2.2), for the T-board, ribbon, IDC sockets, breadboard, and Dupont leads
+    - official imagery, for the Pi 5
+- No chromatic aberration or lens dirt in either look.
 
 10.2 Renderer and frame loop
 Renderer:
@@ -860,20 +873,47 @@ Post-processing:
 - Effects:
   - a scene pass with MRT (output, normals, and velocity as needed)
   - GTAO
-  - bloom
   - TRAA
-  - optional depth of field, for focus in Build Mode
+  - bloom of whatever passes 2 in scene-linear light, in both looks, drawn only while something
+    passes it (ADR-0129)
+  - each look's tone mapping and grade, in the pipeline's last pass: RenderPipeline draws without
+    the renderer's tone mapping
+  - film grain, in the Lab look
+  - depth of field in the Lab look: a depth-aware bokeh focused on the bench, the far blur
+    stronger than the near, which keeps sharp edges out of the blurred background
+  - depth of field for focus in Build Mode: the Lab look's bokeh narrowed to the step, and in
+    the Studio look three's depth of field
 - Verify every class name and import path against the installed three.js version (section 22).
 
 Stage:
 - Scene units are millimetres, with Y up.
-- A neutral studio stage: a matte table surface plus a soft cyclorama.
-- Lighting: a CC0 studio HDRI (Poly Haven or similar; record the license), plus one shadow-casting key light.
+- Studio look: a neutral studio stage, a matte table surface plus a soft cyclorama, lit by a CC0
+  studio HDRI (Poly Haven or similar; record the license) and one shadow-casting key light.
+- Lab look: the same table as a walnut bench top on a bench frame, under a matte slate ESD mat (457
+  x 381 mm, 2 mm thick, a grid printed every 10 and 50 mm, a ground snap and its cord) whose top is
+  the table plane, so the table sits 2 mm lower while it shows; in "a Pi breadboard bench in an
+  electronics workroom at dusk", lit by the same key light, warmer, with a cool hemisphere light,
+  a rim light from behind the bench, a procedural dusk environment and a lavender fog.
+  - The room: the floor 900 mm below the tabletop, inside x ±2400 mm and z -1700 to +2600 mm, the
+    ceiling 1900 mm above the tabletop. Every side is finished and furnished: the dusk window
+    between amber light bars with a faint backlit GPIO pinout beside it, a credenza and a plant
+    (north); a pegboard of tools and wire spools over a wall bench lit from under its top, with a
+    desk lamp, an oscilloscope and a power supply (west); a parts-drawer cabinet, a shelf lit from
+    below and a soldering station (east); the door with a sconce beside it and a stool (south);
+    two dim pendants (ceiling); the bench's legs, apron and lower shelf.
+  - At most 18 meshes and 60k triangles; nothing in it casts or takes a shadow.
+  - Its practical lamps and screens are drawn at most 1.5 in linear light and glow through
+    additive cards, so nothing on the set passes the bloom's threshold.
+- Looks switch by changing values only, so no shader recompiles once both have been drawn: one
+  fog, one background colour, one environment target rendered again in place, every light kept
+  in the scene (at 0 where a look does not use it), and one output graph that picks a look by a
+  uniform. The switch happens under a veil, instantly under reduced motion.
 
 Frame loop:
 - Render on demand.
 - Render continuously only while something moves: the camera, a drag, an awake physics island, or a sim-driven animation.
 - When everything sleeps, render up to 16 more frames so TRAA converges, then stop. After that, no frames render.
+- The camera has no idle drift in either look, and a look switch settles like any other change.
 
 10.3 Asset pipeline (scripts/assets/)
 Commands:
@@ -1079,14 +1119,42 @@ Picking:
 - Leads: by capsule.
 Selection shows an accent-colored wireframe box.
 
+Looks:
+- The right column's first row, View, switches between the Lab and Studio looks; the key L does
+  too. The choice is a preference of the machine, not part of a project.
+- The camera orbits at most 2200 mm from its target in the Lab look and 3000 mm in the Studio look.
+- In the Lab look the camera stays inside the room: a view farther than the room allows is
+  shortened along its line to the target, 150 mm inside the walls, floor and ceiling, and the
+  target keeps 200 mm further in, so the camera's least distance always fits; the front (south) is
+  open. The side the camera stands within 900 mm of, or behind, is cut away with its
+  furniture, and so is the ceiling. Every preset of every tutorial stands inside the room.
+
+Opening tour:
+- The first time the Studio opens in a launch, in the Lab look and on a bench, the camera takes
+  three slow shots: the bench small in its room, low along the bench from the Pi to the
+  breadboard, and close on the brightest lit part (else the T-board), the veil dipping to black
+  at each cut; then it eases to the iso preset, about 16 s in all. Each shot turns 1.6 to 3
+  degrees a second, and every pose stands inside the room.
+- While it plays the side panels slide away and the stage takes their room, and one line under
+  the stage says "Drag, click or press a key to take over". The first press or wheel
+  turn on the stage only takes over: the camera eases home from where it is. A key ends it and
+  still does what it does. A look switch, an edit, a capture, entering Build Mode or any other
+  move of the camera ends it too; a document opened under it plans it again for the new bench.
+- It does not start under test automation, with reduced motion asked for, in Build Mode or
+  during an assistant's turn, or once turned off: View's Opening tour button keeps that choice on
+  the machine. C plays it at any time. It counts as motion: frames are drawn while it plays and
+  none once it ends.
+
 Camera:
-- A damped orbit.
+- A damped orbit, with a 35° vertical field of view in both looks.
 - Presets animate with easing, in at most 600 ms.
 - Build Mode frames each step, and may use depth of field to focus.
 
 10.8 Budgets
-- Frame rate: at least 60 fps at the window's native pixel ratio, in the Tauri window on my M-series Mac. This holds for tutorial scenes with physics awake and the full post stack.
-  - If a scene misses it, scale effect quality first (AO resolution, then depth of field) and record what changed.
+- Frame rate: at least 60 fps at the window's native pixel ratio, in the Tauri window on my M-series Mac, in both looks. This holds for tutorial scenes with physics awake and the full post stack, LEDs lit.
+  - Lab look: the GPU at most 13 ms a frame, median, at a pixel ratio of 2 with LEDs lit.
+  - If a scene misses it, scale effect quality first and record what changed. In the Lab look: the bokeh's taps from 48 to 32, then no depth of field while cables are awake. GTAO keeps one resolution in both looks, since a resolution per look would reallocate its targets on every switch. GTAO runs at 0.35 and the bokeh at 32 taps.
+- The Lab look's room: at most 18 meshes and 60k triangles, built once, the first time the look shows.
 - Physics: at most 4 ms per frame in the worker, for the heaviest tutorial scene (about 40 leads plus the ribbon).
 - Idle: zero frames rendered when the scene is static.
 - Assets:
@@ -1108,21 +1176,31 @@ Camera:
 - Tutorials: rebuilt around circuit documents and Build Mode.
 - Connect, Pinout, and Monitor: kept.
 - The terminal drawer is kept (Cmd+`).
+- The app's bar (the brand, the page tabs, and the connection status away from the Studio) stays
+  one row at every width the window allows: below 1100 px the tabs show their icons alone,
+  keeping their names for assistive technology and a tooltip.
 
 11.2 Studio layout
 - Top bar: an editable project name and menu, Simulate, Run on Pi, Undo/Redo, and the connection pill.
+  - It stays one row at every width the window allows. In a narrower window the project name gives up width first; below 1280 px Wire, Build and Fork show their icons alone, and below 1100 px Simulate, Run on Pi and their Stops do too, and the pill shows its dot alone. Stop on Pi shows the Pi's chip, so it reads apart from the simulation's Stop. Each keeps its name for screen readers.
 - Left: the Part Library, with search, categories, an "In my inventory" filter, kit tags, and "Create custom part…", which hands off to Claude.
 - Center: the 3D stage.
+  - Over its top left, a title column: the project's name, three readouts (GPIO draw, the busiest pin's current, and the checks) and one sentence on what the bench is doing. They read the snapshot the bench shows: the Pi's while Live Pi state follows it, else the simulation's, and none while a build is part of the way. A total over 50 mA or a pin over 16 mA turns its readout coral. The sentence names things and changes only with the bench's state, so a screen reader hears it once. The column takes no clicks but for Claude's note under it, and folds the sentence, then the name, away as the stage shrinks.
 - Right:
   - contextual Properties
   - Inspect toggles: Labels, Voltages, Current flow, Nets, Live Pi state
   - camera presets: Fit, Iso, Top, Front
   - rotate selection ±90°
+- Each side panel folds from the top bar or with `[` and `]`, and `\` folds or shows both. A
+  panel slides over the stage's edge as the stage eases into its room over 280 ms. The canvas
+  resizes once a fold, and the picture stays centred in what is visible throughout.
 - Bottom drawer tabs: Claude, Code, ERC, Sim/Probes, Build Steps, Board (Board Sense, 14.5).
 - Keys: Delete, R (rotate), Esc, Cmd+Z / Cmd+Shift+Z, W (wire tool), F (fit), 1–4 (camera presets).
 
 11.3 Placing, wiring, and moving by hand
-- Dragging from the library shows a ghost snapped to the grid. Legal footprint holes glow green and illegal ones glow red. Dropping commits, and the part seats with its insertion animation.
+- Dragging from the library shows a ghost snapped to the grid. Legal footprint holes glow green and illegal ones glow coral. Dropping commits, and the part seats with its insertion animation.
+  - A rigid part snaps to the hole nearest the pointer from which it fits, across the trench if it must straddle it. It stays where pin 1 points when it fits there.
+  - A part that fits but may not go there (another part's holes, under the T-board) is drawn there ringed in red, and dropping it places nothing.
 - Hovering a hole highlights its whole strip or rail segment, plus every lead and wire on its net, with a tooltip such as "Row 23 · column e · net GPIO17".
   - This is the most important feature for breadboard literacy. Make it instant.
 - Wire tool: click a hole, then another hole (or a module header pin).
@@ -1135,7 +1213,7 @@ Camera:
   - height, for solid arcs
 - Wire ends are draggable. Dragging a lead mid-span sets a route hint.
 - Moving things is live:
-  - Dragging a board carries everything plugged into it.
+  - Dragging a board carries everything plugged into it. A board or the Pi stops against what it would overlap.
   - Dragging the Pi or the T-board re-drapes the ribbon.
   - Dragging a module drags its leads.
   - All cables follow and collide in real time, then settle.

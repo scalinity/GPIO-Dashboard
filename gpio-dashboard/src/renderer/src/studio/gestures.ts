@@ -18,7 +18,16 @@ import type {
 } from '../core/model/types'
 import { COL_PAIRS, MAIN_COLUMNS } from '../core/model/types'
 import type { Selection } from '../state/studioStore'
-import { movedPart, newPart, newWire, type Rotation, seat, seated } from './placement'
+import {
+  movedPart,
+  newPart,
+  newWire,
+  pointFrom,
+  type Rotation,
+  seat,
+  seated,
+  snapAnchor
+} from './placement'
 
 export type ModulePin = { part: string; pin: string }
 
@@ -105,6 +114,35 @@ const moved = (t: Transform2D, from: Vec2, to: Vec2): Transform2D => ({
   position: [round(t.position[0] + to[0] - from[0]), round(t.position[1] + to[1] - from[1])]
 })
 
+/** Where a board's or the Pi's drag proposal puts it; null for any other proposal. */
+export function placedAt(p: Proposal): Transform2D | null {
+  const op = p.ops[0]
+  if (op?.type === 'MoveBoard') return op.transform
+  if (op?.type === 'SetControllerPlacement') return op.controller.pi.transform
+  return null
+}
+
+/**
+ * A board's or the Pi's drag proposal brought back to `t` of the way from `from` to where it puts
+ * it (0 to 1), to find where it meets what it may not overlap. Any other proposal is unchanged.
+ */
+export function partway(from: Transform2D, p: Proposal, t: number): Proposal {
+  const to = placedAt(p)
+  const op = p.ops[0]
+  if (!to || !op) return p
+  const transform: Transform2D = {
+    ...to,
+    position: [
+      round(from.position[0] + (to.position[0] - from.position[0]) * t),
+      round(from.position[1] + (to.position[1] - from.position[1]) * t)
+    ]
+  }
+  if (op.type === 'MoveBoard') return { ...p, ops: [{ ...op, transform }] }
+  if (op.type === 'SetControllerPlacement')
+    return { ...p, ops: [{ ...op, controller: { ...op.controller, pi: { transform } } }] }
+  return p
+}
+
 /** The height of a board's top, where its drags are measured. */
 export function boardTop(doc: CircuitDoc, id: string): number {
   const board = doc.boards.find((b) => b.id === id)
@@ -133,7 +171,12 @@ export function propose(g: Gesture, p: Pointer, doc: CircuitDoc): Proposal | nul
         }
       }
       if (!p.hole) return null
-      const part = newPart(doc, g.defId, { anchor: p.hole, rotation: g.rotation })
+      // A rigid part snaps to the nearest hole it fits from; a flexible one seats where it points.
+      const anchor =
+        (def.footprint.kind === 'rigid' &&
+          snapAnchor(doc, g.defId, g.rotation, p.hole.board, pointFrom(doc, p.hole))) ||
+        p.hole
+      const part = newPart(doc, g.defId, { anchor, rotation: g.rotation })
       return {
         label: `Place ${part.id}`,
         ops: [{ type: 'AddPart', part }],
@@ -145,8 +188,12 @@ export function propose(g: Gesture, p: Pointer, doc: CircuitDoc): Proposal | nul
     }
     case 'part': {
       const part = doc.parts.find((x) => x.id === g.id)
-      const anchor = p.hole && seat(doc, p.hole, { pin1: g.grab }).pin1
       if (!part || !p.hole) return null
+      const rotation = part.placement.rotationDeg ?? 0
+      const anchor =
+        defOf(doc, part.defId).footprint.kind === 'rigid'
+          ? snapAnchor(doc, part.defId, rotation, p.hole.board, pointFrom(doc, p.hole, g.grab))
+          : seat(doc, p.hole, { pin1: g.grab }).pin1
       const next = anchor ? movedPart(doc, part, anchor) : part
       return {
         label: `Move ${part.id}`,

@@ -60,7 +60,7 @@ The app has six tabs: **Connect**, **Pinout**, **Tutorials**, **Workbench**, **S
 - **Building by hand.** Drag a part from the library: free holes glow green and taken ones red, judged by the same validation the document uses. A wire tool (W), schema-driven Properties (resistor bands, LED colour, and so on), Undo and Redo, and camera presets.
 - **Real-time cables.** The ribbon and every flexible lead are simulated in a worker with an in-house XPBD solver. Drag the Pi, a board, the T-board, a module or a lead end, and the cables follow, drape over what is under them and settle, then the scene stops rendering.
 - **Inspect.** Hole labels, per-net voltages, current flow dashes (from Kirchhoff's current law over the simulation), a net list, ERC halos on parts over their rating, and parts animated from the simulation: LEDs glow, and a servo horn, relay armature, motor rotor and LCD text follow their part's state.
-- **Rendering.** three.js `WebGPURenderer` with node (TSL) materials, ambient occlusion, bloom and temporal anti-aliasing, tone-mapped with AgX. It uses WebGPU where the webview offers it (the Tauri window of the development Mac did) and three's WebGL2 fallback otherwise. Frames are drawn while something moves, plus a few to settle, and none after that.
+- **Rendering.** three.js `WebGPURenderer` with node (TSL) materials, ambient occlusion, bloom and temporal anti-aliasing, in two looks a switch apart: a neutral studio tone-mapped with AgX and graded to the reference photos, and a night lab after the exhibit house style (ACES, a warm key, cool fog, faint grain, depth of field) in a furnished workroom. It uses WebGPU where the webview offers it (the Tauri window of the development Mac did) and three's WebGL2 fallback otherwise. Frames are drawn while something moves, plus a few to settle, and none after that.
 
 ### Circuit core: netlist, rules and simulation
 
@@ -174,7 +174,7 @@ The full diagram, the data flows and the module boundaries are in [`docs/ARCHITE
 - **Strict tools within a grammar budget.** The API refuses a request whose strict tool schemas compile to too large a grammar, so 11 of the 22 tools are strict and 12 stream eagerly; a refused first request drops one flag at a time ([ADR-0105](../docs/v2/DECISIONS.md)).
 - **Render only when something moves.** One geometry pass, a shadow map redrawn every second frame, and a frame loop that goes idle after temporal anti-aliasing converges; a held build step draws zero frames ([ADR-0026](../docs/v2/DECISIONS.md), [ADR-0082](../docs/v2/DECISIONS.md), [ADR-0110](../docs/v2/DECISIONS.md)).
 - **Reproducible evals.** A live run is recorded with every secret and opaque token scrubbed, and Vitest replays it with no key and no network ([ADR-0101](../docs/v2/DECISIONS.md)).
-- **141 recorded decisions.** [`docs/v2/DECISIONS.md`](../docs/v2/DECISIONS.md) holds ADR-0001 to ADR-0141, with context, options and consequences.
+- **150 recorded decisions.** [`docs/v2/DECISIONS.md`](../docs/v2/DECISIONS.md) holds ADR-0001 to ADR-0150, with context, options and consequences.
 
 ---
 
@@ -212,14 +212,14 @@ Counted from the repository when this README was written; the commands in the So
 | Device behaviour models | 15 | `core/sim/behaviors/` |
 | ngspice reference circuits | 22 | `core/sim/fixtures/ngspice.json` |
 | Assistant tools | 22 | `assistant/tools/index.ts` |
-| TypeScript and TSX files | 355 (118 of them Vitest files) | `git ls-files` |
+| TypeScript and TSX files | 383 (125 of them Vitest files) | `git ls-files` |
 | Rust files / Pi-agent Python files | 13 / 7 (2 of the Python files are tests) | `git ls-files` |
 | Blender scripts | 36 | `scripts/assets/blender/` |
-| Vitest | 2,473 tests pass, 2 skipped; 117 files run, 1 skipped | `npx vitest run` |
+| Vitest | 2,529 tests pass, 2 skipped; 124 files run, 1 skipped | `npx vitest run` |
 | Rust | 100 tests pass, 20 ignored | `cargo test` |
 | Node bridge / Pi agent | 7 / 64 tests pass | `node --test`, `python3 -m unittest` |
-| End-to-end tests (listed, not run for this table) | 108 in 12 files | `npx playwright test --list` |
-| Recorded decisions | 141 | `docs/v2/DECISIONS.md` |
+| End-to-end tests (listed, not run for this table) | 132 in 16 files | `npx playwright test --list` |
+| Recorded decisions | 150 | `docs/v2/DECISIONS.md` |
 | Audit rows | 242 (11 unsafe for hardware), every one closed | `docs/v2/AUDIT.md`, `audit.test.ts` |
 
 ---
@@ -283,7 +283,7 @@ On macOS the bundle is ad-hoc signed. Keychain access is tied to the app's code 
 | [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) | The system as built: processes, data flow, module boundaries, asset pipeline, Board Sense, the key's path |
 | [`docs/v2/SPEC.md`](../docs/v2/SPEC.md) | The v2 specification |
 | [`docs/v2/PLAN.md`](../docs/v2/PLAN.md), [`PROGRESS.md`](../docs/v2/PROGRESS.md) | The milestone plan and each milestone's exit evidence |
-| [`docs/v2/DECISIONS.md`](../docs/v2/DECISIONS.md) | ADR-0001 to ADR-0141 |
+| [`docs/v2/DECISIONS.md`](../docs/v2/DECISIONS.md) | ADR-0001 to ADR-0150 |
 | [`docs/v2/AUDIT.md`](../docs/v2/AUDIT.md) | The correctness audit: every tutorial, part depiction, hard-coded fact and README claim, with sources |
 | [`docs/v2/HIL_CHECKLIST.md`](../docs/v2/HIL_CHECKLIST.md) | Checks that need the Pi or the bench |
 | [`docs/v2/EVALS.md`](../docs/v2/EVALS.md), [`LOOKDEV.md`](../docs/v2/LOOKDEV.md) | The assistant's evaluations and the look-development checklist |

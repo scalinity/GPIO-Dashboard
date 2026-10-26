@@ -25,8 +25,8 @@ export default function Drawer({ doc }: { doc: CircuitDoc }) {
     ['board', 'Board']
   ]
   return (
-    <div className="shrink-0 border-t border-white/[0.04] bg-surface-900/60">
-      <div className="flex gap-1 px-3 pt-1" role="tablist" aria-label="Drawer">
+    <div className="glass-bg shrink-0 border-t border-white/[0.06]">
+      <div className="seg-track mx-3 my-1.5 w-fit" role="tablist" aria-label="Drawer">
         {tabs.map(([id, label]) => (
           <button
             key={id}
@@ -39,7 +39,7 @@ export default function Drawer({ doc }: { doc: CircuitDoc }) {
             {id === 'claude' && working && (
               <span
                 aria-hidden
-                className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent-light"
+                className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-400 motion-reduce:animate-none"
               />
             )}
           </button>

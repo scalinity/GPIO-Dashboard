@@ -21,6 +21,7 @@ import Models from './Models'
 import { createRenderer } from './renderer'
 import Stage from './Stage'
 import type { StudioView } from './view'
+import Hud from './Hud'
 
 declare global {
   interface Window {
@@ -36,6 +37,14 @@ function Frames({ view }: { view: StudioView }) {
   }, 1)
   return null
 }
+
+/**
+ * The Lab look's vignette (exhibit style bible 9): the left edge darkened from 63% black over its
+ * first 24%, and an ellipse about the stage's centre, clear to 56% and 66% black at the corners.
+ */
+const VIGNETTE =
+  'linear-gradient(90deg, rgb(0 0 0 / 0.63), rgb(0 0 0 / 0) 24%), ' +
+  'radial-gradient(ellipse at 54% 50%, rgb(0 0 0 / 0) 56%, rgb(0 0 0 / 0.66))'
 
 const PIN_CHOICES: [string, GpioState][] = [
   ['Output HIGH', { mode: 'out', level: true }],
@@ -71,7 +80,7 @@ function PinMenu() {
       <div
         role="menu"
         aria-label={`GPIO${menu.bcm}`}
-        className="fixed z-40 card p-1 w-44"
+        className="hud-dialog fixed z-40 p-1 w-44"
         style={{ left: menu.x, top: menu.y }}
       >
         <div className="px-2 py-1 text-xs font-mono text-gray-400">GPIO{menu.bcm}</div>
@@ -113,7 +122,7 @@ function Working() {
       <Loader2 className="w-3.5 h-3.5 animate-spin text-accent-light" />
       Claude is working · the bench is read-only
       <button
-        className="ml-1 flex items-center gap-1 rounded-pill bg-red-600 hover:bg-red-500 px-2.5 py-1 text-white"
+        className="btn-danger ml-1 flex items-center gap-1 rounded-pill px-2.5 py-1 text-xs"
         onClick={stop}
       >
         <Square className="w-3 h-3" /> Stop
@@ -155,7 +164,7 @@ function Cue() {
     <div
       role="note"
       aria-label="Claude's note"
-      className="absolute top-3 left-3 z-20 max-w-xs glass-panel rounded-btn flex items-start gap-2 px-3 py-2 text-xs text-violet-100"
+      className="glass-panel rounded-btn flex items-start gap-2 px-3 py-2 text-xs text-violet-100"
     >
       <span className="flex-1">{cue.note}</span>
       <button
@@ -202,7 +211,7 @@ function BadgeCard({ doc }: { doc: CircuitDoc }) {
     <section
       role="dialog"
       aria-label={badge.title}
-      className="absolute right-3 top-3 z-30 w-80 max-w-[90%] glass-panel rounded-btn space-y-2 px-3 py-2 text-xs text-gray-200"
+      className="card absolute right-3 top-3 z-30 w-80 max-w-[90%] space-y-2 px-3.5 py-3 text-xs text-gray-200"
     >
       <div className="flex items-start gap-2">
         <span
@@ -246,13 +255,27 @@ function BadgeCard({ doc }: { doc: CircuitDoc }) {
   )
 }
 
+/**
+ * The Studio's region between the side panels, and the canvas's within it (ADR-0148): the view
+ * sets the four variables on the page's row. At rest the canvas fills the region; while a panel
+ * shows or hides, it holds still over the room on either side of the edge that moves.
+ */
+const REGION = { left: 'var(--dock-l, 0px)', right: 'var(--dock-r, 0px)' }
+const SPAN = {
+  left: 'calc(var(--span-l, 0px) - var(--dock-l, 0px))',
+  right: 'calc(var(--span-r, 0px) - var(--dock-r, 0px))'
+}
+
 export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDoc }) {
   const tooltip = useRef<HTMLDivElement>(null)
   const labels = useRef<HTMLDivElement>(null)
   const tags = useRef<HTMLDivElement>(null)
   const marks = useRef<HTMLDivElement>(null)
   const badges = useRef<HTMLDivElement>(null)
+  const veil = useRef<HTMLDivElement>(null)
+  const vignette = useRef<HTMLDivElement>(null)
   const notice = useStudio((s) => s.notice)
+  const presenting = useStudio((s) => s.presenting)
   const attach = useCallback(
     (element: HTMLDivElement) => {
       const detach = view.attach(
@@ -261,7 +284,9 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
         labels.current!,
         tags.current!,
         marks.current!,
-        badges.current!
+        badges.current!,
+        veil.current!,
+        vignette.current!
       )
       bindStage(view)
       if (import.meta.env.DEV) window.__studio = view
@@ -276,28 +301,42 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
   // Anything clickable sits outside the element the orbit controls listen on: their pointer
   // capture would otherwise take its clicks.
   return (
-    <div className="relative flex-1 min-h-0 min-w-0">
+    <div className="absolute inset-y-0" style={REGION}>
       {/* Before the stage, so that its ref is set when the stage attaches. */}
-      <div ref={badges} className="absolute inset-0 z-10 overflow-hidden pointer-events-none" />
-      <div ref={attach} className="absolute inset-0" data-testid="studio">
+      <div
+        ref={badges}
+        className="absolute inset-y-0 z-10 overflow-hidden pointer-events-none"
+        style={SPAN}
+      />
+      <div ref={attach} className="absolute inset-y-0" style={SPAN} data-testid="studio">
         <Canvas
           gl={createRenderer}
           camera={view.camera}
           frameloop="demand"
           shadows="percentage"
-          scene={{ environmentIntensity: 0.6 }}
           onCreated={(state) => {
             // R3F sets ACES Filmic while configuring a renderer; the Studio uses AgX (SPEC 10.1).
             state.gl.toneMapping = AgXToneMapping
-            view.bind(state.gl as unknown as WebGPURenderer, state.scene, state.invalidate)
+            view.bind(state.gl as unknown as WebGPURenderer, state.scene, state.invalidate, {
+              size: () => state.get().size,
+              setSize: state.setSize
+            })
           }}
         >
-          <Stage />
+          <Stage rig={view.rig} />
           <Models doc={doc} />
           <primitive object={view.overlay} />
           <primitive object={view.layers} />
           <Frames view={view} />
         </Canvas>
+        {/* Shown in the Lab look only; the view sets its opacity. */}
+        <div
+          ref={vignette}
+          aria-hidden
+          data-testid="studio-vignette"
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: VIGNETTE }}
+        />
         <div ref={labels} className="absolute inset-0 overflow-hidden pointer-events-none" />
         <div ref={tags} className="absolute inset-0 overflow-hidden pointer-events-none" />
         <div ref={marks} className="absolute inset-0 overflow-hidden pointer-events-none" />
@@ -305,16 +344,30 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
           ref={tooltip}
           hidden
           data-testid="studio-tooltip"
-          className="absolute left-0 top-0 pointer-events-none rounded-btn bg-surface-900/90 border border-white/[0.06] px-2 py-1 text-xs text-gray-200 font-mono whitespace-nowrap"
+          className="hud-tip absolute left-0 top-0 pointer-events-none"
+        />
+        {/* A look switch happens under it (ADR-0143); the view fades it. */}
+        <div
+          ref={veil}
+          aria-hidden
+          data-testid="studio-veil"
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: '#0b0f1a', opacity: 0 }}
         />
       </div>
       <PinMenu />
       <Working />
-      <Cue />
+      <Hud doc={doc}>
+        <Cue />
+      </Hud>
       <BadgeCard doc={doc} />
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 max-w-[80%] flex flex-col items-center gap-2">
+        {presenting && <p className="hud-toast">Drag, click or press a key to take over</p>}
         {notice && (
-          <div role="status" className="glass-panel rounded-btn px-3 py-1.5 text-xs text-amber-300">
+          <div
+            role="status"
+            className="glass-panel rounded-pill px-3.5 py-1.5 text-xs text-amber-300"
+          >
             {notice}
           </div>
         )}

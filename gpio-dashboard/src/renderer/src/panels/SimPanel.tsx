@@ -86,7 +86,7 @@ function GpioControl({ bcm }: { bcm: number }) {
       <td className="pr-3 font-mono text-xs text-gray-400">
         {pin && state?.mode === 'out' ? fmt(pin.currentA, 'A') : ''}
       </td>
-      <td className="font-mono text-xs text-accent-light">{reading ?? ''}</td>
+      <td className="font-mono text-xs text-accent">{reading ?? ''}</td>
     </tr>
   )
 }
@@ -154,7 +154,7 @@ export default function SimPanel({ doc }: { doc: CircuitDoc }) {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-gray-300">GPIOs in this circuit</h2>
+        <h2 className="section-title">GPIOs in this circuit</h2>
         <table className="text-sm">
           <tbody>
             {gpios.map((bcm) => (
@@ -162,12 +162,12 @@ export default function SimPanel({ doc }: { doc: CircuitDoc }) {
             ))}
           </tbody>
         </table>
-        <h2 className="text-sm font-semibold text-gray-300 pt-2">Inputs</h2>
+        <h2 className="section-title pt-2">Inputs</h2>
         {doc.parts.map((p) => (
           <PartInputs key={p.id} part={p} />
         ))}
         <div className="flex items-center gap-2 text-xs text-gray-400">
-          <span>t = {(snap?.t ?? 0).toFixed(3)} s</span>
+          <span className="font-mono">t = {(snap?.t ?? 0).toFixed(3)} s</span>
           {[0.01, 0.1, 1].map((dt) => (
             <button key={dt} className="btn-ghost text-xs" onClick={() => advance(dt)}>
               +{dt * 1000} ms
@@ -177,7 +177,7 @@ export default function SimPanel({ doc }: { doc: CircuitDoc }) {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-gray-300">Simulated</h2>
+        <h2 className="section-title">Simulated</h2>
         {snap?.error && <p className="text-sm text-red-400">Simulation error: {snap.error}</p>}
         {snap && (
           <div className="card py-3 space-y-1 text-xs">
@@ -208,7 +208,7 @@ export default function SimPanel({ doc }: { doc: CircuitDoc }) {
         )}
 
         <div className="flex items-center justify-between pt-2">
-          <h2 className="text-sm font-semibold text-gray-300">Board Sense prediction</h2>
+          <h2 className="section-title">Board Sense prediction</h2>
           <button className="btn-secondary text-xs flex items-center gap-1.5" onClick={runProbe}>
             <Radar className="w-3.5 h-3.5" /> Predict probe signature
           </button>

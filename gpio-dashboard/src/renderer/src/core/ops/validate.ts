@@ -4,20 +4,13 @@
 import { boardDef, type BoardDef } from '../defs/boards'
 import { TBOARD, type TboardDef } from '../defs/controllers'
 import { checkPartDef, propProblem } from '../defs/parts'
-import { columnPitches, holeKey, holePosition, isValidHole } from '../geometry/breadboard'
+import { columnAt, columnPitches, holeKey, holePosition, isValidHole } from '../geometry/breadboard'
 import { tboardBlockedHoles, tboardPlacementProblems } from '../geometry/tboard'
-import type {
-  CircuitDoc,
-  Endpoint,
-  HoleRef,
-  MainColumn,
-  PartDef,
-  PartInstance,
-  Wire
-} from '../model/types'
+import type { CircuitDoc, Endpoint, HoleRef, PartDef, PartInstance, Wire } from '../model/types'
 import { PartDefSchema } from '../model/schema'
 import { CUSTOM_PART_PREFIX, MAIN_COLUMNS } from '../model/types'
 import { docPartDefs, occupancy, occupantKey, type PartDefs } from '../netlist/netlist'
+import { standingOverlaps } from '../reach/reach'
 
 export interface Problem {
   code: string
@@ -53,10 +46,6 @@ function rotate([x, y]: readonly [number, number], deg: number): [number, number
   }
 }
 
-function columnAt(def: BoardDef, pitches: number): MainColumn | undefined {
-  return MAIN_COLUMNS.find((c) => columnPitches(def, c) === pitches)
-}
-
 /** What is wrong with one of a project's own part definitions; empty when it is sound. */
 function customPartProblems(def: PartDef): string[] {
   const parsed = PartDefSchema.safeParse(def)
@@ -65,6 +54,22 @@ function customPartProblems(def: PartDef): string[] {
     ...(def.id.startsWith(CUSTOM_PART_PREFIX) ? [] : [`its id must start "${CUSTOM_PART_PREFIX}"`]),
     ...checkPartDef(def)
   ]
+}
+
+/**
+ * The boards and the Pi standing on one another that an edit makes: a board moved into the Pi,
+ * say. Only new overlaps count, so a project saved with one still opens and takes other edits.
+ */
+export function newOverlaps(before: CircuitDoc, after: CircuitDoc): Problem[] {
+  const had = new Set(standingOverlaps(before).map((pair) => pair.join()))
+  const name = (id: string) => (id === 'pi' ? 'the Pi' : id)
+  return standingOverlaps(after)
+    .filter((pair) => !had.has(pair.join()))
+    .map(([a, b]) => ({
+      code: 'OVERLAP',
+      message: `${name(a)} can't overlap ${name(b)}`,
+      refs: [a, b].filter((id) => id !== 'pi')
+    }))
 }
 
 export function validateDoc(

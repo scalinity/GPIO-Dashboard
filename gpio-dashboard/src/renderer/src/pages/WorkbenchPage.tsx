@@ -31,7 +31,7 @@ export default function WorkbenchPage() {
         <h1 className="text-lg font-semibold text-gray-200">Workbench</h1>
         <select
           aria-label="Open a sample"
-          className="ml-4 bg-surface-800 text-gray-200 text-sm rounded px-2 py-1"
+          className="input-field ml-4 w-auto py-1.5"
           value={SAMPLES.some((s) => s.id === source) ? source! : ''}
           onChange={(e) => {
             const sample = SAMPLES.find((s) => s.id === e.target.value)
@@ -71,7 +71,7 @@ export default function WorkbenchPage() {
       )}
       {doc && problems.length === 0 && (
         <>
-          <div className="flex gap-1 px-4 pt-3" role="tablist">
+          <div className="seg-track mx-4 mt-3 w-fit" role="tablist">
             {(
               [
                 ['sim', 'Sim/Probes'],

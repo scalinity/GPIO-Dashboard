@@ -1,4 +1,11 @@
+// The HUD's faces (SPEC 2.3), served from the app itself: Outfit's variable face for the interface
+// (its Latin Extended file loads only for a character that needs it) and DM Mono 400 and 500, Latin
+// only, for values.
+import '@fontsource-variable/outfit'
+import '@fontsource/dm-mono/latin-400.css'
+import '@fontsource/dm-mono/latin-500.css'
 import './index.css'
+import './styles/hud.css'
 import './api'
 
 import { StrictMode } from 'react'

@@ -14,7 +14,7 @@ function UsageBar({ value, color }) {
 
 function InfoCard({ icon: Icon, label, children }) {
   return (
-    <div className="bg-white/[0.03] border border-white/[0.04] rounded-btn p-3 shadow-inner-highlight">
+    <div className="card p-3">
       <div className="flex items-center gap-2 mb-2">
         <Icon className="w-4 h-4 text-gray-500" />
         <span className="section-title">{label}</span>
@@ -27,9 +27,9 @@ function InfoCard({ icon: Icon, label, children }) {
 // The Raspberry Pi docs (frequency management): the Arm cores are throttled progressively from
 // 80 °C, and cores and GPU at 85 °C.
 function tempColor(temp) {
-  if (temp < 80) return '#22C55E'
-  if (temp < 85) return '#EAB308'
-  return '#EF4444'
+  if (temp < 80) return 'var(--green)'
+  if (temp < 85) return 'var(--amber)'
+  return 'var(--coral)'
 }
 
 export default function SystemInfo() {
@@ -59,7 +59,10 @@ export default function SystemInfo() {
       {/* CPU Temperature */}
       <InfoCard icon={Thermometer} label="CPU Temp">
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold tabular-nums" style={{ color: tempColor(temp) }}>
+          <span
+            className="font-mono text-2xl font-medium tabular-nums"
+            style={{ color: tempColor(temp) }}
+          >
             {temp.toFixed(1)}
           </span>
           <span className="text-sm text-gray-500">&deg;C</span>
@@ -70,20 +73,22 @@ export default function SystemInfo() {
       <InfoCard icon={Cpu} label="Memory">
         <div className="space-y-1.5">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-300 tabular-nums">{memPercent}%</span>
-            <span className="text-gray-500 tabular-nums">
+            <span className="font-mono text-gray-300 tabular-nums">{memPercent}%</span>
+            <span className="font-mono text-gray-500 tabular-nums">
               {mem.used_mb ? `${Math.round(mem.used_mb)}MB` : '--'}
               {' / '}
               {mem.total_mb ? `${Math.round(mem.total_mb)}MB` : '--'}
             </span>
           </div>
-          <UsageBar value={memPercent} color={memPercent > 80 ? '#EF4444' : '#3B82F6'} />
+          <UsageBar value={memPercent} color={memPercent > 80 ? 'var(--coral)' : 'var(--cyan)'} />
         </div>
       </InfoCard>
 
       {/* Uptime */}
       <InfoCard icon={Clock} label="Uptime">
-        <span className="text-sm text-gray-300 tabular-nums">{systemInfo.uptime || '--'}</span>
+        <span className="font-mono text-sm text-gray-300 tabular-nums">
+          {systemInfo.uptime || '--'}
+        </span>
       </InfoCard>
 
       {/* Model */}
@@ -102,14 +107,14 @@ export default function SystemInfo() {
       <InfoCard icon={HardDrive} label="Disk">
         <div className="space-y-1.5">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-300 tabular-nums">{diskPercent}%</span>
-            <span className="text-gray-500 tabular-nums">
+            <span className="font-mono text-gray-300 tabular-nums">{diskPercent}%</span>
+            <span className="font-mono text-gray-500 tabular-nums">
               {disk.used_gb ? `${disk.used_gb.toFixed(1)}GB` : '--'}
               {' / '}
               {disk.total_gb ? `${disk.total_gb.toFixed(1)}GB` : '--'}
             </span>
           </div>
-          <UsageBar value={diskPercent} color={diskPercent > 90 ? '#EF4444' : '#22C55E'} />
+          <UsageBar value={diskPercent} color={diskPercent > 90 ? 'var(--coral)' : 'var(--cyan)'} />
         </div>
       </InfoCard>
     </div>

@@ -9,15 +9,15 @@ export default function ProjectsGallery() {
     <div
       role="dialog"
       aria-label="Projects"
-      className="absolute inset-0 z-30 flex items-start justify-center bg-surface-950/70 pt-16"
+      className="hud-backdrop absolute inset-0 z-30 flex items-start justify-center pt-16"
       onClick={closeGallery}
     >
       <div
-        className="card w-[32rem] max-h-[70%] overflow-y-auto"
+        className="hud-dialog w-[32rem] max-h-[70%] overflow-y-auto rounded-[20px] p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-gray-200">My projects</h2>
+          <h2 className="text-lg font-bold tracking-tight text-gray-100">My projects</h2>
           <button className="btn-ghost" aria-label="Close" onClick={closeGallery}>
             <X className="w-4 h-4" />
           </button>

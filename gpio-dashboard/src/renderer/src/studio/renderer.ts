@@ -1,43 +1,62 @@
 // The renderer and its post-processing (SPEC 10.1, 10.2): WebGPURenderer, never the legacy
-// WebGLRenderer, and three's node RenderPipeline with GTAO, bloom and TRAA. Depth of field is
-// built when something first asks for focus (Build Mode). No grain, aberration or lens dirt.
+// WebGLRenderer, and three's node RenderPipeline with GTAO and TRAA, then each look's own finish:
+// bloom, the tone mapping and grade (the pipeline draws without the renderer's tone mapping) and, in
+// the Lab look, a faint grain. One output holds both finishes and a uniform picks one, so a look
+// switch compiles nothing (ADR-0143). The Lab look focuses on the bench with a depth-aware bokeh
+// (ADR-0145); Build Mode narrows its band to the step, and in the Studio look builds three's depth
+// of field the first time it asks for focus. No aberration or lens dirt.
 import {
   AgXToneMapping,
-  type Camera,
   type DirectionalLight,
   type Node,
   NodeUpdateType,
+  NoToneMapping,
   RenderPipeline,
+  type PerspectiveCamera,
   type Scene,
   SRGBColorSpace,
+  type TextureNode,
   TimestampQuery,
   UnsignedByteType,
+  Vector2,
   WebGPURenderer
 } from 'three/webgpu'
 import {
+  acesFilmicToneMapping,
   builtinAOContext,
+  clamp,
+  float,
   mrt,
   normalView,
   output,
   packNormalToRGB,
   max,
+  luminance,
   min,
+  mix,
   smoothstep,
+  step,
   pass,
   renderOutput,
   sample,
+  saturation,
   screenUV,
+  select,
   uniform,
   unpackRGBToNormal,
+  vec3,
   vec4,
   velocity
 } from 'three/tsl'
 import type BloomNode from 'three/addons/tsl/display/BloomNode.js'
 import { bloom } from 'three/addons/tsl/display/BloomNode.js'
 import { dof } from 'three/addons/tsl/display/DepthOfFieldNode.js'
+import { film } from 'three/addons/tsl/display/FilmNode.js'
 import { ao } from 'three/addons/tsl/display/GTAONode.js'
 import { traa } from 'three/addons/tsl/display/TRAANode.js'
 import { setFrameCost } from '../dev/frameCost'
+import { bokeh, bokehUniforms } from './bokeh'
+import { LAB, type LookName, STUDIO } from './look'
 import { type Backend, setStatus } from './status'
 
 /**
@@ -69,34 +88,46 @@ type Output = Node<'vec4'>
  * about 214, 83, 65 and a yellow at 230, 185, 120; the reference photos' are 208, 10, 14 and
  * 245, 203, 26) and, lit by the studio, leaves the white boards a step darker than the photos'.
  * The exposure is lifted, and once AgX has tone mapped the image, each pixel's distance below its
- * brightest channel is stretched by up to `1 + saturation`, in proportion to how colourful the
+ * brightest channel is stretched by up to `1 + stretch`, in proportion to how colourful the
  * pixel is: greys and whites stay where they are, reds and yellows go back to red and yellow. AgX
- * stays the tone mapping, and nothing else is added.
+ * stays the tone mapping, and nothing else is added. The numbers are the Studio look's.
  */
-export const GRADE = { exposure: 1.7, saturation: 1.2 }
+export const GRADE = { exposure: STUDIO.tone.exposure, saturation: STUDIO.tone.stretch }
 
 /**
  * Bloom takes only what is brighter than this in scene-linear light: a lit LED's emission, which
  * passes it, and not the key light's highlight on a board's metal rings or the Pi's shields, which
- * pass 1 (ADR-0067).
+ * pass 1 (ADR-0067). The Lab's room is drawn below it too (ADR-0144).
  */
 export const BLOOM_THRESHOLD = 2
 
-/** Bloom's strength and radius. */
-const BLOOM = { strength: 0.35, radius: 0.4 }
+/**
+ * The Lab look's depth of field (ADR-0145): around the bench the blur ramps from none to full over
+ * the camera's distance to the bench times BENCH_BAND, as a lens's blur grows the closer it
+ * focuses; around Build Mode's step, over STEP_BAND_MM. MAX_BLUR_PX is its largest radius.
+ */
+const BENCH_BAND = 1
+const STEP_BAND_MM = 320
+const MAX_BLUR_PX = 10
 
-// The pipeline's own output transform is off, so the same AgX mapping and sRGB encoding are
-// applied here, followed by the grade. `blooms` collects the bloom nodes it builds.
-const finish = (input: Output, blooms: BloomNode[]): Output => {
-  const glow = bloom(input, BLOOM.strength, BLOOM.radius, BLOOM_THRESHOLD)
-  blooms.push(glow)
-  const lit = input.add(glow)
-  const mapped = renderOutput(lit, AgXToneMapping, SRGBColorSpace)
-  const peak = max(max(mapped.r, mapped.g), mapped.b)
-  const below = peak.sub(mapped.rgb)
-  const chroma = peak.sub(min(min(mapped.r, mapped.g), mapped.b)).div(max(peak, 1e-4))
-  const stretch = smoothstep(0.1, 0.5, chroma).mul(GRADE.saturation).add(1)
-  return vec4(peak.sub(min(below.mul(stretch), peak)), mapped.a)
+/**
+ * GTAO's resolution against the drawing buffer's, the same in both looks: a different one per look
+ * would reallocate its targets on every switch (ADR-0145).
+ */
+const AO_SCALE = 0.5
+
+/**
+ * The Lab bloom's input. The bloom's high pass reads luminance, so a red or blue LED stays under
+ * the threshold where a yellow one at the same current passes it. In the Lab look a pixel whose
+ * largest channel passes the threshold is scaled toward a luminance equal to that channel (at most
+ * three times, so a red LED's glow stays a halo): every lit LED blooms by its current, whatever its colour. Nothing in the room passes
+ * the threshold, so nothing there is scaled.
+ */
+const byPeak = (input: Output): Output => {
+  const c = input.rgb
+  const peak = max(max(c.r, c.g), c.b)
+  const boost = clamp(peak.div(luminance(c).max(1e-4)), 1, 3)
+  return vec4(c.mul(mix(float(1), boost, step(BLOOM_THRESHOLD, peak))), input.a)
 }
 
 /** The key light's shadow map is redrawn every this many frames (ADR-0082). */
@@ -104,13 +135,29 @@ const SHADOW_EVERY = 2
 
 export class Post {
   private readonly pipeline: RenderPipeline
-  private readonly sharp: Output
   private readonly resolved: Output
   private readonly viewZ: Node
-  /** Every bloom node built, for `setBloom`. */
-  private readonly blooms: BloomNode[] = []
+  /**
+   * 1 in the Lab look. One output holds both looks' finishes and picks one by it: pointing the
+   * pipeline at another output node would release the GPU pipeline of the one it leaves and
+   * build it again on the way back (ADR-0143).
+   */
+  private readonly lab = uniform(0)
+  /** Every bloom node built, with the strength it draws at and its look, for `gate`. */
+  private readonly blooms = new Map<BloomNode, { strength: number; look: LookName }>()
+  /** Other nodes that draw passes of their own for one look only (depth of field). */
+  private readonly own = new Map<Node, LookName>()
+  /** The Lab look's depth of field, and the bench's image through it. */
+  private readonly lens = bokehUniforms()
+  private readonly labInput: Output
+  private readonly size = new Vector2()
+  /** Both looks' output without depth of field. */
+  private readonly output: Output
+  private look: LookName = 'studio'
   private bloom = true
-  private focus: { output: Output; distance: ReturnType<typeof uniform> } | null = null
+  /** Where Build Mode's depth of field focuses, and the output with it once built. */
+  private readonly focus = { distance: uniform(0), output: null as Output | null }
+  private focused = false
   private key: DirectionalLight | null = null
   private rendered = 0
   private renderMs = 0
@@ -118,8 +165,8 @@ export class Post {
   constructor(
     /** Public for the e2e frame-rate measurement, which reads the GPU's timestamp queries. */
     readonly renderer: WebGPURenderer,
-    private readonly scene: Scene,
-    camera: Camera
+    scene: Scene,
+    private readonly camera: PerspectiveCamera
   ) {
     // One geometry pass draws the colour, the packed normal and the velocity. GTAO reads that
     // pass's depth and normals, and the same pass applies the occlusion to its ambient light: the
@@ -133,7 +180,7 @@ export class Post {
 
     // GTAO's radius is in scene units: 8 mm, about three pitches.
     const occlusion = ao(depth, normal, camera)
-    occlusion.resolutionScale = 0.5
+    occlusion.resolutionScale = AO_SCALE
     occlusion.useTemporalFiltering = true
     occlusion.radius.value = 8
     colour.contextNode = builtinAOContext(occlusion.getTextureNode().sample(screenUV).r)
@@ -142,25 +189,59 @@ export class Post {
     resolved.useSubpixelCorrection = false
     this.resolved = resolved
 
-    this.sharp = finish(resolved, this.blooms)
-    this.pipeline = new RenderPipeline(renderer, this.sharp)
+    // getTextureNode() exists on TRAANode in r186 but is missing from @types/three 0.186.
+    const sharp = (resolved as unknown as { getTextureNode(): TextureNode }).getTextureNode()
+    this.lens.band.value = this.lens.focus.value * BENCH_BAND
+    const lens = bokeh(sharp, depth, this.lens)
+    for (const p of lens.passes) this.own.set(p, 'lab')
+    this.labInput = lens.output
+    this.output = this.pick(this.finishLab(lens.output), this.finish(resolved))
+    this.pipeline = new RenderPipeline(renderer, this.output)
     this.pipeline.outputColorTransform = false
+    this.gate()
+  }
+
+  /** The output without depth of field (tests compare the pipeline's with it). */
+  get sharp(): Output {
+    return this.output
+  }
+
+  /** Draws `look` from the next frame. */
+  setLook(look: LookName): void {
+    this.look = look
+    this.lab.value = look === 'lab' ? 1 : 0
+    this.gate()
+  }
+
+  /** Where the Lab look's depth of field focuses: the bench, `distanceMm` from the camera. */
+  setBenchFocus(distanceMm: number): void {
+    this.lens.focus.value = distanceMm
+    if (!this.focused) this.lens.band.value = distanceMm * BENCH_BAND
+  }
+
+  /** The light whose shadow map `render` redraws. */
+  setKey(light: DirectionalLight): void {
+    this.key = light
   }
 
   render(): void {
-    this.key ??=
-      (this.scene.getObjectByProperty('isDirectionalLight', true) as
-        DirectionalLight | undefined) ?? null
     if (this.key) {
       // A shadow that trails by one frame is under a millimetre behind a dragged board; the
       // settling frames after the last change redraw it.
       this.key.shadow.autoUpdate = false
       this.key.shadow.needsUpdate = this.rendered % SHADOW_EVERY === 0
     }
+    this.renderer.getDrawingBufferSize(this.size)
+    this.lens.texel.value.set(1 / this.size.x, 1 / this.size.y)
+    // A wide view blurs less, so the room behind it stays shapes rather than smears.
+    const reach = Math.min(Math.max(1000 / this.lens.focus.value, 0.75), 1)
+    this.lens.maxBlur.value = MAX_BLUR_PX * reach * this.renderer.getPixelRatio()
+    this.lens.near.value = this.camera.near
+    this.lens.far.value = this.camera.far
     if (import.meta.env.DEV) this.renderTimed()
     else this.pipeline.render()
     // The frame that drew a bloom of strength 0 left its texture black; it is not drawn again.
-    if (!this.bloom) for (const b of this.blooms) b.updateBeforeType = NodeUpdateType.NONE
+    if (!this.bloom) for (const b of this.blooms.keys()) b.updateBeforeType = NodeUpdateType.NONE
     this.rendered += 1
   }
 
@@ -172,10 +253,21 @@ export class Post {
   setBloom(on: boolean): void {
     if (on === this.bloom) return
     this.bloom = on
-    for (const b of this.blooms) {
-      b.strength.value = on ? BLOOM.strength : 0
-      b.updateBeforeType = NodeUpdateType.FRAME
+    this.gate()
+  }
+
+  /**
+   * Leaves out of the frame every pass the active look does not show, and its blooms while
+   * nothing passes the threshold: they draw once more at strength 0, then not at all.
+   */
+  private gate(): void {
+    for (const [b, { strength, look }] of this.blooms) {
+      const mine = look === this.look
+      b.strength.value = mine && this.bloom ? strength : 0
+      b.updateBeforeType = mine ? NodeUpdateType.FRAME : NodeUpdateType.NONE
     }
+    for (const [node, look] of this.own)
+      node.updateBeforeType = look === this.look ? NodeUpdateType.FRAME : NodeUpdateType.NONE
   }
 
   /** Dev builds: the render call's main-thread time and the GPU's pass time, every 30 frames. */
@@ -193,23 +285,85 @@ export class Post {
     })
   }
 
-  /** Depth of field focused `distanceMm` along the view, or none (Build Mode, SPEC 11.7). */
+  /**
+   * Depth of field focused `distanceMm` along the view, or none (Build Mode, SPEC 11.7). The Lab
+   * look's narrows to the step; the Studio look's is three's, built the first time.
+   */
   setFocus(distanceMm: number | null): void {
-    if (distanceMm !== null) {
-      this.focus ??= (() => {
-        const distance = uniform(distanceMm)
-        // @types/three 0.186 leaves DepthOfFieldNode's output type out; it is a vec4 like TRAA's.
-        const blurred = dof(this.resolved, this.viewZ, distance, 120, 4) as unknown as Output
-        const output = finish(blurred, this.blooms)
-        if (!this.bloom) this.blooms.at(-1)!.strength.value = 0
-        return { output, distance }
-      })()
-      this.focus.distance.value = distanceMm
-    }
-    const output = distanceMm === null ? this.sharp : this.focus!.output
+    if (distanceMm !== null) this.focus.distance.value = distanceMm
+    this.focused = distanceMm !== null
+    this.lens.band.value = this.focused ? STEP_BAND_MM : this.lens.focus.value * BENCH_BAND
+    const output = this.focused ? this.focusOutput() : this.output
     if (this.pipeline.outputNode !== output) {
       this.pipeline.outputNode = output
       this.pipeline.needsUpdate = true
     }
+  }
+
+  /** The output with depth of field, built the first time it is asked for. */
+  private focusOutput(): Output {
+    if (!this.focus.output) {
+      // @types/three 0.186 leaves DepthOfFieldNode's output type out; it is a vec4 like TRAA's.
+      const blurred = dof(
+        this.resolved,
+        this.viewZ,
+        this.focus.distance,
+        120,
+        4
+      ) as unknown as Output
+      this.own.set(blurred, 'studio')
+      this.focus.output = this.pick(this.finishLab(this.labInput), this.finish(blurred))
+      this.gate()
+    }
+    return this.focus.output
+  }
+
+  /** The Lab look's output in the Lab look, the Studio look's otherwise. */
+  private pick(lab: Output, studio: Output): Output {
+    return select(this.lab.greaterThan(0.5), lab, studio)
+  }
+
+  /**
+   * The Studio look's finish (ADR-0067): bloom, then the AgX mapping and sRGB encoding the
+   * pipeline's own output transform would apply (it is off), then the grade.
+   */
+  private finish(input: Output): Output {
+    const lit = input.add(this.glow(input, 'studio'))
+    const mapped = renderOutput(lit, AgXToneMapping, SRGBColorSpace)
+    const peak = max(max(mapped.r, mapped.g), mapped.b)
+    const below = peak.sub(mapped.rgb)
+    const chroma = peak.sub(min(min(mapped.r, mapped.g), mapped.b)).div(max(peak, 1e-4))
+    const stretch = smoothstep(0.1, 0.5, chroma).mul(STUDIO.tone.stretch).add(1)
+    return vec4(peak.sub(min(below.mul(stretch), peak)), mapped.a)
+  }
+
+  /**
+   * The Lab look's finish, after the exhibit house style: bloom, a saturation lift that offsets
+   * ACES's desaturation of bright colours, ACES Filmic at the look's exposure, a faint film grain,
+   * and the sRGB encoding.
+   */
+  private finishLab(input: Output): Output {
+    const lit = input.rgb.add(this.glow(input, 'lab').rgb)
+    const graded = saturation(lit, LAB.tone.saturation).max(0)
+    // @types/three 0.186 types the tone-mapping functions as returning a plain Node; it is a vec3.
+    const exposure = float(LAB.tone.exposure)
+    const toned = acesFilmicToneMapping(graded, exposure) as Node<'vec3'>
+    // ACES maps each channel toward white, so a lit red or amber LED's core clips to peach. The
+    // brightest pixels keep their hue instead: their largest channel is mapped and the others
+    // scaled with it. Below 1 after exposure nothing changes.
+    const peak = max(max(graded.r, graded.g), graded.b).max(1e-4)
+    const mapped = (acesFilmicToneMapping(vec3(peak), exposure) as Node<'vec3'>).r
+    const kept = graded.mul(mapped.div(peak))
+    const shoulder = smoothstep(1, 4, peak.mul(exposure))
+    const grained = film(vec4(mix(toned, kept, shoulder), 1), float(LAB.grain))
+    return renderOutput(grained, NoToneMapping, SRGBColorSpace)
+  }
+
+  /** A bloom of `input` at the bloom's threshold, gated with the others. */
+  private glow(input: Output, look: LookName) {
+    const { strength, radius } = (look === 'lab' ? LAB : STUDIO).bloom
+    const glow = bloom(look === 'lab' ? byPeak(input) : input, strength, radius, BLOOM_THRESHOLD)
+    this.blooms.set(glow, { strength, look })
+    return glow
   }
 }

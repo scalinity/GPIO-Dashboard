@@ -62,6 +62,8 @@ export interface SimInputs {
   }
   /** Parts and leads tinted as the assistant's: its ghosts, and what its turn changed. */
   review: { parts: string[]; wires: string[] }
+  /** A drag's part drawn where it may not go: ringed in red, as an error is. */
+  refused: string[]
 }
 
 /** What the visuals drew, read back for tests. */
@@ -253,13 +255,15 @@ export class SimVisuals {
       if (RATING_CODES.has(issue.code) && issue.severity !== 'info')
         for (const ref of issue.refs)
           if (i.doc.parts.some((p) => p.id === ref)) rated.set(ref, issue.severity)
-    // A rating halo says more than the assistant's tint, so it wins.
-    const reviewed = i.review.parts.filter((id) => !rated.has(id))
-    const key = JSON.stringify([[...rated], reviewed])
+    // A drag's refusal is the newest word on a part, so it wins; a rating halo says more than the
+    // assistant's tint (a refused new part counts as its ghost). Halos add, so each part has one.
+    for (const id of i.refused) rated.delete(id)
+    const reviewed = i.review.parts.filter((id) => !rated.has(id) && !i.refused.includes(id))
+    const key = JSON.stringify([[...rated], reviewed, i.refused])
     if (key === this.haloKey && this.cache?.doc === this.haloDoc) return
     this.haloKey = key
     this.haloDoc = this.cache?.doc ?? null
-    this.haloIds = [...rated.keys()]
+    this.haloIds = [...rated.keys(), ...i.refused]
     this.halos.set([
       ...[...rated].flatMap(([id, severity]) => {
         const box = bodyBox(i.doc, { kind: 'part', id })
@@ -268,6 +272,10 @@ export class SimVisuals {
       ...reviewed.flatMap((id) => {
         const box = bodyBox(i.doc, { kind: 'part', id })
         return box ? [{ box, color: REVIEW_HALO }] : []
+      }),
+      ...i.refused.flatMap((id) => {
+        const box = bodyBox(i.doc, { kind: 'part', id })
+        return box ? [{ box, color: HALO_COLOR.error }] : []
       })
     ])
     this.invalidate()
@@ -339,19 +347,22 @@ export class SimVisuals {
       const lines: string[] = []
       // A net that is only the header has nothing on the bench to tag.
       const attached = net.members.some((m) => m.kind !== 'header')
-      if (attached && i.voltages && i.snapshot?.nets[net.name] !== undefined)
-        lines.push(`${net.name} ${volts(i.snapshot.nets[net.name]!)}`)
+      const v =
+        attached && i.voltages && i.snapshot?.nets[net.name] !== undefined
+          ? volts(i.snapshot.nets[net.name]!)
+          : null
+      if (v) lines.push(`${net.name} ${v}`)
       if (sense?.state.state === 'diverged')
         lines.push(...this.divergence(i, sense.pin, sense.state))
       const at = lines.length ? netAnchor(i.doc, this.index, net) : null
+      // A voltage alone is the net's name with the reading as the tag's value.
       if (at)
         entries.push({
           key: `net:${net.name}`,
-          label: {
-            text: lines.join('\n'),
-            at,
-            kind: sense?.state.state === 'diverged' ? 'sense' : 'volt'
-          }
+          label:
+            sense?.state.state === 'diverged'
+              ? { text: lines.join('\n'), at, kind: 'sense' }
+              : { text: net.name, value: v!, at, kind: 'volt' }
         })
     }
     for (const id of this.haloIds) {
@@ -365,7 +376,7 @@ export class SimVisuals {
     }
     const key = `${i.doc.boards.length}:${entries.map((e) => e.key).join()}`
     if (key === this.tagKeys && this.cache?.doc === this.tagDoc) {
-      this.tags.retext(entries.map((e) => e.label.text))
+      this.tags.retext(entries.map((e) => e.label))
       return
     }
     this.tagKeys = key

@@ -1,10 +1,11 @@
 // The Studio's UI state (SPEC 11.2–11.5, 11.8): the selection, the tool, the Inspect toggles, the
-// drawer, the document a drag would leave (drawn instead of the committed one), what the assistant
-// shows on the stage (ghosts, tints, a teaching cue), and the Studio's one path to change the
-// document: edit(), a single transaction through circuitStore.dispatch.
+// drawer, the look, the document a drag would leave (drawn instead of the committed one), what the
+// assistant shows on the stage (ghosts, tints, a teaching cue), and the Studio's one path to change
+// the document: edit(), a single transaction through circuitStore.dispatch.
 import { create } from 'zustand'
 import type { Ghost } from '../assistant/context'
 import type { CircuitDoc, Op } from '../core/model/types'
+import type { LookName } from '../studio/look'
 import { useBuild } from './buildStore'
 import { circuit } from './circuit'
 import { isTemplate } from './projectStore'
@@ -50,6 +51,12 @@ interface StudioState {
   /** Whether the part library (left) and the properties (right) are shown; both off is immersive. */
   library: boolean
   properties: boolean
+  /** The Lab or the Studio look (ADR-0143), a preference of this machine, not of the project. */
+  look: LookName
+  /** Whether the Studio's first opening in a launch plays the tour (ADR-0147); this machine's. */
+  tour: boolean
+  /** The opening tour is playing: the side panels step back and a toast says how to take over. */
+  presenting: boolean
   /** The document as the current drag would leave it, while that is legal. */
   preview: CircuitDoc | null
   /** Why the last edit was refused, until the next one. */
@@ -59,6 +66,49 @@ interface StudioState {
   /** What the assistant's last turn added or changed, tinted until kept (SPEC 11.8). */
   tinted: { parts: string[]; wires: string[] } | null
   cue: Cue | null
+}
+
+const LOOK_KEY = 'gpio.studio.look'
+const TOUR_KEY = 'gpio.studio.tour'
+
+/** The look last chosen on this machine; the Lab look until one is. */
+function savedLook(): LookName {
+  try {
+    const saved = localStorage.getItem(LOOK_KEY)
+    if (saved === 'lab' || saved === 'studio') return saved
+  } catch {
+    /* storage unavailable */
+  }
+  return 'lab'
+}
+
+/** Switches the Studio's look and remembers it on this machine. */
+export function setLook(look: LookName): void {
+  useStudio.setState({ look })
+  try {
+    localStorage.setItem(LOOK_KEY, look)
+  } catch {
+    /* storage unavailable: the look holds until the app closes */
+  }
+}
+
+/** Whether the tour opens the Studio, as last chosen on this machine; on until turned off. */
+function savedTour(): boolean {
+  try {
+    return localStorage.getItem(TOUR_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
+
+/** Turns the opening tour on or off on this machine. */
+export function setTour(on: boolean): void {
+  useStudio.setState({ tour: on })
+  try {
+    localStorage.setItem(TOUR_KEY, on ? 'on' : 'off')
+  } catch {
+    /* storage unavailable: the choice holds until the app closes */
+  }
 }
 
 export const useStudio = create<StudioState>(() => ({
@@ -75,6 +125,9 @@ export const useStudio = create<StudioState>(() => ({
   drawer: null,
   library: true,
   properties: true,
+  look: savedLook(),
+  tour: savedTour(),
+  presenting: false,
   preview: null,
   notice: null,
   ghosts: {},

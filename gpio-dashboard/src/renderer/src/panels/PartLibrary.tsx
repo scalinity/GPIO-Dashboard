@@ -43,9 +43,9 @@ export default function PartLibrary({ view }: { view: StudioView }) {
   return (
     <aside
       aria-label="Part library"
-      className="w-56 shrink-0 flex flex-col border-r border-white/[0.04] bg-surface-900/60 min-h-0"
+      className="glass-bg w-56 shrink-0 flex flex-col border-r border-white/[0.06] min-h-0"
     >
-      <div className="p-3 space-y-2 border-b border-white/[0.04]">
+      <div className="p-3 space-y-2 border-b border-white/[0.06]">
         <label className="relative block">
           <Search className="absolute left-2 top-2 w-4 h-4 text-gray-500" />
           <input
@@ -63,7 +63,7 @@ export default function PartLibrary({ view }: { view: StudioView }) {
             <button
               key={c}
               aria-pressed={category === c}
-              className={`px-1.5 py-0.5 rounded text-[11px] ${category === c ? 'bg-accent text-white' : 'bg-white/[0.04] text-gray-400 hover:text-gray-200'}`}
+              className={`px-1.5 py-0.5 rounded text-[11px] ${category === c ? 'bg-on-bg text-on-text' : 'bg-white/[0.04] text-gray-400 hover:text-gray-200'}`}
               onClick={() => setCategory(category === c ? null : c)}
             >
               {c}

@@ -64,3 +64,78 @@ export const reads = (page: Page, bcm: number) =>
 
 /** An animated channel's value: mm, degrees or radians, by `part.node`. */
 export const motion = async (page: Page, key: string) => (await report(page)).sim.motion[key]
+
+/**
+ * Settles to a still frame that does not depend on how the camera got there, so two captures of
+ * one scene compare pixel for pixel. TRAA weighs each new frame at 0.05 and GTAO turns its noise
+ * with the frame number, so two still frames differ where the jitter's or the noise's phase
+ * differs, and the Lab look's grain moves with time. Each of four settling runs therefore starts
+ * at TRAA's first jitter offset and on a frame GTAO's 12-frame cycle starts on, with time held at
+ * 0; the four runs leave under 4% of whatever was drawn before.
+ */
+export async function settleExactly(page: Page) {
+  for (let run = 0; run < 4; run++) {
+    await page.evaluate(() => {
+      const view = (window as unknown as StudioWindow).__studio
+      const post = view.post as unknown as {
+        render(): void
+        renderer: { _nodes: { nodeFrame: { frameId: number; time: number } } }
+        resolved: { _jitterIndex: number }
+      }
+      const render = Object.getPrototypeOf(post).render as () => void
+      const frame = post.renderer._nodes.nodeFrame
+      let first = true
+      post.render = () => {
+        if (first) {
+          frame.frameId += (12 - (frame.frameId % 12)) % 12
+          post.resolved._jitterIndex = 0
+          first = false
+        }
+        frame.time = 0
+        render.call(post)
+      }
+      view.controls.dispatchEvent({ type: 'change' })
+    })
+    await waitUntilStill(page, 10_000)
+  }
+  await page.evaluate(() => {
+    const post = (window as unknown as StudioWindow).__studio.post as unknown as {
+      render?: unknown
+    }
+    delete post.render
+  })
+}
+
+/** The mean and largest per-channel difference of two PNGs (of 255), decoded in the page. */
+export function difference(page: Page, a: Buffer, b: Buffer) {
+  return page.evaluate(
+    async ([a, b]) => {
+      const pixels = async (data: string) => {
+        const blob = await (await fetch(`data:image/png;base64,${data}`)).blob()
+        const image = await createImageBitmap(blob)
+        const canvas = new OffscreenCanvas(image.width, image.height)
+        const g = canvas.getContext('2d')!
+        g.drawImage(image, 0, 0)
+        return g.getImageData(0, 0, image.width, image.height)
+      }
+      const [x, y] = await Promise.all([pixels(a), pixels(b)])
+      if (x.width !== y.width || x.height !== y.height) return null
+      let sum = 0
+      let max = 0
+      let changed = 0
+      for (let i = 0; i < x.data.length; i += 4) {
+        let any = false
+        for (let c = 0; c < 3; c++) {
+          const d = Math.abs(x.data[i + c]! - y.data[i + c]!)
+          sum += d
+          max = Math.max(max, d)
+          any ||= d > 0
+        }
+        if (any) changed += 1
+      }
+      const n = x.data.length / 4
+      return { mean: sum / (n * 3), max, changed: changed / n }
+    },
+    [a.toString('base64'), b.toString('base64')] as const
+  )
+}

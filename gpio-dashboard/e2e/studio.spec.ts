@@ -1,10 +1,11 @@
 // The Studio in Chromium (SPEC 10.2, 11.2–11.9; acceptance 8 and 9): the backend shows in the dev
 // overlay, a hover highlights its strip and net on the next frame, a still scene draws nothing,
 // the Blinking LED circuit builds by hand with live ERC and undoes to an empty document, drags
-// glow green and red, and projects save and reopen.
+// glow green and red, projects save and reopen, and the top bar keeps to one row.
 import { expect, type Page, test } from '@playwright/test'
 import type { CircuitDoc } from '../src/renderer/src/core/model/types'
 import type { StudioView } from '../src/renderer/src/studio/view'
+import { openTutorial } from './helpers'
 
 type StudioWindow = Window & { __studio: StudioView }
 type Point = { x: number; y: number }
@@ -363,4 +364,79 @@ test.describe('projects', () => {
     await expect(name).toHaveValue('My blinker')
     expect(await doc(page)).toEqual(saved)
   })
+})
+
+// The top bar stays one row (SPEC 11.2) from the narrowest window up, holding the most it ever
+// does: a template's badge and Fork, an error, the Pi connected with its agent running, and both a
+// simulation and a Pi program to stop.
+for (const width of [900, 1024, 1099, 1100, 1168])
+  test(`the top bar keeps every control on one row in a ${width} px window`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 734 })
+    await openTutorial(page, 'blinking-led')
+    await page.evaluate(`Promise.all([
+      import('/src/store/connectionStore.js').then((m) => m.default.setState({ status: 'connected', agentStatus: 'running' })),
+      import('/src/state/projectStore.ts').then((m) => m.useProject.setState({ error: 'Could not save the project' })),
+      import('/src/state/workbenchStore.ts').then((m) => m.useWorkbench.setState({ codeStatus: 'running' })),
+      import('/src/state/runStore.ts').then((m) => m.useRun.setState({ status: 'running' }))
+    ])`)
+    const bar = page.getByTestId('studio-topbar')
+    await expect(bar.getByRole('button', { name: 'Stop on Pi' })).toBeVisible()
+    await expect(bar.getByRole('button', { name: 'Stop', exact: true })).toBeVisible()
+    await expect(bar.getByText('Template · read-only')).toBeVisible()
+    const row = (await bar.boundingBox())!
+    expect(row.height).toBeLessThanOrEqual(48)
+    const buttons = await bar.getByRole('button').all()
+    expect(buttons.length).toBeGreaterThanOrEqual(10)
+    for (const control of [...buttons, bar.getByLabel('Project name')]) {
+      const box = (await control.boundingBox())!
+      expect(box.y).toBeGreaterThanOrEqual(row.y)
+      expect(box.y + box.height).toBeLessThanOrEqual(row.y + row.height)
+      // Inside the bar's 12 px right padding: a control that eats into it is about to be clipped.
+      expect(box.x + box.width).toBeLessThanOrEqual(width - 12)
+    }
+  })
+
+// The app's own bar stays one row too, from the narrowest window up, with the Pi connected and its
+// agent running: below 1100 px the tabs show their icons only, keeping their names.
+for (const width of [900, 1024, 1099, 1100, 1168])
+  test(`the app bar keeps the brand, tabs and status on one row in a ${width} px window`, async ({
+    page
+  }) => {
+    await page.setViewportSize({ width, height: 734 })
+    await page.goto('/')
+    await page.getByRole('tab', { name: 'Workbench' }).click()
+    await page.evaluate(
+      `import('/src/store/connectionStore.js').then((m) => m.default.setState({ status: 'connected', agentStatus: 'running' }))`
+    )
+    const bar = page.locator('nav').first()
+    await expect(bar.getByText('Connected')).toBeVisible()
+    const row = (await bar.boundingBox())!
+    expect(row.height).toBeLessThanOrEqual(48)
+    const brand = (await bar.getByText('Dashboard', { exact: false }).first().boundingBox())!
+    expect(brand.height).toBeLessThanOrEqual(24)
+    for (const control of [...(await bar.getByRole('tab').all()), bar.getByText(/Agent/)]) {
+      const box = (await control.boundingBox())!
+      expect(box.y + box.height).toBeLessThanOrEqual(row.y + row.height)
+      // Inside the bar's 16 px right padding.
+      expect(box.x + box.width).toBeLessThanOrEqual(width - 16)
+    }
+  })
+
+// The title column (SPEC 11.2): three readouts with the draw in cyan, and a caption that follows
+// what the bench does. It takes no clicks: the stage under it stays live.
+test('the title column shows three readouts and a caption that follows the bench', async ({
+  page
+}) => {
+  await openTutorial(page, 'blinking-led')
+  const column = page.getByRole('region', { name: 'Bench readouts' })
+  await expect(column.locator('dt')).toHaveCount(3)
+  await expect(column.locator('dt').first()).toHaveText('GPIO draw')
+  const draw = column.locator('.hud-stat[data-tone="hot"] dd')
+  await expect(draw).toHaveCSS('color', 'rgb(127, 227, 255)')
+  const caption = column.locator('.hud-why')
+  await expect(caption).toHaveText('Press Simulate to run the program on this bench.')
+  await page.getByRole('button', { name: 'Simulate' }).click()
+  await expect(caption).toContainText('runs in simulation')
+  await expect(column.locator('dt').nth(1)).toHaveText(/^Peak GPIO17$/, { timeout: 15_000 })
+  expect(await column.evaluate((e) => getComputedStyle(e).pointerEvents)).toBe('none')
 })

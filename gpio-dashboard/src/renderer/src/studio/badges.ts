@@ -12,8 +12,8 @@ export interface PlacedBadge {
 
 /** The classes are written out so the stylesheet's content scan finds them. */
 const SEVERITY_CLASS = {
-  error: 'bg-red-600 text-white ring-red-300/50',
-  warning: 'bg-amber-500 text-surface-950 ring-amber-200/50'
+  error: 'bg-red-400 text-on-text ring-red-200/40 shadow-glow-danger',
+  warning: 'bg-amber-400 text-on-text ring-amber-200/40 shadow-glow-warn'
 } as const
 
 const SIDE_BY_SIDE_PX = 22
@@ -50,7 +50,7 @@ export class BadgeLayer {
     this.items = placed.map((p) => {
       const el = document.createElement('button')
       el.type = 'button'
-      el.className = `pointer-events-auto absolute left-0 top-0 grid h-5 w-5 place-items-center rounded-full text-[11px] font-bold leading-none ring-2 shadow ${SEVERITY_CLASS[p.badge.severity]}`
+      el.className = `pointer-events-auto absolute left-0 top-0 grid h-5 w-5 place-items-center rounded-full text-[11px] font-bold leading-none ring-2 ${SEVERITY_CLASS[p.badge.severity]}`
       el.textContent = '!'
       el.title = p.badge.title
       el.setAttribute('aria-label', p.badge.title)

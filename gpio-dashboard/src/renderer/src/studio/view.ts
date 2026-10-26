@@ -33,7 +33,9 @@ import { holeKey, isValidHole, parseHoleKey } from '../core/geometry/breadboard'
 import { tboardPinHoles } from '../core/geometry/tboard'
 import type { CircuitDoc, Endpoint, Op, Vec3, Wire } from '../core/model/types'
 import { computeState, type ConnectivityState } from '../core/netlist/engine'
+import { applyOps } from '../core/ops/apply'
 import type { Problem } from '../core/ops/validate'
+import { useAssistant } from '../state/assistantStore'
 import { useBuild } from '../state/buildStore'
 import { circuit } from '../state/circuit'
 import { LOCKED_MESSAGE } from '../state/circuitStore'
@@ -46,6 +48,7 @@ import {
   BUILDING_MESSAGE,
   edit,
   type Selection,
+  setLook as chooseLook,
   togglePanels,
   type Tool,
   useStudio
@@ -59,12 +62,15 @@ import { Cables, type CablesReport, placeColliders, type Placement, TABLE, toCor
 import { CameraTween, type Preset, presetView, sphereView } from './camera'
 import { defOf, endpointInScene, holeInScene, moduleRestMm, poseMatrix } from './coords'
 import { cuePlaces } from './cues'
+import { Dock, type Insets, shiftLens } from './dock'
 import { FrameLoop, SETTLE_FRAMES } from './frameLoop'
 import { ghostIds, withGhosts } from './ghosts'
 import {
   boardTop,
   type Gesture,
   grabVector,
+  partway,
+  placedAt,
   planePoint,
   type Pointer,
   type Proposal,
@@ -72,8 +78,10 @@ import {
 } from './gestures'
 import { Halos } from './halos'
 import { Insertion, reseated } from './insertion'
+import { clampToRoom, type Side } from './lab/bounds'
 import { LabelLayer, labelsOf } from './labels'
 import { LivePins, type LivePinsReport, liveText } from './livepins'
+import { type LookName, LOOKS } from './look'
 import { collidersNow, configureModels, disposeModels, onArrival } from './loaders'
 import { type Marker, Markers } from './markers'
 import { netAnchor, netMarkers, stripIndex } from './nets'
@@ -82,8 +90,10 @@ import { hoverInfo, type HoverInfo, pickHole, pickModulePin } from './picking'
 import { holeFree, holeLegality, removePartOps, turned, turnedPart } from './placement'
 import { Post } from './renderer'
 import { SimVisuals, type VisualsReport } from './simvisuals'
+import { StageRig } from './rig'
 import { setStatus } from './status'
 import { type Mark, StepMarks } from './stepMarks'
+import { benchOf, planShots, Tour } from './tour'
 import { WireLayer } from './wires'
 
 const KEYS: Record<string, Preset> = { f: 'fit', 1: 'fit', 2: 'iso', 3: 'top', 4: 'front' }
@@ -91,14 +101,16 @@ const KEYS: Record<string, Preset> = { f: 'fit', 1: 'fit', 2: 'iso', 3: 'top', 4
 // Markers are flat squares just above the board, a little larger than a hole (2.54 mm pitch).
 const STRIP_SIZE_MM = 2.0
 const WIRE_END_SIZE_MM = 2.6
-const STRIP_COLOR = new Color('#818CF8') // accent-light
+// The HUD palette's (styles/palette.cjs): the hovered strip in cyan, a ghost's holes green where
+// it may go and coral where it may not.
+const STRIP_COLOR = new Color('#7fe3ff')
 const WIRE_END_COLOR = new Color('#FBBF24')
 const FOOTPRINT_SIZE_MM = 1.6
 const PART_COLOR = new Color('#22D3EE')
 const TBOARD_COLOR = new Color('#FCA5A5')
 const GHOST_SIZE_MM = 2.3
-const LEGAL = new Color('#22C55E')
-const ILLEGAL = new Color('#EF4444')
+const LEGAL = new Color('#8fe8a8')
+const ILLEGAL = new Color('#ff6b86')
 const CUE_SIZE_MM = 2.8
 const CUE_COLOR = new Color('#C4B5FD')
 /** Focus frames at least a sphere this big, so one hole is not filled edge to edge. */
@@ -107,6 +119,12 @@ const FOCUS_MIN_RADIUS_MM = 25
 const CAPTURE_SLEEP_MS = 2000
 /** A captured view's longest side, in pixels: what the API reads without downscaling. */
 const CAPTURE_MAX_PX = 1568
+/** The veil fades in over this long before a look switch, and out over VEIL_OUT_MS after it. */
+const VEIL_IN_MS = 200
+const VEIL_OUT_MS = 220
+
+/** The opening tour plays once a launch, the first time the Studio opens (ADR-0147). */
+let toured = false
 /** A press that moves further than this, in pixels, is a drag rather than a click. */
 const CLICK_PX = 4
 /** A lead grabbed this close to one of its route hints moves that hint rather than adding one. */
@@ -147,10 +165,18 @@ export interface SceneReport {
   badges: { id: string; severity: 'error' | 'warning' }[]
   /** The parts and leads drawn only as the assistant's ghosts. */
   ghosts: string[]
+  /** A drag's part drawn in red where it fits but may not go; null when there is none. */
+  refused: string | null
   /** How many places the assistant's cue marks. */
   cueMarks: number
   /** Build Mode's step on the bench; null outside Build Mode. */
   build: BuildReport | null
+  /** The look drawn. */
+  look: LookName
+  /** Whether the opening tour is playing. */
+  touring: boolean
+  /** In the Lab look, where the camera stands (mm) and the room's sides cut away from it. */
+  room: { camera: [number, number, number]; cut: Side[] } | null
 }
 
 /** What Build Mode shows for the step in hand, read back for tests. */
@@ -199,6 +225,8 @@ export class StudioView {
   /** The current ghost's holes and whether each glows green (tests read it). */
   ghost: { holes: string[]; legal: boolean[] } | null = null
   post: Post | null = null
+  /** The table, sweep, lights, environment, fog and background. */
+  readonly rig = new StageRig()
 
   private readonly highlights = new Markers(this.overlay, 0.15)
   private readonly footprints = new Markers(this.layers, 0.1)
@@ -264,6 +292,8 @@ export class StudioView {
   private gesture: Gesture | null = null
   /** The gesture's proposal at the pointer, while it is legal: what a release commits. */
   private proposal: Proposal | null = null
+  /** A proposed part that fits its holes but may not take them: drawn there, never committed. */
+  private refused: { doc: CircuitDoc; id: string } | null = null
   private proposed = ''
   private pointerNow: Pointer | null = null
   private press: Press | null = null
@@ -271,6 +301,35 @@ export class StudioView {
   private rightPress: { x: number; y: number } | null = null
   /** The momentary switch being held down in 3D. */
   private held: string | null = null
+  /** The look drawn; the store's changes reach it under the veil. */
+  private look: LookName = useStudio.getState().look
+  private veil: HTMLElement | null = null
+  private vignette: HTMLElement | null = null
+  /** The stage's element, and the Studio page's row it shares with the side panels. */
+  private stage: HTMLElement | null = null
+  private row: HTMLElement | null = null
+  /** The visible region beside the side panels, easing when one shows or hides (ADR-0148). */
+  private dock = new Dock()
+  /** A panel showed or hid: the next frame reads where they stand. */
+  private docking = false
+  /** R3F's canvas size, which the dock sets itself in the frame it changes. */
+  private fiber: {
+    size(): { width: number; height: number }
+    setSize(width: number, height: number, top: number, left: number): void
+  } | null = null
+  /** The look switch in progress, by number: a newer one takes over. */
+  private switching = 0
+  /** The veil lifts once the next frame is drawn in the new look. */
+  private lifting = false
+  /** The room's sides cut away at the last frame. */
+  private cut = new Set<Side>()
+  /** The opening tour, while it plays. */
+  private readonly tour = new Tour()
+  /**
+   * Where the orbit put the camera, and where the room's walls let it stand, at the last frame. The
+   * orbit goes on from the first, so passing a wall does not shorten its distance for good.
+   */
+  private kept: { orbit: Vector3; shown: Vector3 } | null = null
 
   constructor() {
     this.controls.enableDamping = true
@@ -286,14 +345,24 @@ export class StudioView {
   }
 
   /** The R3F root is ready, with the camera's aspect set: frame the bench and start drawing. */
-  bind(renderer: WebGPURenderer, scene: Scene, invalidate: () => void): void {
+  bind(
+    renderer: WebGPURenderer,
+    scene: Scene,
+    invalidate: () => void,
+    fiber: NonNullable<StudioView['fiber']>
+  ): void {
+    this.fiber = fiber
     configureModels(renderer)
     this.post = new Post(renderer, scene, this.camera)
+    this.post.setKey(this.rig.key)
     this.canvas = renderer.domElement
     this.invalidate = () => {
       this.loop.changed()
       invalidate()
     }
+    this.applyLook(useStudio.getState().look)
+    this.rig.onChange = this.invalidate
+    this.rig.bind(renderer, scene)
     const view = presetView('iso', circuit.getSnapshot(), this.camera, this.controls.target)
     this.camera.position.copy(view.position)
     this.controls.target.copy(view.target)
@@ -301,18 +370,153 @@ export class StudioView {
     // Reopening the Studio in the middle of a build: the step is framed, not flown to.
     if (useBuild.getState().on) this.frameBuild(true)
     this.syncFocus()
+    if (!toured) {
+      toured = true
+      if (this.tourWanted()) this.playTour()
+    }
     this.draw()
+  }
+
+  /**
+   * Whether the Studio's first opening plays the tour: in the Lab look, on a bench, when the
+   * preference allows, and not under test automation, reduced motion, Build Mode or an
+   * assistant's turn.
+   */
+  private tourWanted(): boolean {
+    return (
+      this.look === 'lab' &&
+      useStudio.getState().tour &&
+      circuit.getSnapshot().boards.length > 0 &&
+      !navigator.webdriver &&
+      !matchMedia('(prefers-reduced-motion: reduce)').matches &&
+      !useBuild.getState().on &&
+      !useAssistant.getState().running
+    )
+  }
+
+  /** Plays the opening tour from its first shot (C does, and the Studio's first opening). */
+  playTour(): void {
+    if (!this.post || circuit.getSnapshot().boards.length === 0) return
+    this.tween.cancel()
+    const doc = this.drawnDoc()
+    // The close-up looks at the part whose die the simulation lights brightest, else the T-board.
+    let lit: string | null = null
+    let brightest = 0.05
+    for (const [key, die] of Object.entries(useWorkbench.getState().sim?.snapshot?.dies ?? {}))
+      if (die.brightness > brightest)
+        [lit, brightest] = [key.slice(0, key.indexOf('.')), die.brightness]
+    const box = lit ? bodyBox(doc, { kind: 'part', id: lit }) : null
+    const close = box ? new Vector3().applyMatrix4(box) : undefined
+    this.tour.begin(planShots(benchOf(doc, this.camera, close)), performance.now())
+    useStudio.setState({ presenting: true })
+    this.invalidate()
+  }
+
+  /** A side panel shows or hides, or Build Mode swaps the library for its own: the stage follows. */
+  private redock(): void {
+    this.docking = true
+    this.invalidate()
+  }
+
+  /** Ends the tour where it is; `home` eases the camera to the iso preset from there. */
+  private endTour(home: boolean): void {
+    if (!this.tour.playing) return
+    this.tour.stop()
+    if (this.veil) {
+      this.veil.style.transition = `opacity ${VEIL_OUT_MS}ms ease`
+      this.veil.style.opacity = '0'
+    }
+    useStudio.setState({ presenting: false })
+    if (home) this.preset('iso')
+  }
+
+  /**
+   * The Studio page's row, whose side panels the stage shares (ADR-0148); a ref callback. Each
+   * panel's wrapper carries `data-dock` (left or right) and `data-shown`; the stage takes the room
+   * they leave, at once on mounting and easing after.
+   */
+  dockTo(row: HTMLElement | null): void {
+    this.row = row
+    if (!row) return
+    this.dock.aim(this.docked(), 0, true)
+    this.placeDock()
+  }
+
+  /** Where the side panels say the visible region goes: each shown one's width in from its side. */
+  private docked(): Insets {
+    const side = (name: 'left' | 'right') => {
+      const panel = this.row?.querySelector<HTMLElement>(`:scope > [data-dock="${name}"]`)
+      return panel?.dataset.shown === 'true' ? panel.offsetWidth : 0
+    }
+    return { left: side('left'), right: side('right') }
+  }
+
+  /**
+   * Puts the visible region and the canvas where the dock has them. The canvas resizes in the same
+   * frame it is drawn, so it never shows the old picture stretched or shifted.
+   */
+  private placeDock(): void {
+    const { row, stage, dock } = this
+    if (!row) return
+    for (const [name, px] of [
+      ['--dock-l', dock.now.left],
+      ['--dock-r', dock.now.right],
+      ['--span-l', dock.span.left],
+      ['--span-r', dock.span.right]
+    ] as const)
+      row.style.setProperty(name, `${px}px`)
+    if (!stage || !this.fiber) return
+    const rect = stage.getBoundingClientRect()
+    const size = this.fiber.size()
+    if (rect.width !== size.width || rect.height !== size.height)
+      this.fiber.setSize(rect.width, rect.height, rect.top, rect.left)
+    shiftLens(this.camera, dock.shift, rect.width)
   }
 
   /** One frame: move, render, and say whether another is needed. */
   frame(now: number): boolean {
     if (!this.post) return false
+    if (this.docking) {
+      this.docking = false
+      const instant = matchMedia('(prefers-reduced-motion: reduce)').matches
+      this.dock.aim(this.docked(), now, instant)
+      if (instant) this.placeDock()
+    }
+    const docking = this.dock.active
+    if (docking) {
+      this.dock.step(now)
+      this.placeDock()
+    }
+    // The orbit goes on from where it put the camera, unless something else has moved it since.
+    if (this.kept?.shown.equals(this.camera.position)) this.camera.position.copy(this.kept.orbit)
+    this.kept = null
     // Damping drains during a preset move too, so nothing is left over when it ends.
-    let moving = this.controls.update()
+    let moving = this.controls.update() || docking
+    // Any other move of the camera (Build Mode's framing, the assistant's focus) ends the tour.
+    if (this.tour.playing && this.tween.active) this.endTour(false)
+    if (this.tour.playing) {
+      const veil = this.tour.step(now, this.camera, this.controls.target)
+      if (this.veil) {
+        this.veil.style.transition = 'none'
+        this.veil.style.opacity = String(veil ?? 0)
+      }
+      if (veil === null) useStudio.setState({ presenting: false })
+      moving = true
+    }
     if (this.tween.active) {
       const running = this.tween.step(now, this.camera, this.controls.target)
       if (!running && this.framing?.ms === null) this.framing.ms = now - this.framing.start
       moving = true
+    }
+    // The Lab's room keeps the camera in, and opens the side it stands behind or near.
+    const room = this.look === 'lab' ? this.rig.room : null
+    if (room) {
+      const orbit = this.camera.position.clone()
+      if (clampToRoom(this.camera.position, this.controls.target)) {
+        this.camera.lookAt(this.controls.target)
+        this.kept = { orbit, shown: this.camera.position.clone() }
+      }
+      this.cut = room.cutaway(this.camera.position)
     }
     if (this.insertion.settle(now)) {
       const lift = (key: string) => this.insertion.lift(key, now)
@@ -328,9 +532,16 @@ export class StudioView {
     if (this.visuals.step(now)) moving = true
     const capture = this.capturing && this.captureStep(now)
     if (this.capturing) moving = true
-    if (this.focusing) this.post.setFocus(this.camera.position.distanceTo(this.controls.target))
+    const focus = this.camera.position.distanceTo(this.controls.target)
+    if (this.focusing) this.post.setFocus(focus)
+    this.post.setBenchFocus(focus)
     this.post.setBloom(this.visuals.glowing)
     this.post.render()
+    if (this.lifting && this.veil) {
+      this.lifting = false
+      this.veil.style.transition = `opacity ${VEIL_OUT_MS}ms ease`
+      this.veil.style.opacity = '0'
+    }
     if (capture) this.finishCapture(capture)
     if (this.canvas) {
       const [w, h] = [this.canvas.clientWidth, this.canvas.clientHeight]
@@ -345,6 +556,11 @@ export class StudioView {
       setStatus({ frames: this.loop.frames, fps: this.loop.fps, physics: this.cables.stepMs })
     }
     return more
+  }
+
+  /** Switches the look (the View control and L do this through the studio store). */
+  setLook(look: LookName): void {
+    chooseLook(look)
   }
 
   preset(preset: Preset): void {
@@ -362,6 +578,7 @@ export class StudioView {
   capture(preset: ViewPreset): Promise<CapturedView> {
     if (!this.post || !this.canvas)
       return Promise.reject(new Error('The 3D stage is not open, so there is nothing to capture.'))
+    this.endTour(false)
     this.capturing?.reject(new Error('A newer capture replaced this one.'))
     return new Promise((resolve, reject) => {
       this.capturing = {
@@ -374,6 +591,38 @@ export class StudioView {
       }
       this.invalidate()
     })
+  }
+
+  /**
+   * A look switch (ADR-0143): the veil fades in, the stage, the pipeline's output and the camera's
+   * reach change under it, and it fades out once a frame is drawn in the new look, which hides a
+   * first switch's shader compile. Under reduced motion the switch is instant.
+   */
+  private switchLook(look: LookName): void {
+    this.endTour(true)
+    const veil = this.veil
+    const id = ++this.switching
+    if (!veil || !this.post || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.applyLook(look)
+      return
+    }
+    veil.style.transition = `opacity ${VEIL_IN_MS}ms ease`
+    veil.style.opacity = '1'
+    setTimeout(() => {
+      if (id !== this.switching) return
+      this.applyLook(look)
+      this.lifting = true
+    }, VEIL_IN_MS)
+  }
+
+  private applyLook(look: LookName): void {
+    const preset = LOOKS[look]
+    this.look = look
+    this.rig.apply(preset)
+    this.post?.setLook(look)
+    this.controls.maxDistance = preset.maxDistance
+    if (this.vignette) this.vignette.style.opacity = String(preset.vignette)
+    this.invalidate()
   }
 
   /** Frames `refs` (parts, leads, boards, holes or nets), keeping the view's direction. */
@@ -484,8 +733,18 @@ export class StudioView {
       live: this.livePins.report(),
       badges: this.badges?.ids() ?? [],
       ghosts: ghostIds(this.base(), this.ghosted()),
+      refused: this.refused?.id ?? null,
       cueMarks: this.cueMarkers.count,
-      build: this.buildReport()
+      build: this.buildReport(),
+      look: this.look,
+      touring: this.tour.playing,
+      room:
+        this.look === 'lab'
+          ? {
+              camera: this.camera.position.toArray().map(Math.round) as [number, number, number],
+              cut: [...this.cut]
+            }
+          : null
     }
   }
 
@@ -514,20 +773,32 @@ export class StudioView {
     labels: HTMLElement,
     tags: HTMLElement,
     marks: HTMLElement,
-    badges: HTMLElement
+    badges: HTMLElement,
+    veil: HTMLElement,
+    vignette: HTMLElement
   ): () => void {
     this.tooltip = tooltip
+    this.veil = veil
+    this.vignette = vignette
+    vignette.style.opacity = String(LOOKS[this.look].vignette)
     this.labels = new LabelLayer(labels)
     this.visuals.tags = new LabelLayer(tags)
     this.stepMarks = new StepMarks(marks)
     this.marksKey = ''
     this.badges = new BadgeLayer(badges, (id) => useStudio.setState({ badge: id }))
     this.badgeKey = ''
+    this.stage = element
     this.controls.connect(element)
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
-      if (target?.isContentEditable || target?.closest('input, textarea, select')) return
+      // Keys typed into a field or pressed in a dialog belong to it, not to the bench behind it.
+      if (
+        target?.isContentEditable ||
+        target?.closest('input, textarea, select, dialog, [role="dialog"], [role="alertdialog"]')
+      )
+        return
       const key = e.key.toLowerCase()
+      this.endTour(true)
       if ((e.metaKey || e.ctrlKey) && key === 'z') {
         e.preventDefault()
         if (this.refuseWhileLocked()) return
@@ -544,6 +815,8 @@ export class StudioView {
       else if (key === '[') togglePanels('library')
       else if (key === ']') togglePanels('properties')
       else if (key === '\\') togglePanels('both')
+      else if (key === 'l') chooseLook(useStudio.getState().look === 'lab' ? 'studio' : 'lab')
+      else if (key === 'c') this.playTour()
       else if (KEYS[key]) this.preset(KEYS[key])
     }
     // Hover only over the canvas itself, and not while a button is down (orbiting).
@@ -551,12 +824,25 @@ export class StudioView {
       this.pointer(e.target === this.canvas && e.buttons === 0 ? e : null)
     const onLeave = () => this.pointer(null)
     const onDown = (e: PointerEvent) => this.down(e)
+    // The wheel's first turn during the tour only takes over, as a press does.
+    const onWheel = (e: WheelEvent) => {
+      if (!this.tour.playing) return
+      e.stopImmediatePropagation()
+      e.preventDefault()
+      this.endTour(true)
+    }
     const onGestureMove = (e: PointerEvent) => this.moveGesture(e)
     const onUp = (e: PointerEvent) => this.up(e)
     const unsubscribe = [
       circuit.subscribe(() => {
         // Opening a document clears its history: its cables settle afresh, offscreen.
-        if (!circuit.canUndo && !circuit.canRedo) this.settle = true
+        const opened = !circuit.canUndo && !circuit.canRedo
+        if (opened) this.settle = true
+        // The tour follows a document opened under it to its bench; an edit ends it.
+        if (this.tour.playing) {
+          if (opened) this.playTour()
+          else this.endTour(true)
+        }
         this.refreshHover()
         this.draw()
       }),
@@ -586,6 +872,13 @@ export class StudioView {
         }
         if (now.live !== before.live || now.sense !== before.sense) this.syncBadges()
         if (now.cue !== before.cue) this.showCue()
+        if (now.look !== before.look) this.switchLook(now.look)
+        if (
+          now.library !== before.library ||
+          now.properties !== before.properties ||
+          now.presenting !== before.presenting
+        )
+          this.redock()
       }),
       // The simulation's snapshots, the part inputs and the issues, and Board Sense's states.
       useWorkbench.subscribe((now, before) => {
@@ -615,7 +908,11 @@ export class StudioView {
       // Build Mode: the step in hand changes what is drawn, where the camera looks, and the marks.
       useBuild.subscribe((now, before) => {
         // A selection or a tool left from editing means nothing on a bench shown as built so far.
-        if (now.on && !before.on) useStudio.setState({ selection: null, tool: 'select' })
+        if (now.on && !before.on) {
+          this.endTour(false)
+          useStudio.setState({ selection: null, tool: 'select' })
+        }
+        if (now.on !== before.on) this.redock()
         if (now.scene !== before.scene) {
           this.refreshHover()
           this.draw()
@@ -632,12 +929,15 @@ export class StudioView {
     window.addEventListener('pointerup', onUp)
     // Capture runs before the orbit controls' own listener, so a drag can switch them off first.
     element.addEventListener('pointerdown', onDown, { capture: true })
+    element.addEventListener('wheel', onWheel, { capture: true, passive: false })
     element.addEventListener('pointermove', onMove)
     element.addEventListener('pointerleave', onLeave)
     this.showCue()
     this.syncMarks()
     return () => {
       this.cancel()
+      // A look switch still under its veil is dropped: its renderer goes with the Studio.
+      ++this.switching
       this.capturing?.reject(new Error('The 3D stage closed before the capture.'))
       this.capturing = null
       unsubscribe.forEach((u) => u())
@@ -645,10 +945,15 @@ export class StudioView {
       window.removeEventListener('pointermove', onGestureMove)
       window.removeEventListener('pointerup', onUp)
       element.removeEventListener('pointerdown', onDown, { capture: true })
+      element.removeEventListener('wheel', onWheel, { capture: true })
+      this.tour.stop()
+      useStudio.setState({ presenting: false })
       element.removeEventListener('pointermove', onMove)
       element.removeEventListener('pointerleave', onLeave)
       this.controls.disconnect()
       this.tooltip = null
+      this.veil = null
+      this.vignette = null
       this.labels = null
       this.visuals.tags = null
       this.stepMarks = null
@@ -800,6 +1105,13 @@ export class StudioView {
   }
 
   private down(e: PointerEvent): void {
+    // The first press during the tour only takes over: the camera eases home from where it is.
+    if (this.tour.playing) {
+      e.stopImmediatePropagation()
+      e.preventDefault()
+      this.endTour(true)
+      return
+    }
     if (e.button === 2) this.rightPress = { x: e.clientX, y: e.clientY }
     if (e.button !== 0 || this.gesture?.kind === 'place') return
     const p = this.pointerAt(e)
@@ -935,10 +1247,12 @@ export class StudioView {
     this.proposed = ''
     this.ghost = null
     this.ghostMarkers.set([])
+    const refused = this.refused
+    this.refused = null
     if (useStudio.getState().preview) {
       circuit.engine.clearPreview()
       useStudio.setState({ preview: null })
-    }
+    } else if (refused) this.draw()
     this.invalidate()
   }
 
@@ -948,17 +1262,42 @@ export class StudioView {
     const g = this.gesture
     if (!g) return
     const doc = circuit.getSnapshot()
-    const proposal = p && propose(g, p, doc)
+    let proposal = p && propose(g, p, doc)
     const key = JSON.stringify([proposal?.ops, proposal?.refused])
     if (key === this.proposed) return
     this.proposed = key
     let problems: Problem[] | null = null
     let preview: CircuitDoc | null = null
+    const before = this.refused
+    this.refused = null
     if (proposal?.refused) problems = [{ code: 'REFUSED', message: proposal.refused, refs: [] }]
     else if (proposal) {
       const result = circuit.check({ author: 'user', label: proposal.label, ops: proposal.ops })
       if (result.ok) preview = result.doc
-      else problems = result.problems
+      else if (
+        (g.kind === 'board' || g.kind === 'pi') &&
+        result.problems.every((x) => x.code === 'OVERLAP')
+      ) {
+        // A board or the Pi stops against what it would overlap: it goes as far as it stands
+        // clear, from where it last stood clear in this drag, else from where the drag began.
+        useStudio.setState({ notice: result.problems[0]!.message })
+        const from = (this.proposal && placedAt(this.proposal)) ?? g.transform
+        let [lo, hi] = [0, 1]
+        for (let i = 0; i < 8; i++) {
+          const step = partway(from, proposal, (lo + hi) / 2)
+          const stepped = circuit.check({ author: 'user', label: step.label, ops: step.ops })
+          if (stepped.ok) [lo, preview] = [(lo + hi) / 2, stepped.doc]
+          else hi = (lo + hi) / 2
+        }
+        if (!preview) return
+        proposal = partway(from, proposal, lo)
+      } else {
+        problems = result.problems
+        // Only a part that fits, on holes something else holds, is drawn there: a footprint or
+        // span the rules refuse may have no shape to draw (two leads in one hole).
+        if (problems.every((x) => x.code === 'HOLE_TAKEN' || x.code === 'HOLE_BLOCKED'))
+          this.refused = refusedPart(doc, proposal.ops)
+      }
     }
     this.proposal = preview ? proposal : null
     const holes = proposal?.holes ?? []
@@ -980,7 +1319,9 @@ export class StudioView {
     this.ghostMarkers.set(markers)
     if (preview) circuit.engine.preview(preview)
     else circuit.engine.clearPreview()
+    const redraw = (before || this.refused) && useStudio.getState().preview === preview
     useStudio.setState({ preview })
+    if (redraw) this.draw()
     this.invalidate()
   }
 
@@ -1012,7 +1353,7 @@ export class StudioView {
 
   /** The document being drawn: the drag's preview, else the committed one with any ghosts. */
   private drawnDoc(): CircuitDoc {
-    return useStudio.getState().preview ?? this.ghosted()
+    return useStudio.getState().preview ?? this.refused?.doc ?? this.ghosted()
   }
 
   /**
@@ -1023,7 +1364,7 @@ export class StudioView {
   private draw(): void {
     const { preview, selection, labels } = useStudio.getState()
     const committed = this.base()
-    const doc = preview ?? this.ghosted()
+    const doc = preview ?? this.refused?.doc ?? this.ghosted()
     const now = performance.now()
     this.insertion.hover(doc === committed ? [] : reseated(committed, doc))
     // A drag's commit is measured once its preview is gone; the assistant's as each one lands.
@@ -1159,6 +1500,7 @@ export class StudioView {
           ...doc.wires.filter((w) => ghosts.has(w.id)).map((w) => w.id)
         ]
       },
+      refused: this.refused ? [this.refused.id] : [],
       snapshot: partial ? null : (shown?.snapshot ?? null),
       env,
       issues: shown?.issues ?? [],
@@ -1431,6 +1773,21 @@ function liveSuffix(net: string | null): string {
   const { online, pins } = useLive.getState()
   const pin = online ? pins[Number(bcm)] : undefined
   return pin ? ` · Pi: ${liveText(pin)}` : ''
+}
+
+/**
+ * The document with a placed or moved part that may not go where it fits (another part's holes,
+ * under the T-board), to draw it there in red; null for any other edit, which has nothing to show.
+ */
+function refusedPart(doc: CircuitDoc, ops: Op[]): { doc: CircuitDoc; id: string } | null {
+  const op = ops.length === 1 ? ops[0]! : null
+  const id = op?.type === 'AddPart' ? op.part.id : op?.type === 'MovePart' ? op.id : null
+  if (!id) return null
+  try {
+    return { doc: applyOps(doc, ops).doc, id }
+  } catch {
+    return null
+  }
 }
 
 /** The lead end on a module pin, if one is there. */

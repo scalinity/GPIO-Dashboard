@@ -5,7 +5,14 @@ import { boardDef } from '../core/defs/boards'
 import { TBOARD } from '../core/defs/controllers'
 import { partDef } from '../core/defs/parts'
 import { defOf } from './coords'
-import { holeKey, holePosition, nearestHole, stripKey } from '../core/geometry/breadboard'
+import {
+  columnAt,
+  columnPitches,
+  holeKey,
+  holePosition,
+  nearestHole,
+  stripKey
+} from '../core/geometry/breadboard'
 import { tboardBlockedHoles } from '../core/geometry/tboard'
 import type {
   CircuitDoc,
@@ -18,6 +25,7 @@ import type {
   Vec2,
   Wire
 } from '../core/model/types'
+import { MAIN_COLUMNS } from '../core/model/types'
 import { netlist, occupancy } from '../core/netlist/netlist'
 import type { Problem } from '../core/ops/validate'
 
@@ -107,6 +115,52 @@ export function seat(
 /** Whether every pin of a placement found a hole. */
 export const seated = (pins: Record<string, HoleRef | null>) =>
   Object.values(pins).every((h) => h !== null)
+
+/**
+ * Where a rigid part's pin 1 goes for a pointer at `point` (mm in `board`'s frame): the hole
+ * nearest it from which every pin lands in a main hole, across the trench when the part must
+ * straddle it. A chip drawn over any column snaps to the one it fits; null when no hole within
+ * the part's own length fits it (turned so that it cannot straddle, say).
+ */
+export function snapAnchor(
+  doc: CircuitDoc,
+  defId: string,
+  rotation: number,
+  board: string,
+  [x, y]: Vec2
+): HoleRef | null {
+  const placed = doc.boards.find((b) => b.id === board)
+  if (!placed) return null
+  const bb = boardDef(placed.defId)
+  const def = defOf(doc, defId)
+  const offsets = def.pins.map((p) => turn(p.offsetPitch, rotation))
+  const straddle = def.footprint.kind === 'rigid' && def.footprint.straddleTrench
+  const row = (x - bb.layout.row1FromEndMm) / bb.pitchMm + 1
+  const across = (y - bb.layout.columnAFromBottomEdgeMm) / bb.pitchMm
+  const reach = Math.max(...offsets.map(([dx]) => Math.abs(dx))) + 1
+  let best: HoleRef | null = null
+  let bestDistance = Infinity
+  for (let r = Math.round(row) - reach; r <= Math.round(row) + reach; r++)
+    for (const col of MAIN_COLUMNS) {
+      const from = columnPitches(bb, col)
+      const distance = Math.hypot(r - row, from - across)
+      if (distance >= bestDistance) continue
+      const cols = offsets.map(([dx, dy]) =>
+        r + dx >= 1 && r + dx <= bb.rows ? columnAt(bb, from + dy) : undefined
+      )
+      if (cols.some((c) => !c)) continue
+      if (straddle && new Set(cols.map((c) => MAIN_COLUMNS.indexOf(c!) < 5)).size < 2) continue
+      best = { board, area: 'main', row: r, col }
+      bestDistance = distance
+    }
+  return best
+}
+
+/** The board-frame point `by` mm from a hole. */
+export function pointFrom(doc: CircuitDoc, hole: HoleRef, [dx, dy]: Vec2 = [0, 0]): Vec2 {
+  const [x, y] = at(doc, hole)
+  return [x + dx, y + dy]
+}
 
 /** Each placed pin's offset from pin 1, in mm in the board's frame. */
 function vectorsOf(doc: CircuitDoc, part: PartInstance): Record<string, Vec2> | null {

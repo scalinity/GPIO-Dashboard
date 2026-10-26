@@ -13,12 +13,14 @@ const Terminal = forwardRef(function Terminal({ sessionId, className }, ref) {
   }))
 
   useEffect(() => {
+    // xterm needs colour values, so it reads the palette's CSS variables (styles/palette.cjs).
+    const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim()
     const term = new XTerm({
       theme: {
-        background: '#050A14',   // surface-950
-        foreground: '#E2E8F0',   // gray-200
-        cursor: '#6366F1',       // accent
-        selectionBackground: '#6366F130' // accent/20
+        background: css('--ink'),
+        foreground: css('--text-kicker'),
+        cursor: css('--cyan'),
+        selectionBackground: `${css('--cyan')}30`
       },
       fontFamily: "'JetBrains Mono', 'Menlo', monospace",
       fontSize: 13,

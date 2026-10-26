@@ -1,7 +1,9 @@
 # Look-dev checklist
 
-The Studio's look is checked against the reference photos (SPEC 2.2, 10.1, 18; acceptance 15),
-and the Pi 5 against Raspberry Pi's official imagery. The photos are vendor images in a public
+The Studio has two looks (SPEC 10.1, ADR-0143). Every photo check below is made in the Studio
+look, which is checked against the reference photos (SPEC 2.2, 10.1, 18; acceptance 15), and the
+Pi 5 against Raspberry Pi's official imagery. The Lab look has its own checklist at the end, read
+against the exhibit house style rather than the photos. The photos are vendor images in a public
 repository, so they are referenced in place and never committed or composited into a committed
 file:
 
@@ -97,9 +99,44 @@ are and no composite is committed, because they are vendor images in a public re
 | P1 | Materials | Per-colour materials from the STEP read like the product brief's photo at a similar angle: solder mask with clearcoat, metal shields and connectors, plastic ports | pass 2026-10-24: the mask is the brief's bright green, the USB-A shells silver, the connectors metal and plastic (ADR-0066); the brief's legends and logos are not in the no-graphics STEP |
 | P2 | Header | The 40 instanced header pins sit at the drawing's coordinates; none of the STEP's own pins show | pass 2026-10-24: 40 gold posts on the drawing's grid, none of the STEP's own |
 
-### Stage
+### Stage, Studio look
 
 | # | Check | Pass when | Status |
 |---|-------|-----------|--------|
-| S1 | Lighting | Neutral studio light from the CC0 HDRI plus one key light with soft shadows; AO visible in holes and under parts; AgX tone mapping | pass 2026-10-24: neutral greys, one softer key with its soft shadow, AO in the holes and under the parts, AgX then a colour grade (ADR-0067) |
-| S2 | No gimmicks | No film grain, chromatic aberration or lens dirt; bloom only on lit LEDs | pass 2026-10-24: nothing added; bloom takes only what passes 2, so the metal rings and shields no longer glow (ADR-0067) |
+| S1 | Lighting, Studio look | Neutral studio light from the CC0 HDRI plus one key light with soft shadows; AO visible in holes and under parts; AgX tone mapping | pass 2026-10-24: neutral greys, one softer key with its soft shadow, AO in the holes and under the parts, AgX then a colour grade (ADR-0067) |
+| S2 | No gimmicks, Studio look | No film grain, chromatic aberration or lens dirt; bloom only on lit LEDs | pass 2026-10-24: nothing added; bloom takes only what passes 2, so the metal rings and shields no longer glow (ADR-0067) |
+
+## Lab look
+
+The Lab look (ADR-0143 to ADR-0145) is read against the exhibit house style's night lab, its
+style bible and exemplars, rather than against the photos. Captures of 2026-10-26: headless
+Chromium on WebGPU at 1168 x 734 points and a pixel ratio of 1, the side panels and the title
+column shown, the dev overlay hidden, the Flowing LEDs tutorial; not yet taken in the Tauri
+window.
+`lookdev/lab-iso.png`, `lab-front.png` and `lab-top.png` are the presets with the LEDs dark,
+`lab-close-lit.png` an orbit 420 mm from the bench with the chaser running, and `lab-orbits.png`
+eight orbit angles 1500 mm out, 45 degrees apart: the camera south of the bench first, then turning through the east.
+
+| # | Check | Pass when | Status |
+|---|-------|-----------|--------|
+| L1 | The lit circuit leads | With a tutorial simulating, the LEDs are the brightest thing in the frame, and bloom covers at most 5% of it | pass 2026-10-26 at the close, iso, front and top views (`lab-close-lit.png`: the lit red LED is the brightest point, in its own colour, with red spill on the board; bloom at most about 3% of a frame). In the wide orbits a lit LED 1.5 m away is a speck |
+| L2 | The bench reads | The boards, Pi, ribbon and leads are sharp and stand apart from the mat and the room | pass 2026-10-26 (`lab-iso.png`, `lab-front.png`, `lab-top.png`) |
+| L3 | Every side furnished | Each of 8 orbit angles shows an anchor piece | pass 2026-10-26 (`lab-orbits.png`): the window with the credenza, and the pinout's faint pins beside it; the pegboard bench with the oscilloscope and power supply; the wall bench and the plant; the stool by the door and sconce; the drawer cabinet, the shelf and the soldering station |
+| L4 | No halo in the blur | The breadboard's and the Pi's edges stay crisp against the blurred room, with no bright fringe or stepped copy | pass 2026-10-26 (`lab-front.png`: the breadboard and the leads against the window) |
+| L5 | Nothing on the set blooms | With the LEDs dark, the bloom forced on adds nothing | pass 2026-10-26: `e2e/lab.spec.ts` reads the bloom's high pass empty at the iso, top and front presets |
+| L6 | Faint grain | Grain is visible only on close inspection of a flat area | pass: at 0.06 of the colour, a fine speckle on flat mat at 4x zoom (pixel noise 0.45 of a level, against 0.10 at 0.03), unseen at full size |
+| L7 | The near side cuts away | A side the camera stands near or behind opens, with nothing opaque between the camera and the bench | pass 2026-10-26: the orbit angles from the north in `lab-orbits.png` stand with the north side cut away; `e2e/lab.spec.ts` checks the cut sides all the way round |
+
+Eight critic rounds scored the look-and-light rows of the house style's rubric (ADR-0145): 54%,
+62% and 68% from one critic, then 60%, 60%, 66%, 62% and 64% from a fresh critic each round,
+whose scores moved about as much between critics as between rounds. The loop closed at 64%,
+under the rubric's pass mark of 80, after a last pass on what the critics marked down round
+after round: instrument faces and strips brighter than a lit LED in the wide views, a lifted
+mat, a window lost in the close views' blur, a pale plant pot, and wide views blurred into
+smears.
+
+Open, for a later round on request: the room's furniture is bevelled blocks in flat finishes,
+which every critic marked down (rubric rows A3 and A4). Give it real detail and materials:
+lacquer and wood grain on the credenza and the benches, knobs, bezels and screws on the
+instruments, labels and pulls on the drawers, and a weave on the rug. Then capture to this
+protocol and score again.

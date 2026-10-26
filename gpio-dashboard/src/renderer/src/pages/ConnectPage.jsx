@@ -76,15 +76,12 @@ export default function ConnectPage() {
 
             <div>
               <label className="section-title block mb-1.5">Authentication</label>
-              <div className="flex gap-2 mb-3">
+              <div className="seg-track mb-3 w-fit" role="group" aria-label="Authentication">
                 <button
                   onClick={() => setConfig({ authMethod: 'key' })}
                   disabled={inputDisabled}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-btn text-xs font-medium transition-colors ${
-                    config.authMethod === 'key'
-                      ? 'bg-accent text-white'
-                      : 'bg-white/[0.04] text-gray-400 hover:text-gray-200'
-                  }`}
+                  aria-pressed={config.authMethod === 'key'}
+                  className={`tab-button disabled:opacity-40 ${config.authMethod === 'key' ? 'active' : ''}`}
                 >
                   <KeyRound className="w-3 h-3" />
                   SSH Key
@@ -92,11 +89,8 @@ export default function ConnectPage() {
                 <button
                   onClick={() => setConfig({ authMethod: 'password' })}
                   disabled={inputDisabled}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-btn text-xs font-medium transition-colors ${
-                    config.authMethod === 'password'
-                      ? 'bg-accent text-white'
-                      : 'bg-white/[0.04] text-gray-400 hover:text-gray-200'
-                  }`}
+                  aria-pressed={config.authMethod === 'password'}
+                  className={`tab-button disabled:opacity-40 ${config.authMethod === 'password' ? 'active' : ''}`}
                 >
                   Password
                 </button>
@@ -180,7 +174,7 @@ export default function ConnectPage() {
                   agentStatus === 'running'
                     ? 'bg-emerald-500 shadow-glow-success'
                     : agentStatus === 'starting'
-                      ? 'bg-amber-400 animate-pulse shadow-glow-warn'
+                      ? 'bg-amber-400 animate-pulse motion-reduce:animate-none shadow-glow-warn'
                       : agentStatus === 'error'
                         ? 'bg-red-500 shadow-glow-danger'
                         : 'bg-gray-500'

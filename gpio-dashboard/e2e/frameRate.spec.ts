@@ -6,9 +6,12 @@
 //
 // FRAME_RATE_BASES lists dev servers to compare, as comma-separated origins (for example one on a
 // checkout of an earlier commit): each round runs every scene once against each, one after the
-// other, so a load that drifts hits them alike. FRAME_RATE_SCENES, FRAME_RATE_ROUNDS and
-// FRAME_RATE_SECONDS set the tutorials, the repeats and the length of each drag; FRAME_RATE_PROFILE
-// prints the main thread's CPU profile of each run.
+// other, so a load that drifts hits them alike. FRAME_RATE_LOOKS lists the looks to compare
+// (lab,studio), interleaved the same way; FRAME_RATE_LIT=1 runs each tutorial's program in the
+// simulator first, so its LEDs are lit and the bloom drawn. FRAME_RATE_SCENES, FRAME_RATE_ROUNDS
+// and FRAME_RATE_SECONDS set the tutorials, the repeats and the length of each drag;
+// FRAME_RATE_PROFILE prints the main thread's CPU profile of each run. Each run also prints the
+// GPU's time per pass (timestamp queries), median of ten frames, labelled by the target it draws.
 import os from 'node:os'
 import { type CDPSession, expect, type Page, test } from '@playwright/test'
 import type { StudioView } from '../src/renderer/src/studio/view'
@@ -22,6 +25,7 @@ type Counted = Window & {
 interface Run {
   scene: string
   base: string
+  look: string
   load: number
   fps: number
   /** The frame loop's own reading, as the dev overlay's "last run". */
@@ -34,9 +38,13 @@ interface Run {
   buffersPerFrame: number
   /** The GPU's summed pass time for a frame (timestamp queries), ms, median of ten frames. */
   gpuMs: number | null
+  /** The same per pass, by the target it draws into, ms. */
+  passes: Record<string, number>
 }
 
 const bases = (process.env.FRAME_RATE_BASES ?? '').split(',').filter(Boolean)
+const looks = (process.env.FRAME_RATE_LOOKS ?? '').split(',').filter(Boolean)
+const lit = !!process.env.FRAME_RATE_LIT
 const scenes = (
   process.env.FRAME_RATE_SCENES ?? 'four-digit-seven-segment,led-dot-matrix,shift-register'
 ).split(',')
@@ -53,7 +61,9 @@ const mean = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length
 const pick = (a: number[], q: number) => [...a].sort((x, y) => x - y)[Math.floor(a.length * q)]!
 
 /** Opens a tutorial as the project, waits for its cables, and selects its first board. */
-async function open(page: Page, base: string, id: string) {
+async function open(page: Page, base: string, id: string, look: string) {
+  // The look is a preference of the machine; a build without looks ignores it.
+  if (look) await page.addInitScript((l) => localStorage.setItem('gpio.studio.look', l), look)
   await page.addInitScript(() => {
     const w = window as unknown as Counted
     w.__buffers = 0
@@ -104,10 +114,16 @@ async function grabBoard(page: Page): Promise<{ x: number; y: number }> {
   throw new Error('no free spot on the board to press')
 }
 
-async function measure(page: Page, base: string, scene: string): Promise<Run> {
-  await open(page, base, scene)
+async function measure(page: Page, base: string, scene: string, look: string): Promise<Run> {
+  await open(page, base, scene, look)
+  if (lit) {
+    // The program drives the LEDs; a multiplexed display keeps the frames coming.
+    await page.getByRole('button', { name: 'Simulate' }).click()
+    await page.waitForTimeout(3000)
+  }
   const from = await grabBoard(page)
-  await waitUntilStill(page, 10_000)
+  if (lit) await page.waitForTimeout(1000)
+  else await waitUntilStill(page, 10_000)
   const cdp =
     process.env.FRAME_RATE_PROFILE || throttle > 1 ? await page.context().newCDPSession(page) : null
   if (cdp && throttle > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle })
@@ -181,10 +197,11 @@ async function measure(page: Page, base: string, scene: string): Promise<Run> {
   const r = await drag(seconds)
   if (cdp && process.env.FRAME_RATE_PROFILE) await profile(cdp, `${scene} @ ${base}`)
   await page.mouse.up()
-  const gpuMs = await passTime(page)
+  const { gpuMs, passes } = await passTime(page)
   return {
     scene,
     base,
+    look,
     load,
     fps: r.frames / r.seconds,
     lastRun: r.lastRun,
@@ -192,7 +209,8 @@ async function measure(page: Page, base: string, scene: string): Promise<Run> {
     renderMs: r.renderMean,
     inputMs: r.inputMs,
     buffersPerFrame: r.buffers / r.frames,
-    gpuMs
+    gpuMs,
+    passes
   }
 }
 
@@ -201,21 +219,56 @@ async function measure(page: Page, base: string, scene: string): Promise<Run> {
  * keeps: ten frames, each resolved on its own. A pass is timed from its first stage to its last, and
  * waits on the one before it, so the sum is generous (ADR-0082); it compares builds, not frames.
  */
-async function passTime(page: Page): Promise<number | null> {
+async function passTime(
+  page: Page
+): Promise<{ gpuMs: number | null; passes: Record<string, number> }> {
   return page.evaluate(async () => {
     const view = (window as unknown as Counted).__studio
     const renderer = view.post!.renderer
     const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
+    // Each render call's target, by frame and call: a timestamp query's id names both.
+    const labels = new Map<string, string>()
+    const render = renderer.render
+    renderer.render = function (this: typeof renderer, ...args: Parameters<typeof render>) {
+      const t = renderer.getRenderTarget()
+      const name = t ? `${t.texture.name || 'target'} ${t.width}x${t.height}` : 'canvas'
+      labels.set(`${renderer.info.frame}:${renderer.info.render.frameCalls + 1}`, name)
+      return render.apply(this, args)
+    }
+    const pool = (
+      renderer.backend as unknown as {
+        timestampQueryPool: { render?: { timestamps: Map<string, number> } }
+      }
+    ).timestampQueryPool
     const sums: number[] = []
+    const perPass = new Map<string, number[]>()
     for (let k = 0; k < 10; k++) {
       // A change of the camera asks for a frame; give it two, then resolve their queries.
       view.controls.dispatchEvent({ type: 'change' })
       await wait(60)
       await Promise.race([renderer.resolveTimestampsAsync('render'), wait(2000)])
       if (renderer.info.render.timestamp > 0) sums.push(renderer.info.render.timestamp)
+      // The last frame resolved, pass by pass.
+      const frames = new Map<string, Map<string, number>>()
+      for (const [uid, ms] of pool.render?.timestamps ?? []) {
+        const m = /^r:(\d+):.*:f(\d+)$/.exec(uid)
+        if (!m) continue
+        const label = labels.get(`${m[2]}:${m[1]}`) ?? 'unlabelled'
+        const frame = frames.get(m[2]!) ?? new Map<string, number>()
+        frame.set(label, (frame.get(label) ?? 0) + ms)
+        frames.set(m[2]!, frame)
+      }
+      const last = [...frames.keys()].sort((a, b) => Number(a) - Number(b)).at(-1)
+      for (const [label, ms] of (last && frames.get(last)) || [])
+        perPass.set(label, [...(perPass.get(label) ?? []), ms])
     }
+    renderer.render = render
+    const median = (a: number[]) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)]!
     sums.sort((a, b) => a - b)
-    return sums.length ? sums[Math.floor(sums.length / 2)]! : null
+    return {
+      gpuMs: sums.length ? sums[Math.floor(sums.length / 2)]! : null,
+      passes: Object.fromEntries([...perPass].map(([label, ms]) => [label, median(ms)]))
+    }
   })
 }
 
@@ -281,38 +334,47 @@ test('frame rate while dragging a board with the cables awake', async ({ page, b
   const runs: Run[] = []
   for (let round = 1; round <= rounds; round++)
     for (const scene of scenes)
-      for (const base of origins) {
-        const fresh = await page.context().newPage()
-        try {
-          const run = await measure(fresh, base, scene)
-          runs.push(run)
-          console.log(
-            `round ${round} ${scene.padEnd(26)} ${base.slice(-5)}  ${run.fps.toFixed(1)} fps  ` +
-              `view.frame ${mean(run.frameMs).toFixed(1)} ms  render ${run.renderMs.toFixed(1)} ms  ` +
-              `input ${run.inputMs.toFixed(1)} ms  buffers/frame ${run.buffersPerFrame.toFixed(1)}  ` +
-              `gpu ${run.gpuMs?.toFixed(1) ?? 'n/a'} ms  load ${run.load.toFixed(1)}`
-          )
-        } finally {
-          await fresh.close()
+      for (const base of origins)
+        for (const look of looks.length ? looks : ['']) {
+          const fresh = await page.context().newPage()
+          try {
+            const run = await measure(fresh, base, scene, look)
+            runs.push(run)
+            console.log(
+              `round ${round} ${scene.padEnd(26)} ${base.slice(-5)} ${look.padEnd(6)} ${run.fps.toFixed(1)} fps  ` +
+                `view.frame ${mean(run.frameMs).toFixed(1)} ms  render ${run.renderMs.toFixed(1)} ms  ` +
+                `input ${run.inputMs.toFixed(1)} ms  buffers/frame ${run.buffersPerFrame.toFixed(1)}  ` +
+                `gpu ${run.gpuMs?.toFixed(1) ?? 'n/a'} ms  load ${run.load.toFixed(1)}`
+            )
+            console.log(
+              '    passes: ' +
+                Object.entries(run.passes)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([label, ms]) => `${label} ${ms.toFixed(2)}`)
+                  .join(', ')
+            )
+          } finally {
+            await fresh.close()
+          }
         }
-      }
   console.log(
     `\nover ${rounds} rounds, main thread slowed ${throttle}x: fps median [each]; view.frame mean, p95; ` +
       'render mean; input mean (ms per frame); buffers a frame; gpu pass sum (ms); load'
   )
   for (const scene of scenes)
-    for (const base of origins) {
-      const mine = runs.filter((r) => r.scene === scene && r.base === base)
-      const frameMs = mine.flatMap((r) => r.frameMs)
-      console.log(
-        `${scene.padEnd(26)} ${base.slice(-5)}  ${median(mine.map((r) => r.fps)).toFixed(1)} fps ` +
-          `[${mine.map((r) => r.fps.toFixed(1)).join(' ')}]  ` +
-          `view.frame ${mean(frameMs).toFixed(1)}, ${pick(frameMs, 0.95).toFixed(1)}  ` +
-          `render ${mean(mine.map((r) => r.renderMs)).toFixed(1)}  ` +
-          `input ${mean(mine.map((r) => r.inputMs)).toFixed(1)}  ` +
-          `buffers ${mean(mine.map((r) => r.buffersPerFrame)).toFixed(1)}  ` +
-          `gpu ${median(mine.map((r) => r.gpuMs ?? 0)).toFixed(1)}  ` +
-          `load ${Math.min(...mine.map((r) => r.load)).toFixed(1)}-${Math.max(...mine.map((r) => r.load)).toFixed(1)}`
-      )
-    }
+    for (const base of origins)
+      for (const look of looks.length ? looks : ['']) {
+        const mine = runs.filter((r) => r.scene === scene && r.base === base && r.look === look)
+        const frameMs = mine.flatMap((r) => r.frameMs)
+        console.log(
+          `${scene.padEnd(26)} ${base.slice(-5)} ${look.padEnd(6)} ${median(mine.map((r) => r.fps)).toFixed(1)} fps ` +
+            `[${mine.map((r) => r.fps.toFixed(1)).join(' ')}]  ` +
+            `view.frame ${mean(frameMs).toFixed(1)}, ${pick(frameMs, 0.95).toFixed(1)}  ` +
+            `render ${mean(mine.map((r) => r.renderMs)).toFixed(1)}  ` +
+            `input ${mean(mine.map((r) => r.inputMs)).toFixed(1)}  ` +
+            `buffers ${mean(mine.map((r) => r.buffersPerFrame)).toFixed(1)}  ` +
+            `gpu ${median(mine.map((r) => r.gpuMs ?? 0)).toFixed(1)}  ` +
+            `load ${Math.min(...mine.map((r) => r.load)).toFixed(1)}-${Math.max(...mine.map((r) => r.load)).toFixed(1)}`
+        )
+      }
 })

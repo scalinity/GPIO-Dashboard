@@ -1705,6 +1705,8 @@ decision and consequences. Numbering is stable; superseded records say so.
 
 ## ADR-0067 The stage is neutral and lit from above; AgX is followed by a colour grade; bloom takes only what passes 2
 
+Superseded in part by ADR-0143: this decision now governs the Studio look.
+
 - **Context.**
   - SPEC 10.1 and photos 1, 3 and 6 call for a neutral studio look with white boards, saturated
     red and soft shadows. Measured in the Tauri window before the change, against the photos: the
@@ -3710,6 +3712,8 @@ declare it.
 
 ## ADR-0140 The side panels fold away for an immersive bench
 
+Superseded in part by ADR-0148: the panels slide, and the stage eases into their room.
+
 - **Context.** The Studio's part library and properties panels take about 30% of a laptop
   window's width, and while arranging or looking over a bench they are not needed.
 - **Decision.** Each panel has a toggle in the top bar (left for the library, right for the
@@ -3741,3 +3745,415 @@ declare it.
   bar, as a failed click would. The agent reads pins and drives none, and quitting the app,
   Cmd+Q included, stops it (`main.rs`'s exit handler). An update to `pi-agent/` takes one Deploy
   & Start Agent click per Pi. Without a saved host nothing is attempted.
+
+## ADR-0142 The interface wears the night-lab HUD through remapped tokens
+
+- **Context.** The interface was a dark indigo Tailwind theme, and SPEC 2.3 forbade any other
+  palette. The Studio facelift takes the exhibit-3d skill's night-lab house style for every page:
+  dark navy glass on ink, a cool text ramp, five accents with fixed meanings, Outfit and DM Mono.
+  About two dozen files colour themselves through theme classes (`bg-surface-800`,
+  `text-gray-400`, `text-red-400`, `bg-accent`) and the component classes in `index.css`.
+- **Decision.**
+  - One colour source, `src/renderer/src/styles/palette.cjs`: ink `#0b0f1a`, the HUD's text
+    ramp, cyan, amber, coral, violet and green, the glass stops, and on-bg/on-text for a selected
+    segment. `tailwind.config.js` requires it and emits it as `:root` CSS variables.
+  - The theme's existing names take its values: `surface` the ink ramp, `accent` cyan, `gray`
+    the text ramp, `red` coral, `amber` amber, `emerald` and `green` green, `sky` cyan and
+    `violet` violet, each accent's ramp tinted toward white and shaded toward ink around it. The
+    `pin` and `state` colours stay. Most files take the new look with no edit.
+  - The component classes keep their names: `.card` and `.glass-panel` are a glass gradient over
+    a 10 px blur with a hairline and a long shadow, `.section-title` the HUD's group label,
+    `.tab-button` a segment (selected: on-bg/on-text), `.btn-success` the cyan play style that
+    Simulate wears, `.btn-danger` coral, `.btn-primary` on-bg/on-text; buttons do not wrap, and
+    keyboard focus is a cyan outline.
+  - Outfit (variable) and DM Mono 400 and 500 come from `@fontsource` packages pinned to exact
+    versions and imported in `main.jsx`, so `font-src 'self'` holds. Inter is removed. System
+    faces follow both in their stacks, because Outfit has no Ω, → or ⌘. The terminal keeps
+    Menlo, which has the box-drawing glyphs xterm needs.
+  - Code that needs a colour as a value reads the CSS variables (xterm's theme) or writes
+    `var()` (CodeMirror's theme, the Monitor's bars). The Tauri window's background is ink, so
+    the first paint matches.
+  - The Studio's world labels, hover tooltip, dialogs and backdrop take the kit's HUD classes from
+    `styles/hud.css`, which holds class rules only (no page rules). A label is a pill with a
+    status dot, its name in Outfit and its reading, when it has one, in DM Mono. Divergence badges
+    are coral and amber, and the hover marks are the palette's cyan, with a ghost's holes green
+    and coral; those are written in `view.ts` as values, since the 3D scene does not read CSS.
+- **Consequences.** A theme class now means its HUD colour: `text-red-400` is coral and
+  `bg-emerald-500` green, and Tailwind's default reds, greens and blues no longer appear. A new
+  colour goes into the palette. `palette.test.ts` checks that every text shade and accent reads at
+  4.5:1 on surfaces 950, 900 and 800, and on-text at 7:1 on on-bg. The fonts add about 62 KB of
+  WOFF2 (Outfit's Latin Extended file, 15 KB more, loads only for a character that needs it).
+
+## ADR-0143 Two looks, Lab and Studio, switched by changing values
+
+- **Context.**
+  - The Studio had one look, ADR-0067's neutral studio, calibrated to the reference photos. A
+    second look after the exhibit house style's night lab was chosen as the default: a warm key,
+    cool fog and ambient light, ACES, a faint grain, a vignette, and later a furnished room
+    (ADR-0144) and depth of field (ADR-0145). The neutral look stays, one switch away, because
+    LOOKDEV's photo checks are made against it.
+  - In three 0.186.1 a new scene environment texture, fog object or light set changes the cache
+    key of every lit material and rebuilds its shader. `RenderPipeline.render()` sets
+    `NoToneMapping` while it draws, so a look's tone mapping has to be in the pipeline's own
+    output graph. Pointing the pipeline at another output node releases the GPU pipeline of the
+    node it leaves, once no render object uses it, and builds it again on the way back: two
+    render pipelines for each Lab, Studio and Lab round, measured with a counted
+    `createRenderPipeline`.
+- **Decision.**
+  - `studio/look.ts` holds both looks as data: background, fog, environment and its intensity,
+    key, hemisphere and rim lights, tone mapping, exposure and grade, grain, bloom strength and
+    radius, vignette, table and sweep colours, and the camera's reach.
+
+    | | Studio | Lab |
+    |---|---|---|
+    | Background | `#24272c` | `#0b0f1a` |
+    | Fog (exponential squared) | density 0 | `#3a3d62`, 0.6e-4 per mm |
+    | Environment | the HDRI, 0.6 | a dusk scene (`lab/dusk.ts`), 0.85 |
+    | Key | white, 2.2 | `#ffc98f`, 1, same place |
+    | Hemisphere, rim | 0, 0 | `#8fa6d8` over `#3a3026` at 0.6; `#a8b8ff` at 1.6 from behind |
+    | Tone and grade | AgX, exposure 1.7, the chroma stretch of 1.2 | saturation 1.35, then ACES Filmic at exposure 1.5 |
+    | Grain, vignette | none | 0.06, the house vignette in full |
+    | Bloom (threshold 2 in both) | 0.35, radius 0.4 | 1.6, radius 0.85, by a pixel's largest channel |
+    | Table, sweep | `#505153`, `#6a6b6d` | walnut `#22170f` under an ESD mat, hidden |
+    | Camera reach | 3000 mm | 2200 mm |
+
+    The Lab fog, exposure, key and vignette started at 2.2e-4, 1.3, 2.1 and full opacity; the
+    lookdev rounds of ADR-0145 moved them, because the room read as a flat indigo haze and the
+    white breadboard matched a lit LED.
+
+  - `StageRig` (`studio/rig.ts`) owns the table, sweep and lights with Stage.tsx's old numbers,
+    one `FogExp2`, one background `Color` and one PMREM target. `apply(look)` sets values; the
+    environment is rendered into the same target again (the HDRI through
+    `fromEquirectangular`, the dusk scene through `fromScene`), so the scene's environment
+    texture never changes. The hemisphere and rim lights stay in the scene at 0 in the Studio
+    look.
+  - `Post` builds one output that holds both looks' finishes and picks one with a uniform
+    (`select`). The Studio finish is ADR-0067's. The Lab finish is bloom, a saturation of 1.35,
+    ACES Filmic at exposure 1.5, film grain of 0.06 and the sRGB encoding. Two departures keep a
+    lit LED's colour. The bloom's high pass reads luminance, which left a red LED at 5 mA (3.5
+    in its red channel, about 0.7 in luminance) under the threshold while a yellow one passed
+    it; the Lab bloom's input scales a pixel whose largest channel passes the threshold toward
+    a luminance equal to that channel, at most three times. And ACES maps each channel toward
+    white, which clipped a lit red core to peach; past 1 after exposure the brightest pixels
+    keep their hue, their largest channel mapped and the others scaled with it. Nothing in the
+    room passes the threshold, so neither touches it. Each look's blooms
+    are left out of the other look's frames (`updateBeforeType` NONE) and gated as ADR-0129
+    within their own.
+  - The right column's first row, View, has Lab and Studio buttons; L switches too; the view
+    reports the look drawn and `__studio.setLook` sets it. The choice is stored in
+    `localStorage` (`gpio.studio.look`), a preference of the machine and not part of a project.
+  - A switch fades an ink veil (`#0b0f1a`) in over the stage for 200 ms, applies the look under
+    it, and fades it out over 220 ms after the first frame drawn in the new look, which hides a
+    first switch's compile. Under reduced motion it is instant. The vignette is an HTML layer
+    in the stage, at 60% opacity in the Lab look and hidden in the Studio look, so Studio
+    captures are unchanged. Halos are drawn without fog.
+  - The camera keeps its 35° field of view and has no idle drift in both looks: a field of view
+    per look would turn each switch into a dolly zoom, and drift would draw frames while still.
+- **Consequences.**
+  - The Studio look draws as before. `e2e/lookdiff.spec.ts` (`LOOKDIFF=1`) captures three
+    tutorials at iso, top and front against a dev server on 6538594; each capture's settling
+    runs start at TRAA's first jitter offset and on GTAO's 12-frame noise cycle, which takes the
+    floor (6538594 against itself) from up to 0.11 to at most 0.005 of 255. The mean difference
+    is 0.001 to 0.003 of 255.
+  - A second Lab, Studio, Lab round makes no GPU pipeline (`e2e/look.spec.ts`), and a switch
+    settles to no frames.
+  - Both finishes' arithmetic runs in the last pass in either look (some dozens of operations a
+    pixel); the other look's passes do not run.
+  - ADR-0067 now governs the Studio look only, and LOOKDEV's photo checks are made in it.
+
+## ADR-0144 The Lab look's workroom: baked into a few merged meshes, with bounds and a cutaway
+
+- **Context.**
+  - The exhibit house style sets its Lab look in a room finished on every side, because the
+    camera circles it, with something to read on every wall, practical lamps, and the topic
+    echoed faintly in the dressing. The tabletop is the table plane, y = 0, which the physics
+    floor and the camera presets assume.
+  - The frame budget (SPEC 10.8) has little room for a heavy set: ADR-0131 put the render call
+    at about 150 objects. A practical lamp drawn above the bloom's threshold would bloom with the
+    LEDs dark and break ADR-0129's gate, and the lit circuit has to stay the brightest thing.
+- **Decision.**
+  - The set sentence is "a Pi breadboard bench in an electronics workroom at dusk". The floor is
+    900 mm below the tabletop; the inside runs x ±2400 mm and z -1700 to +2600 mm, and the
+    ceiling is at +1900 mm (`studio/lab/bounds.ts`).
+
+    | Side | Contents |
+    |---|---|
+    | North, behind the first views | the dusk window (1000 x 1100 mm, navy-violet and lavender over a thin dusty-rose band) right of the bench's line between amber light bars, the GPIO pinout left of it, a dark board whose pins glow a faint cool white: the background echo, a walnut credenza under it, a plant in the corner |
+    | West | a pegboard of pliers, cutters, drivers and wire spools over a wall bench lit by an amber strip under its top, with a desk lamp, an oscilloscope and a power supply on it, their screens dim |
+    | East | a parts-drawer cabinet, a shelf lit from below by an amber strip, a soldering station on a side table |
+    | South | the door, a brass sconce beside it, and a stool |
+    | Ceiling | two dim pendants over the bench |
+    | Floor | tiles and a rug, and the bench's legs, apron and lower shelf under its table |
+
+  - Builders in `lab/pieces.ts` draw each piece in millimetres, after the house style's furniture
+    language (bevelled engineered parts, faceted low-poly plants), written for this app.
+    `lab/bake.ts` places each piece's geometry in the room, colours it per vertex with roughness
+    and metalness as attributes, darkens it by an occlusion term baked from where each vertex
+    stands (height above the floor, distance to a wall or a corner, under the bench, facing
+    down), and merges every piece of one kind on one side into one geometry.
+  - Three materials serve the whole room (`lab/materials.ts`): a lit vertex-colour standard
+    material; an unlit emitter material for lamps, bars and screens, at most 1.5 in linear light;
+    and additive glow cards, at most 0.16, without fog, fading from their centres and when
+    seen edge-on. A bulb's three crossed cards over the bulb stay under 2. Metal in the room is
+    at least 0.5 rough, so the key's highlight on it stays under the threshold too. As drawn, the
+    brightest emitter is 1.2 and the brightest card 0.1.
+  - Besides the furniture, a thin amber strip under the bench's front lip, a warm pool on the
+    mat around the bench, and warm light under the door.
+  - The room is 18 meshes (three kinds on each of six groups) and 24,288 triangles; none casts
+    or takes a shadow, as the key's
+    shadow map covers the bench. It is built the first time the Lab look is applied (about 50
+    ms), and hidden in the Studio look.
+  - `view.frame` follows the orbit and any preset move with `clampToRoom`, which keeps the target
+    in the room and shortens the camera's distance along its line to the target until it stands
+    150 mm inside the walls, floor and ceiling; the south is open, as a stage's front. The target
+    keeps 200 mm further in than the camera: on the camera's own bound, a target panned to a wall
+    with the camera beyond it would leave no distance between them. The orbit
+    goes on from its own position at the next frame, so passing a wall does not shorten its
+    distance for good. Then the cutaway hides each side, a wall with its furniture or the ceiling
+    with its pendants, that the camera stands within 900 mm of or behind: farther than any piece
+    stands out from its wall, so the camera is never inside one.
+  - The Lab look orbits at most 2200 mm from its target, and it is the default look.
+  - The bench in the Lab look is a walnut top under a matte slate ESD mat, 457 x 381 mm (18 x 15
+    inches) and 2 mm thick (`StageRig`'s mat, shown when the look names one), so the walnut
+    frames it; matte, as a vinyl mat is, since a sheen mirrored the dusk window at a low view.
+    A uniform dark plane at the working
+    distance had nothing to give the breadboard its size: the mat's edge, its border and a grid
+    printed every 10 and 50 mm do, as a real bench's mat does, and its ground snap and cord over
+    the back edge mark it as an electronics bench. The grid is drawn in the mat's material, its
+    lines antialiased against the pixel's footprint and the 10 mm ones fading once they are
+    thinner than a pixel. The mat's top is the table plane, y = 0, where parts rest and physics'
+    floor is, so the table drops 2 mm while the mat shows; in the Studio look the mat is hidden
+    and the table stays where ADR-0067 calibrated it.
+- **Consequences.**
+  - Every preset of every tutorial stands inside the room, with no side cut, at canvas aspects
+    from 0.6 to 2.4 (`lab/bounds.test.ts`). An orbit all the way round at full reach stays
+    inside and opens the north, west and east sides in turn (`e2e/lab.spec.ts`).
+  - With the LEDs dark and the bloom forced on, the Lab bloom's high pass is empty at the iso,
+    top and front presets; the forced and gated frames differ by 0.006 to 0.011 of 255, the
+    settling floor (`e2e/lab.spec.ts`).
+  - The room's cost, measured with the depth of field, is in ADR-0145.
+
+## ADR-0145 The Lab look focuses on the bench with a depth-aware bokeh, and what it costs
+
+- **Context.**
+  - The exhibit house style keeps its hero in focus and lets the room melt into bokeh, the far
+    blur stronger than the near, so the bench reads as a miniature. three 0.186's `dof()`
+    gathers neighbours without weighing them by depth: a sharp edge smears into the blurred
+    background behind it as halos and stepped copies, worst on the white breadboard against
+    the dark room. The Studio look's Build Mode focus uses `dof()` and stays as it is.
+  - SPEC 10.8 asks for 60 fps at the window's pixel ratio with physics awake and the full post
+    stack, and to scale effect quality first, recording what changed. The ladder for the Lab
+    look: the bokeh's taps 48 to 32, then no depth of field while cables are awake.
+- **Decision.**
+  - `studio/bokeh.ts` is a single gather after the house style's stage (Gustafsson's 2018
+    single pass), written for this app. A tap counts only if its own blur reaches the pixel,
+    and a tap behind the pixel may not out-blur it by more than twice. 32 taps on a golden-angle
+    spiral at half resolution; taps farther than 4 device pixels read a quarter-resolution
+    box-filtered copy, so a thin bright strip does not break into beads. Each pixel counts in that
+    copy by its own blur, so the sharp bench does not halo into the blur behind it. A
+    full-resolution composite keeps in-focus pixels from the sharp image. Blur grows with the
+    distance from the focus, 1.6 times as fast behind it as 0.9 in front, over a band as long
+    as the camera's distance to the bench, up to 10 CSS pixels (three quarters of that from
+    1.33 m out, so a wide view's room stays shapes rather than smears): as a lens's, the blur
+    grows the closer it focuses, so a close view melts its foreground and the room and a wide
+    one keeps the bench's surroundings.
+  - The Lab look's output is the Lab finish of the bokeh of TRAA's image, with the scene pass's
+    depth. `view.frame` focuses it at the camera's distance from its target every frame
+    (`Post.setBenchFocus`). Build Mode's focus narrows the same node's band to 320 mm; its output
+    is another graph, so the pipeline's output differs from `sharp` while focused. The bokeh's
+    two passes are left out of the Studio look's frames.
+  - GTAO runs at 0.5 of the drawing buffer in both looks. A resolution per look reallocated its
+    targets on every switch, and 0.35 in the Lab look gave no measurable gain (below). The bokeh
+    has 32 taps, the ladder's first step; the second, no depth of field while cables are awake,
+    is not taken.
+  - The look was dialled in three critic rounds: a separate reviewer saw only the captures, the
+    house style's exemplars and the rubric's rows A1 to A6 (look and light), scored them and
+    named the largest gaps. 13.5 of 25 (54%), then 15.5 (62%), then 17 (68%). Between rounds
+    the window, bars, strips, screens and pendants were dimmed so the lit circuit leads, a warm
+    pool went onto the mat and a strip under the bench's lip, the walls moved from indigo to a
+    lighter teal-grey, the fog thinned (2.2e-4 to 1.2e-4 per mm), the exposure rose (1.3 to
+    1.5), the vignette eased to 60%, and the far blur weakened (14 to 10 px, band 2400 to 4000
+    mm). Five more rounds, each scored by a fresh critic that saw nothing of the others: 60%,
+    60%, 66%, 62% and 16 of 25 (64%), the scores moving by about as much from one critic to the
+    next as from one round to the next. They added the walnut top and the ESD mat (ADR-0144),
+    dimmed the key from 2.1 to 1, deepened the vignette to full, thinned the fog to 0.6e-4 per
+    mm, dimmed every practical to a fraction of a lit LED's core, put the pinout on the north
+    wall as a backlit diagram beside a smaller window, scaled the depth of field with the
+    camera's distance, and let a lit LED bloom and keep its colour by its largest channel (ADR-0143).
+    The hierarchy row rose from 2 of 5 to 3: a lit LED now leads every close frame, red as
+    readily as yellow. A satin mat and a 14 px blur were tried and went back: the sheen mirrored
+    the window at a low view, and the wider gather read the quarter-resolution copy as blocks.
+    The rubric's pass mark is 80. Its remaining gaps are the wide orbits, where a lit LED at
+    1.6 m is a speck under the room's instrument faces; the room's furniture, plain bevelled
+    blocks without lacquer or texture; and the room falling to black in the close views. The
+    loop closed there, after a last unscored pass on what the critics marked down round after
+    round: the instrument faces and strips dimmed further, a darker mat, a brighter window, a
+    muted plant pot, and less blur in a wide view. The furniture's detail is open in LOOKDEV,
+    for a later round.
+- **Consequences.**
+  - Measured in headless Chromium on WebGPU (`FRAME_RATE=1 FRAME_RATE_LOOKS=lab,studio`, 1200 x
+    800 at a pixel ratio of 2, three interleaved rounds, a board dragged with every cable
+    awake), on a machine at load 7 to 25 from other work (a Rust build, iOS simulators):
+    - LEDs dark, 48 taps and GTAO at 0.5 in both looks: 60.0 fps in every run of both looks.
+      GPU pass sums, Lab against Studio: 15.7 against 10.9 ms (four-digit), 10.4 against 9.8 (dot
+      matrix), 13.6 against 8.3 (shift register).
+    - LEDs lit (`FRAME_RATE_LIT=1`), the same settings: 59.8, 58.8 and 60.0 fps in the Lab look
+      against 60.0, 59.1 and 60.0 in the Studio look; sums 39.0, 45.4 and 44.3 against 28.0, 26.8
+      and 25.5 ms.
+    - LEDs lit, GTAO at 0.35 and 32 taps in the Lab look: 59.8, 59.3 and 60.0 fps against 60.0,
+      59.0 and 60.0; sums 41.8, 40.3 and 40.3 against 27.7, 26.5 and 27.5 ms.
+    - With vsync and the frame-rate cap off, the camera moving every frame, LEDs lit, after the
+      ladder: a median 2.09 ms a frame in the Lab look against 1.81 in the Studio look (three
+      rounds, four-digit).
+  - The per-pass times show why the sums are not a measure of cost here: each of the bloom's
+    passes, down to its 45 x 23 blur, reads 1.6 to 2.9 ms, because a pass is timed from its
+    first stage to its last and waits on the one before it (ADR-0082). The sums exceed SPEC
+    10.8's 13 ms in both looks, the Studio look's included, so they cannot decide the third
+    step. The frame rate held, and the uncapped frame time puts the Lab look about 15% over
+    the Studio look. Whether to take the third step is for a measurement in the Tauri window
+    with physics awake (`HIL_CHECKLIST.md`'s drag).
+  - The bokeh's passes are named `Bokeh.prefilter` and `Bokeh.gather`, and the frame-rate
+    measurement prints every pass's time by its target.
+  - The Studio look draws as before: LOOKDIFF against 6538594 at 0.001 to 0.002 of 255 opened in
+    the Studio look, and 0.001 to 0.014 opened in the Lab look and switched (`LOOKDIFF_FROM=lab`).
+
+## ADR-0146 A title column reads the bench: three readouts and a sentence
+
+- **Context.** The Studio showed the simulation's currents only in the drawer's Sim/Probes tab
+  and its problems in the ERC tab, so with the drawer closed nothing on the stage said whether the
+  circuit was within the Pi's limits or what it was doing. The night-lab HUD (ADR-0142) frames a
+  stage with a title column: a name, three live numbers and one live sentence.
+- **Decision.**
+  - The title column sits over the stage's top left: the project's name under "Breadboard
+    Studio", then three readouts, then a sentence (`studio/readouts.ts`, `studio/Hud.tsx`).
+  - The readouts are GPIO DRAW (every GPIO's current together, in cyan as the headline), PEAK
+    with the busiest pin's name, and CHECKS (errors, else warnings, else OK; ERC's notices, such
+    as a part without a datasheet, count as neither). A total over
+    `RP1.totalGpioCurrentMaxA` or a pin over `RP1.pinCurrentMaxA`, the limits `simChecks` also
+    reports, turns its readout coral; currents read in whole µA below 1 mA, then mA to one
+    decimal.
+  - They read the snapshot the bench shows, chosen as the view chooses it: the Pi's while Live Pi
+    state follows it, else the simulation's, none while a build is part of the way.
+  - The sentence names controls and pins but no live numbers, in a fixed order: an empty bench,
+    a build part-way, a simulation error, a pin over its limit, the total over its limit, ERC
+    errors, Live Pi state, a program running on the Pi (not while it is still being sent), a
+    simulation running, idle. While a simulation runs it points at the readouts rather than at
+    the busiest pin, which a blinking program moves twice a second. It changes only with the
+    bench's state, so as `aria-live` text a screen reader hears it once; it carries no role, so
+    the page keeps one `role="status"`.
+  - The column takes no pointer input except Claude's note, which moved into it; it is mounted
+    after the stage element, so the stage holds no button and the world labels stay first in the
+    document. Container queries hide the sentence, then the name, as the stage gets short.
+- **Consequences.** With the drawer open the stage is short, so the sentence folds away and the
+  readouts stay. The column covers the stage's top left: the default framing can put the bench's
+  far end under it.
+
+## ADR-0147 An opening tour shows the bench in its room, and gives way to the first input
+
+Superseded in part by ADR-0148: while it plays the side panels slide away and the stage takes
+their room.
+
+- **Context.** The app opens on the Studio (ADR-0141), and the Lab look (ADR-0143 to ADR-0145)
+  sets the bench in a furnished workroom that its first framing, the iso preset close on the
+  bench, barely shows. The exhibit house style opens with a short tour that the first input
+  takes over. Three constraints hold it in: the Studio draws no frames when nothing moves (SPEC
+  10.8), test automation must see the Studio as it was, and nothing the user does may be lost.
+- **Decision.**
+  - `studio/tour.ts` plans the tour from the bench (`benchOf`, `planShots`) and runs it (`Tour`):
+    the room from about 1.4 m over 5 s, low along the bench from the Pi to the breadboard over
+    5 s, close on the brightest lit part or else the T-board over 4.5 s, then 1.2 s eased home to
+    the iso preset. Each shot turns 1.6 to 3 degrees a second; the veil dips to black over
+    350 ms into each cut and lifts over 350 ms after it. The Lab look's depth of field follows
+    the camera's distance (ADR-0145), so the close-up melts the room without a focus pull of its
+    own.
+  - The view runs it in `frame()` beside the preset tween, which keeps the frame loop's rule:
+    frames while it plays, none once it ends.
+  - It plays once a launch, at the Studio's first opening, in the Lab look, on a bench, unless
+    `navigator.webdriver` is set, reduced motion is asked for, Build Mode is on, an assistant's
+    turn is running, or View's Opening tour button has turned it off (`gpio.studio.tour` on this
+    machine). C plays it at any time.
+  - The first press or wheel turn on the stage is swallowed in the capture phase, before the
+    orbit controls see it, and eases the camera to the iso preset from wherever the tour put it.
+    A key ends the tour and then acts as it always does, so a preset key lands on its preset. A
+    look switch, an edit or a capture ends it, and so does any other move of the camera (Build
+    Mode's framing, the assistant's focus) or entering Build Mode; a document opened under it
+    re-plans it. The close-up looks at the part whose die the simulation lights brightest.
+  - While it plays, `studioStore.presenting` steps the side panels back (opacity 0 and `inert`,
+    in their place, so the stage does not resize) and shows one line under the stage. The line
+    has no status role, so the page keeps one.
+- **Consequences.**
+  - Every tutorial's tour stays inside the room, turns at that pace, ends exactly on the iso
+    preset and runs under 16 s (`tour.test.ts`). `e2e/tour.spec.ts` plays it as C does: the
+    camera moves, the panels step back and take no input, the first click selects nothing, the
+    camera lands on the iso preset, and the scene is still within 2 s.
+  - Under automation the tour never starts by itself, so the rest of the suite opens the Studio
+    as before.
+
+## ADR-0148 The side panels slide, and the stage eases into their room
+
+- **Context.** Folding a side panel (ADR-0140) unmounted it, so the stage jumped to its new
+  width in one step. The canvas resized with it, and every render target the post chain holds
+  (TRAA, GTAO, bloom, bokeh) was reallocated, so the jump also stalled. Easing the stage's width
+  with CSS would resize the canvas and reallocate those targets on every frame of the change. The
+  opening tour stepped the panels back without moving the stage, so the room they left stayed
+  empty while it played.
+- **Decision.**
+  - The panels stay mounted and slide over the stage's edges. They are `inert` once hidden, and
+    out of sight once they have slid away.
+  - `studio/dock.ts` eases the stage's visible region over 280 ms. Meanwhile the canvas holds
+    still over the union of the old region and the new, so it resizes once, at the change's
+    start when it widens or its end when it narrows. The view applies that size through R3F's
+    `setSize` in the same frame it draws, so the picture is never shown stretched or shifted.
+  - A lens shift (`camera.filmOffset`) puts the camera's centre at the visible region's centre
+    while the region and the canvas differ. TRAA rewrites the camera's view offset on every
+    frame for its jitter, so the shift cannot live there.
+  - The page's row carries four CSS variables that the view sets: the region's insets and the
+    canvas's. The Studio's overlays sit in the region and follow it. Each panel's transform
+    hangs it off the region's edge, so the two move as one.
+  - The opening tour hides both panels while it plays (ADR-0147), and the stage takes their
+    room. Entering Build Mode swaps the library for the wider build panel the same way.
+  - With reduced motion asked for, the region moves at once.
+- **Consequences.** A fold costs one resize, not one per frame, and the canvas is up to one
+  panel wider than the visible region for 280 ms. `dock.test.ts` holds the easing, the union and
+  the lens shift's projection; `placing.spec.ts` counts one canvas resize per fold, and
+  `tour.spec.ts` checks the stage widening for the tour.
+
+## ADR-0149 A rigid part snaps to where it fits, and a part that may not go is drawn in red
+
+- **Context.** A drag from the library seated pin 1 in the hole under the pointer and drew the
+  part only when the result was legal. Over any other hole it drew red hole marks and no part.
+  A part that must straddle the trench fits from one column only, so the bar graph, the
+  74HC595, the ADC0834, the L293D and the tact switch were drawn over about 5% of the board,
+  and the displays and the LED matrix over about 22%.
+- **Decision.**
+  - For a rigid part, placing or moving it takes the hole nearest the pointer from which every
+    pin lands in a main hole, across the trench when the part must straddle it
+    (`snapAnchor`). The search reaches as far as the part's own length. When pin 1's own hole
+    fits, the part stays there; when no hole fits (a chip turned across the trench), the drag is
+    refused as before. A flexible part still seats where it points.
+  - A part that fits its holes but may not take them, such as another part's holes or those
+    under the T-board, is drawn where it would sit, ringed in the error halo's red, with its
+    holes marked red. It is drawn from the edit applied without checks and is never committed.
+    Only those two refusals are drawn: a footprint or span the rules refuse, such as two leads
+    in one hole, may have no shape to draw. The red ring replaces any other halo on the part,
+    since halos add.
+- **Consequences.** Every rigid library part seats near every one of a bb-830's 630 main holes,
+  and the footprint and trench rules hold wherever it does (`placement.test.ts`). The report
+  names the part drawn in red (`refused`) for `placing.spec.ts`.
+
+## ADR-0150 Boards and the Pi may not overlap, and a drag stops against them
+
+- **Context.** Nothing kept a board out of the Pi, or out of another board, so a drag could put
+  one inside the other.
+- **Decision.**
+  - `circuitStore.check` and `dispatch` refuse an edit that makes boards or a board and the Pi
+    overlap on the table (`OVERLAP`, "bb1 can't overlap the Pi"). They use the board's body and
+    the Pi's 85 × 56 mm outline, through the convex overlap test the modules' rest height uses.
+    Outlines that only meet do not overlap.
+  - Only an edit's new overlaps count. `validateDoc` does not check them, so a project saved
+    with an overlap still opens and takes other edits.
+  - A board or Pi drag that would overlap stops at the point of contact: the view bisects
+    toward the pointer's position from the drag's last clear one, or from where the drag began
+    when it has none, and shows the refusal as the stage's notice.
+- **Consequences.** No tutorial or sample bench has an overlap (`validate.test.ts`). The
+  assistant's board moves are refused with the same message.

@@ -35,7 +35,7 @@ export default function MonitorPage() {
           <span
             className={`w-2 h-2 rounded-full ${
               agentRunning
-                ? 'bg-emerald-500 animate-pulse shadow-glow-success'
+                ? 'bg-emerald-500 animate-pulse motion-reduce:animate-none shadow-glow-success'
                 : 'bg-gray-600'
             }`}
           />

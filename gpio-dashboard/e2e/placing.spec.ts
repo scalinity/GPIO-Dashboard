@@ -1,8 +1,10 @@
 // Placing from the library by dragging, as a user does, and the side panels around the bench: an
 // off-board module dropped over the breadboard rests on its top (it sank into it), the bar graph
-// lands where it is dropped, and the panels fold away for an immersive bench and come back.
+// lands where it is dropped and snaps across the trench from anywhere else, a part that may not go
+// where it fits is drawn there in red, a board stops against the Pi, and the panels slide away for
+// an immersive bench and come back, the canvas resizing once each way.
 import { expect, type Page, test } from '@playwright/test'
-import { hole, report, showStudio, waitUntilStill } from './helpers'
+import { hole, report, showStudio, type StudioWindow, waitUntilStill } from './helpers'
 
 /** A bench with the Blinking LED's boards and no parts, as a new project has. */
 async function emptyBench(page: Page) {
@@ -30,6 +32,11 @@ async function drag(page: Page, name: string, to: { x: number; y: number }) {
   await page.mouse.move(to.x, to.y, { steps: 12 })
   await page.mouse.up()
 }
+
+const pins = (page: Page) =>
+  page.evaluate(
+    "import('/src/state/circuit.ts').then((m) => m.circuit.getSnapshot().parts.map((p) => [p.defId, p.placement.pins['1']]))"
+  )
 
 const board = (page: Page) =>
   page.evaluate(
@@ -63,6 +70,82 @@ test('the bar graph lands where it is dropped', async ({ page }) => {
   expect(parts).toEqual([['bar-graph-10', { board: id, area: 'main', row: 35, col: 'e' }]])
 })
 
+test('the bar graph is drawn from any column and snaps across the trench', async ({ page }) => {
+  await emptyBench(page)
+  const id = await board(page)
+  await page.getByLabel('Search parts').fill('10-segment LED bar graph')
+  const row = page
+    .getByRole('complementary', { name: 'Part library' })
+    .getByRole('button', { name: '10-segment LED bar graph' })
+  const box = (await row.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  // Over column h, past the trench, it is drawn already: snapped to where it fits.
+  const h = await hole(page, `${id}:35h`)
+  await page.mouse.move(h.x, h.y, { steps: 12 })
+  await expect.poll(async () => (await report(page)).parts.B1 != null).toBe(true)
+  const b = await hole(page, `${id}:35b`)
+  await page.mouse.move(b.x, b.y, { steps: 6 })
+  await page.mouse.up()
+  expect(await pins(page)).toEqual([
+    ['bar-graph-10', { board: id, area: 'main', row: 35, col: 'e' }]
+  ])
+})
+
+test('a part over another is drawn there in red and is not placed', async ({ page }) => {
+  await emptyBench(page)
+  const id = await board(page)
+  await drag(page, '10-segment LED bar graph', await hole(page, `${id}:35e`))
+  await page.getByLabel('Search parts').fill('10-segment LED bar graph')
+  const row = page
+    .getByRole('complementary', { name: 'Part library' })
+    .getByRole('button', { name: '10-segment LED bar graph' })
+  const box = (await row.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  const over = await hole(page, `${id}:38g`)
+  await page.mouse.move(over.x, over.y, { steps: 12 })
+  await expect.poll(async () => (await report(page)).refused).toBe('B2')
+  expect((await report(page)).parts.B2).toBeDefined()
+  // Ringed in red, as an error is, and in nothing else.
+  expect((await report(page)).sim.halos).toEqual(['B2'])
+  await page.mouse.up()
+  await expect.poll(async () => (await report(page)).refused).toBeNull()
+  expect(await pins(page)).toHaveLength(1)
+  expect((await report(page)).parts.B2).toBeUndefined()
+})
+
+// Slowly, it stops from where it last stood clear; in one move, from where the drag began.
+for (const [how, steps] of [
+  ['slowly', 20],
+  ['in one move', 1]
+] as const)
+  test(`a board dragged into the Pi ${how} stops against its edge`, async ({ page }) => {
+    await emptyBench(page)
+    const id = await board(page)
+    const snapshot = (read: string) =>
+      page.evaluate(
+        `Promise.all([import('/src/state/circuit.ts'), import('/src/core/reach/reach.ts')]).then(([c, r]) => { const doc = c.circuit.getSnapshot(); return ${read} })`
+      ) as Promise<number[]>
+    // The bench has the board at x = 0 and the Pi's 85 mm outline from x = -120, both unturned.
+    const [px, py] = await snapshot('doc.controller.pi.transform.position')
+    const from = await hole(page, `${id}:55c`)
+    await page.mouse.click(from.x, from.y)
+    const to = (await page.evaluate(
+      (q) => (window as unknown as StudioWindow).__studio.projectPoint(q),
+      [px! + 42.5, py! + 28, 0] as const
+    ))!
+    await page.mouse.move(from.x, from.y)
+    await page.mouse.down()
+    await page.mouse.move(to.x, to.y, { steps })
+    await expect(page.getByRole('status')).toHaveText(`${id} can't overlap the Pi`)
+    await page.mouse.up()
+    await waitUntilStill(page, 10_000)
+    const [x1] = await snapshot('doc.boards[0].transform.position')
+    expect(Math.abs(x1! - (px! + 85))).toBeLessThanOrEqual(0.5)
+    expect(await snapshot('r.standingOverlaps(doc)')).toEqual([])
+  })
+
 test('the side panels fold away for an immersive bench and come back', async ({ page }) => {
   await emptyBench(page)
   const library = page.getByRole('complementary', { name: 'Part library' })
@@ -72,12 +155,23 @@ test('the side panels fold away for an immersive bench and come back', async ({ 
   const canvas = page.locator('canvas').first()
   const width = async () => (await canvas.boundingBox())!.width
   const narrow = await width()
+  // Each fold resizes the canvas once, as it starts: the picture eases into the room, not the
+  // canvas a frame at a time.
+  await page.evaluate(() => {
+    const canvas = document.querySelector('[data-testid="studio"] canvas')!
+    const w = window as unknown as { sizes: number[] }
+    w.sizes = []
+    new ResizeObserver(([e]) => w.sizes.push(Math.round(e!.contentRect.width))).observe(canvas)
+  })
 
   await page.getByRole('button', { name: 'Hide the part library' }).click()
-  await expect(library).toHaveCount(0)
+  await expect(library).toBeHidden()
   await page.getByRole('button', { name: 'Hide the properties' }).click()
-  await expect(properties).toHaveCount(0)
+  await expect(properties).toBeHidden()
   await expect.poll(width).toBeGreaterThan(narrow + 400)
+  await waitUntilStill(page, 10_000)
+  const sizes = await page.evaluate(() => (window as unknown as { sizes: number[] }).sizes)
+  expect(sizes).toHaveLength(3)
 
   // `\` shows both again; `[` and `]` each fold one.
   await page
@@ -85,13 +179,14 @@ test('the side panels fold away for an immersive bench and come back', async ({ 
     .first()
     .click({ position: { x: 20, y: 20 } })
   await page.keyboard.press('\\')
-  await expect(library).toHaveCount(1)
-  await expect(properties).toHaveCount(1)
+  await expect(library).toBeVisible()
+  await expect(properties).toBeVisible()
   await page.keyboard.press('[')
-  await expect(library).toHaveCount(0)
+  await expect(library).toBeHidden()
   await page.keyboard.press(']')
-  await expect(properties).toHaveCount(0)
+  await expect(properties).toBeHidden()
   await page.keyboard.press('\\')
-  await expect(library).toHaveCount(1)
-  await expect(properties).toHaveCount(1)
+  await expect(library).toBeVisible()
+  await expect(properties).toBeVisible()
+  await expect.poll(width).toBeCloseTo(narrow, 0)
 })

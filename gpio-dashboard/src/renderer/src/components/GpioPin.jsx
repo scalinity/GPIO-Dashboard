@@ -20,7 +20,7 @@ const GpioPin = React.memo(function GpioPin({ pin }) {
       aria-label={`Pin ${pin.physical}: ${pin.name}${isGpio ? `, BCM ${pin.bcm}` : ''}, ${typeInfo.label}`}
     >
       {isGpio ? (
-        <span className="text-xs font-bold text-white leading-none">{pin.bcm}</span>
+        <span className="font-mono text-xs font-medium text-white leading-none">{pin.bcm}</span>
       ) : (
         <span className="text-[9px] font-semibold text-white/80 leading-none">{pin.name}</span>
       )}

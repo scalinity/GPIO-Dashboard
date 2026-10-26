@@ -31,7 +31,9 @@ export class Halos {
   private readonly material = new MeshBasicNodeMaterial({
     transparent: true,
     depthWrite: false,
-    blending: AdditiveBlending
+    blending: AdditiveBlending,
+    // Light, not a surface: the Lab look's fog leaves it as bright as it is drawn.
+    fog: false
   })
 
   constructor(private readonly group: Group) {
