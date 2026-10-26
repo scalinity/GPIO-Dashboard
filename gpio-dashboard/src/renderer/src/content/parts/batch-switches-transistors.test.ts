@@ -406,8 +406,10 @@ describe('MB102 breadboard power module (Handson Technology datasheet)', () => {
     })
   })
 
-  it('takes the 5.3 x 3.5 cm board size from the datasheet', () => {
-    expect(power.geometry).toMatchObject({ params: { boardLengthMm: 53, boardWidthMm: 35 } })
+  it("takes the datasheet's 53 mm length and the 33 mm width the kit's board measures", () => {
+    // Handson gives 5.3 x 3.5 cm; SunFounder's photo of the kit's board, Components101 and the 45-in-1
+    // kit give 33 mm across.
+    expect(power.geometry).toMatchObject({ params: { boardLengthMm: 53, boardWidthMm: 33 } })
   })
 
   it('notes that it plugs into the rail holes and that the rail-plug footprint is pending', () => {

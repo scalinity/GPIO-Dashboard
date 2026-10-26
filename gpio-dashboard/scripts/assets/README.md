@@ -282,7 +282,7 @@ Twenty-one parts in seven families, built by `dip.py`, `seven_segment.py`, `bar_
 boxes, tubes and drilled slabs, a baked decal, boards with a legend, male headers, the STEP
 helpers; `--preview <dir>` renders PNGs while developing) and, for the modules, `modparts.py` and
 the variant files `mod_sensors.py`, `mod_ads.py` and `mod_boards.py`. Build one with
-`npm run assets:build -- hc-sr04`. The files are 7 to 229 KB each, 0.67 MB together with their
+`npm run assets:build -- hc-sr04`. The files are 7 to 229 KB each, 0.75 MB together with their
 manifests and colliders.
 
 **On-board parts** (`ic-74hc595`, `ic-adc0834`, `ic-l293d`, the two seven-segment displays, the
@@ -311,9 +311,9 @@ body, which floats on its standoff, is 4.57 mm thick and `assets:check` expects 
   board's header is on, so that a housing can reach it (the HC-SR501's real header points down from
   its component side; the model stands it on the lens side's free end). Four kinds differ, each
   listed in `parts.ts` under `axes`:
-  - the right-angle headers of the HC-SR04 (its base on the back) and the DHT11 breakout (its base
-    on top): the pins lie along -y out of the board's near edge, as on the boards, and so do the
-    empties' +z;
+  - the right-angle headers of the HC-SR04 (its base on the back), the DHT11 breakout (its base
+    on top), the relay and the joystick: the pins lie along -y out of the board's near edge, as on
+    the boards, and so do the empties' +z;
   - the relay's screw terminals `NC`, `COM` and `NO`: at the block's front face, +z along +y, out
     of the board's edge;
   - the keypad and the servo: the female housing at the end of a flat tail or a cable lies on the
@@ -321,14 +321,17 @@ body, which floats on its standoff, is 4.57 mm thick and `assets:check` expects 
   - the motor: two leads, each ending in a one-pin housing whose male pin sticks out along -y.
 - *Body.* A node `body` holds the board and what stands on it (the servo's case, the motor's can).
   `pins`, `cable` or `tail`, `connector` and the animated nodes are beside it. `bodyMm` describes
-  `body` (the servo's with its `horn`). The DHT11 breakout's sensor lies on its back on the board,
-  its top end `sensorOverhangApproxMm` past the far edge; the board's size is read off a photo, so
-  only its footprint, with the overhang, is compared. The HC-SR501 runs its 32 mm along y.
+  `body` (the servo's with its `horn`, the joystick's with its cap, whose skirt overhangs the
+  board). The DHT11 breakout's sensor lies on its back on the board, its top end
+  `sensorOverhangApproxMm` past the far edge; the board's size is read off a photo, so only its
+  footprint, with the overhang, is compared. The HC-SR501 runs its 32 mm along y.
 - *Textures.* A board's solder-mask top carries its silkscreen legend as one KTX2 base-colour map
-  (UVs run over the board's outline). The HC-SR04's transducer meshes and the DHT11 breakout's
-  resistor code are drawn in that legend and mapped onto their tops from above. The relay's case top
-  and terminal face, the keypad's keys, the LCD's screen and the housings' socket holes are small
-  maps on panels of their own. The DHT11's vents are holes in its housing's front plate. The ADS1115 also has the occlusion map baked from its STEP; no other module has one.
+  (UVs run over the board's outline; the power module's turned a quarter, u along its 53 mm). The
+  HC-SR04's transducer meshes and the DHT11 breakout's resistor code are drawn in that legend and
+  mapped onto their tops from above. The relay's case top and terminal face, the power module's
+  regulator markings, the keypad's keys, the LCD's screen and the housings' socket holes are small
+  maps on panels of their own. The DHT11's vents are holes in its housing's front plate. The
+  ADS1115 also has the occlusion map baked from its STEP; no other module has one.
 
 **Names the studio looks up** (all unique in a file):
 
