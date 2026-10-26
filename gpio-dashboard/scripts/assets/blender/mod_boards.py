@@ -958,7 +958,7 @@ def sg90(root, part, args):
     m.polygon(kit.circle(shaft_x - 6.0, cy, 0.6, 8), tower + 0.01, dark)
     m.disc((shaft_x, cy), 3.3, tower, tower + 0.6, blue, n=18, caps=(False, True))
     m.disc((shaft_x, cy), 2.35, tower + 0.6, tower + 1.0, white, n=12, caps=(False, False))
-    body = m.to_object('body', root)
+    body = m.to_object('case', root)
     # The label on the -y side: black, a gold border, TOWER PRO, a cream panel, SG90.
     lw, lh, lz = 15.6, 11.4, 2.8
     gold, cream, ink = 'd6b453', 'eee1a3', '161616'
