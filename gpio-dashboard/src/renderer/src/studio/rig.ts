@@ -7,6 +7,7 @@ import {
   BoxGeometry,
   type BufferGeometry,
   Color,
+  CylinderGeometry,
   DirectionalLight,
   FogExp2,
   Group,
@@ -20,6 +21,18 @@ import {
   type Texture,
   type WebGPURenderer
 } from 'three/webgpu'
+import {
+  float,
+  fwidth,
+  max,
+  mix,
+  normalLocal,
+  positionLocal,
+  smoothstep,
+  step,
+  uniform,
+  vec2
+} from 'three/tsl'
 import { duskScene } from './lab/dusk'
 import { buildRoom, type Room } from './lab/room'
 import { type Look, STUDIO } from './look'
@@ -27,6 +40,10 @@ import { type Look, STUDIO } from './look'
 // The table is centred on the default bench (core/model/defaults: the board at the origin, the Pi
 // 120 mm to its left); its top is the table plane, y = 0.
 const TABLE = { width: 1000, depth: 700, thickness: 20, centre: [20, -30] as const }
+
+// An ESD mat, 24 × 20 inches and 2 mm thick, under the default bench. Its top is the table plane,
+// so the table sits 2 mm lower while the mat shows; the ground snap stands at its back left corner.
+const MAT = { width: 610, depth: 508, thickness: 2, centre: [-40, -10] as const }
 
 // The sweep: a floor from the front, a curve, and a wall behind, in mm.
 const SWEEP = { width: 5000, front: 1500, back: 700, radius: 600, height: 2500 }
@@ -63,6 +80,35 @@ function sweepGeometry(): BufferGeometry {
   return geometry
 }
 
+/**
+ * The mat's material: its colour, with a grid printed on the top face (a line every 10 mm, a
+ * stronger one every 50 mm, and a border 12 mm in from the edge). Lines keep their width on the
+ * mat and the 10 mm ones fade out once they are thinner than a pixel.
+ */
+function matMaterial(color: Color, grid: Color): MeshStandardNodeMaterial {
+  const p = positionLocal.xz
+  const aa = fwidth(p)
+  const lines = (spacing: number, half: number) => {
+    const d = p.div(spacing).add(0.5).fract().sub(0.5).abs().mul(spacing)
+    const on = float(1).sub(smoothstep(vec2(half), aa.add(half), d))
+    return max(on.x, on.y)
+  }
+  // How far past the border each axis is: 0 on it, negative inside it.
+  const off = p.abs().sub(vec2(MAT.width / 2 - 12, MAT.depth / 2 - 12))
+  const near = float(1).sub(smoothstep(vec2(0.3), aa.add(0.3), off.abs()))
+  const border = max(near.x.mul(step(off.y, 0.4)), near.y.mul(step(off.x, 0.4)))
+  const inside = step(off.x, 0).mul(step(off.y, 0))
+  const fine = lines(10, 0.12).mul(float(1).sub(smoothstep(0.4, 1, max(aa.x, aa.y))))
+  const printed = max(border, max(lines(50, 0.25), fine.mul(0.4)).mul(inside))
+  const material = new MeshStandardNodeMaterial({ roughness: 0.85 })
+  material.colorNode = mix(
+    uniform(color),
+    uniform(grid),
+    printed.mul(step(0.5, normalLocal.y)).mul(0.35)
+  )
+  return material
+}
+
 export class StageRig {
   /** Everything the scene draws of the stage, lights included. */
   readonly group = new Group()
@@ -79,6 +125,10 @@ export class StageRig {
     new MeshStandardNodeMaterial({ roughness: 0.9 })
   )
   private readonly sweep = new Mesh(sweepGeometry(), new MeshStandardNodeMaterial({ roughness: 1 }))
+  private readonly matColor = new Color()
+  private readonly gridColor = new Color()
+  /** The mat with its ground snap and the cord from it over the table's back edge. */
+  private readonly mat = new Group()
   private renderer: WebGPURenderer | null = null
   private scene: Scene | null = null
   private pmrem: PMREMGenerator | null = null
@@ -94,8 +144,10 @@ export class StageRig {
 
   constructor() {
     this.table.position.set(TABLE.centre[0], -TABLE.thickness / 2, -TABLE.centre[1])
+    this.table.name = 'table'
     this.table.receiveShadow = true
     this.sweep.receiveShadow = true
+    this.buildMat()
     const key = this.key
     key.position.set(...KEY_POSITION)
     key.castShadow = true
@@ -106,7 +158,7 @@ export class StageRig {
     Object.assign(key.shadow.camera, { left: -450, right: 450, top: 450, bottom: -450 })
     Object.assign(key.shadow.camera, { near: 100, far: 1600 })
     this.rim.position.set(...RIM_POSITION)
-    this.group.add(this.table, this.sweep, key, this.hemisphere, this.rim)
+    this.group.add(this.table, this.sweep, this.mat, key, this.hemisphere, this.rim)
     this.apply(STUDIO)
   }
 
@@ -141,6 +193,12 @@ export class StageRig {
     this.rim.color.set(look.rim.color)
     this.rim.intensity = look.rim.intensity
     this.table.material.color.set(look.table)
+    this.mat.visible = look.mat !== null
+    if (look.mat) {
+      this.matColor.set(look.mat.color)
+      this.gridColor.set(look.mat.grid)
+    }
+    this.table.position.y = -TABLE.thickness / 2 - (look.mat ? MAT.thickness : 0)
     this.sweep.visible = look.sweep !== null
     if (look.sweep) this.sweep.material.color.set(look.sweep)
     if (look.room && !this.room) {
@@ -150,6 +208,32 @@ export class StageRig {
     if (this.room) this.room.group.visible = look.room
     if (this.scene) this.scene.environmentIntensity = look.environment.intensity
     this.environment()
+  }
+
+  private buildMat(): void {
+    const [x, z] = [MAT.centre[0], -MAT.centre[1]]
+    const mat = new Mesh(
+      new BoxGeometry(MAT.width, MAT.thickness, MAT.depth),
+      matMaterial(this.matColor, this.gridColor)
+    )
+    mat.name = 'esd-mat'
+    mat.position.set(x, -MAT.thickness / 2, z)
+    mat.receiveShadow = true
+    const steel = new MeshStandardNodeMaterial({ color: '#b8bcc4', roughness: 0.3, metalness: 1 })
+    const rubber = new MeshStandardNodeMaterial({ color: '#16181c', roughness: 0.7 })
+    const [sx, sz] = [x - MAT.width / 2 + 30, z - MAT.depth / 2 + 30]
+    const snap = new Mesh(new CylinderGeometry(5, 5.5, 3, 24), steel)
+    snap.position.set(sx, 1.5, sz)
+    // The cord runs from the snap to the table's back edge, then down out of sight.
+    const back = -TABLE.centre[1] - TABLE.depth / 2
+    const run = sz - back
+    const cord = new Mesh(new CylinderGeometry(1.6, 1.6, run, 12), rubber)
+    cord.rotation.x = Math.PI / 2
+    cord.position.set(sx, 1.6, back + run / 2)
+    const drop = new Mesh(new CylinderGeometry(1.6, 1.6, 300, 12), rubber)
+    drop.position.set(sx, -150, back - 1.6)
+    for (const m of [snap, cord, drop]) m.castShadow = true
+    this.mat.add(mat, snap, cord, drop)
   }
 
   /** Renders the look's environment into the PMREM target, unless it is there already. */

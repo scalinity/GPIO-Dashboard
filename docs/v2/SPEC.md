@@ -887,7 +887,9 @@ Stage:
 - Scene units are millimetres, with Y up.
 - Studio look: a neutral studio stage, a matte table surface plus a soft cyclorama, lit by a CC0
   studio HDRI (Poly Haven or similar; record the license) and one shadow-casting key light.
-- Lab look: the same table as a dark ESD mat on a bench frame, in "a Pi breadboard bench in an
+- Lab look: the same table as a walnut bench top on a bench frame, under a slate ESD mat (610 x
+  508 mm, 2 mm thick, a grid printed every 10 and 50 mm, a ground snap and its cord) whose top is
+  the table plane, so the table sits 2 mm lower while it shows; in "a Pi breadboard bench in an
   electronics workroom at dusk", lit by the same key light, warmer, with a cool hemisphere light,
   a rim light from behind the bench, a procedural dusk environment and a lavender fog.
   - The room: the floor 900 mm below the tabletop, inside x ±2400 mm and z -1700 to +2600 mm, the

@@ -123,7 +123,7 @@ eight orbit angles 1500 mm out, 45 degrees apart: the camera south of the bench 
 | L3 | Every side furnished | Each of 8 orbit angles shows an anchor piece | pass 2026-10-26 (`lab-orbits.png`): the window between its bars and the credenza; the plant and the window's corner; the wall bench with the oscilloscope and power supply; the pegboard bench; the poster and the stool; the shelf and the soldering station; the drawer cabinet; the window with the cabinet |
 | L4 | No halo in the blur | The breadboard's and the Pi's edges stay crisp against the blurred room, with no bright fringe or stepped copy | pass 2026-10-26 (`lab-front.png`: the breadboard and the leads against the window) |
 | L5 | Nothing on the set blooms | With the LEDs dark, the bloom forced on adds nothing | pass 2026-10-26: `e2e/lab.spec.ts` reads the bloom's high pass empty at the iso, top and front presets |
-| L6 | Faint grain | Grain is visible only on close inspection of a flat area | open: the grain (0.03 of the colour) is in the finish but under one level of 255 on the dark mat at 4x zoom, so the captures do not show it |
+| L6 | Faint grain | Grain is visible only on close inspection of a flat area | pass: at 0.06 of the colour, a fine speckle on flat mat at 4x zoom (pixel noise 0.45 of a level, against 0.10 at 0.03), unseen at full size |
 | L7 | The near side cuts away | A side the camera stands near or behind opens, with nothing opaque between the camera and the bench | pass 2026-10-26: the orbit angles from the north in `lab-orbits.png` stand with the north side cut away; `e2e/lab.spec.ts` checks the cut sides all the way round |
 
 Three critic rounds scored the look-and-light rows of the house style's rubric at 54%, 62% and

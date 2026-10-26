@@ -3810,9 +3810,9 @@ declare it.
     | Key | white, 2.2 | `#ffc98f`, 2.1, same place |
     | Hemisphere, rim | 0, 0 | `#8fa6d8` over `#3a3026` at 0.5; `#a8b8ff` at 1.6 from behind |
     | Tone and grade | AgX, exposure 1.7, the chroma stretch of 1.2 | saturation 1.35, then ACES Filmic at exposure 1.5 |
-    | Grain, vignette | none | 0.03, the house vignette at 60% |
-    | Bloom (threshold 2 in both) | 0.35, radius 0.4 | 0.45, radius 0.55 |
-    | Table, sweep | `#505153`, `#6a6b6d` | `#26303b` (an ESD mat), hidden |
+    | Grain, vignette | none | 0.06, the house vignette at 60% |
+    | Bloom (threshold 2 in both) | 0.35, radius 0.4 | 1.2, radius 0.75 |
+    | Table, sweep | `#505153`, `#6a6b6d` | walnut `#3f2d22` under an ESD mat, hidden |
     | Camera reach | 3000 mm | 2200 mm |
 
     The Lab fog, exposure and vignette started at 2.2e-4, 1.3 and full opacity; the lookdev
@@ -3826,7 +3826,7 @@ declare it.
     look.
   - `Post` builds one output that holds both looks' finishes and picks one with a uniform
     (`select`). The Studio finish is ADR-0067's. The Lab finish is bloom, a saturation of 1.35,
-    ACES Filmic at exposure 1.5, film grain of 0.03 and the sRGB encoding. Each look's blooms
+    ACES Filmic at exposure 1.5, film grain of 0.06 and the sRGB encoding. Each look's blooms
     are left out of the other look's frames (`updateBeforeType` NONE) and gated as ADR-0129
     within their own.
   - The right column's first row, View, has Lab and Studio buttons; L switches too; the view
@@ -3903,6 +3903,15 @@ declare it.
     with its pendants, that the camera stands within 900 mm of or behind: farther than any piece
     stands out from its wall, so the camera is never inside one.
   - The Lab look orbits at most 2200 mm from its target, and it is the default look.
+  - The bench in the Lab look is a walnut top under a slate ESD mat, 610 x 508 mm and 2 mm thick
+    (`StageRig`'s mat, shown when the look names one). A uniform dark plane at the working
+    distance had nothing to give the breadboard its size: the mat's edge, its border and a grid
+    printed every 10 and 50 mm do, as a real bench's mat does, and its ground snap and cord over
+    the back edge mark it as an electronics bench. The grid is drawn in the mat's material, its
+    lines antialiased against the pixel's footprint and the 10 mm ones fading once they are
+    thinner than a pixel. The mat's top is the table plane, y = 0, where parts rest and physics'
+    floor is, so the table drops 2 mm while the mat shows; in the Studio look the mat is hidden
+    and the table stays where ADR-0067 calibrated it.
 - **Consequences.**
   - Every preset of every tutorial stands inside the room, with no side cut, at canvas aspects
     from 0.6 to 2.4 (`lab/bounds.test.ts`). An orbit all the way round at full reach stays

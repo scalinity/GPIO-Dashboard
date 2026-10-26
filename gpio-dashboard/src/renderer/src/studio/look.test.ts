@@ -35,14 +35,34 @@ describe('the looks', () => {
       key: { color: '#ffc98f', intensity: 2.1 },
       hemisphere: { sky: '#8fa6d8', ground: '#3a3026', intensity: 0.5 },
       tone: { mapping: 'aces', exposure: 1.5, saturation: 1.35 },
-      grain: 0.03,
-      bloom: { strength: 0.45, radius: 0.55 },
+      grain: 0.06,
+      bloom: { strength: 1.2, radius: 0.75 },
       vignette: 0.6,
-      table: '#26303b',
+      table: '#3f2d22',
+      mat: { color: '#2a3b4c', grid: '#4d6680' },
       sweep: null,
       maxDistance: 2200
     })
     expect(LOOKS).toEqual({ lab: LAB, studio: STUDIO })
+  })
+
+  it('the Lab look lays an ESD mat on the table, whose top stays the table plane', () => {
+    const rig = new StageRig()
+    const table = rig.group.getObjectByName('table')!
+    const mat = rig.group.getObjectByName('esd-mat')!
+    const shown = (o: { visible: boolean; parent: { visible: boolean } | null }) =>
+      o.visible && o.parent!.visible
+    // The Studio look: no mat, and the table where ADR-0067 calibrated it.
+    expect(shown(mat)).toBe(false)
+    expect(table.position.y).toBe(-10)
+    rig.apply(LAB)
+    expect(shown(mat)).toBe(true)
+    // The mat's top is y = 0, where parts rest; the table drops by its 2 mm under it.
+    expect(mat.position.y + 1).toBe(0)
+    expect(table.position.y).toBe(-12)
+    rig.apply(STUDIO)
+    expect(shown(mat)).toBe(false)
+    expect(table.position.y).toBe(-10)
   })
 
   it('a switch changes values, never the lights, the fog or the background objects', () => {

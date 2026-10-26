@@ -38,6 +38,8 @@ export interface Look {
   room: boolean
   /** The table top, and the cyclorama sweep (null hides it). */
   table: string
+  /** An ESD mat on the table and its printed grid, or null for none. */
+  mat: { color: string; grid: string } | null
   sweep: string | null
   /** How far the camera may orbit from its target, mm. */
   maxDistance: number
@@ -57,6 +59,7 @@ export const STUDIO = {
   vignette: 0,
   room: false,
   table: '#505153',
+  mat: null,
   sweep: '#6a6b6d',
   maxDistance: 3000
 } satisfies Look
@@ -71,12 +74,13 @@ export const LAB = {
   hemisphere: { sky: '#8fa6d8', ground: '#3a3026', intensity: 0.5 },
   rim: { color: '#a8b8ff', intensity: 1.6 },
   tone: { mapping: 'aces', exposure: 1.5, saturation: 1.35 },
-  grain: 0.03,
-  bloom: { strength: 0.45, radius: 0.55 },
+  grain: 0.06,
+  bloom: { strength: 1.2, radius: 0.75 },
   vignette: 0.6,
   room: true,
-  // An ESD mat.
-  table: '#26303b',
+  // A walnut bench top under a slate ESD mat: the mat's edge and grid give the bench its size.
+  table: '#3f2d22',
+  mat: { color: '#2a3b4c', grid: '#4d6680' },
   sweep: null,
   maxDistance: 2200
 } satisfies Look
