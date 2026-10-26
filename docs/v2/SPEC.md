@@ -843,12 +843,17 @@ Validation:
   - ambient occlusion
   - bloom on lit LEDs
   - temporal anti-aliasing
-  - AgX tone mapping
   - smooth, eased camera motion
-- No gimmicks by default: no film grain, chromatic aberration, or lens dirt.
-- Look target:
-  - my reference photos (2.2), for the T-board, ribbon, IDC sockets, breadboard, and Dupont leads
-  - official imagery, for the Pi 5
+- Two looks, one switch apart (10.7), each a complete preset of stage, lights, environment, fog,
+  tone mapping, grade and finish:
+  - Lab: the bench at dusk, after the exhibit house style. A warm key light, cool
+    fog and ambient light, a procedural dusk environment, a saturation lift then ACES Filmic, a
+    faint film grain and a vignette. The lit circuit is the brightest thing in the frame.
+  - Studio: a neutral studio, tone-mapped with AgX and graded after it (ADR-0067), with no grain
+    and no vignette. It is the look checked against the photos:
+    - my reference photos (2.2), for the T-board, ribbon, IDC sockets, breadboard, and Dupont leads
+    - official imagery, for the Pi 5
+- No chromatic aberration or lens dirt in either look.
 
 10.2 Renderer and frame loop
 Renderer:
@@ -864,20 +869,32 @@ Post-processing:
 - Effects:
   - a scene pass with MRT (output, normals, and velocity as needed)
   - GTAO
-  - bloom
   - TRAA
+  - bloom of whatever passes 2 in scene-linear light, in both looks, drawn only while something
+    passes it (ADR-0129)
+  - each look's tone mapping and grade, in the pipeline's last pass: RenderPipeline draws without
+    the renderer's tone mapping
+  - film grain, in the Lab look
   - optional depth of field, for focus in Build Mode
 - Verify every class name and import path against the installed three.js version (section 22).
 
 Stage:
 - Scene units are millimetres, with Y up.
-- A neutral studio stage: a matte table surface plus a soft cyclorama.
-- Lighting: a CC0 studio HDRI (Poly Haven or similar; record the license), plus one shadow-casting key light.
+- Studio look: a neutral studio stage, a matte table surface plus a soft cyclorama, lit by a CC0
+  studio HDRI (Poly Haven or similar; record the license) and one shadow-casting key light.
+- Lab look: the same table as a dark ESD mat, lit by the same key light, warmer, with a cool
+  hemisphere light, a rim light from behind the bench, a procedural dusk environment and a
+  lavender fog.
+- Looks switch by changing values only, so no shader recompiles once both have been drawn: one
+  fog, one background colour, one environment target rendered again in place, every light kept
+  in the scene (at 0 where a look does not use it), and one output graph that picks a look by a
+  uniform. The switch happens under a veil, instantly under reduced motion.
 
 Frame loop:
 - Render on demand.
 - Render continuously only while something moves: the camera, a drag, an awake physics island, or a sim-driven animation.
 - When everything sleeps, render up to 16 more frames so TRAA converges, then stop. After that, no frames render.
+- The camera has no idle drift in either look, and a look switch settles like any other change.
 
 10.3 Asset pipeline (scripts/assets/)
 Commands:
@@ -1083,8 +1100,13 @@ Picking:
 - Leads: by capsule.
 Selection shows an accent-colored wireframe box.
 
+Looks:
+- The right column's first row, View, switches between the Lab and Studio looks; the key L does
+  too. The choice is a preference of the machine, not part of a project.
+- The camera orbits at most 2200 mm from its target in the Lab look and 3000 mm in the Studio look.
+
 Camera:
-- A damped orbit.
+- A damped orbit, with a 35° vertical field of view in both looks.
 - Presets animate with easing, in at most 600 ms.
 - Build Mode frames each step, and may use depth of field to focus.
 

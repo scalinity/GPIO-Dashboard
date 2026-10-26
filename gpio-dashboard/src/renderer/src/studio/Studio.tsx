@@ -38,6 +38,14 @@ function Frames({ view }: { view: StudioView }) {
   return null
 }
 
+/**
+ * The Lab look's vignette (exhibit style bible 9): the left edge darkened from 63% black over its
+ * first 24%, and an ellipse about the stage's centre, clear to 56% and 66% black at the corners.
+ */
+const VIGNETTE =
+  'linear-gradient(90deg, rgb(0 0 0 / 0.63), rgb(0 0 0 / 0) 24%), ' +
+  'radial-gradient(ellipse at 54% 50%, rgb(0 0 0 / 0) 56%, rgb(0 0 0 / 0.66))'
+
 const PIN_CHOICES: [string, GpioState][] = [
   ['Output HIGH', { mode: 'out', level: true }],
   ['Output LOW', { mode: 'out', level: false }],
@@ -253,6 +261,8 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
   const tags = useRef<HTMLDivElement>(null)
   const marks = useRef<HTMLDivElement>(null)
   const badges = useRef<HTMLDivElement>(null)
+  const veil = useRef<HTMLDivElement>(null)
+  const vignette = useRef<HTMLDivElement>(null)
   const notice = useStudio((s) => s.notice)
   const attach = useCallback(
     (element: HTMLDivElement) => {
@@ -262,7 +272,9 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
         labels.current!,
         tags.current!,
         marks.current!,
-        badges.current!
+        badges.current!,
+        veil.current!,
+        vignette.current!
       )
       bindStage(view)
       if (import.meta.env.DEV) window.__studio = view
@@ -298,6 +310,14 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
           <primitive object={view.layers} />
           <Frames view={view} />
         </Canvas>
+        {/* Shown in the Lab look only; the view sets its opacity. */}
+        <div
+          ref={vignette}
+          aria-hidden
+          data-testid="studio-vignette"
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: VIGNETTE }}
+        />
         <div ref={labels} className="absolute inset-0 overflow-hidden pointer-events-none" />
         <div ref={tags} className="absolute inset-0 overflow-hidden pointer-events-none" />
         <div ref={marks} className="absolute inset-0 overflow-hidden pointer-events-none" />
@@ -306,6 +326,14 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
           hidden
           data-testid="studio-tooltip"
           className="hud-tip absolute left-0 top-0 pointer-events-none"
+        />
+        {/* A look switch happens under it (ADR-0143); the view fades it. */}
+        <div
+          ref={veil}
+          aria-hidden
+          data-testid="studio-veil"
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: '#0b0f1a', opacity: 0 }}
         />
       </div>
       <PinMenu />

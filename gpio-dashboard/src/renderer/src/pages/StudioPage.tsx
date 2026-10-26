@@ -27,6 +27,7 @@ import ConnectionStatus from '../components/ConnectionStatus'
 import BuildPanel from '../panels/BuildPanel'
 import Drawer from '../panels/Drawer'
 import Inspect from '../panels/Inspect'
+import LookSwitch from '../panels/LookSwitch'
 import PartLibrary from '../panels/PartLibrary'
 import ProjectsGallery from '../panels/ProjectsGallery'
 import Properties from '../panels/Properties'
@@ -260,6 +261,7 @@ export default function StudioPage() {
           <aside className="w-64 shrink-0 overflow-y-auto border-l border-white/[0.06] bg-surface-950 p-2">
             {/* The HUD's control card. */}
             <div className="card space-y-4 px-2.5 pb-2.5 pt-2">
+              <LookSwitch />
               <Properties />
               <Inspect view={view} />
             </div>

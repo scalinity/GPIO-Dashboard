@@ -46,6 +46,7 @@ import {
   BUILDING_MESSAGE,
   edit,
   type Selection,
+  setLook as chooseLook,
   togglePanels,
   type Tool,
   useStudio
@@ -74,6 +75,7 @@ import { Halos } from './halos'
 import { Insertion, reseated } from './insertion'
 import { LabelLayer, labelsOf } from './labels'
 import { LivePins, type LivePinsReport, liveText } from './livepins'
+import { type LookName, LOOKS } from './look'
 import { collidersNow, configureModels, disposeModels, onArrival } from './loaders'
 import { type Marker, Markers } from './markers'
 import { netAnchor, netMarkers, stripIndex } from './nets'
@@ -110,6 +112,9 @@ const FOCUS_MIN_RADIUS_MM = 25
 const CAPTURE_SLEEP_MS = 2000
 /** A captured view's longest side, in pixels: what the API reads without downscaling. */
 const CAPTURE_MAX_PX = 1568
+/** The veil fades in over this long before a look switch, and out over VEIL_OUT_MS after it. */
+const VEIL_IN_MS = 200
+const VEIL_OUT_MS = 220
 /** A press that moves further than this, in pixels, is a drag rather than a click. */
 const CLICK_PX = 4
 /** A lead grabbed this close to one of its route hints moves that hint rather than adding one. */
@@ -154,6 +159,8 @@ export interface SceneReport {
   cueMarks: number
   /** Build Mode's step on the bench; null outside Build Mode. */
   build: BuildReport | null
+  /** The look drawn. */
+  look: LookName
 }
 
 /** What Build Mode shows for the step in hand, read back for tests. */
@@ -276,6 +283,14 @@ export class StudioView {
   private rightPress: { x: number; y: number } | null = null
   /** The momentary switch being held down in 3D. */
   private held: string | null = null
+  /** The look drawn; the store's changes reach it under the veil. */
+  private look: LookName = useStudio.getState().look
+  private veil: HTMLElement | null = null
+  private vignette: HTMLElement | null = null
+  /** The look switch in progress, by number: a newer one takes over. */
+  private switching = 0
+  /** The veil lifts once the next frame is drawn in the new look. */
+  private lifting = false
 
   constructor() {
     this.controls.enableDamping = true
@@ -300,6 +315,7 @@ export class StudioView {
       this.loop.changed()
       invalidate()
     }
+    this.applyLook(useStudio.getState().look)
     this.rig.onChange = this.invalidate
     this.rig.bind(renderer, scene)
     const view = presetView('iso', circuit.getSnapshot(), this.camera, this.controls.target)
@@ -339,6 +355,11 @@ export class StudioView {
     if (this.focusing) this.post.setFocus(this.camera.position.distanceTo(this.controls.target))
     this.post.setBloom(this.visuals.glowing)
     this.post.render()
+    if (this.lifting && this.veil) {
+      this.lifting = false
+      this.veil.style.transition = `opacity ${VEIL_OUT_MS}ms ease`
+      this.veil.style.opacity = '0'
+    }
     if (capture) this.finishCapture(capture)
     if (this.canvas) {
       const [w, h] = [this.canvas.clientWidth, this.canvas.clientHeight]
@@ -353,6 +374,11 @@ export class StudioView {
       setStatus({ frames: this.loop.frames, fps: this.loop.fps, physics: this.cables.stepMs })
     }
     return more
+  }
+
+  /** Switches the look (the View control and L do this through the studio store). */
+  setLook(look: LookName): void {
+    chooseLook(look)
   }
 
   preset(preset: Preset): void {
@@ -382,6 +408,37 @@ export class StudioView {
       }
       this.invalidate()
     })
+  }
+
+  /**
+   * A look switch (ADR-0143): the veil fades in, the stage, the pipeline's output and the camera's
+   * reach change under it, and it fades out once a frame is drawn in the new look, which hides a
+   * first switch's shader compile. Under reduced motion the switch is instant.
+   */
+  private switchLook(look: LookName): void {
+    const veil = this.veil
+    const id = ++this.switching
+    if (!veil || !this.post || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.applyLook(look)
+      return
+    }
+    veil.style.transition = `opacity ${VEIL_IN_MS}ms ease`
+    veil.style.opacity = '1'
+    setTimeout(() => {
+      if (id !== this.switching) return
+      this.applyLook(look)
+      this.lifting = true
+    }, VEIL_IN_MS)
+  }
+
+  private applyLook(look: LookName): void {
+    const preset = LOOKS[look]
+    this.look = look
+    this.rig.apply(preset)
+    this.post?.setLook(look)
+    this.controls.maxDistance = preset.maxDistance
+    if (this.vignette) this.vignette.style.opacity = String(preset.vignette)
+    this.invalidate()
   }
 
   /** Frames `refs` (parts, leads, boards, holes or nets), keeping the view's direction. */
@@ -493,7 +550,8 @@ export class StudioView {
       badges: this.badges?.ids() ?? [],
       ghosts: ghostIds(this.base(), this.ghosted()),
       cueMarks: this.cueMarkers.count,
-      build: this.buildReport()
+      build: this.buildReport(),
+      look: this.look
     }
   }
 
@@ -522,9 +580,14 @@ export class StudioView {
     labels: HTMLElement,
     tags: HTMLElement,
     marks: HTMLElement,
-    badges: HTMLElement
+    badges: HTMLElement,
+    veil: HTMLElement,
+    vignette: HTMLElement
   ): () => void {
     this.tooltip = tooltip
+    this.veil = veil
+    this.vignette = vignette
+    vignette.style.opacity = String(LOOKS[this.look].vignette)
     this.labels = new LabelLayer(labels)
     this.visuals.tags = new LabelLayer(tags)
     this.stepMarks = new StepMarks(marks)
@@ -552,6 +615,7 @@ export class StudioView {
       else if (key === '[') togglePanels('library')
       else if (key === ']') togglePanels('properties')
       else if (key === '\\') togglePanels('both')
+      else if (key === 'l') chooseLook(useStudio.getState().look === 'lab' ? 'studio' : 'lab')
       else if (KEYS[key]) this.preset(KEYS[key])
     }
     // Hover only over the canvas itself, and not while a button is down (orbiting).
@@ -594,6 +658,7 @@ export class StudioView {
         }
         if (now.live !== before.live || now.sense !== before.sense) this.syncBadges()
         if (now.cue !== before.cue) this.showCue()
+        if (now.look !== before.look) this.switchLook(now.look)
       }),
       // The simulation's snapshots, the part inputs and the issues, and Board Sense's states.
       useWorkbench.subscribe((now, before) => {
@@ -657,6 +722,8 @@ export class StudioView {
       element.removeEventListener('pointerleave', onLeave)
       this.controls.disconnect()
       this.tooltip = null
+      this.veil = null
+      this.vignette = null
       this.labels = null
       this.visuals.tags = null
       this.stepMarks = null

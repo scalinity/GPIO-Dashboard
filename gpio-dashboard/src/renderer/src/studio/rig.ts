@@ -16,10 +16,11 @@ import {
   PlaneGeometry,
   PMREMGenerator,
   type RenderTarget,
-  type Scene,
+  Scene,
   type Texture,
   type WebGPURenderer
 } from 'three/webgpu'
+import { duskScene } from './lab/dusk'
 import { type Look, STUDIO } from './look'
 
 // The table is centred on the default bench (core/model/defaults: the board at the origin, the Pi
@@ -83,8 +84,9 @@ export class StageRig {
   /** The one PMREM target every environment is rendered into. */
   private target: RenderTarget | null = null
   /** What the target holds now. */
-  private shown: Texture | null = null
+  private shown: Texture | Scene | null = null
   private hdri: Texture | null = null
+  private readonly dusk = duskScene()
   private look: Look = STUDIO
 
   constructor() {
@@ -136,17 +138,21 @@ export class StageRig {
     this.rim.color.set(look.rim.color)
     this.rim.intensity = look.rim.intensity
     this.table.material.color.set(look.table)
-    this.sweep.material.color.set(look.sweep)
+    this.sweep.visible = look.sweep !== null
+    if (look.sweep) this.sweep.material.color.set(look.sweep)
     if (this.scene) this.scene.environmentIntensity = look.environment.intensity
     this.environment()
   }
 
   /** Renders the look's environment into the PMREM target, unless it is there already. */
   private environment(): void {
-    const { pmrem, scene } = this
-    const source = this.hdri
+    const { pmrem, scene, hdri } = this
+    const source = this.look.environment.kind === 'dusk' ? this.dusk : hdri
     if (!pmrem || !scene || !source || source === this.shown) return
-    this.target = pmrem.fromEquirectangular(source, this.target)
+    this.target =
+      source === hdri
+        ? pmrem.fromEquirectangular(hdri, this.target)
+        : pmrem.fromScene(this.dusk, 0.02, 0.1, 100, { size: 256, renderTarget: this.target })
     this.shown = source
     scene.environment = this.target.texture
     this.onChange()

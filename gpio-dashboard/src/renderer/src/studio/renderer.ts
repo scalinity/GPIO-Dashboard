@@ -1,12 +1,16 @@
 // The renderer and its post-processing (SPEC 10.1, 10.2): WebGPURenderer, never the legacy
-// WebGLRenderer, and three's node RenderPipeline with GTAO, bloom and TRAA. Depth of field is
-// built when something first asks for focus (Build Mode). No grain, aberration or lens dirt.
+// WebGLRenderer, and three's node RenderPipeline with GTAO and TRAA, then each look's own finish:
+// bloom, the tone mapping and grade (the pipeline draws without the renderer's tone mapping) and, in
+// the Lab look, a faint grain. One output holds both finishes and a uniform picks one, so a look
+// switch compiles nothing (ADR-0143). Depth of field is built when something first asks for focus
+// (Build Mode). No aberration or lens dirt.
 import {
   AgXToneMapping,
   type Camera,
   type DirectionalLight,
   type Node,
   NodeUpdateType,
+  NoToneMapping,
   RenderPipeline,
   type Scene,
   SRGBColorSpace,
@@ -15,7 +19,9 @@ import {
   WebGPURenderer
 } from 'three/webgpu'
 import {
+  acesFilmicToneMapping,
   builtinAOContext,
+  float,
   mrt,
   normalView,
   output,
@@ -26,7 +32,9 @@ import {
   pass,
   renderOutput,
   sample,
+  saturation,
   screenUV,
+  select,
   uniform,
   unpackRGBToNormal,
   vec4,
@@ -35,10 +43,11 @@ import {
 import type BloomNode from 'three/addons/tsl/display/BloomNode.js'
 import { bloom } from 'three/addons/tsl/display/BloomNode.js'
 import { dof } from 'three/addons/tsl/display/DepthOfFieldNode.js'
+import { film } from 'three/addons/tsl/display/FilmNode.js'
 import { ao } from 'three/addons/tsl/display/GTAONode.js'
 import { traa } from 'three/addons/tsl/display/TRAANode.js'
 import { setFrameCost } from '../dev/frameCost'
-import { type LookName, STUDIO } from './look'
+import { LAB, type LookName, STUDIO } from './look'
 import { type Backend, setStatus } from './status'
 
 /**
@@ -79,7 +88,7 @@ export const GRADE = { exposure: STUDIO.tone.exposure, saturation: STUDIO.tone.s
 /**
  * Bloom takes only what is brighter than this in scene-linear light: a lit LED's emission, which
  * passes it, and not the key light's highlight on a board's metal rings or the Pi's shields, which
- * pass 1 (ADR-0067).
+ * pass 1 (ADR-0067). The Lab's room is drawn below it too (ADR-0144).
  */
 export const BLOOM_THRESHOLD = 2
 
@@ -90,13 +99,20 @@ export class Post {
   private readonly pipeline: RenderPipeline
   private readonly resolved: Output
   private readonly viewZ: Node
-  /** Every bloom node built, with the strength it draws at, for `setBloom`. */
-  private readonly blooms = new Map<BloomNode, number>()
-  /** Each look's output without depth of field. */
-  private readonly outputs: Record<LookName, Output>
+  /**
+   * 1 in the Lab look. One output holds both looks' finishes and picks one by it: pointing the
+   * pipeline at another output node would release the GPU pipeline of the one it leaves and
+   * build it again on the way back (ADR-0143).
+   */
+  private readonly lab = uniform(0)
+  /** Every bloom node built, with the strength it draws at and its look, for `gate`. */
+  private readonly blooms = new Map<BloomNode, { strength: number; look: LookName }>()
+  /** Both looks' output without depth of field. */
+  private readonly output: Output
   private look: LookName = 'studio'
   private bloom = true
-  private focus: { output: Output; distance: ReturnType<typeof uniform> } | null = null
+  /** Where Build Mode's depth of field focuses, and the output with it once built. */
+  private readonly focus = { distance: uniform(0), output: null as Output | null }
   private focused = false
   private key: DirectionalLight | null = null
   private rendered = 0
@@ -129,14 +145,22 @@ export class Post {
     resolved.useSubpixelCorrection = false
     this.resolved = resolved
 
-    this.outputs = { studio: this.finish(resolved) }
-    this.pipeline = new RenderPipeline(renderer, this.outputs.studio)
+    this.output = this.pick(this.finishLab(resolved), this.finish(resolved))
+    this.pipeline = new RenderPipeline(renderer, this.output)
     this.pipeline.outputColorTransform = false
+    this.gate()
   }
 
-  /** The active look's output without depth of field (tests compare the pipeline's with it). */
+  /** The output without depth of field (tests compare the pipeline's with it). */
   get sharp(): Output {
-    return this.outputs[this.look]
+    return this.output
+  }
+
+  /** Draws `look` from the next frame. */
+  setLook(look: LookName): void {
+    this.look = look
+    this.lab.value = look === 'lab' ? 1 : 0
+    this.gate()
   }
 
   /** The light whose shadow map `render` redraws. */
@@ -166,9 +190,18 @@ export class Post {
   setBloom(on: boolean): void {
     if (on === this.bloom) return
     this.bloom = on
-    for (const [b, strength] of this.blooms) {
-      b.strength.value = on ? strength : 0
-      b.updateBeforeType = NodeUpdateType.FRAME
+    this.gate()
+  }
+
+  /**
+   * Leaves out of the frame every pass the active look does not show, and its blooms while
+   * nothing passes the threshold: they draw once more at strength 0, then not at all.
+   */
+  private gate(): void {
+    for (const [b, { strength, look }] of this.blooms) {
+      const mine = look === this.look
+      b.strength.value = mine && this.bloom ? strength : 0
+      b.updateBeforeType = mine ? NodeUpdateType.FRAME : NodeUpdateType.NONE
     }
   }
 
@@ -189,26 +222,35 @@ export class Post {
 
   /** Depth of field focused `distanceMm` along the view, or none (Build Mode, SPEC 11.7). */
   setFocus(distanceMm: number | null): void {
-    if (distanceMm !== null) {
-      this.focus ??= (() => {
-        const distance = uniform(distanceMm)
-        // @types/three 0.186 leaves DepthOfFieldNode's output type out; it is a vec4 like TRAA's.
-        const blurred = dof(this.resolved, this.viewZ, distance, 120, 4) as unknown as Output
-        return { output: this.finish(blurred), distance }
-      })()
-      this.focus.distance.value = distanceMm
-    }
+    if (distanceMm !== null) this.focus.distance.value = distanceMm
     this.focused = distanceMm !== null
-    this.show()
-  }
-
-  /** Points the pipeline at the output the look and the focus ask for. */
-  private show(): void {
-    const output = this.focused ? this.focus!.output : this.sharp
+    const output = this.focused ? this.focusOutput() : this.output
     if (this.pipeline.outputNode !== output) {
       this.pipeline.outputNode = output
       this.pipeline.needsUpdate = true
     }
+  }
+
+  /** The output with depth of field, built the first time it is asked for. */
+  private focusOutput(): Output {
+    if (!this.focus.output) {
+      // @types/three 0.186 leaves DepthOfFieldNode's output type out; it is a vec4 like TRAA's.
+      const blurred = dof(
+        this.resolved,
+        this.viewZ,
+        this.focus.distance,
+        120,
+        4
+      ) as unknown as Output
+      this.focus.output = this.pick(this.finishLab(blurred), this.finish(blurred))
+      this.gate()
+    }
+    return this.focus.output
+  }
+
+  /** The Lab look's output in the Lab look, the Studio look's otherwise. */
+  private pick(lab: Output, studio: Output): Output {
+    return select(this.lab.greaterThan(0.5), lab, studio)
   }
 
   /**
@@ -216,16 +258,34 @@ export class Post {
    * pipeline's own output transform would apply (it is off), then the grade.
    */
   private finish(input: Output): Output {
-    const { strength, radius } = STUDIO.bloom
-    const glow = bloom(input, strength, radius, BLOOM_THRESHOLD)
-    if (!this.bloom) glow.strength.value = 0
-    this.blooms.set(glow, strength)
-    const lit = input.add(glow)
+    const lit = input.add(this.glow(input, 'studio'))
     const mapped = renderOutput(lit, AgXToneMapping, SRGBColorSpace)
     const peak = max(max(mapped.r, mapped.g), mapped.b)
     const below = peak.sub(mapped.rgb)
     const chroma = peak.sub(min(min(mapped.r, mapped.g), mapped.b)).div(max(peak, 1e-4))
     const stretch = smoothstep(0.1, 0.5, chroma).mul(STUDIO.tone.stretch).add(1)
     return vec4(peak.sub(min(below.mul(stretch), peak)), mapped.a)
+  }
+
+  /**
+   * The Lab look's finish, after the exhibit house style: bloom, a saturation lift that offsets
+   * ACES's desaturation of bright colours, ACES Filmic at the look's exposure, a faint film grain,
+   * and the sRGB encoding.
+   */
+  private finishLab(input: Output): Output {
+    const lit = input.rgb.add(this.glow(input, 'lab').rgb)
+    const graded = saturation(lit, LAB.tone.saturation).max(0)
+    // @types/three 0.186 types the tone-mapping functions as returning a plain Node; it is a vec3.
+    const toned = acesFilmicToneMapping(graded, float(LAB.tone.exposure)) as Node<'vec3'>
+    const grained = film(vec4(toned, 1), float(LAB.grain))
+    return renderOutput(grained, NoToneMapping, SRGBColorSpace)
+  }
+
+  /** A bloom of `input` at the bloom's threshold, gated with the others. */
+  private glow(input: Output, look: LookName) {
+    const { strength, radius } = (look === 'lab' ? LAB : STUDIO).bloom
+    const glow = bloom(input, strength, radius, BLOOM_THRESHOLD)
+    this.blooms.set(glow, { strength, look })
+    return glow
   }
 }

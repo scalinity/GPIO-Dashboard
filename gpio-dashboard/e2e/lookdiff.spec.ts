@@ -29,7 +29,7 @@ test.skip(!process.env.LOOKDIFF, 'a comparison with another build: set LOOKDIFF=
 /** Opens a tutorial as the project in the Studio look and waits for its cables to sleep. */
 async function open(page: Page, origin: string, id: string) {
   // The look is a preference of the machine; a build without looks ignores it.
-  await page.addInitScript(() => localStorage.setItem('studio.look', 'studio'))
+  await page.addInitScript(() => localStorage.setItem('gpio.studio.look', 'studio'))
   await page.goto(`${origin}/`)
   // The dev overlay's counters sit over the canvas, as LOOKDEV's captures leave them out.
   await page.addStyleTag({ content: '[data-testid="dev-overlay"] { display: none !important }' })

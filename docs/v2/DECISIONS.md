@@ -1705,6 +1705,8 @@ decision and consequences. Numbering is stable; superseded records say so.
 
 ## ADR-0067 The stage is neutral and lit from above; AgX is followed by a colour grade; bloom takes only what passes 2
 
+Superseded in part by ADR-0143: this decision now governs the Studio look.
+
 - **Context.**
   - SPEC 10.1 and photos 1, 3 and 6 call for a neutral studio look with white boards, saturated
     red and soft shadows. Measured in the Tauri window before the change, against the photos: the
@@ -3779,6 +3781,72 @@ declare it.
   colour goes into the palette. `palette.test.ts` checks that every text shade and accent reads at
   4.5:1 on surfaces 950, 900 and 800, and on-text at 7:1 on on-bg. The fonts add about 62 KB of
   WOFF2 (Outfit's Latin Extended file, 15 KB more, loads only for a character that needs it).
+
+## ADR-0143 Two looks, Lab and Studio, switched by changing values
+
+- **Context.**
+  - The Studio had one look, ADR-0067's neutral studio, calibrated to the reference photos. A
+    second look after the exhibit house style's night lab was chosen as the default: a warm key,
+    cool fog and ambient light, ACES, a faint grain, a vignette, and later a furnished room
+    (ADR-0144) and depth of field (ADR-0145). The neutral look stays, one switch away, because
+    LOOKDEV's photo checks are made against it.
+  - In three 0.186.1 a new scene environment texture, fog object or light set changes the cache
+    key of every lit material and rebuilds its shader. `RenderPipeline.render()` sets
+    `NoToneMapping` while it draws, so a look's tone mapping has to be in the pipeline's own
+    output graph. Pointing the pipeline at another output node releases the GPU pipeline of the
+    node it leaves, once no render object uses it, and builds it again on the way back: two
+    render pipelines for each Lab, Studio and Lab round, measured with a counted
+    `createRenderPipeline`.
+- **Decision.**
+  - `studio/look.ts` holds both looks as data: background, fog, environment and its intensity,
+    key, hemisphere and rim lights, tone mapping, exposure and grade, grain, bloom strength and
+    radius, vignette, table and sweep colours, and the camera's reach.
+
+    | | Studio | Lab |
+    |---|---|---|
+    | Background | `#24272c` | `#0b0f1a` |
+    | Fog (exponential squared) | density 0 | `#3a3d62`, 2.2e-4 per mm |
+    | Environment | the HDRI, 0.6 | a dusk scene (`lab/dusk.ts`), 0.7 |
+    | Key | white, 2.2 | `#ffc98f`, 2.1, same place |
+    | Hemisphere, rim | 0, 0 | `#8fa6d8` over `#3a3026` at 0.5; `#a8b8ff` at 1.6 from behind |
+    | Tone and grade | AgX, exposure 1.7, the chroma stretch of 1.2 | saturation 1.35, then ACES Filmic at exposure 1.3 |
+    | Grain, vignette | none | 0.03, the house vignette |
+    | Bloom (threshold 2 in both) | 0.35, radius 0.4 | 0.45, radius 0.55 |
+    | Table, sweep | `#505153`, `#6a6b6d` | `#26303b` (an ESD mat), hidden |
+    | Camera reach | 3000 mm | 2200 mm |
+
+  - `StageRig` (`studio/rig.ts`) owns the table, sweep and lights with Stage.tsx's old numbers,
+    one `FogExp2`, one background `Color` and one PMREM target. `apply(look)` sets values; the
+    environment is rendered into the same target again (the HDRI through
+    `fromEquirectangular`, the dusk scene through `fromScene`), so the scene's environment
+    texture never changes. The hemisphere and rim lights stay in the scene at 0 in the Studio
+    look.
+  - `Post` builds one output that holds both looks' finishes and picks one with a uniform
+    (`select`). The Studio finish is ADR-0067's. The Lab finish is bloom, a saturation of 1.35,
+    ACES Filmic at exposure 1.3, film grain of 0.03 and the sRGB encoding. Each look's blooms
+    are left out of the other look's frames (`updateBeforeType` NONE) and gated as ADR-0129
+    within their own.
+  - The right column's first row, View, has Lab and Studio buttons; L switches too; the view
+    reports the look drawn and `__studio.setLook` sets it. The choice is stored in
+    `localStorage` (`gpio.studio.look`), a preference of the machine and not part of a project.
+  - A switch fades an ink veil (`#0b0f1a`) in over the stage for 200 ms, applies the look under
+    it, and fades it out over 220 ms after the first frame drawn in the new look, which hides a
+    first switch's compile. Under reduced motion it is instant. The vignette is an HTML layer
+    in the stage, at full opacity in the Lab look and hidden in the Studio look, so Studio
+    captures are unchanged. Halos are drawn without fog.
+  - The camera keeps its 35° field of view and has no idle drift in both looks: a field of view
+    per look would turn each switch into a dolly zoom, and drift would draw frames while still.
+- **Consequences.**
+  - The Studio look draws as before. `e2e/lookdiff.spec.ts` (`LOOKDIFF=1`) captures three
+    tutorials at iso, top and front against a dev server on 6538594; each capture's settling
+    runs start at TRAA's first jitter offset and on GTAO's 12-frame noise cycle, which takes the
+    floor (6538594 against itself) from up to 0.11 to at most 0.005 of 255. The mean difference
+    is 0.001 to 0.003 of 255.
+  - A second Lab, Studio, Lab round makes no GPU pipeline (`e2e/look.spec.ts`), and a switch
+    settles to no frames.
+  - Both finishes' arithmetic runs in the last pass in either look (some dozens of operations a
+    pixel); the other look's passes do not run.
+  - ADR-0067 now governs the Studio look only, and LOOKDEV's photo checks are made in it.
 
 ## ADR-0146 A title column reads the bench: three readouts and a sentence
 

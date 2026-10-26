@@ -1,8 +1,13 @@
-// The Studio's look as data (SPEC 10.1, 10.2): the stage's colours and lights, the environment, the
-// tone mapping and grade, and the bloom. `StageRig.apply` and `Post` read it; nothing else holds
-// these numbers. The Studio look is ADR-0067's, calibrated to the reference photos.
+// The Studio's two looks as data (SPEC 10.1, 10.2; ADR-0143): the stage's colours and lights, the
+// environment, the tone mapping and grade, the bloom, the grain and the vignette. `StageRig.apply`,
+// `Post` and the view read them; nothing else holds these numbers. A switch between looks changes
+// values only, so no material recompiles.
+//  - Lab, the default: the bench in an electronics workroom at dusk, after the exhibit house
+//    style (a warm key, cool fog and ambient, ACES, faint grain, a vignette).
+//  - Studio: the neutral studio of ADR-0067, calibrated to the reference photos; LOOKDEV's photo
+//    checks are made in it.
 
-export type LookName = 'studio'
+export type LookName = 'lab' | 'studio'
 
 export interface Look {
   name: LookName
@@ -10,24 +15,33 @@ export interface Look {
   background: string
   /** One exponential-squared fog; density per mm, 0 for none. */
   fog: { color: string; density: number }
-  /** The image-based light: the CC0 studio HDRI. */
-  environment: { kind: 'hdri'; intensity: number }
+  /** The image-based light: the CC0 studio HDRI, or a dusk scene drawn for the Lab (lab/dusk.ts). */
+  environment: { kind: 'hdri' | 'dusk'; intensity: number }
   key: { color: string; intensity: number }
   hemisphere: { sky: string; ground: string; intensity: number }
   /** A light from behind the bench, to part silhouettes from what is behind them. */
   rim: { color: string; intensity: number }
-  /** The tone mapping, its exposure and the grade after it (ADR-0067). */
-  tone: { mapping: 'agx'; exposure: number; stretch: number }
+  /**
+   * The tone mapping and its exposure, and the grade: AgX then ADR-0067's chroma stretch, or a
+   * saturation lift then ACES Filmic.
+   */
+  tone:
+    | { mapping: 'agx'; exposure: number; stretch: number }
+    | { mapping: 'aces'; exposure: number; saturation: number }
+  /** Film grain's intensity after tone mapping; 0 for none. */
+  grain: number
   /** Bloom's strength and radius; its threshold is `BLOOM_THRESHOLD` in every look. */
   bloom: { strength: number; radius: number }
-  /** The table top and the cyclorama sweep. */
+  /** The HTML vignette's opacity over the stage. */
+  vignette: number
+  /** The table top, and the cyclorama sweep (null hides it). */
   table: string
-  sweep: string
+  sweep: string | null
   /** How far the camera may orbit from its target, mm. */
   maxDistance: number
 }
 
-export const STUDIO: Look = {
+export const STUDIO = {
   name: 'studio',
   background: '#24272c',
   fog: { color: '#000000', density: 0 },
@@ -36,8 +50,31 @@ export const STUDIO: Look = {
   hemisphere: { sky: '#ffffff', ground: '#ffffff', intensity: 0 },
   rim: { color: '#ffffff', intensity: 0 },
   tone: { mapping: 'agx', exposure: 1.7, stretch: 1.2 },
+  grain: 0,
   bloom: { strength: 0.35, radius: 0.4 },
+  vignette: 0,
   table: '#505153',
   sweep: '#6a6b6d',
   maxDistance: 3000
-}
+} satisfies Look
+
+export const LAB = {
+  name: 'lab',
+  background: '#0b0f1a',
+  // A lavender haze: the room's far walls sit a third of the way into it and read as depth.
+  fog: { color: '#3a3d62', density: 2.2e-4 },
+  environment: { kind: 'dusk', intensity: 0.7 },
+  key: { color: '#ffc98f', intensity: 2.1 },
+  hemisphere: { sky: '#8fa6d8', ground: '#3a3026', intensity: 0.5 },
+  rim: { color: '#a8b8ff', intensity: 1.6 },
+  tone: { mapping: 'aces', exposure: 1.3, saturation: 1.35 },
+  grain: 0.03,
+  bloom: { strength: 0.45, radius: 0.55 },
+  vignette: 1,
+  // An ESD mat.
+  table: '#26303b',
+  sweep: null,
+  maxDistance: 2200
+} satisfies Look
+
+export const LOOKS: Record<LookName, Look> = { lab: LAB, studio: STUDIO }
