@@ -8,6 +8,9 @@ type Store = ReturnType<typeof useConnectionStore.getState> & {
   agentNotice: string | null
   error: string | null
   connectOnLaunch: () => Promise<void>
+  setConfig: (config: Record<string, unknown>) => void
+  connect: () => Promise<boolean>
+  disconnect: () => Promise<void>
 }
 const store = () => useConnectionStore.getState() as Store
 
@@ -18,14 +21,25 @@ function api(saved: Record<string, unknown>, connected: boolean, agent: Record<s
     ssh: {
       connect: vi.fn(async () =>
         connected ? { success: true } : { success: false, error: 'refused' }
-      )
+      ),
+      disconnect: vi.fn(async () => ({ success: true }))
     },
     agent: {
       check: vi.fn(async () => agent),
       start: vi.fn(async () => ({ success: true, authToken: 't' }))
     },
-    gpio: { connect: vi.fn(async () => ({ success: true })) }
+    gpio: {
+      connect: vi.fn(async () => ({ success: true })),
+      disconnect: vi.fn(async () => ({ success: true }))
+    }
   }
+}
+
+/** A promise and the function that settles it, to hold a call open. */
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((r) => (resolve = r))
+  return { promise, resolve }
 }
 
 const SAVED = { host: '158.205.34.18', username: 'danny', authMethod: 'key', keyPath: '/k' }
@@ -61,6 +75,8 @@ describe('connectOnLaunch', () => {
     expect(a.gpio.connect).toHaveBeenCalledWith('158.205.34.18', 't')
     expect(store().agentStatus).toBe('running')
     expect(store().agentNotice).toBeNull()
+    // Set from the command's answer: the status event may have had no listener yet.
+    expect(store().status).toBe('connected')
   })
 
   it('leaves an agent from another version, or none, to a click and says why', async () => {
@@ -74,6 +90,41 @@ describe('connectOnLaunch', () => {
     await launch(missing)
     expect(missing.agent.start).not.toHaveBeenCalled()
     expect(store().agentNotice).toMatch(/isn't on the Pi yet/)
+  })
+
+  it('stands down when the user connects while the saved connection is read', async () => {
+    const a = api(SAVED, true, { installed: true, current: true })
+    // The saved connection arrives only after the user has connected to another Pi.
+    const gate = deferred<void>()
+    a.settings.get.mockImplementation(async (key: string) => {
+      await gate.promise
+      return (SAVED as Record<string, unknown>)[key.replace('connection.', '')] ?? null
+    })
+    vi.stubGlobal('window', { api: a })
+    const launched = store().connectOnLaunch()
+    store().setConfig({ host: 'pi-b', username: 'b' })
+    await store().connect()
+    gate.resolve()
+    await launched
+    expect(a.ssh.connect).toHaveBeenCalledOnce()
+    expect(store().config.host).toBe('pi-b')
+  })
+
+  it('drops an agent check that answers after the user reconnected', async () => {
+    const check = deferred<Record<string, unknown>>()
+    const a = api(SAVED, true, {})
+    a.agent.check.mockImplementation(() => check.promise)
+    vi.stubGlobal('window', { api: a, setTimeout })
+    const launched = store().connectOnLaunch()
+    await vi.waitFor(() => expect(a.agent.check).toHaveBeenCalled())
+    await store().disconnect()
+    store().setConfig({ host: 'pi-b' })
+    await store().connect()
+    check.resolve({ installed: false, current: false })
+    await launched
+    expect(a.agent.start).not.toHaveBeenCalled()
+    expect(store().agentNotice).toBeNull()
+    expect(store().status).toBe('connected')
   })
 
   it('stops at a failed connection, with its error', async () => {

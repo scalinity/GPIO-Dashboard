@@ -133,7 +133,7 @@ pub async fn check(ssh: &Ssh) -> Result<Value, String> {
     let out = ssh
         .execute(
             &format!(
-                "cd {dir} 2>/dev/null && test -f agent.py && echo installed && cat -- {names} 2>/dev/null; exit 0"
+                "cd {dir} 2>/dev/null && test -f agent.py && echo installed && for f in {names}; do [ -f \"$f\" ] || exit 0; echo $(( $(wc -c < \"$f\") )); cat -- \"$f\"; done; exit 0"
             ),
             DEFAULT_TIMEOUT,
         )
@@ -141,15 +141,20 @@ pub async fn check(ssh: &Ssh) -> Result<Value, String> {
     Ok(deployed(&out.stdout))
 }
 
-/// What `check` makes of the Pi's reply: the marker, then the deployed files in `AGENT_FILES` order.
+/// The deployed files as `check` has the Pi print them: each one's size in bytes on a line, then
+/// the file, in `AGENT_FILES` order, so where one file ends is part of the comparison.
+fn listing<'a>(files: impl Iterator<Item = &'a [u8]>) -> Vec<u8> {
+    files
+        .flat_map(|bytes| [format!("{}\n", bytes.len()).as_bytes(), bytes].concat())
+        .collect()
+}
+
+/// What `check` makes of the Pi's reply: the marker, then the deployed files' listing.
 fn deployed(stdout: &str) -> Value {
     let Some(files) = stdout.strip_prefix(INSTALLED_MARKER) else {
         return json!({ "installed": false, "current": false });
     };
-    let ours: Vec<u8> = AGENT_FILES
-        .iter()
-        .flat_map(|(_, bytes)| bytes.iter().copied())
-        .collect();
+    let ours = listing(AGENT_FILES.iter().map(|(_, bytes)| *bytes));
     json!({ "installed": true, "current": files.as_bytes() == ours.as_slice() })
 }
 
@@ -194,10 +199,7 @@ mod tests {
     use super::*;
 
     fn ours() -> String {
-        AGENT_FILES
-            .iter()
-            .map(|(_, bytes)| std::str::from_utf8(bytes).unwrap())
-            .collect()
+        String::from_utf8(listing(AGENT_FILES.iter().map(|(_, bytes)| *bytes))).unwrap()
     }
 
     #[test]
@@ -219,6 +221,21 @@ mod tests {
         let short = &ours()[..ours().len() - 1];
         assert_eq!(
             deployed(&format!("{INSTALLED_MARKER}{short}")),
+            json!({ "installed": true, "current": false })
+        );
+        // code_executor.py missing, its bytes at the end of agent.py: the same bytes in a row.
+        let files: Vec<&[u8]> = AGENT_FILES.iter().map(|(_, bytes)| *bytes).collect();
+        let merged = [files[0], files[1]].concat();
+        let moved = listing(
+            [merged.as_slice()]
+                .into_iter()
+                .chain(files[2..].iter().copied()),
+        );
+        assert_eq!(
+            deployed(&format!(
+                "{INSTALLED_MARKER}{}",
+                String::from_utf8(moved).unwrap()
+            )),
             json!({ "installed": true, "current": false })
         );
     }
