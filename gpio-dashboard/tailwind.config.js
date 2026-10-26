@@ -1,25 +1,67 @@
+const plugin = require('tailwindcss/plugin')
+const palette = require('./src/renderer/src/styles/palette.cjs')
+
+// The night-lab HUD (SPEC 2.3, ADR-0142): the palette's colours take over the theme's existing
+// names, so `surface`, `accent`, `gray`, `red`, `amber`, `emerald`, `green`, `sky` and `violet`
+// classes take the new look where they stand.
+const cyan = palette.ramp(palette.cyan)
+
+/** The palette as CSS variables on :root, for the stylesheets and the few colours set in code. */
+const variables = {
+  '--ink': palette.ink,
+  '--text': palette.text[100],
+  '--text-kicker': palette.text[200],
+  '--text-lede': palette.text[300],
+  '--mute': palette.text[400],
+  '--mute-stat': palette.text[500],
+  '--mute-hint': palette.text[600],
+  '--cyan': palette.cyan,
+  '--cyan-light': palette.cyanLight,
+  '--amber': palette.amber,
+  '--coral': palette.coral,
+  '--coral-light': palette.coralLight,
+  '--violet': palette.violet,
+  '--green': palette.green,
+  '--on-bg': palette.onBg,
+  '--on-text': palette.onText,
+  '--surface-900': palette.surface[900],
+  '--surface-800': palette.surface[800],
+  '--glass': `linear-gradient(150deg, ${palette.glass.top}, ${palette.glass.bottom})`,
+  '--chip': palette.glass.chip,
+  '--tip-bg': palette.glass.tip,
+  '--toast-bg': palette.glass.toast,
+  '--dialog-bg': palette.glass.dialog,
+  '--seg-bg': palette.glass.seg,
+  '--tool-bg': palette.glass.tool,
+  '--hover': palette.glass.hover,
+  '--hover-strong': palette.glass.hoverStrong,
+  '--hairline': palette.glass.hairline,
+  '--track': palette.glass.track,
+  '--shadow': palette.shadow
+}
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ['./src/renderer/index.html', './src/renderer/src/**/*.{js,jsx,ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        // Deep dark theme base
-        surface: {
-          950: '#050A14',
-          900: '#0A0F1A',
-          800: '#111827',
-          700: '#1F2937',
-          600: '#374151',
-          500: '#4B5563'
-        },
-        // Accent (indigo)
+        ink: palette.ink,
+        surface: palette.surface,
         accent: {
-          DEFAULT: '#6366F1',
-          light: '#818CF8',
-          dim: '#4F46E5',
-          glow: '#6366F130'
+          DEFAULT: palette.cyan,
+          light: palette.cyanLight,
+          dim: cyan[600],
+          glow: `${palette.cyan}30`
         },
+        on: { bg: palette.onBg, text: palette.onText },
+        gray: palette.text,
+        red: palette.ramp(palette.coral),
+        amber: palette.ramp(palette.amber),
+        emerald: palette.ramp(palette.green),
+        green: palette.ramp(palette.green),
+        sky: cyan,
+        violet: palette.ramp(palette.violet),
         // Pin type colors (preserved)
         pin: {
           gpio: '#22C55E',
@@ -40,22 +82,24 @@ module.exports = {
           output: '#F97316'
         }
       },
+      // Outfit for the interface and DM Mono for values (main.jsx loads both). The system faces
+      // after them carry the glyphs they lack, such as Ω, → and ⌘.
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Menlo', 'monospace']
+        sans: ['Outfit Variable', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['DM Mono', 'ui-monospace', 'Menlo', 'monospace']
       },
       borderRadius: {
-        card: '14px',
+        card: '16px',
         btn: '10px',
         pill: '9999px'
       },
       boxShadow: {
-        card: '0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3)',
-        'card-hover': '0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3)',
-        'glow-accent': '0 0 20px rgba(99,102,241,0.15)',
-        'glow-success': '0 0 6px rgba(16,185,129,0.4)',
-        'glow-warn': '0 0 6px rgba(251,191,36,0.4)',
-        'glow-danger': '0 0 6px rgba(239,68,68,0.4)',
+        card: palette.shadow,
+        'card-hover': palette.shadow,
+        'glow-accent': `0 0 20px ${palette.cyan}26`,
+        'glow-success': `0 0 6px ${palette.green}66`,
+        'glow-warn': `0 0 6px ${palette.amber}66`,
+        'glow-danger': `0 0 6px ${palette.coral}66`,
         'inner-highlight': 'inset 0 1px 0 0 rgba(255,255,255,0.03)'
       },
       animation: {
@@ -95,5 +139,5 @@ module.exports = {
       }
     }
   },
-  plugins: []
+  plugins: [plugin(({ addBase }) => addBase({ ':root': variables }))]
 }

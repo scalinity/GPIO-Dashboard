@@ -113,7 +113,7 @@ function Working() {
       <Loader2 className="w-3.5 h-3.5 animate-spin text-accent-light" />
       Claude is working · the bench is read-only
       <button
-        className="ml-1 flex items-center gap-1 rounded-pill bg-red-600 hover:bg-red-500 px-2.5 py-1 text-white"
+        className="btn-danger ml-1 flex items-center gap-1 rounded-pill px-2.5 py-1 text-xs"
         onClick={stop}
       >
         <Square className="w-3 h-3" /> Stop

@@ -163,7 +163,11 @@ These are vendor product photos.
 
 2.3 Adaptation
 - The controller is the Pi 5 + ribbon + T-board, not an Arduino.
-- The UI chrome stays dark, clean, and minimal, using the existing Tailwind tokens. Impose no other palette.
+- The UI chrome is the night-lab HUD (ADR-0142):
+  - an ink ground (`#0b0f1a`) under dark navy glass cards, with a cool text ramp from `#eef2fa` down to the key hints' `#7d87a4`;
+  - five accents with fixed meanings: cyan `#7fe3ff` for measurement and selection, amber `#ffb454` for hardware and events, coral `#ff6b86` for limits and faults, violet `#b99cff` for the assistant and a second series, and green `#8fe8a8` for OK;
+  - Outfit for the interface and DM Mono for values, both served by the app, each followed by system faces for the glyphs it lacks; the terminal sets Menlo;
+  - one colour source, `styles/palette.cjs`, mapped into the Tailwind theme and onto CSS variables. Every text shade and accent reads at 4.5:1 or more on the surfaces it sits on.
 - The 3D stage is a neutral studio that reads well against the dark chrome.
 - No Embed. Explore/Fork becomes local Projects plus "Fork tutorial into my projects".
 - v2 goes beyond the reference with:

@@ -27,9 +27,9 @@ function InfoCard({ icon: Icon, label, children }) {
 // The Raspberry Pi docs (frequency management): the Arm cores are throttled progressively from
 // 80 °C, and cores and GPU at 85 °C.
 function tempColor(temp) {
-  if (temp < 80) return '#22C55E'
-  if (temp < 85) return '#EAB308'
-  return '#EF4444'
+  if (temp < 80) return 'var(--green)'
+  if (temp < 85) return 'var(--amber)'
+  return 'var(--coral)'
 }
 
 export default function SystemInfo() {
@@ -77,7 +77,7 @@ export default function SystemInfo() {
               {mem.total_mb ? `${Math.round(mem.total_mb)}MB` : '--'}
             </span>
           </div>
-          <UsageBar value={memPercent} color={memPercent > 80 ? '#EF4444' : '#3B82F6'} />
+          <UsageBar value={memPercent} color={memPercent > 80 ? 'var(--coral)' : 'var(--cyan)'} />
         </div>
       </InfoCard>
 
@@ -109,7 +109,7 @@ export default function SystemInfo() {
               {disk.total_gb ? `${disk.total_gb.toFixed(1)}GB` : '--'}
             </span>
           </div>
-          <UsageBar value={diskPercent} color={diskPercent > 90 ? '#EF4444' : '#22C55E'} />
+          <UsageBar value={diskPercent} color={diskPercent > 90 ? 'var(--coral)' : 'var(--cyan)'} />
         </div>
       </InfoCard>
     </div>

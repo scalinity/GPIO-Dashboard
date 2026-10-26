@@ -63,7 +63,7 @@ export default function PartLibrary({ view }: { view: StudioView }) {
             <button
               key={c}
               aria-pressed={category === c}
-              className={`px-1.5 py-0.5 rounded text-[11px] ${category === c ? 'bg-accent text-white' : 'bg-white/[0.04] text-gray-400 hover:text-gray-200'}`}
+              className={`px-1.5 py-0.5 rounded text-[11px] ${category === c ? 'bg-on-bg text-on-text' : 'bg-white/[0.04] text-gray-400 hover:text-gray-200'}`}
               onClick={() => setCategory(category === c ? null : c)}
             >
               {c}

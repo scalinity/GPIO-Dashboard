@@ -82,7 +82,7 @@ export default function ConnectPage() {
                   disabled={inputDisabled}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-btn text-xs font-medium transition-colors ${
                     config.authMethod === 'key'
-                      ? 'bg-accent text-white'
+                      ? 'bg-on-bg text-on-text'
                       : 'bg-white/[0.04] text-gray-400 hover:text-gray-200'
                   }`}
                 >
@@ -94,7 +94,7 @@ export default function ConnectPage() {
                   disabled={inputDisabled}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-btn text-xs font-medium transition-colors ${
                     config.authMethod === 'password'
-                      ? 'bg-accent text-white'
+                      ? 'bg-on-bg text-on-text'
                       : 'bg-white/[0.04] text-gray-400 hover:text-gray-200'
                   }`}
                 >

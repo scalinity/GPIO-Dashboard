@@ -3741,3 +3741,36 @@ declare it.
   bar, as a failed click would. The agent reads pins and drives none, and quitting the app,
   Cmd+Q included, stops it (`main.rs`'s exit handler). An update to `pi-agent/` takes one Deploy
   & Start Agent click per Pi. Without a saved host nothing is attempted.
+
+## ADR-0142 The interface wears the night-lab HUD through remapped tokens
+
+- **Context.** The interface was a dark indigo Tailwind theme, and SPEC 2.3 forbade any other
+  palette. The Studio facelift takes the exhibit-3d skill's night-lab house style for every page:
+  dark navy glass on ink, a cool text ramp, five accents with fixed meanings, Outfit and DM Mono.
+  About two dozen files colour themselves through theme classes (`bg-surface-800`,
+  `text-gray-400`, `text-red-400`, `bg-accent`) and the component classes in `index.css`.
+- **Decision.**
+  - One colour source, `src/renderer/src/styles/palette.cjs`: ink `#0b0f1a`, the HUD's text
+    ramp, cyan, amber, coral, violet and green, the glass stops, and on-bg/on-text for a selected
+    segment. `tailwind.config.js` requires it and emits it as `:root` CSS variables.
+  - The theme's existing names take its values: `surface` the ink ramp, `accent` cyan, `gray`
+    the text ramp, `red` coral, `amber` amber, `emerald` and `green` green, `sky` cyan and
+    `violet` violet, each accent's ramp tinted toward white and shaded toward ink around it. The
+    `pin` and `state` colours stay. Most files take the new look with no edit.
+  - The component classes keep their names: `.card` and `.glass-panel` are a glass gradient over
+    a 10 px blur with a hairline and a long shadow, `.section-title` the HUD's group label,
+    `.tab-button` a segment (selected: on-bg/on-text), `.btn-success` the cyan play style that
+    Simulate wears, `.btn-danger` coral, `.btn-primary` on-bg/on-text; buttons do not wrap, and
+    keyboard focus is a cyan outline.
+  - Outfit (variable) and DM Mono 400 and 500 come from `@fontsource` packages pinned to exact
+    versions and imported in `main.jsx`, so `font-src 'self'` holds. Inter is removed. System
+    faces follow both in their stacks, because Outfit has no Ω, → or ⌘. The terminal keeps
+    Menlo, which has the box-drawing glyphs xterm needs.
+  - Code that needs a colour as a value reads the CSS variables (xterm's theme) or writes
+    `var()` (CodeMirror's theme, the Monitor's bars). The Tauri window's background is ink, so
+    the first paint matches.
+- **Consequences.** A theme class now means its HUD colour: `text-red-400` is coral and
+  `bg-emerald-500` green, and Tailwind's default reds, greens and blues no longer appear. A new
+  colour goes into the palette. `palette.test.ts` checks that every text shade and accent reads at
+  4.5:1 on surfaces 950, 900 and 800, and on-text at 7:1 on on-bg. The fonts add about 62 KB of
+  WOFF2 (Outfit's Latin Extended file, 15 KB more, loads only for a character that needs it).

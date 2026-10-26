@@ -7,13 +7,16 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import useTutorialStore from '../store/tutorialStore'
 import { useRun } from '../state/runStore'
 
+// The palette's colours (styles/palette.cjs), through the CSS variables it sets on :root.
 const customTheme = EditorView.theme({
-  '&': { backgroundColor: '#0A0F1A', height: '100%' }, // surface-900
-  '.cm-gutters': { backgroundColor: '#050A14', border: 'none' }, // surface-950
-  '.cm-activeLineGutter': { backgroundColor: '#0A0F1A' }, // surface-900
-  '.cm-activeLine': { backgroundColor: '#6366F108' }, // accent/3
-  '.cm-selectionBackground': { backgroundColor: '#6366F120 !important' }, // accent/12
-  '.cm-cursor': { borderLeftColor: '#6366F1' } // accent
+  '&': { backgroundColor: 'var(--surface-900)', height: '100%' },
+  '.cm-gutters': { backgroundColor: 'var(--ink)', border: 'none' },
+  '.cm-activeLineGutter': { backgroundColor: 'var(--surface-900)' },
+  '.cm-activeLine': { backgroundColor: 'color-mix(in srgb, var(--cyan) 3%, transparent)' },
+  '.cm-selectionBackground': {
+    backgroundColor: 'color-mix(in srgb, var(--cyan) 14%, transparent) !important'
+  },
+  '.cm-cursor': { borderLeftColor: 'var(--cyan)' }
 })
 
 export default function CodeEditor({ code, originalCode }) {
