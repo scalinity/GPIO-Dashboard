@@ -215,7 +215,7 @@ Counted from the repository when this README was written; the commands in the So
 | TypeScript and TSX files | 354 (117 of them Vitest files) | `git ls-files` |
 | Rust files / Pi-agent Python files | 13 / 7 (2 of the Python files are tests) | `git ls-files` |
 | Blender scripts | 36 | `scripts/assets/blender/` |
-| Vitest | 2,464 tests pass, 2 skipped; 116 files run, 1 skipped | `npx vitest run` |
+| Vitest | 2,465 tests pass, 2 skipped; 116 files run, 1 skipped | `npx vitest run` |
 | Rust | 99 tests pass, 20 ignored | `cargo test` |
 | Node bridge / Pi agent | 7 / 64 tests pass | `node --test`, `python3 -m unittest` |
 | End-to-end tests (listed, not run for this table) | 108 in 12 files | `npx playwright test --list` |
