@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 
 const useUiStore = create((set) => ({
-  activeTab: 'connect',
+  // The app opens on the 3D bench (ADR-0141).
+  activeTab: 'studio',
   selectedPin: null,
   pinSearch: '',
   pinTypeFilters: [],

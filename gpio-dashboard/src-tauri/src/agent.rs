@@ -121,6 +121,38 @@ pub async fn get_status(ssh: &Ssh) -> Result<Value, String> {
     Ok(json!({ "running": !out.stdout.trim().is_empty() }))
 }
 
+/// What `check`'s `echo installed` prints before the deployed files when `agent.py` is on the Pi.
+const INSTALLED_MARKER: &str = "installed\n";
+
+/// Whether the agent is on the Pi and whether it is this app's: every file `deploy` puts there,
+/// byte for byte. Launch starts it only when it is (ADR-0141); a first deploy or an update runs
+/// `install.sh`, and with it apt, so it stays a click.
+pub async fn check(ssh: &Ssh) -> Result<Value, String> {
+    let dir = shell_quote(&remote_dir(ssh)?);
+    let names = AGENT_FILES.map(|(name, _)| name).join(" ");
+    let out = ssh
+        .execute(
+            &format!(
+                "cd {dir} 2>/dev/null && test -f agent.py && echo installed && cat -- {names} 2>/dev/null; exit 0"
+            ),
+            DEFAULT_TIMEOUT,
+        )
+        .await?;
+    Ok(deployed(&out.stdout))
+}
+
+/// What `check` makes of the Pi's reply: the marker, then the deployed files in `AGENT_FILES` order.
+fn deployed(stdout: &str) -> Value {
+    let Some(files) = stdout.strip_prefix(INSTALLED_MARKER) else {
+        return json!({ "installed": false, "current": false });
+    };
+    let ours: Vec<u8> = AGENT_FILES
+        .iter()
+        .flat_map(|(_, bytes)| bytes.iter().copied())
+        .collect();
+    json!({ "installed": true, "current": files.as_bytes() == ours.as_slice() })
+}
+
 /// The remote command that launches the agent from `dir`, with the venv install.sh makes
 /// when apt's gpiod binding is 1.x. The script is given by its full path so
 /// `stop_command` can find the process by that path. Only `nohup` goes to the background, with
@@ -160,6 +192,36 @@ fn find_auth_token(log: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn ours() -> String {
+        AGENT_FILES
+            .iter()
+            .map(|(_, bytes)| std::str::from_utf8(bytes).unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn the_agent_is_current_only_when_every_deployed_file_is_this_apps() {
+        assert_eq!(
+            deployed(""),
+            json!({ "installed": false, "current": false })
+        );
+        assert_eq!(
+            deployed(&format!("{INSTALLED_MARKER}{}", ours())),
+            json!({ "installed": true, "current": true })
+        );
+        // An older agent.py, or a file missing from the end.
+        let older = ours().replacen("def ", "def  ", 1);
+        assert_eq!(
+            deployed(&format!("{INSTALLED_MARKER}{older}")),
+            json!({ "installed": true, "current": false })
+        );
+        let short = &ours()[..ours().len() - 1];
+        assert_eq!(
+            deployed(&format!("{INSTALLED_MARKER}{short}")),
+            json!({ "installed": true, "current": false })
+        );
+    }
 
     #[test]
     fn the_stop_pattern_matches_the_launched_script_but_not_its_own_command() {

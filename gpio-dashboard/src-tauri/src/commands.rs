@@ -437,6 +437,11 @@ pub async fn agent_stop(ssh: State<'_, Ssh>) -> CommandResult {
 }
 
 #[tauri::command]
+pub async fn agent_check(ssh: State<'_, Ssh>) -> CommandResult {
+    Ok(agent::check(&ssh).await.unwrap_or_else(error_json))
+}
+
+#[tauri::command]
 pub async fn agent_get_status(ssh: State<'_, Ssh>) -> CommandResult {
     Ok(agent::get_status(&ssh)
         .await

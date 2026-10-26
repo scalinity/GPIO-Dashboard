@@ -75,7 +75,7 @@ So in code, the Claude agent is called the assistant: module assistant/, Tauri n
 4. Generated, not hand-typed. Wiring text, build steps, and theory values (GPIO numbers, resistor values) are generated from the circuit document.
 5. Hardware stays behind my hand.
    - The assistant can simulate anything.
-   - Only my explicit clicks run code on the Pi or touch GPIO.
+   - Only my explicit clicks run code on the Pi or touch GPIO. The one exception: launching the app starts the GPIO agent on the saved Pi when the Pi already has this app's agent. The agent reads pins and drives none, and quitting the app stops it.
    - Board Sense probing is off until I switch it on. It never drives a pin as an output (14.5).
 6. Capability first.
    - This is a personal, experimental tool. Add no enterprise process.

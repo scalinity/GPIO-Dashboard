@@ -3719,3 +3719,25 @@ declare it.
   project.
 - **Consequences.** Placing a part needs the library shown; the keys bring it back without the
   mouse. The run-blocked dialog anchors to the canvas's right edge either way.
+
+## ADR-0141 The app opens on the Studio, connected, with the agent running when the Pi has this app's
+
+- **Context.** The app opened on the Connect tab, disconnected: every launch took a Connect click
+  and a Deploy & Start Agent click before the bench was live, though the connection was saved.
+  SPEC principle 5 kept running code on the Pi behind a click.
+- **Decision.**
+  - The app opens on the Studio tab.
+  - At launch it reads the saved connection and, when there is one, connects with it. It then
+    asks the Pi whether the agent there is this app's: `agent::check` reads back every file
+    `deploy` would put there and compares them byte for byte with the copies compiled into the
+    app. When they match it starts the agent, as Start Agent would. SPEC principle 5 names this
+    as its one exception, at the owner's choice.
+  - When the agent is missing or differs (after an app update), launch stops at connected and the
+    Connect tab says which, because Deploy & Start Agent runs `install.sh`, and with it
+    `sudo apt-get`, on a Pi that is also a home server. Those stay a click.
+  - The saved connection is read once at launch (`loadSaved` in the connection store), not when
+    the Connect tab first shows.
+- **Consequences.** A launch with the Pi unreachable shows the connection's error in the top
+  bar, as a failed click would. The agent reads pins and drives none, and quitting the app,
+  Cmd+Q included, stops it (`main.rs`'s exit handler). An update to `pi-agent/` takes one Deploy
+  & Start Agent click per Pi. Without a saved host nothing is attempted.
