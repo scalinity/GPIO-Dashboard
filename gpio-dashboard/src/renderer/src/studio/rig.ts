@@ -21,6 +21,7 @@ import {
   type WebGPURenderer
 } from 'three/webgpu'
 import { duskScene } from './lab/dusk'
+import { buildRoom, type Room } from './lab/room'
 import { type Look, STUDIO } from './look'
 
 // The table is centred on the default bench (core/model/defaults: the board at the origin, the Pi
@@ -87,6 +88,8 @@ export class StageRig {
   private shown: Texture | Scene | null = null
   private hdri: Texture | null = null
   private readonly dusk = duskScene()
+  /** The Lab look's workroom, built the first time the look is applied. */
+  room: Room | null = null
   private look: Look = STUDIO
 
   constructor() {
@@ -140,6 +143,11 @@ export class StageRig {
     this.table.material.color.set(look.table)
     this.sweep.visible = look.sweep !== null
     if (look.sweep) this.sweep.material.color.set(look.sweep)
+    if (look.room && !this.room) {
+      this.room = buildRoom()
+      this.group.add(this.room.group)
+    }
+    if (this.room) this.room.group.visible = look.room
     if (this.scene) this.scene.environmentIntensity = look.environment.intensity
     this.environment()
   }

@@ -3848,6 +3848,61 @@ declare it.
     pixel); the other look's passes do not run.
   - ADR-0067 now governs the Studio look only, and LOOKDEV's photo checks are made in it.
 
+## ADR-0144 The Lab look's workroom: baked into a few merged meshes, with bounds and a cutaway
+
+- **Context.**
+  - The exhibit house style sets its Lab look in a room finished on every side, because the
+    camera circles it, with something to read on every wall, practical lamps, and the topic
+    echoed faintly in the dressing. The tabletop is the table plane, y = 0, which the physics
+    floor and the camera presets assume.
+  - The frame budget (SPEC 10.8) has little room for a heavy set: ADR-0131 put the render call
+    at about 150 objects. A practical lamp drawn above the bloom's threshold would bloom with the
+    LEDs dark and break ADR-0129's gate, and the lit circuit has to stay the brightest thing.
+- **Decision.**
+  - The set sentence is "a Pi breadboard bench in an electronics workroom at dusk". The floor is
+    900 mm below the tabletop; the inside runs x ±2400 mm and z -1700 to +2600 mm, and the
+    ceiling is at +1900 mm (`studio/lab/bounds.ts`).
+
+    | Side | Contents |
+    |---|---|
+    | North, behind the first views | the dusk window (1300 x 1350 mm, lavender over a peach horizon) between amber light bars, a walnut credenza under it, a plant in the corner |
+    | West | a pegboard of pliers, cutters, drivers and wire spools over a wall bench, with a desk lamp, an oscilloscope and a power supply on it, their screens dim |
+    | East | a parts-drawer cabinet, a shelf lit from below by an amber strip, a soldering station on a side table |
+    | South | the door, a stool, and a faint framed GPIO pinout: the background echo |
+    | Ceiling | two dim pendants over the bench |
+    | Floor | tiles and a rug, and the bench's legs, apron and lower shelf under its table |
+
+  - Builders in `lab/pieces.ts` draw each piece in millimetres, after the house style's furniture
+    language (bevelled engineered parts, faceted low-poly plants), written for this app.
+    `lab/bake.ts` places each piece's geometry in the room, colours it per vertex with roughness
+    and metalness as attributes, darkens it by an occlusion term baked from where each vertex
+    stands (height above the floor, distance to a wall or a corner, under the bench, facing
+    down), and merges every piece of one kind on one side into one geometry.
+  - Three materials serve the whole room (`lab/materials.ts`): a lit vertex-colour standard
+    material; an unlit emitter material for lamps, bars and screens, at most 1.5 in linear light;
+    and additive glow cards, at most 0.16, without fog, fading at their edges and when seen
+    edge-on. A bulb's three crossed cards over the bulb stay under 2. Metal in the room is at
+    least 0.5 rough, so the key's highlight on it stays under the threshold too.
+  - The room is 14 meshes and 24,254 triangles; none casts or takes a shadow, as the key's
+    shadow map covers the bench. It is built the first time the Lab look is applied (about 50
+    ms), and hidden in the Studio look.
+  - `view.frame` follows the orbit and any preset move with `clampToRoom`, which keeps the target
+    in the room and shortens the camera's distance along its line to the target until it stands
+    150 mm inside the walls, floor and ceiling; the south is open, as a stage's front. The orbit
+    goes on from its own position at the next frame, so passing a wall does not shorten its
+    distance for good. Then the cutaway hides each side, a wall with its furniture or the ceiling
+    with its pendants, that the camera stands within 900 mm of or behind: farther than any piece
+    stands out from its wall, so the camera is never inside one.
+  - The Lab look orbits at most 2200 mm from its target, and it is the default look.
+- **Consequences.**
+  - Every preset of every tutorial stands inside the room, with no side cut, at canvas aspects
+    from 0.6 to 2.4 (`lab/bounds.test.ts`). An orbit all the way round at full reach stays
+    inside and opens the north, west and east sides in turn (`e2e/lab.spec.ts`).
+  - With the LEDs dark and the bloom forced on, the Lab bloom's high pass is empty at the iso,
+    top and front presets; the forced and gated frames differ by 0.006 to 0.011 of 255, the
+    settling floor (`e2e/lab.spec.ts`).
+  - The room's cost, measured with the depth of field, is in ADR-0145.
+
 ## ADR-0146 A title column reads the bench: three readouts and a sentence
 
 - **Context.** The Studio showed the simulation's currents only in the drawer's Sim/Probes tab

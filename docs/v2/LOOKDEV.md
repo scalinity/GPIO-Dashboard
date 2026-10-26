@@ -1,7 +1,9 @@
 # Look-dev checklist
 
-The Studio's look is checked against the reference photos (SPEC 2.2, 10.1, 18; acceptance 15),
-and the Pi 5 against Raspberry Pi's official imagery. The photos are vendor images in a public
+The Studio has two looks (SPEC 10.1, ADR-0143). Every photo check below is made in the Studio
+look, which is checked against the reference photos (SPEC 2.2, 10.1, 18; acceptance 15), and the
+Pi 5 against Raspberry Pi's official imagery. The Lab look has its own checklist at the end, read
+against the exhibit house style rather than the photos. The photos are vendor images in a public
 repository, so they are referenced in place and never committed or composited into a committed
 file:
 
@@ -97,9 +99,9 @@ are and no composite is committed, because they are vendor images in a public re
 | P1 | Materials | Per-colour materials from the STEP read like the product brief's photo at a similar angle: solder mask with clearcoat, metal shields and connectors, plastic ports | pass 2026-10-24: the mask is the brief's bright green, the USB-A shells silver, the connectors metal and plastic (ADR-0066); the brief's legends and logos are not in the no-graphics STEP |
 | P2 | Header | The 40 instanced header pins sit at the drawing's coordinates; none of the STEP's own pins show | pass 2026-10-24: 40 gold posts on the drawing's grid, none of the STEP's own |
 
-### Stage
+### Stage, Studio look
 
 | # | Check | Pass when | Status |
 |---|-------|-----------|--------|
-| S1 | Lighting | Neutral studio light from the CC0 HDRI plus one key light with soft shadows; AO visible in holes and under parts; AgX tone mapping | pass 2026-10-24: neutral greys, one softer key with its soft shadow, AO in the holes and under the parts, AgX then a colour grade (ADR-0067) |
-| S2 | No gimmicks | No film grain, chromatic aberration or lens dirt; bloom only on lit LEDs | pass 2026-10-24: nothing added; bloom takes only what passes 2, so the metal rings and shields no longer glow (ADR-0067) |
+| S1 | Lighting, Studio look | Neutral studio light from the CC0 HDRI plus one key light with soft shadows; AO visible in holes and under parts; AgX tone mapping | pass 2026-10-24: neutral greys, one softer key with its soft shadow, AO in the holes and under the parts, AgX then a colour grade (ADR-0067) |
+| S2 | No gimmicks, Studio look | No film grain, chromatic aberration or lens dirt; bloom only on lit LEDs | pass 2026-10-24: nothing added; bloom takes only what passes 2, so the metal rings and shields no longer glow (ADR-0067) |

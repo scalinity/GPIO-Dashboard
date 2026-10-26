@@ -66,7 +66,7 @@ interface StudioState {
 
 const LOOK_KEY = 'gpio.studio.look'
 
-/** The look last chosen on this machine; the Studio look until one is. */
+/** The look last chosen on this machine; the Lab look until one is. */
 function savedLook(): LookName {
   try {
     const saved = localStorage.getItem(LOOK_KEY)
@@ -74,7 +74,7 @@ function savedLook(): LookName {
   } catch {
     /* storage unavailable */
   }
-  return 'studio'
+  return 'lab'
 }
 
 /** Switches the Studio's look and remembers it on this machine. */

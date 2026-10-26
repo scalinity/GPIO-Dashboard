@@ -34,6 +34,8 @@ export interface Look {
   bloom: { strength: number; radius: number }
   /** The HTML vignette's opacity over the stage. */
   vignette: number
+  /** Whether the workroom stands around the bench (lab/room.ts). */
+  room: boolean
   /** The table top, and the cyclorama sweep (null hides it). */
   table: string
   sweep: string | null
@@ -53,6 +55,7 @@ export const STUDIO = {
   grain: 0,
   bloom: { strength: 0.35, radius: 0.4 },
   vignette: 0,
+  room: false,
   table: '#505153',
   sweep: '#6a6b6d',
   maxDistance: 3000
@@ -71,6 +74,7 @@ export const LAB = {
   grain: 0.03,
   bloom: { strength: 0.45, radius: 0.55 },
   vignette: 1,
+  room: true,
   // An ESD mat.
   table: '#26303b',
   sweep: null,

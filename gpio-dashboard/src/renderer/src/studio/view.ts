@@ -73,6 +73,7 @@ import {
 } from './gestures'
 import { Halos } from './halos'
 import { Insertion, reseated } from './insertion'
+import { clampToRoom, type Side } from './lab/bounds'
 import { LabelLayer, labelsOf } from './labels'
 import { LivePins, type LivePinsReport, liveText } from './livepins'
 import { type LookName, LOOKS } from './look'
@@ -161,6 +162,8 @@ export interface SceneReport {
   build: BuildReport | null
   /** The look drawn. */
   look: LookName
+  /** In the Lab look, where the camera stands (mm) and the room's sides cut away from it. */
+  room: { camera: [number, number, number]; cut: Side[] } | null
 }
 
 /** What Build Mode shows for the step in hand, read back for tests. */
@@ -291,6 +294,13 @@ export class StudioView {
   private switching = 0
   /** The veil lifts once the next frame is drawn in the new look. */
   private lifting = false
+  /** The room's sides cut away at the last frame. */
+  private cut = new Set<Side>()
+  /**
+   * Where the orbit put the camera, and where the room's walls let it stand, at the last frame. The
+   * orbit goes on from the first, so passing a wall does not shorten its distance for good.
+   */
+  private kept: { orbit: Vector3; shown: Vector3 } | null = null
 
   constructor() {
     this.controls.enableDamping = true
@@ -331,12 +341,25 @@ export class StudioView {
   /** One frame: move, render, and say whether another is needed. */
   frame(now: number): boolean {
     if (!this.post) return false
+    // The orbit goes on from where it put the camera, unless something else has moved it since.
+    if (this.kept?.shown.equals(this.camera.position)) this.camera.position.copy(this.kept.orbit)
+    this.kept = null
     // Damping drains during a preset move too, so nothing is left over when it ends.
     let moving = this.controls.update()
     if (this.tween.active) {
       const running = this.tween.step(now, this.camera, this.controls.target)
       if (!running && this.framing?.ms === null) this.framing.ms = now - this.framing.start
       moving = true
+    }
+    // The Lab's room keeps the camera in, and opens the side it stands behind or near.
+    const room = this.look === 'lab' ? this.rig.room : null
+    if (room) {
+      const orbit = this.camera.position.clone()
+      if (clampToRoom(this.camera.position, this.controls.target)) {
+        this.camera.lookAt(this.controls.target)
+        this.kept = { orbit, shown: this.camera.position.clone() }
+      }
+      this.cut = room.cutaway(this.camera.position)
     }
     if (this.insertion.settle(now)) {
       const lift = (key: string) => this.insertion.lift(key, now)
@@ -551,7 +574,14 @@ export class StudioView {
       ghosts: ghostIds(this.base(), this.ghosted()),
       cueMarks: this.cueMarkers.count,
       build: this.buildReport(),
-      look: this.look
+      look: this.look,
+      room:
+        this.look === 'lab'
+          ? {
+              camera: this.camera.position.toArray().map(Math.round) as [number, number, number],
+              cut: [...this.cut]
+            }
+          : null
     }
   }
 

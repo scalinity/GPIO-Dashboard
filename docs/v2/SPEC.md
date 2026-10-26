@@ -846,9 +846,10 @@ Validation:
   - smooth, eased camera motion
 - Two looks, one switch apart (10.7), each a complete preset of stage, lights, environment, fog,
   tone mapping, grade and finish:
-  - Lab: the bench at dusk, after the exhibit house style. A warm key light, cool
-    fog and ambient light, a procedural dusk environment, a saturation lift then ACES Filmic, a
-    faint film grain and a vignette. The lit circuit is the brightest thing in the frame.
+  - Lab, the default: the bench in a furnished electronics workroom at dusk, after the exhibit
+    house style. A warm key light, cool fog and ambient light, a procedural dusk environment, a
+    saturation lift then ACES Filmic, a faint film grain and a vignette. The lit circuit is the
+    brightest thing in the frame.
   - Studio: a neutral studio, tone-mapped with AgX and graded after it (ADR-0067), with no grain
     and no vignette. It is the look checked against the photos:
     - my reference photos (2.2), for the T-board, ribbon, IDC sockets, breadboard, and Dupont leads
@@ -882,9 +883,19 @@ Stage:
 - Scene units are millimetres, with Y up.
 - Studio look: a neutral studio stage, a matte table surface plus a soft cyclorama, lit by a CC0
   studio HDRI (Poly Haven or similar; record the license) and one shadow-casting key light.
-- Lab look: the same table as a dark ESD mat, lit by the same key light, warmer, with a cool
-  hemisphere light, a rim light from behind the bench, a procedural dusk environment and a
-  lavender fog.
+- Lab look: the same table as a dark ESD mat on a bench frame, in "a Pi breadboard bench in an
+  electronics workroom at dusk", lit by the same key light, warmer, with a cool hemisphere light,
+  a rim light from behind the bench, a procedural dusk environment and a lavender fog.
+  - The room: the floor 900 mm below the tabletop, inside x ±2400 mm and z -1700 to +2600 mm, the
+    ceiling 1900 mm above the tabletop. Every side is finished and furnished: the dusk window
+    between amber light bars, a credenza and a plant (north); a pegboard of tools and wire spools
+    over a wall bench with a desk lamp, an oscilloscope and a power supply (west); a parts-drawer
+    cabinet, a shelf lit from below and a soldering station (east); the door, a stool and a faint
+    framed GPIO pinout (south); two dim pendants (ceiling); the bench's legs, apron and lower
+    shelf.
+  - At most 18 meshes and 60k triangles; nothing in it casts or takes a shadow.
+  - Its practical lamps and screens are drawn at most 1.5 in linear light and glow through
+    additive cards, so nothing on the set passes the bloom's threshold.
 - Looks switch by changing values only, so no shader recompiles once both have been drawn: one
   fog, one background colour, one environment target rendered again in place, every light kept
   in the scene (at 0 where a look does not use it), and one output graph that picks a look by a
@@ -1104,6 +1115,10 @@ Looks:
 - The right column's first row, View, switches between the Lab and Studio looks; the key L does
   too. The choice is a preference of the machine, not part of a project.
 - The camera orbits at most 2200 mm from its target in the Lab look and 3000 mm in the Studio look.
+- In the Lab look the camera stays inside the room: a view farther than the room allows is
+  shortened along its line to the target, 150 mm inside the walls, floor and ceiling; the front
+  (south) is open. The side the camera stands within 900 mm of, or behind, is cut away with its
+  furniture, and so is the ceiling. Every preset of every tutorial stands inside the room.
 
 Camera:
 - A damped orbit, with a 35° vertical field of view in both looks.
