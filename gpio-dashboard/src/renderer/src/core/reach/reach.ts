@@ -30,6 +30,9 @@ export function toTable(t: Transform2D, [x, y]: Vec2): Vec2 {
   ]
 }
 
+/** A gap narrower than this (mm) is rounding, not a gap: outlines that meet along an edge touch. */
+const TOUCH_MM = 1e-6
+
 /**
  * Whether two convex outlines (table frame, corners in order around) share any of the table: no
  * edge of either separates them. A point, or two, is an outline too.
@@ -39,11 +42,13 @@ function overlap(a: Vec2[], b: Vec2[]): boolean {
     for (let i = 0; i < outline.length; i++) {
       const [x0, y0] = outline[i]!
       const [x1, y1] = outline[(i + 1) % outline.length]!
-      const [ax, ay] = [y0 - y1, x1 - x0]
-      if (!ax && !ay) continue
+      const length = Math.hypot(y0 - y1, x1 - x0)
+      if (!length) continue
+      const [ax, ay] = [(y0 - y1) / length, (x1 - x0) / length]
       const along = (o: Vec2[]) => o.map(([x, y]) => x * ax + y * ay)
       const [sa, sb] = [along(a), along(b)]
-      if (Math.max(...sa) < Math.min(...sb) || Math.max(...sb) < Math.min(...sa)) return false
+      const gap = Math.max(Math.min(...sb) - Math.max(...sa), Math.min(...sa) - Math.max(...sb))
+      if (gap > TOUCH_MM) return false
     }
   return true
 }

@@ -33,6 +33,25 @@ describe('restHeightMm', () => {
     expect(restHeightMm(doc, across)).toBe(body.heightMm)
   })
 
+  it('rests on a board that a footprint only touches, through rounding', () => {
+    // Both turned 270° and offset by 0.1 mm: the outlines meet along an edge, and the projections
+    // differ by about 1e-13 mm.
+    const turned = {
+      ...doc,
+      boards: [
+        { ...board, transform: { position: [0.1, 0.2] as [number, number], rotationDeg: 270 } }
+      ]
+    }
+    const pose = { position: [25.1, 0.2] as [number, number], rotationDeg: 270 }
+    const outline = [
+      [-10, -5],
+      [0, -5],
+      [0, 5],
+      [-10, 5]
+    ].map((c) => toTable(pose, c as [number, number]))
+    expect(restHeightMm(turned, outline)).toBe(body.heightMm)
+  })
+
   it('follows a board turned a quarter', () => {
     const turned = {
       ...doc,

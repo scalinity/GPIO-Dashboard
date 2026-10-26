@@ -1,12 +1,13 @@
 // An off-board module laid over a breadboard rests on its top (ADR-0139): the pointer lays it
 // there, a still pointer leaves it there, and a lead on its pin ends where the pin is drawn.
-import { Ray, Vector3 } from 'three/webgpu'
+import { BoxGeometry, Group, Mesh, Ray, Vector3 } from 'three/webgpu'
 import { afterEach, describe, expect, it } from 'vitest'
 import { SAMPLES } from '../core/defs/samples'
 import type { CircuitDoc, PartInstance, Vec2 } from '../core/model/types'
 import { togglePanels, useStudio } from '../state/studioStore'
 import { endpointInScene, modulePinInScene, moduleRestMm, setModuleModel, toThree } from './coords'
 import { type Gesture, propose } from './gestures'
+import { ModelInstances } from './instances'
 
 // The sample's bb-830 lies at the table's origin: 165.1 by 54.6 mm, its top 8.5 mm up.
 const doc = SAMPLES.find((s) => s.id === 'sample-blink')!.doc
@@ -76,6 +77,16 @@ describe('laying an off-board module', () => {
     expect(moduleRestMm(doc, 'sg90', { position: [60, 10], rotationDeg: 0 })).toBe(TOP)
   })
 
+  it('rests a module with no rigid piece on the table, not at minus infinity', () => {
+    setModuleModel('dc-motor', {
+      pins: {},
+      rect: { xMin: 0, xMax: 1, yMin: 0, yMax: 1 },
+      rests: [],
+      top: 1
+    })
+    expect(moduleRestMm(doc, 'dc-motor', { position: [60, -60], rotationDeg: 0 })).toBe(0)
+  })
+
   it('leaves a module resting across the board edge where it is under a still pointer', () => {
     // Its near edge 4.6 mm inside the board's far edge: pushed back by the 8.5 mm parallax to the
     // table, it would lie off the board.
@@ -95,6 +106,22 @@ describe('laying an off-board module', () => {
     const end = endpointInScene(bench, { pin: { part: 'J1', pin: 'GND' } })!
     expect(end.at.toArray()).toEqual(modulePinInScene(bench, part, 'GND')!.toArray())
     expect(end.at.y).toBeCloseTo(TOP + 10, 6)
+  })
+})
+
+describe('ModelInstances.meshBounds', () => {
+  it("measures each mesh by its own geometry, not a left-out child's", () => {
+    const body = new Mesh(new BoxGeometry(10, 2, 10))
+    const tail = new Mesh(new BoxGeometry(2, 1, 100))
+    tail.name = 'tail'
+    tail.position.set(0, 0, 60)
+    body.add(tail)
+    const model = new Group()
+    model.add(body)
+    model.updateMatrixWorld(true)
+    const [only, ...rest] = new ModelInstances(new Group(), model).meshBounds(['tail'])
+    expect(rest).toEqual([])
+    expect(only!.max.z).toBeCloseTo(5, 6)
   })
 })
 

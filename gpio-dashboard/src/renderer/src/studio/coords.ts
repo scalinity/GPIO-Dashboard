@@ -143,6 +143,7 @@ export function moduleRestMm(doc: CircuitDoc, defId: string, pose: Transform2D):
     [r.xMin, r.yMax]
   ]) ?? [[[0, 0]]]
   const rest = Math.max(
+    0,
     ...outlines.map((o) =>
       restHeightMm(
         doc,
