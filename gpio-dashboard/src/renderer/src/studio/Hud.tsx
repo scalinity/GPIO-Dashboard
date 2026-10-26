@@ -16,7 +16,7 @@ export default function Hud({ doc, children }: { doc: CircuitDoc; children?: Rea
   const simulating = useWorkbench((s) => s.codeStatus === 'running')
   const real = useLive((s) => (s.online ? s.sim : undefined))
   const live = useStudio((s) => s.live) && real !== undefined
-  const onPi = useRun((s) => s.status === 'deploying' || s.status === 'running')
+  const onPi = useRun((s) => s.status === 'running')
   const build = useBuild((s) =>
     s.on && s.index < s.steps.length ? `${s.index + 1}/${s.steps.length}` : null
   )

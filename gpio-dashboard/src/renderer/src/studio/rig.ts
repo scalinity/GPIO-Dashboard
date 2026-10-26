@@ -223,7 +223,8 @@ export class StageRig {
     mat.name = 'esd-mat'
     mat.position.set(x, -MAT.thickness / 2, z)
     mat.receiveShadow = true
-    const steel = new MeshStandardNodeMaterial({ color: '#b8bcc4', roughness: 0.3, metalness: 1 })
+    // As rough as the room's metal, so the key's highlight on it stays under the bloom's threshold.
+    const steel = new MeshStandardNodeMaterial({ color: '#b8bcc4', roughness: 0.5, metalness: 0.7 })
     const rubber = new MeshStandardNodeMaterial({ color: '#16181c', roughness: 0.7 })
     const [sx, sz] = [x - MAT.width / 2 + 30, z - MAT.depth / 2 + 30]
     const snap = new Mesh(new CylinderGeometry(5, 5.5, 3, 24), steel)

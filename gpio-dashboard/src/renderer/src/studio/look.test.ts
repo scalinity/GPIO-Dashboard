@@ -63,6 +63,11 @@ describe('the looks', () => {
     rig.apply(STUDIO)
     expect(shown(mat)).toBe(false)
     expect(table.position.y).toBe(-10)
+    // Its metal (the ground snap) is as rough as the room's: the key's highlight stays under 2.
+    mat.parent!.traverse((o) => {
+      const m = (o as { material?: { metalness?: number; roughness?: number } }).material
+      if (m && (m.metalness ?? 0) > 0) expect(m.roughness).toBeGreaterThanOrEqual(0.5)
+    })
   })
 
   it('a switch changes values, never the lights, the fog or the background objects', () => {

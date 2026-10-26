@@ -50,7 +50,7 @@ export function readoutsOf(
   const total = Object.values(snapshot.gpio).reduce((sum, g) => sum + Math.abs(g.currentA), 0)
   const peak = busiestPin(snapshot)
   const errors = issues.filter((i) => i.severity === 'error').length
-  const warnings = issues.length - errors
+  const warnings = issues.filter((i) => i.severity === 'warning').length
   return [
     {
       label: 'GPIO draw',
@@ -144,16 +144,16 @@ export function captionOf(s: CaptionState): Segment[] {
       { text: ').' }
     ]
   if (s.onPi) return [{ text: 'The program is running on the Pi.' }]
-  if (s.simulating) {
-    const busiest = s.snapshot && busiestPin(s.snapshot)
-    return busiest
-      ? [
-          { text: 'The program runs in simulation; ' },
-          { text: `GPIO${busiest.bcm}`, tone: 'cyan' },
-          { text: ' draws the most current.' }
-        ]
-      : [{ text: 'The program runs in simulation; no GPIO draws current yet.' }]
-  }
+  // The busiest pin changes as the program does (a blink moves it twice a second), so the
+  // sentence names the readouts that follow it rather than the pin.
+  if (s.simulating)
+    return [
+      { text: 'The program runs in simulation; ' },
+      { text: 'GPIO draw', tone: 'cyan' },
+      { text: ' and ' },
+      { text: 'Peak', tone: 'b' },
+      { text: ' follow it.' }
+    ]
   return [
     { text: 'Press ' },
     { text: 'Simulate', tone: 'b' },

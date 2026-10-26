@@ -373,8 +373,12 @@ export class StudioView {
     if (!this.post || circuit.getSnapshot().boards.length === 0) return
     this.tween.cancel()
     const doc = this.drawnDoc()
-    // The close-up looks at the brightest lit part, else at the T-board.
-    const lit = Object.keys(this.visuals.report().lit)[0]
+    // The close-up looks at the part whose die the simulation lights brightest, else the T-board.
+    let lit: string | null = null
+    let brightest = 0.05
+    for (const [key, die] of Object.entries(useWorkbench.getState().sim?.snapshot?.dies ?? {}))
+      if (die.brightness > brightest)
+        [lit, brightest] = [key.slice(0, key.indexOf('.')), die.brightness]
     const box = lit ? bodyBox(doc, { kind: 'part', id: lit }) : null
     const close = box ? new Vector3().applyMatrix4(box) : undefined
     this.tour.begin(planShots(benchOf(doc, this.camera, close)), performance.now())
@@ -402,6 +406,8 @@ export class StudioView {
     this.kept = null
     // Damping drains during a preset move too, so nothing is left over when it ends.
     let moving = this.controls.update()
+    // Any other move of the camera (Build Mode's framing, the assistant's focus) ends the tour.
+    if (this.tour.playing && this.tween.active) this.endTour(false)
     if (this.tour.playing) {
       const veil = this.tour.step(now, this.camera, this.controls.target)
       if (this.veil) {
@@ -808,7 +814,10 @@ export class StudioView {
       // Build Mode: the step in hand changes what is drawn, where the camera looks, and the marks.
       useBuild.subscribe((now, before) => {
         // A selection or a tool left from editing means nothing on a bench shown as built so far.
-        if (now.on && !before.on) useStudio.setState({ selection: null, tool: 'select' })
+        if (now.on && !before.on) {
+          this.endTour(false)
+          useStudio.setState({ selection: null, tool: 'select' })
+        }
         if (now.scene !== before.scene) {
           this.refreshHover()
           this.draw()

@@ -1136,8 +1136,8 @@ Opening tour:
 - While it plays the side panels step back, keeping their place and taking no input, and one
   line under the stage says "Drag, click or press a key to take over". The first press or wheel
   turn on the stage only takes over: the camera eases home from where it is. A key ends it and
-  still does what it does. A look switch, an edit or a capture ends it too; a document opened
-  under it plans it again for the new bench.
+  still does what it does. A look switch, an edit, a capture, entering Build Mode or any other
+  move of the camera ends it too; a document opened under it plans it again for the new bench.
 - It does not start under test automation, with reduced motion asked for, in Build Mode or
   during an assistant's turn, or once turned off: View's Opening tour button keeps that choice on
   the machine. C plays it at any time. It counts as motion: frames are drawn while it plays and

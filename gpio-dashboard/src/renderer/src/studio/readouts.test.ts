@@ -80,6 +80,8 @@ describe('readoutsOf', () => {
       unit: 'warnings',
       tone: 'amber'
     })
+    // A notice (a part without a datasheet) is neither.
+    expect(readoutsOf(quiet, [issue('A', 'info')])[2]).toMatchObject({ value: 'OK', tone: 'green' })
   })
 })
 
@@ -106,7 +108,7 @@ describe('captionOf', () => {
     )
   })
 
-  it('names the busiest pin while simulating, without its live number', () => {
+  it('says the simulation runs and points at the readouts, with no live pin or number', () => {
     const caption = captionOf({
       parts: 3,
       build: null,
@@ -117,9 +119,20 @@ describe('captionOf', () => {
       simulating: true
     })
     expect(caption.map((g) => g.text).join('')).toBe(
-      'The program runs in simulation; GPIO17 draws the most current.'
+      'The program runs in simulation; GPIO draw and Peak follow it.'
     )
-    expect(caption.find((g) => g.text === 'GPIO17')?.tone).toBe('cyan')
+    expect(caption.find((g) => g.text === 'GPIO draw')?.tone).toBe('cyan')
+    // It does not change as the busiest pin does, so a screen reader hears it once.
+    const dark = captionOf({
+      parts: 3,
+      build: null,
+      snapshot: snapshot({ 17: 0 }),
+      issues: [],
+      live: false,
+      onPi: false,
+      simulating: true
+    })
+    expect(dark).toEqual(caption)
     expect(text({ live: true })).toMatch(/Live Pi state/)
     expect(text({ onPi: true })).toBe('The program is running on the Pi.')
   })

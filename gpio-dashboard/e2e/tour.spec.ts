@@ -57,3 +57,16 @@ test('a key ends the tour and still acts, and C plays it again', async ({ page }
   await page.keyboard.press('c')
   await expect.poll(async () => (await report(page)).touring).toBe(true)
 })
+
+test('entering Build Mode ends the tour, and the build panel takes input', async ({ page }) => {
+  await studio(page, (s) => s.playTour())
+  await expect.poll(async () => (await report(page)).touring).toBe(true)
+  await page.getByRole('button', { name: 'Build', exact: true }).click()
+  await expect.poll(async () => (await report(page)).touring).toBe(false)
+  await expect(page.getByText('Drag, click or press a key to take over')).toHaveCount(0)
+  // The step's framing is left alone, and the panel beside the stage is in reach.
+  const panel = page.locator('[inert]')
+  await expect(panel).toHaveCount(0)
+  await waitUntilStill(page, 10_000)
+  expect((await report(page)).build).not.toBeNull()
+})

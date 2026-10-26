@@ -4025,7 +4025,8 @@ declare it.
   - The title column sits over the stage's top left: the project's name under "Breadboard
     Studio", then three readouts, then a sentence (`studio/readouts.ts`, `studio/Hud.tsx`).
   - The readouts are GPIO DRAW (every GPIO's current together, in cyan as the headline), PEAK
-    with the busiest pin's name, and CHECKS (errors, else warnings, else OK). A total over
+    with the busiest pin's name, and CHECKS (errors, else warnings, else OK; ERC's notices, such
+    as a part without a datasheet, count as neither). A total over
     `RP1.totalGpioCurrentMaxA` or a pin over `RP1.pinCurrentMaxA`, the limits `simChecks` also
     reports, turns its readout coral; currents read in whole µA below 1 mA, then mA to one
     decimal.
@@ -4033,7 +4034,9 @@ declare it.
     state follows it, else the simulation's, none while a build is part of the way.
   - The sentence names controls and pins but no live numbers, in a fixed order: an empty bench,
     a build part-way, a simulation error, a pin over its limit, the total over its limit, ERC
-    errors, Live Pi state, a run on the Pi, a simulation running, idle. It changes only with the
+    errors, Live Pi state, a program running on the Pi (not while it is still being sent), a
+    simulation running, idle. While a simulation runs it points at the readouts rather than at
+    the busiest pin, which a blinking program moves twice a second. It changes only with the
     bench's state, so as `aria-live` text a screen reader hears it once; it carries no role, so
     the page keeps one `role="status"`.
   - The column takes no pointer input except Claude's note, which moved into it; it is mounted
@@ -4067,7 +4070,9 @@ declare it.
   - The first press or wheel turn on the stage is swallowed in the capture phase, before the
     orbit controls see it, and eases the camera to the iso preset from wherever the tour put it.
     A key ends the tour and then acts as it always does, so a preset key lands on its preset. A
-    look switch, an edit or a capture ends it; a document opened under it re-plans it.
+    look switch, an edit or a capture ends it, and so does any other move of the camera (Build
+    Mode's framing, the assistant's focus) or entering Build Mode; a document opened under it
+    re-plans it. The close-up looks at the part whose die the simulation lights brightest.
   - While it plays, `studioStore.presenting` steps the side panels back (opacity 0 and `inert`,
     in their place, so the stage does not resize) and shows one line under the stage. The line
     has no status role, so the page keeps one.
