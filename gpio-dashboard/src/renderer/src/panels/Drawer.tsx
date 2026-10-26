@@ -25,8 +25,8 @@ export default function Drawer({ doc }: { doc: CircuitDoc }) {
     ['board', 'Board']
   ]
   return (
-    <div className="shrink-0 border-t border-white/[0.04] bg-surface-900/60">
-      <div className="flex gap-1 px-3 pt-1" role="tablist" aria-label="Drawer">
+    <div className="glass-bg shrink-0 border-t border-white/[0.06]">
+      <div className="seg-track mx-3 my-1.5 w-fit" role="tablist" aria-label="Drawer">
         {tabs.map(([id, label]) => (
           <button
             key={id}

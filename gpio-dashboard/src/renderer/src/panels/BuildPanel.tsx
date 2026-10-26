@@ -91,9 +91,9 @@ export default function BuildPanel() {
   return (
     <aside
       aria-label="Build Mode"
-      className="w-72 shrink-0 flex flex-col border-r border-white/[0.04] bg-surface-900/60 min-h-0"
+      className="glass-bg w-72 shrink-0 flex flex-col border-r border-white/[0.06] min-h-0"
     >
-      <div className="flex items-center gap-2 border-b border-white/[0.04] p-3">
+      <div className="flex items-center gap-2 border-b border-white/[0.06] p-3">
         <h2 className="text-sm font-semibold text-gray-100">Build Mode</h2>
         <span className="text-xs text-gray-500">
           {finished ? `${steps.length} steps` : `Step ${index + 1} of ${steps.length}`}

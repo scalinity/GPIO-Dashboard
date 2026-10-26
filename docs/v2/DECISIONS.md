@@ -3769,6 +3769,11 @@ declare it.
   - Code that needs a colour as a value reads the CSS variables (xterm's theme) or writes
     `var()` (CodeMirror's theme, the Monitor's bars). The Tauri window's background is ink, so
     the first paint matches.
+  - The Studio's world labels, hover tooltip, dialogs and backdrop take the kit's HUD classes from
+    `styles/hud.css`, which holds class rules only (no page rules). A label is a pill with a
+    status dot, its name in Outfit and its reading, when it has one, in DM Mono. Divergence badges
+    are coral and amber, and the hover marks are the palette's cyan, with a ghost's holes green
+    and coral; those are written in `view.ts` as values, since the 3D scene does not read CSS.
 - **Consequences.** A theme class now means its HUD colour: `text-red-400` is coral and
   `bg-emerald-500` green, and Tailwind's default reds, greens and blues no longer appear. A new
   colour goes into the palette. `palette.test.ts` checks that every text shade and accent reads at

@@ -3,9 +3,18 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --font-ui: theme(fontFamily.sans);
+    --font-mono: theme(fontFamily.mono);
+  }
+
   body {
     @apply bg-surface-950 text-gray-200 font-sans antialiased;
     font-synthesis: none;
+  }
+
+  input[type='checkbox'] {
+    accent-color: var(--cyan);
   }
 
   /* Keyboard focus is a cyan outline (the HUD's focus ring). */

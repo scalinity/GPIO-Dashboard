@@ -1115,6 +1115,7 @@ Camera:
 
 11.2 Studio layout
 - Top bar: an editable project name and menu, Simulate, Run on Pi, Undo/Redo, and the connection pill.
+  - It stays one row at every width the window allows. In a narrower window the project name gives up width first; below 1280 px Wire, Build and Fork show their icons alone, and below 1024 px Simulate and Run on Pi do too, and the pill shows its dot alone. Each keeps its name for screen readers.
 - Left: the Part Library, with search, categories, an "In my inventory" filter, kit tags, and "Create custom part…", which hands off to Claude.
 - Center: the 3D stage.
 - Right:
@@ -1126,7 +1127,7 @@ Camera:
 - Keys: Delete, R (rotate), Esc, Cmd+Z / Cmd+Shift+Z, W (wire tool), F (fit), 1–4 (camera presets).
 
 11.3 Placing, wiring, and moving by hand
-- Dragging from the library shows a ghost snapped to the grid. Legal footprint holes glow green and illegal ones glow red. Dropping commits, and the part seats with its insertion animation.
+- Dragging from the library shows a ghost snapped to the grid. Legal footprint holes glow green and illegal ones glow coral. Dropping commits, and the part seats with its insertion animation.
 - Hovering a hole highlights its whole strip or rail segment, plus every lead and wire on its net, with a tooltip such as "Row 23 · column e · net GPIO17".
   - This is the most important feature for breadboard literacy. Make it instant.
 - Wire tool: click a hole, then another hole (or a module header pin).

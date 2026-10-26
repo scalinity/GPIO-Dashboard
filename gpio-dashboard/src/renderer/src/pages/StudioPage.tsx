@@ -1,6 +1,8 @@
 // The Studio (SPEC 11.1, 11.2): the app's circuit document as a live 3D bench. The top bar holds
 // the project, Simulate, Run on Pi and undo; the Part Library sits left, Properties and the view
-// controls right, and the Workbench's panels in the drawer below.
+// controls right, and the Workbench's panels in the drawer below. The top bar stays one row: a
+// narrower window takes width from the project name first, then shows Wire, Build and Fork, and
+// below that Simulate, Run on Pi and the pill, as icons alone (their names stay for screen readers).
 import {
   Cable,
   ChevronDown,
@@ -62,7 +64,7 @@ function ProjectMenu() {
     ['Projects gallery', LayoutGrid, showGallery]
   ]
   return (
-    <div className="relative">
+    <div className="relative shrink-0">
       <button
         className="btn-ghost text-sm flex items-center gap-1"
         aria-haspopup="menu"
@@ -72,7 +74,7 @@ function ProjectMenu() {
         Project <ChevronDown className="w-3.5 h-3.5" />
       </button>
       {open && (
-        <div role="menu" className="absolute left-0 top-full mt-1 z-40 card p-1 w-48">
+        <div role="menu" className="hud-dialog absolute left-0 top-full mt-1 z-40 p-1 w-48">
           {items.map(([label, Icon, action]) => (
             <button
               key={label}
@@ -111,12 +113,15 @@ function TopBar() {
       edit('Rename the project', [{ type: 'SetMeta', meta: { name: name.trim() } }])
   }
   return (
-    <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.04] shrink-0">
+    <div
+      data-testid="studio-topbar"
+      className="flex h-12 shrink-0 flex-nowrap items-center gap-2 border-b border-white/[0.06] px-3 [&>*]:shrink-0"
+    >
       <PanelToggle side="library" />
       <input
         key={doc.meta.name}
         aria-label="Project name"
-        className="bg-transparent text-sm font-semibold text-gray-100 rounded px-1.5 py-1 w-56 hover:bg-white/[0.04] focus:bg-surface-800 focus:outline-none"
+        className="!shrink min-w-[6rem] basis-56 bg-transparent text-sm font-semibold text-gray-100 rounded px-1.5 py-1 hover:bg-white/[0.04] focus:bg-surface-800 focus:outline-none"
         defaultValue={doc.meta.name}
         onBlur={(e) => rename(e.currentTarget.value)}
         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -144,9 +149,10 @@ function TopBar() {
       <button
         className={`btn-ghost text-sm flex items-center gap-1.5 ${tool === 'wire' ? 'bg-accent/20 text-accent-light' : ''}`}
         aria-pressed={tool === 'wire'}
+        title="Wire (W)"
         onClick={() => useStudio.setState({ tool: tool === 'wire' ? 'select' : 'wire' })}
       >
-        <Cable className="w-4 h-4" /> Wire (W)
+        <Cable className="w-4 h-4" /> <span className="max-xl:sr-only">Wire (W)</span>
       </button>
       <button
         className={`btn-ghost text-sm flex items-center gap-1.5 ${building ? 'bg-accent/20 text-accent-light' : ''}`}
@@ -154,51 +160,55 @@ function TopBar() {
         title="Play the build steps one at a time"
         onClick={() => (building ? useBuild.getState().stop() : useBuild.getState().start())}
       >
-        <ListChecks className="w-4 h-4" /> Build
+        <ListChecks className="w-4 h-4" /> <span className="max-xl:sr-only">Build</span>
       </button>
       {template && (
         <>
-          <span className="rounded-pill bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
+          <span className="whitespace-nowrap rounded-pill bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
             Template · read-only
           </span>
           <button
             className="btn-secondary text-sm flex items-center gap-1.5"
+            title="Fork to my projects"
             onClick={() => void forkTemplate(circuit.getSnapshot())}
           >
-            <GitFork className="w-4 h-4" /> Fork to my projects
+            <GitFork className="w-4 h-4" />{' '}
+            <span className="max-xl:sr-only">Fork to my projects</span>
           </button>
         </>
       )}
-      {error && <span className="text-xs text-red-400 truncate">{error}</span>}
+      {error && <span className="!shrink min-w-0 truncate text-xs text-red-400">{error}</span>}
       <div className="ml-auto flex items-center gap-2">
         {simulating ? (
           <button className="btn-danger text-sm flex items-center gap-1.5" onClick={stopCode}>
-            <Square className="w-4 h-4" /> Stop
+            <Square className="w-4 h-4" /> <span className="max-lg:sr-only">Stop</span>
           </button>
         ) : (
           <button
             className="btn-success text-sm flex items-center gap-1.5"
+            title="Simulate"
             onClick={() => {
               useStudio.setState({ drawer: 'sim' })
               runInSim(1)
             }}
           >
-            <Play className="w-4 h-4" /> Simulate
+            <Play className="w-4 h-4" /> <span className="max-lg:sr-only">Simulate</span>
           </button>
         )}
         {onPi ? (
           <button className="btn-danger text-sm flex items-center gap-1.5" onClick={stopRun}>
-            <Square className="w-4 h-4" /> Stop on Pi
+            <Square className="w-4 h-4" /> <span className="max-lg:sr-only">Stop on Pi</span>
           </button>
         ) : (
           <button
             className="btn-secondary text-sm flex items-center gap-1.5"
+            title="Run on Pi"
             onClick={() => void runOnPi(source, doc, code)}
           >
-            <Cpu className="w-4 h-4" /> Run on Pi
+            <Cpu className="w-4 h-4" /> <span className="max-lg:sr-only">Run on Pi</span>
           </button>
         )}
-        <ConnectionStatus />
+        <ConnectionStatus compact />
         <PanelToggle side="properties" />
       </div>
     </div>
@@ -239,9 +249,12 @@ export default function StudioPage() {
         {building ? <BuildPanel /> : library && <PartLibrary view={view} />}
         <Studio view={view} doc={preview ?? doc} />
         {properties && (
-          <aside className="w-64 shrink-0 overflow-y-auto border-l border-white/[0.04] bg-surface-900/60 p-3 space-y-4">
-            <Properties />
-            <Inspect view={view} />
+          <aside className="w-64 shrink-0 overflow-y-auto border-l border-white/[0.06] bg-surface-950 p-2">
+            {/* The HUD's control card. */}
+            <div className="card space-y-4 px-2.5 pb-2.5 pt-2">
+              <Properties />
+              <Inspect view={view} />
+            </div>
           </aside>
         )}
         <div className={`absolute ${properties ? 'right-[17rem]' : 'right-3'} top-3 z-20 w-96`}>

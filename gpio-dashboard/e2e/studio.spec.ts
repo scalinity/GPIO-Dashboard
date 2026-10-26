@@ -1,10 +1,11 @@
 // The Studio in Chromium (SPEC 10.2, 11.2–11.9; acceptance 8 and 9): the backend shows in the dev
 // overlay, a hover highlights its strip and net on the next frame, a still scene draws nothing,
 // the Blinking LED circuit builds by hand with live ERC and undoes to an empty document, drags
-// glow green and red, and projects save and reopen.
+// glow green and red, projects save and reopen, and the top bar keeps to one row.
 import { expect, type Page, test } from '@playwright/test'
 import type { CircuitDoc } from '../src/renderer/src/core/model/types'
 import type { StudioView } from '../src/renderer/src/studio/view'
+import { openTutorial } from './helpers'
 
 type StudioWindow = Window & { __studio: StudioView }
 type Point = { x: number; y: number }
@@ -363,4 +364,40 @@ test.describe('projects', () => {
     await expect(name).toHaveValue('My blinker')
     expect(await doc(page)).toEqual(saved)
   })
+})
+
+// The top bar stays one row (SPEC 11.2) at a laptop window's size, holding the most it ever does:
+// a template's badge and Fork, and the Pi connected with its agent running.
+test('the top bar keeps every control on one row in a laptop window', async ({ page }) => {
+  await page.setViewportSize({ width: 1168, height: 734 })
+  await openTutorial(page, 'blinking-led')
+  await page.evaluate(
+    "import('/src/store/connectionStore.js').then((m) => m.default.setState({ status: 'connected', agentStatus: 'running' }))"
+  )
+  const bar = page.getByTestId('studio-topbar')
+  await expect(bar.getByRole('button', { name: 'Connection status' })).toHaveText('Agent running')
+  const controls = [
+    bar.getByRole('button', { name: 'Hide the part library' }),
+    bar.getByLabel('Project name'),
+    bar.getByRole('button', { name: 'Project', exact: true }),
+    bar.getByRole('button', { name: 'Undo' }),
+    bar.getByRole('button', { name: 'Redo' }),
+    bar.getByRole('button', { name: 'Wire (W)' }),
+    bar.getByRole('button', { name: 'Build', exact: true }),
+    bar.getByText('Template · read-only'),
+    bar.getByRole('button', { name: 'Fork to my projects' }),
+    bar.getByRole('button', { name: 'Simulate' }),
+    bar.getByRole('button', { name: 'Run on Pi' }),
+    bar.getByRole('button', { name: 'Connection status' }),
+    bar.getByRole('button', { name: 'Hide the properties' })
+  ]
+  const row = (await bar.boundingBox())!
+  expect(row.height).toBeLessThanOrEqual(48)
+  for (const control of controls) {
+    await expect(control).toBeVisible()
+    const box = (await control.boundingBox())!
+    expect(box.y).toBeGreaterThanOrEqual(row.y)
+    expect(box.y + box.height).toBeLessThanOrEqual(row.y + row.height)
+    expect(box.x + box.width).toBeLessThanOrEqual(1168)
+  }
 })

@@ -1,6 +1,7 @@
 // Labels (SPEC 11.5): DOM tags over the canvas for each placed pin ("Anode (+)", "E B C"…), the
 // T-board's pin names, and row and column guides on every board. Positions come from core
-// geometry; a frame that moved the camera re-projects them.
+// geometry; a frame that moved the camera re-projects them. A tag is the HUD's world label
+// (styles/hud.css): a pill with a dot, its name, and its value in DM Mono when it has one.
 import { type PerspectiveCamera, Vector3 } from 'three/webgpu'
 import { boardDef } from '../core/defs/boards'
 import { TBOARD } from '../core/defs/controllers'
@@ -15,18 +16,14 @@ type Kind = 'pin' | 'tboard' | 'guide' | 'volt' | 'sense' | 'halo'
 
 export interface Label {
   text: string
+  /** A reading shown after the name ("3.30 V"). */
+  value?: string
   at: Vector3
   kind: Kind
 }
 
-const STYLE: Record<Kind, string> = {
-  pin: 'bg-surface-900/85 text-amber-200',
-  tboard: 'bg-red-950/80 text-gray-100',
-  guide: 'text-gray-400',
-  volt: 'bg-surface-900/85 text-sky-200',
-  sense: 'bg-red-950/85 text-red-200 whitespace-pre',
-  halo: 'bg-amber-950/85 text-amber-200'
-}
+/** A label's text as one line: its name, then its value. */
+const textOf = (l: Pick<Label, 'text' | 'value'>) => (l.value ? `${l.text} ${l.value}` : l.text)
 
 /** Where a tag stands against its point: pin tags above it, net tags below it, the rest on it. */
 const SHIFT: Record<Kind, string> = {
@@ -88,24 +85,26 @@ export class LabelLayer {
     this.container.replaceChildren()
     this.labels = labels.map((label) => {
       const el = document.createElement('div')
-      el.className = `absolute left-0 top-0 whitespace-nowrap rounded px-1 font-mono text-[10px] leading-4 ${STYLE[label.kind]}`
-      el.textContent = label.text
+      el.className = `absolute left-0 top-0 ${label.kind === 'guide' ? 'wl-guide' : `wl wl-${label.kind}`}`
+      fill(el, label)
       this.container.append(el)
       return { label, el }
     })
   }
 
-  /** The labels' texts, in order (tests). */
+  /** The labels' texts, in order, each as one line: name, then value (tests). */
   texts(): string[] {
-    return this.labels.map(({ el }) => el.textContent ?? '')
+    return this.labels.map(({ label }) => textOf(label))
   }
 
   /** Changes the texts of labels whose places stay (a voltage tag following the simulation). */
-  retext(texts: string[]): void {
+  retext(texts: Pick<Label, 'text' | 'value'>[]): void {
     this.labels.forEach(({ label, el }, i) => {
-      if (label.text !== texts[i]) {
-        label.text = texts[i]!
-        el.textContent = texts[i]!
+      const next = texts[i]!
+      if (textOf(label) !== textOf(next)) {
+        label.text = next.text
+        label.value = next.value
+        fill(el, label)
       }
     })
   }
@@ -119,5 +118,24 @@ export class LabelLayer {
       const y = ((1 - this.p.y) / 2) * height
       el.style.transform = `translate(${x}px, ${y}px) translate(-50%, ${SHIFT[label.kind]})`
     }
+  }
+}
+
+/** A guide is its text; a pill is a dot, the name, and the value when there is one. */
+function fill(el: HTMLElement, label: Label): void {
+  if (label.kind === 'guide') {
+    el.textContent = label.text
+    return
+  }
+  const dot = document.createElement('span')
+  dot.className = 'wl-dot'
+  const name = document.createElement('span')
+  name.textContent = label.text
+  el.replaceChildren(dot, name)
+  if (label.value) {
+    const value = document.createElement('span')
+    value.className = 'wl-value'
+    value.textContent = label.value
+    el.append(value)
   }
 }

@@ -5,6 +5,7 @@ import '@fontsource-variable/outfit'
 import '@fontsource/dm-mono/latin-400.css'
 import '@fontsource/dm-mono/latin-500.css'
 import './index.css'
+import './styles/hud.css'
 import './api'
 
 import { StrictMode } from 'react'

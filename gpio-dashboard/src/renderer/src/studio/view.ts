@@ -91,14 +91,16 @@ const KEYS: Record<string, Preset> = { f: 'fit', 1: 'fit', 2: 'iso', 3: 'top', 4
 // Markers are flat squares just above the board, a little larger than a hole (2.54 mm pitch).
 const STRIP_SIZE_MM = 2.0
 const WIRE_END_SIZE_MM = 2.6
-const STRIP_COLOR = new Color('#818CF8') // accent-light
+// The HUD palette's (styles/palette.cjs): the hovered strip in cyan, a ghost's holes green where
+// it may go and coral where it may not.
+const STRIP_COLOR = new Color('#7fe3ff')
 const WIRE_END_COLOR = new Color('#FBBF24')
 const FOOTPRINT_SIZE_MM = 1.6
 const PART_COLOR = new Color('#22D3EE')
 const TBOARD_COLOR = new Color('#FCA5A5')
 const GHOST_SIZE_MM = 2.3
-const LEGAL = new Color('#22C55E')
-const ILLEGAL = new Color('#EF4444')
+const LEGAL = new Color('#8fe8a8')
+const ILLEGAL = new Color('#ff6b86')
 const CUE_SIZE_MM = 2.8
 const CUE_COLOR = new Color('#C4B5FD')
 /** Focus frames at least a sphere this big, so one hole is not filled edge to edge. */

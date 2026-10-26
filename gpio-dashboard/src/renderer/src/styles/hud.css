@@ -1,0 +1,82 @@
+/* The Studio's HUD pieces (SPEC 2.3, 11.5; ADR-0142), after the exhibit-3d kit's hud.css: world
+   labels, the hover tooltip, dialogs and their backdrop. Class rules only; the page itself is
+   index.css's. Colours come from the palette's CSS variables (styles/palette.cjs). */
+
+/* A world label: a dark pill with a status dot, the name in Outfit and an optional value in DM
+   Mono. The dot's colour is the label's meaning: amber hardware, cyan a measurement, coral a fault. */
+.wl {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px 2px 5px;
+  border-radius: 7px;
+  background: #0b1020d6;
+  box-shadow:
+    0 6px 16px -8px #000c,
+    inset 0 0 0 1px #ffffff0d;
+  white-space: nowrap;
+  font: 600 10.5px/1.25 var(--font-ui);
+  color: var(--text);
+}
+/* A label behind the camera is hidden. */
+.wl[hidden] {
+  display: none;
+}
+.wl-dot {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--dot, var(--amber));
+  box-shadow: 0 0 6px var(--dot, var(--amber));
+}
+.wl-value {
+  font: 500 10px var(--font-mono);
+  color: #b9c3db;
+  font-variant-numeric: tabular-nums;
+}
+.wl-volt {
+  --dot: var(--cyan);
+}
+.wl-sense,
+.wl-halo {
+  --dot: var(--coral);
+}
+/* A diverged net's tag lists its causes, a line each. */
+.wl-sense {
+  align-items: flex-start;
+  white-space: pre;
+}
+.wl-sense .wl-dot {
+  margin-top: 4px;
+}
+/* Row numbers and column letters: printed guides, not pills. */
+.wl-guide {
+  font: 500 9.5px var(--font-mono);
+  color: var(--mute);
+  text-shadow: 0 1px 3px #000c;
+}
+
+/* The hover tooltip: DM Mono on the tip's glass. */
+.hud-tip {
+  border-radius: 9px;
+  padding: 5px 9px;
+  background: var(--tip-bg);
+  box-shadow: 0 10px 24px -12px #000c;
+  font: 500 11px var(--font-mono);
+  color: #e9f7ff;
+  white-space: nowrap;
+}
+
+/* A HUD dialog or menu: the help sheet's ground, a hairline and a deep shadow. */
+.hud-dialog {
+  border-radius: 14px;
+  background: var(--dialog-bg);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 30px 80px #000a;
+  color: var(--text);
+}
+.hud-backdrop {
+  background: #05070fa8;
+  backdrop-filter: blur(3px);
+}

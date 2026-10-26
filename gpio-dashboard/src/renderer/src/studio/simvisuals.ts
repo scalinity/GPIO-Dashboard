@@ -339,19 +339,22 @@ export class SimVisuals {
       const lines: string[] = []
       // A net that is only the header has nothing on the bench to tag.
       const attached = net.members.some((m) => m.kind !== 'header')
-      if (attached && i.voltages && i.snapshot?.nets[net.name] !== undefined)
-        lines.push(`${net.name} ${volts(i.snapshot.nets[net.name]!)}`)
+      const v =
+        attached && i.voltages && i.snapshot?.nets[net.name] !== undefined
+          ? volts(i.snapshot.nets[net.name]!)
+          : null
+      if (v) lines.push(`${net.name} ${v}`)
       if (sense?.state.state === 'diverged')
         lines.push(...this.divergence(i, sense.pin, sense.state))
       const at = lines.length ? netAnchor(i.doc, this.index, net) : null
+      // A voltage alone is the net's name with the reading as the tag's value.
       if (at)
         entries.push({
           key: `net:${net.name}`,
-          label: {
-            text: lines.join('\n'),
-            at,
-            kind: sense?.state.state === 'diverged' ? 'sense' : 'volt'
-          }
+          label:
+            sense?.state.state === 'diverged'
+              ? { text: lines.join('\n'), at, kind: 'sense' }
+              : { text: net.name, value: v!, at, kind: 'volt' }
         })
     }
     for (const id of this.haloIds) {
@@ -365,7 +368,7 @@ export class SimVisuals {
     }
     const key = `${i.doc.boards.length}:${entries.map((e) => e.key).join()}`
     if (key === this.tagKeys && this.cache?.doc === this.tagDoc) {
-      this.tags.retext(entries.map((e) => e.label.text))
+      this.tags.retext(entries.map((e) => e.label))
       return
     }
     this.tagKeys = key

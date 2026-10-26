@@ -71,7 +71,7 @@ function PinMenu() {
       <div
         role="menu"
         aria-label={`GPIO${menu.bcm}`}
-        className="fixed z-40 card p-1 w-44"
+        className="hud-dialog fixed z-40 p-1 w-44"
         style={{ left: menu.x, top: menu.y }}
       >
         <div className="px-2 py-1 text-xs font-mono text-gray-400">GPIO{menu.bcm}</div>
@@ -202,7 +202,7 @@ function BadgeCard({ doc }: { doc: CircuitDoc }) {
     <section
       role="dialog"
       aria-label={badge.title}
-      className="absolute right-3 top-3 z-30 w-80 max-w-[90%] glass-panel rounded-btn space-y-2 px-3 py-2 text-xs text-gray-200"
+      className="card absolute right-3 top-3 z-30 w-80 max-w-[90%] space-y-2 px-3.5 py-3 text-xs text-gray-200"
     >
       <div className="flex items-start gap-2">
         <span
@@ -305,7 +305,7 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
           ref={tooltip}
           hidden
           data-testid="studio-tooltip"
-          className="absolute left-0 top-0 pointer-events-none rounded-btn bg-surface-900/90 border border-white/[0.06] px-2 py-1 text-xs text-gray-200 font-mono whitespace-nowrap"
+          className="hud-tip absolute left-0 top-0 pointer-events-none"
         />
       </div>
       <PinMenu />
@@ -314,7 +314,10 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
       <BadgeCard doc={doc} />
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 max-w-[80%] flex flex-col items-center gap-2">
         {notice && (
-          <div role="status" className="glass-panel rounded-btn px-3 py-1.5 text-xs text-amber-300">
+          <div
+            role="status"
+            className="glass-panel rounded-pill px-3.5 py-1.5 text-xs text-amber-300"
+          >
             {notice}
           </div>
         )}
