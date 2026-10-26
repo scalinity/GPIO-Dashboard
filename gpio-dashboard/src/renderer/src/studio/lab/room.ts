@@ -135,7 +135,7 @@ export function buildRoom(): Room {
     b.solid(new BoxGeometry(2500, 7, 1850), FINISH.rug, [20, 4, 30], undefined, 'floor')
     b.at(0, 0, 0)
     benchFrame(b, floor)
-    b.glow(700, 520, '#ffb878', 0.06, [20, 0.6, 20], [-Math.PI / 2, 0, 0])
+    b.glow(455, 340, '#e8c4a0', 0.05, [20, 0.6, 20], [-Math.PI / 2, 0, 0])
     return [
       'tiles',
       'rug',
@@ -147,18 +147,22 @@ export function buildRoom(): Room {
   sides.north = side('north', (b) => {
     b.at(0, floor, ROOM.north)
     wall(b, width + 120)
-    const windowX = 300
+    // The window right of the bench's line and the pinout left of it, so both stand behind the
+    // bench in the first views.
+    const windowX = 450
     b.at(windowX, -300, ROOM.north)
-    duskWindow(b, 1300, 1350, -300)
-    for (const x of [windowX - 950, windowX + 950]) {
+    duskWindow(b, 1000, 1100, -300)
+    for (const x of [windowX - 650, windowX + 650]) {
       b.at(x, floor + 350, ROOM.north)
       lightBar(b, 1500)
     }
     b.at(windowX, floor, ROOM.north + 240)
     credenza(b, rng, 1800)
+    b.at(-730, floor + 1250, ROOM.north)
+    pinoutPoster(b)
     b.at(ROOM.west + 380, floor, ROOM.north + 330)
     plant(b, rng, 1500)
-    return ['dusk window', 'amber light bars', 'credenza', 'plant']
+    return ['dusk window', 'amber light bars', 'GPIO pinout poster', 'credenza', 'plant']
   })
 
   sides.west = side('west', (b) => {
@@ -202,11 +206,9 @@ export function buildRoom(): Room {
     door(b)
     b.at(-550, floor + 1750, ROOM.south, Math.PI)
     sconce(b)
-    b.at(900, floor + 1500, ROOM.south, Math.PI)
-    pinoutPoster(b)
     b.at(300, floor, ROOM.south - 520, 0.4)
     stool(b)
-    return ['door with light under it', 'sconce by the door', 'GPIO pinout poster', 'stool']
+    return ['door with light under it', 'sconce by the door', 'stool']
   })
 
   sides.ceiling = side('ceiling', (b) => {
@@ -220,7 +222,7 @@ export function buildRoom(): Room {
     )
     for (const x of [-300, 340]) {
       b.at(x, ROOM.ceiling, 30)
-      pendant(b, 650)
+      pendant(b, 350)
     }
     return ['two pendants']
   })

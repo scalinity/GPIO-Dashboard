@@ -894,12 +894,11 @@ Stage:
   a rim light from behind the bench, a procedural dusk environment and a lavender fog.
   - The room: the floor 900 mm below the tabletop, inside x ±2400 mm and z -1700 to +2600 mm, the
     ceiling 1900 mm above the tabletop. Every side is finished and furnished: the dusk window
-    between amber light bars, a credenza and a plant (north); a pegboard of tools and wire spools
-    over a wall bench lit from under its top, with a desk lamp, an oscilloscope and a power supply
-    (west); a parts-drawer
-    cabinet, a shelf lit from below and a soldering station (east); the door with a sconce beside
-    it, a stool and a faint framed GPIO pinout (south); two dim pendants (ceiling); the bench's legs, apron and lower
-    shelf.
+    between amber light bars with a faint backlit GPIO pinout beside it, a credenza and a plant
+    (north); a pegboard of tools and wire spools over a wall bench lit from under its top, with a
+    desk lamp, an oscilloscope and a power supply (west); a parts-drawer cabinet, a shelf lit from
+    below and a soldering station (east); the door with a sconce beside it and a stool (south);
+    two dim pendants (ceiling); the bench's legs, apron and lower shelf.
   - At most 18 meshes and 60k triangles; nothing in it casts or takes a shadow.
   - Its practical lamps and screens are drawn at most 1.5 in linear light and glow through
     additive cards, so nothing on the set passes the bloom's threshold.

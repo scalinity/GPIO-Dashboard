@@ -56,7 +56,7 @@ describe('the workroom', () => {
   it('is furnished on every side, and finished on every face', () => {
     for (const side of [...SIDES, 'floor'] as const)
       expect(room.furnished[side].length, side).toBeGreaterThan(0)
-    expect(room.furnished.south).toContain('GPIO pinout poster')
+    expect(room.furnished.north).toContain('GPIO pinout poster')
     // The walls, floor and ceiling close the room: every face has a surface on it.
     const box = new Box3().setFromObject(room.group)
     expect(box.min.x).toBeLessThanOrEqual(ROOM.west)

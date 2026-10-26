@@ -100,7 +100,9 @@ function matMaterial(color: Color, grid: Color): MeshStandardNodeMaterial {
   const border = max(near.x.mul(step(off.y, 0.4)), near.y.mul(step(off.x, 0.4)))
   const inside = step(off.x, 0).mul(step(off.y, 0))
   const fine = lines(10, 0.12).mul(float(1).sub(smoothstep(0.4, 1, max(aa.x, aa.y))))
-  const printed = max(border, max(lines(50, 0.25), fine.mul(0.4)).mul(inside))
+  // Far from the camera the grid fades, so the mat's back stays a plane and does not shimmer.
+  const nearby = float(1).sub(smoothstep(0.5, 2.5, max(aa.x, aa.y)))
+  const printed = max(border, max(lines(50, 0.25), fine.mul(0.4)).mul(inside)).mul(nearby)
   // Matte vinyl: a sheen would mirror the dusk window at a low view.
   const material = new MeshStandardNodeMaterial({ roughness: 0.9 })
   material.colorNode = mix(

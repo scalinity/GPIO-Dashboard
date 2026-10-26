@@ -24,14 +24,18 @@ import {
 import {
   acesFilmicToneMapping,
   builtinAOContext,
+  clamp,
   float,
   mrt,
   normalView,
   output,
   packNormalToRGB,
   max,
+  luminance,
   min,
+  mix,
   smoothstep,
+  step,
   pass,
   renderOutput,
   sample,
@@ -40,6 +44,7 @@ import {
   select,
   uniform,
   unpackRGBToNormal,
+  vec3,
   vec4,
   velocity
 } from 'three/tsl'
@@ -97,10 +102,11 @@ export const GRADE = { exposure: STUDIO.tone.exposure, saturation: STUDIO.tone.s
 export const BLOOM_THRESHOLD = 2
 
 /**
- * The Lab look's depth of field (ADR-0145): the distance over which the blur ramps from none to
- * full around the bench, and around Build Mode's step; its largest radius in CSS pixels.
+ * The Lab look's depth of field (ADR-0145): around the bench the blur ramps from none to full over
+ * the camera's distance to the bench times BENCH_BAND, as a lens's blur grows the closer it
+ * focuses; around Build Mode's step, over STEP_BAND_MM. MAX_BLUR_PX is its largest radius.
  */
-const BENCH_BAND_MM = 4000
+const BENCH_BAND = 1
 const STEP_BAND_MM = 320
 const MAX_BLUR_PX = 10
 
@@ -109,6 +115,20 @@ const MAX_BLUR_PX = 10
  * would reallocate its targets on every switch (ADR-0145).
  */
 const AO_SCALE = 0.5
+
+/**
+ * The Lab bloom's input. The bloom's high pass reads luminance, so a red or blue LED stays under
+ * the threshold where a yellow one at the same current passes it. In the Lab look a pixel whose
+ * largest channel passes the threshold is scaled toward a luminance equal to that channel (at most
+ * three times, so a red LED's glow stays a halo): every lit LED blooms by its current, whatever its colour. Nothing in the room passes
+ * the threshold, so nothing there is scaled.
+ */
+const byPeak = (input: Output): Output => {
+  const c = input.rgb
+  const peak = max(max(c.r, c.g), c.b)
+  const boost = clamp(peak.div(luminance(c).max(1e-4)), 1, 3)
+  return vec4(c.mul(mix(float(1), boost, step(BLOOM_THRESHOLD, peak))), input.a)
+}
 
 /** The key light's shadow map is redrawn every this many frames (ADR-0082). */
 const SHADOW_EVERY = 2
@@ -171,7 +191,7 @@ export class Post {
 
     // getTextureNode() exists on TRAANode in r186 but is missing from @types/three 0.186.
     const sharp = (resolved as unknown as { getTextureNode(): TextureNode }).getTextureNode()
-    this.lens.band.value = BENCH_BAND_MM
+    this.lens.band.value = this.lens.focus.value * BENCH_BAND
     const lens = bokeh(sharp, depth, this.lens)
     for (const p of lens.passes) this.own.set(p, 'lab')
     this.labInput = lens.output
@@ -196,6 +216,7 @@ export class Post {
   /** Where the Lab look's depth of field focuses: the bench, `distanceMm` from the camera. */
   setBenchFocus(distanceMm: number): void {
     this.lens.focus.value = distanceMm
+    if (!this.focused) this.lens.band.value = distanceMm * BENCH_BAND
   }
 
   /** The light whose shadow map `render` redraws. */
@@ -269,7 +290,7 @@ export class Post {
   setFocus(distanceMm: number | null): void {
     if (distanceMm !== null) this.focus.distance.value = distanceMm
     this.focused = distanceMm !== null
-    this.lens.band.value = this.focused ? STEP_BAND_MM : BENCH_BAND_MM
+    this.lens.band.value = this.focused ? STEP_BAND_MM : this.lens.focus.value * BENCH_BAND
     const output = this.focused ? this.focusOutput() : this.output
     if (this.pipeline.outputNode !== output) {
       this.pipeline.outputNode = output
@@ -323,15 +344,23 @@ export class Post {
     const lit = input.rgb.add(this.glow(input, 'lab').rgb)
     const graded = saturation(lit, LAB.tone.saturation).max(0)
     // @types/three 0.186 types the tone-mapping functions as returning a plain Node; it is a vec3.
-    const toned = acesFilmicToneMapping(graded, float(LAB.tone.exposure)) as Node<'vec3'>
-    const grained = film(vec4(toned, 1), float(LAB.grain))
+    const exposure = float(LAB.tone.exposure)
+    const toned = acesFilmicToneMapping(graded, exposure) as Node<'vec3'>
+    // ACES maps each channel toward white, so a lit red or amber LED's core clips to peach. The
+    // brightest pixels keep their hue instead: their largest channel is mapped and the others
+    // scaled with it. Below 1 after exposure nothing changes.
+    const peak = max(max(graded.r, graded.g), graded.b).max(1e-4)
+    const mapped = (acesFilmicToneMapping(vec3(peak), exposure) as Node<'vec3'>).r
+    const kept = graded.mul(mapped.div(peak))
+    const shoulder = smoothstep(1, 4, peak.mul(exposure))
+    const grained = film(vec4(mix(toned, kept, shoulder), 1), float(LAB.grain))
     return renderOutput(grained, NoToneMapping, SRGBColorSpace)
   }
 
   /** A bloom of `input` at the bloom's threshold, gated with the others. */
   private glow(input: Output, look: LookName) {
     const { strength, radius } = (look === 'lab' ? LAB : STUDIO).bloom
-    const glow = bloom(input, strength, radius, BLOOM_THRESHOLD)
+    const glow = bloom(look === 'lab' ? byPeak(input) : input, strength, radius, BLOOM_THRESHOLD)
     this.blooms.set(glow, { strength, look })
     return glow
   }

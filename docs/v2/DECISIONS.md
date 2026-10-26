@@ -3805,14 +3805,14 @@ declare it.
     | | Studio | Lab |
     |---|---|---|
     | Background | `#24272c` | `#0b0f1a` |
-    | Fog (exponential squared) | density 0 | `#3a3d62`, 0.9e-4 per mm |
-    | Environment | the HDRI, 0.6 | a dusk scene (`lab/dusk.ts`), 0.7 |
-    | Key | white, 2.2 | `#ffc98f`, 1.5, same place |
-    | Hemisphere, rim | 0, 0 | `#8fa6d8` over `#3a3026` at 0.7; `#a8b8ff` at 1.6 from behind |
+    | Fog (exponential squared) | density 0 | `#3a3d62`, 0.6e-4 per mm |
+    | Environment | the HDRI, 0.6 | a dusk scene (`lab/dusk.ts`), 0.85 |
+    | Key | white, 2.2 | `#ffc98f`, 1, same place |
+    | Hemisphere, rim | 0, 0 | `#8fa6d8` over `#3a3026` at 0.6; `#a8b8ff` at 1.6 from behind |
     | Tone and grade | AgX, exposure 1.7, the chroma stretch of 1.2 | saturation 1.35, then ACES Filmic at exposure 1.5 |
-    | Grain, vignette | none | 0.06, the house vignette at 85% |
-    | Bloom (threshold 2 in both) | 0.35, radius 0.4 | 2, radius 0.85 |
-    | Table, sweep | `#505153`, `#6a6b6d` | walnut `#33241b` under an ESD mat, hidden |
+    | Grain, vignette | none | 0.06, the house vignette in full |
+    | Bloom (threshold 2 in both) | 0.35, radius 0.4 | 1.6, radius 0.85, by a pixel's largest channel |
+    | Table, sweep | `#505153`, `#6a6b6d` | walnut `#22170f` under an ESD mat, hidden |
     | Camera reach | 3000 mm | 2200 mm |
 
     The Lab fog, exposure, key and vignette started at 2.2e-4, 1.3, 2.1 and full opacity; the
@@ -3827,7 +3827,14 @@ declare it.
     look.
   - `Post` builds one output that holds both looks' finishes and picks one with a uniform
     (`select`). The Studio finish is ADR-0067's. The Lab finish is bloom, a saturation of 1.35,
-    ACES Filmic at exposure 1.5, film grain of 0.06 and the sRGB encoding. Each look's blooms
+    ACES Filmic at exposure 1.5, film grain of 0.06 and the sRGB encoding. Two departures keep a
+    lit LED's colour. The bloom's high pass reads luminance, which left a red LED at 5 mA (3.5
+    in its red channel, about 0.7 in luminance) under the threshold while a yellow one passed
+    it; the Lab bloom's input scales a pixel whose largest channel passes the threshold toward
+    a luminance equal to that channel, at most three times. And ACES maps each channel toward
+    white, which clipped a lit red core to peach; past 1 after exposure the brightest pixels
+    keep their hue, their largest channel mapped and the others scaled with it. Nothing in the
+    room passes the threshold, so neither touches it. Each look's blooms
     are left out of the other look's frames (`updateBeforeType` NONE) and gated as ADR-0129
     within their own.
   - The right column's first row, View, has Lab and Studio buttons; L switches too; the view
@@ -3869,10 +3876,10 @@ declare it.
 
     | Side | Contents |
     |---|---|
-    | North, behind the first views | the dusk window (1300 x 1350 mm, lavender over a dusty-rose horizon) between amber light bars, a walnut credenza under it, a plant in the corner |
+    | North, behind the first views | the dusk window (1000 x 1100 mm, navy-violet and lavender over a thin dusty-rose band) right of the bench's line between amber light bars, the GPIO pinout left of it, a dark board whose pins glow a faint cool white: the background echo, a walnut credenza under it, a plant in the corner |
     | West | a pegboard of pliers, cutters, drivers and wire spools over a wall bench lit by an amber strip under its top, with a desk lamp, an oscilloscope and a power supply on it, their screens dim |
     | East | a parts-drawer cabinet, a shelf lit from below by an amber strip, a soldering station on a side table |
-    | South | the door, a brass sconce beside it, a stool, and a faint framed GPIO pinout: the background echo |
+    | South | the door, a brass sconce beside it, and a stool |
     | Ceiling | two dim pendants over the bench |
     | Floor | tiles and a rug, and the bench's legs, apron and lower shelf under its table |
 
@@ -3942,9 +3949,11 @@ declare it.
     spiral at half resolution; taps farther than 4 device pixels read a quarter-resolution
     box-filtered copy, so a thin bright strip does not break into beads. Each pixel counts in that
     copy by its own blur, so the sharp bench does not halo into the blur behind it. A
-    full-resolution composite keeps in-focus pixels from the sharp image. Blur grows with the distance from the
-    focus, 1.6 times as fast behind it as 0.9 in front, over a band of 4000 mm, up to 10 CSS
-    pixels.
+    full-resolution composite keeps in-focus pixels from the sharp image. Blur grows with the
+    distance from the focus, 1.6 times as fast behind it as 0.9 in front, over a band as long
+    as the camera's distance to the bench, up to 10 CSS pixels: as a lens's, the blur grows the
+    closer it focuses, so a close view melts its foreground and the room and a wide one keeps
+    the bench's surroundings.
   - The Lab look's output is the Lab finish of the bokeh of TRAA's image, with the scene pass's
     depth. `view.frame` focuses it at the camera's distance from its target every frame
     (`Post.setBenchFocus`). Build Mode's focus narrows the same node's band to 320 mm; its output
@@ -3961,18 +3970,19 @@ declare it.
     pool went onto the mat and a strip under the bench's lip, the walls moved from indigo to a
     lighter teal-grey, the fog thinned (2.2e-4 to 1.2e-4 per mm), the exposure rose (1.3 to
     1.5), the vignette eased to 60%, and the far blur weakened (14 to 10 px, band 2400 to 4000
-    mm). Three more rounds, each scored by a fresh critic that saw nothing of the others: 60%,
-    60%, then 16.5 of 25 (66%). They added the walnut top and the ESD mat (ADR-0144), dimmed
-    the key from 2.1 to 1.5 so the white breadboard sits under a lit LED, raised the Lab
-    bloom to 2 at radius 0.85 so a lit LED leads a close frame, deepened the vignette to 85%,
-    thinned the fog to 0.9e-4 per mm, raised the cool fill to 0.7, dimmed the window, the
-    light bars and the strip under the bench's lip, and put a sconce by the south door and a
-    strip under the west bench. Two changes of round 5 went back after round 6's critic
-    showed their cost: a satin mat mirrored the window at a low view, and a 14 px blur read
-    the quarter-resolution copy as visible blocks and smeared at the frame's edge. The
-    rubric's pass mark is 80. Its remaining gaps are the wide orbits, where a lit LED at
-    1.6 m is a speck under the room's practicals, the window's size in the front view, a
-    background echo the front and iso views do not show, and LED reds that clip to peach.
+    mm). Five more rounds, each scored by a fresh critic that saw nothing of the others: 60%,
+    60%, 66%, 62% and 16 of 25 (64%), the scores moving by about as much from one critic to the
+    next as from one round to the next. They added the walnut top and the ESD mat (ADR-0144),
+    dimmed the key from 2.1 to 1, deepened the vignette to full, thinned the fog to 0.6e-4 per
+    mm, dimmed every practical to a fraction of a lit LED's core, put the pinout on the north
+    wall as a backlit diagram beside a smaller window, scaled the depth of field with the
+    camera's distance, and let a lit LED bloom and keep its colour by its largest channel (ADR-0143).
+    The hierarchy row rose from 2 of 5 to 3: a lit LED now leads every close frame, red as
+    readily as yellow. A satin mat and a 14 px blur were tried and went back: the sheen mirrored
+    the window at a low view, and the wider gather read the quarter-resolution copy as blocks.
+    The rubric's pass mark is 80. Its remaining gaps are the wide orbits, where a lit LED at
+    1.6 m is a speck under the room's instrument faces; the room's furniture, plain bevelled
+    blocks without lacquer or texture; and the room falling to black in the close views.
 - **Consequences.**
   - Measured in headless Chromium on WebGPU (`FRAME_RATE=1 FRAME_RATE_LOOKS=lab,studio`, 1200 x
     800 at a pixel ratio of 2, three interleaved rounds, a board dragged with every cable
