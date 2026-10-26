@@ -1,6 +1,6 @@
 // An off-board module laid over a breadboard rests on its top (ADR-0139): the pointer lays it
 // there, a still pointer leaves it there, and a lead on its pin ends where the pin is drawn.
-import { BoxGeometry, Group, Mesh, Ray, Vector3 } from 'three/webgpu'
+import { BoxGeometry, BufferGeometry, Group, Mesh, Ray, Vector3 } from 'three/webgpu'
 import { afterEach, describe, expect, it } from 'vitest'
 import { SAMPLES } from '../core/defs/samples'
 import type { CircuitDoc, PartInstance, Vec2 } from '../core/model/types'
@@ -122,6 +122,15 @@ describe('ModelInstances.meshBounds', () => {
     const [only, ...rest] = new ModelInstances(new Group(), model).meshBounds(['tail'])
     expect(rest).toEqual([])
     expect(only!.max.z).toBeCloseTo(5, 6)
+  })
+})
+
+describe('ModelInstances.meshBounds, a mesh with no vertices', () => {
+  it('gives no footprint for it, rather than an infinite one', () => {
+    const model = new Group()
+    model.add(new Mesh(new BoxGeometry(10, 2, 10)), new Mesh(new BufferGeometry()))
+    model.updateMatrixWorld(true)
+    expect(new ModelInstances(new Group(), model).meshBounds([])).toHaveLength(1)
   })
 })
 
