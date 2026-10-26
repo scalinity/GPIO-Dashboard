@@ -119,14 +119,19 @@ function housingClearance(model: ModuleModel): number {
   return lift
 }
 
+/** How far a module is raised above what it rests on, so housings on flat-lying pins clear it. */
+export function moduleLiftMm(defId: string): number {
+  const model = modules.get(defId)
+  return model ? housingClearance(model) : 0
+}
+
 /**
  * How high an off-board module laid at `pose` rests: on the board under its footprint, else on the
- * table, raised so housings on flat-lying pins clear it. Until its model has loaded, its first pin
- * stands in for the footprint.
+ * table, raised by `moduleLiftMm`. Until its model has loaded, its first pin stands in for the
+ * footprint.
  */
 export function moduleRestMm(doc: CircuitDoc, defId: string, pose: Transform2D): number {
-  const model = modules.get(defId)
-  const r = model?.rect
+  const r = modules.get(defId)?.rect
   const corners: Vec2[] = r
     ? [
         [r.xMin, r.yMin],
@@ -135,12 +140,11 @@ export function moduleRestMm(doc: CircuitDoc, defId: string, pose: Transform2D):
         [r.xMin, r.yMax]
       ]
     : [[0, 0]]
-  const lift = model ? housingClearance(model) : 0
   return (
     restHeightMm(
       doc,
       corners.map((c) => toTable(pose, c))
-    ) + lift
+    ) + moduleLiftMm(defId)
   )
 }
 
@@ -176,7 +180,7 @@ export function endpointInScene(
   if (!local) return null
   const turn = (pose.rotationDeg * Math.PI) / 180
   return {
-    at: local.at.clone().applyMatrix4(poseMatrix(pose, 0)),
+    at: local.at.clone().applyMatrix4(poseMatrix(pose, moduleRestMm(doc, part.defId, pose))),
     turn,
     axis: local.axis.clone().applyAxisAngle(up, turn)
   }

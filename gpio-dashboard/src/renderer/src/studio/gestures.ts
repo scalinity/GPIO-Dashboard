@@ -4,7 +4,7 @@
 // circuitStore.check() for the green/red glow and commits it on release.
 import { Plane, type Ray, Vector3 } from 'three/webgpu'
 import { boardDef } from '../core/defs/boards'
-import { defOf, moduleRestMm } from './coords'
+import { defOf, moduleLiftMm, moduleRestMm } from './coords'
 import { holePosition, isValidHole } from '../core/geometry/breadboard'
 import { tboardPinHoles } from '../core/geometry/tboard'
 import type {
@@ -78,9 +78,10 @@ export function planePoint(ray: Ray, height: number): Vec2 | null {
 const round = (v: number) => Math.round(v * 10) / 10
 
 /**
- * Where the pointer lays an off-board module: `pose(at)` for the point under the pointer on the
- * table or, when that pose rests the module on a board, on the board's top, so it stays under the
- * pointer either way.
+ * Where the pointer lays an off-board module: `pose(at)` for the point under the pointer at a
+ * height the module rests at. Each surface is tried from the highest down and the first whose pose
+ * rests the module on it is taken, so the module stays under the pointer, and under a still one.
+ * Where none does (a footprint across a board's edge, within the parallax), the table's is taken.
  */
 function laid(
   doc: CircuitDoc,
@@ -88,11 +89,16 @@ function laid(
   ray: Ray,
   pose: (at: Vec2) => Transform2D
 ): Transform2D | null {
-  const flat = planePoint(ray, 0)
-  if (!flat) return null
-  const rest = moduleRestMm(doc, defId, pose(flat))
-  const at = rest ? planePoint(ray, rest) : flat
-  return at && pose(at)
+  const lift = moduleLiftMm(defId)
+  const tops = new Set([0, ...doc.boards.map((b) => boardDef(b.defId).body.heightMm)])
+  let last: Transform2D | null = null
+  for (const top of [...tops].sort((a, b) => b - a)) {
+    const at = planePoint(ray, top + lift)
+    if (!at) continue
+    last = pose(at)
+    if (moduleRestMm(doc, defId, last) === top + lift) return last
+  }
+  return last
 }
 const moved = (t: Transform2D, from: Vec2, to: Vec2): Transform2D => ({
   ...t,

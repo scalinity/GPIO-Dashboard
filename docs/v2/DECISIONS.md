@@ -3682,15 +3682,18 @@ declare it.
   so a 2.54 mm Dupont housing on them reached about 1 mm into whatever the module lay on.
 - **Decision.** A module rests on the top of the highest board under any corner of its model's
   footprint, else on the table (`restHeightMm` in `core/reach`, `moduleRestMm` in
-  `studio/coords`). The drawn module, its pins' frames, its selection box and a move's drag
-  plane all use that height. A drop or move finds the footprint where the pointer's ray meets the
-  table, then meets the ray again at the rest height, so the module stays under the pointer. A
-  module with a pin lying flat is raised by however far that pin sits below half a housing's
-  width; a module whose pins point up is not. Reach's lead ends take the board under the
-  module's position, and the 10 mm assumed pin height above it.
+  `studio/coords`). The drawn module, its pins' frames, the leads ending on them, its selection
+  box and a move's drag plane all use that height. A module with a pin lying flat is raised by
+  however far that pin sits below half a housing's width; a module whose pins point up is not.
+  A drop or move meets the pointer's ray with each surface's rest height, highest first, and takes
+  the first pose that rests the module on that surface, so the module stays under the pointer and
+  a still pointer leaves it where it is. Reach's lead ends take the board under the module's
+  position, and the 10 mm assumed pin height above it.
 - **Consequences.** A module can lie across a board's edge, resting on its top; nothing models it
-  tipping. Physics stays visual (SPEC principle 8), so the rest height is geometry, not a simulated
-  contact. Moving a module off a board drops it back to the table.
+  tipping. Where its footprint crosses a board's edge within the parallax between the two heights,
+  no pose rests it under the pointer, and the table's is taken, so it steps onto the board a few
+  millimetres from the pointer. Physics stays visual (SPEC principle 8), so the rest height is
+  geometry, not a simulated contact. Moving a module off a board drops it back to the table.
 
 ## ADR-0140 The side panels fold away for an immersive bench
 

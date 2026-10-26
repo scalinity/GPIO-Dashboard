@@ -86,7 +86,7 @@ export const useStudio = create<StudioState>(() => ({
 export function togglePanels(which: 'library' | 'properties' | 'both'): void {
   const { library, properties } = useStudio.getState()
   if (which === 'both') {
-    const open = !(library || properties)
+    const open = !(library && properties)
     useStudio.setState({ library: open, properties: open })
   } else useStudio.setState({ [which]: !useStudio.getState()[which] })
 }
