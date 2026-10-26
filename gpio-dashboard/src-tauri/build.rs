@@ -27,6 +27,7 @@ const COMMANDS: &[&str] = &[
     "agent_install",
     "agent_start",
     "agent_stop",
+    "agent_check",
     "agent_get_status",
     "settings_get",
     "settings_set",
