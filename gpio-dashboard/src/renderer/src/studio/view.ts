@@ -33,6 +33,7 @@ import { holeKey, isValidHole, parseHoleKey } from '../core/geometry/breadboard'
 import { tboardPinHoles } from '../core/geometry/tboard'
 import type { CircuitDoc, Endpoint, Op, Vec3, Wire } from '../core/model/types'
 import { computeState, type ConnectivityState } from '../core/netlist/engine'
+import { applyOps } from '../core/ops/apply'
 import type { Problem } from '../core/ops/validate'
 import { useAssistant } from '../state/assistantStore'
 import { useBuild } from '../state/buildStore'
@@ -61,12 +62,14 @@ import { Cables, type CablesReport, placeColliders, type Placement, TABLE, toCor
 import { CameraTween, type Preset, presetView, sphereView } from './camera'
 import { defOf, endpointInScene, holeInScene, moduleRestMm, poseMatrix } from './coords'
 import { cuePlaces } from './cues'
+import { Dock, type Insets, shiftLens } from './dock'
 import { FrameLoop, SETTLE_FRAMES } from './frameLoop'
 import { ghostIds, withGhosts } from './ghosts'
 import {
   boardTop,
   type Gesture,
   grabVector,
+  partway,
   planePoint,
   type Pointer,
   type Proposal,
@@ -161,6 +164,8 @@ export interface SceneReport {
   badges: { id: string; severity: 'error' | 'warning' }[]
   /** The parts and leads drawn only as the assistant's ghosts. */
   ghosts: string[]
+  /** A drag's part drawn in red where it fits but may not go; null when there is none. */
+  refused: string | null
   /** How many places the assistant's cue marks. */
   cueMarks: number
   /** Build Mode's step on the bench; null outside Build Mode. */
@@ -286,6 +291,8 @@ export class StudioView {
   private gesture: Gesture | null = null
   /** The gesture's proposal at the pointer, while it is legal: what a release commits. */
   private proposal: Proposal | null = null
+  /** A proposed part that fits its holes but may not take them: drawn there, never committed. */
+  private refused: { doc: CircuitDoc; id: string } | null = null
   private proposed = ''
   private pointerNow: Pointer | null = null
   private press: Press | null = null
@@ -297,6 +304,18 @@ export class StudioView {
   private look: LookName = useStudio.getState().look
   private veil: HTMLElement | null = null
   private vignette: HTMLElement | null = null
+  /** The stage's element, and the Studio page's row it shares with the side panels. */
+  private stage: HTMLElement | null = null
+  private row: HTMLElement | null = null
+  /** The visible region beside the side panels, easing when one shows or hides (ADR-0148). */
+  private dock = new Dock()
+  /** A panel showed or hid: the next frame reads where they stand. */
+  private docking = false
+  /** R3F's canvas size, which the dock sets itself in the frame it changes. */
+  private fiber: {
+    size(): { width: number; height: number }
+    setSize(width: number, height: number, top: number, left: number): void
+  } | null = null
   /** The look switch in progress, by number: a newer one takes over. */
   private switching = 0
   /** The veil lifts once the next frame is drawn in the new look. */
@@ -325,7 +344,13 @@ export class StudioView {
   }
 
   /** The R3F root is ready, with the camera's aspect set: frame the bench and start drawing. */
-  bind(renderer: WebGPURenderer, scene: Scene, invalidate: () => void): void {
+  bind(
+    renderer: WebGPURenderer,
+    scene: Scene,
+    invalidate: () => void,
+    fiber: NonNullable<StudioView['fiber']>
+  ): void {
+    this.fiber = fiber
     configureModels(renderer)
     this.post = new Post(renderer, scene, this.camera)
     this.post.setKey(this.rig.key)
@@ -386,6 +411,12 @@ export class StudioView {
     this.invalidate()
   }
 
+  /** A side panel shows or hides, or Build Mode swaps the library for its own: the stage follows. */
+  private redock(): void {
+    this.docking = true
+    this.invalidate()
+  }
+
   /** Ends the tour where it is; `home` eases the camera to the iso preset from there. */
   private endTour(home: boolean): void {
     if (!this.tour.playing) return
@@ -398,14 +429,68 @@ export class StudioView {
     if (home) this.preset('iso')
   }
 
+  /**
+   * The Studio page's row, whose side panels the stage shares (ADR-0148); a ref callback. Each
+   * panel's wrapper carries `data-dock` (left or right) and `data-shown`; the stage takes the room
+   * they leave, at once on mounting and easing after.
+   */
+  dockTo(row: HTMLElement | null): void {
+    this.row = row
+    if (!row) return
+    this.dock.aim(this.docked(), 0, true)
+    this.placeDock()
+  }
+
+  /** Where the side panels say the visible region goes: each shown one's width in from its side. */
+  private docked(): Insets {
+    const side = (name: 'left' | 'right') => {
+      const panel = this.row?.querySelector<HTMLElement>(`:scope > [data-dock="${name}"]`)
+      return panel?.dataset.shown === 'true' ? panel.offsetWidth : 0
+    }
+    return { left: side('left'), right: side('right') }
+  }
+
+  /**
+   * Puts the visible region and the canvas where the dock has them. The canvas resizes in the same
+   * frame it is drawn, so it never shows the old picture stretched or shifted.
+   */
+  private placeDock(): void {
+    const { row, stage, dock } = this
+    if (!row) return
+    for (const [name, px] of [
+      ['--dock-l', dock.now.left],
+      ['--dock-r', dock.now.right],
+      ['--span-l', dock.span.left],
+      ['--span-r', dock.span.right]
+    ] as const)
+      row.style.setProperty(name, `${px}px`)
+    if (!stage || !this.fiber) return
+    const rect = stage.getBoundingClientRect()
+    const size = this.fiber.size()
+    if (rect.width !== size.width || rect.height !== size.height)
+      this.fiber.setSize(rect.width, rect.height, rect.top, rect.left)
+    shiftLens(this.camera, dock.shift, rect.width)
+  }
+
   /** One frame: move, render, and say whether another is needed. */
   frame(now: number): boolean {
     if (!this.post) return false
+    if (this.docking) {
+      this.docking = false
+      const instant = matchMedia('(prefers-reduced-motion: reduce)').matches
+      this.dock.aim(this.docked(), now, instant)
+      if (instant) this.placeDock()
+    }
+    const docking = this.dock.active
+    if (docking) {
+      this.dock.step(now)
+      this.placeDock()
+    }
     // The orbit goes on from where it put the camera, unless something else has moved it since.
     if (this.kept?.shown.equals(this.camera.position)) this.camera.position.copy(this.kept.orbit)
     this.kept = null
     // Damping drains during a preset move too, so nothing is left over when it ends.
-    let moving = this.controls.update()
+    let moving = this.controls.update() || docking
     // Any other move of the camera (Build Mode's framing, the assistant's focus) ends the tour.
     if (this.tour.playing && this.tween.active) this.endTour(false)
     if (this.tour.playing) {
@@ -647,6 +732,7 @@ export class StudioView {
       live: this.livePins.report(),
       badges: this.badges?.ids() ?? [],
       ghosts: ghostIds(this.base(), this.ghosted()),
+      refused: this.refused?.id ?? null,
       cueMarks: this.cueMarkers.count,
       build: this.buildReport(),
       look: this.look,
@@ -700,6 +786,7 @@ export class StudioView {
     this.marksKey = ''
     this.badges = new BadgeLayer(badges, (id) => useStudio.setState({ badge: id }))
     this.badgeKey = ''
+    this.stage = element
     this.controls.connect(element)
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
@@ -785,6 +872,12 @@ export class StudioView {
         if (now.live !== before.live || now.sense !== before.sense) this.syncBadges()
         if (now.cue !== before.cue) this.showCue()
         if (now.look !== before.look) this.switchLook(now.look)
+        if (
+          now.library !== before.library ||
+          now.properties !== before.properties ||
+          now.presenting !== before.presenting
+        )
+          this.redock()
       }),
       // The simulation's snapshots, the part inputs and the issues, and Board Sense's states.
       useWorkbench.subscribe((now, before) => {
@@ -818,6 +911,7 @@ export class StudioView {
           this.endTour(false)
           useStudio.setState({ selection: null, tool: 'select' })
         }
+        if (now.on !== before.on) this.redock()
         if (now.scene !== before.scene) {
           this.refreshHover()
           this.draw()
@@ -1152,10 +1246,12 @@ export class StudioView {
     this.proposed = ''
     this.ghost = null
     this.ghostMarkers.set([])
+    const refused = this.refused
+    this.refused = null
     if (useStudio.getState().preview) {
       circuit.engine.clearPreview()
       useStudio.setState({ preview: null })
-    }
+    } else if (refused) this.draw()
     this.invalidate()
   }
 
@@ -1165,17 +1261,39 @@ export class StudioView {
     const g = this.gesture
     if (!g) return
     const doc = circuit.getSnapshot()
-    const proposal = p && propose(g, p, doc)
+    let proposal = p && propose(g, p, doc)
     const key = JSON.stringify([proposal?.ops, proposal?.refused])
     if (key === this.proposed) return
     this.proposed = key
     let problems: Problem[] | null = null
     let preview: CircuitDoc | null = null
+    const before = this.refused
+    this.refused = null
     if (proposal?.refused) problems = [{ code: 'REFUSED', message: proposal.refused, refs: [] }]
     else if (proposal) {
       const result = circuit.check({ author: 'user', label: proposal.label, ops: proposal.ops })
       if (result.ok) preview = result.doc
-      else problems = result.problems
+      else if (
+        (g.kind === 'board' || g.kind === 'pi') &&
+        this.proposal &&
+        result.problems.every((x) => x.code === 'OVERLAP')
+      ) {
+        // A board or the Pi stops against what it would overlap: it goes as far as it stands clear.
+        useStudio.setState({ notice: result.problems[0]!.message })
+        const clear = this.proposal
+        let [lo, hi] = [0, 1]
+        for (let i = 0; i < 8; i++) {
+          const step = partway(clear, proposal, (lo + hi) / 2)
+          const stepped = circuit.check({ author: 'user', label: step.label, ops: step.ops })
+          if (stepped.ok) [lo, preview] = [(lo + hi) / 2, stepped.doc]
+          else hi = (lo + hi) / 2
+        }
+        if (!preview) return
+        proposal = partway(clear, proposal, lo)
+      } else {
+        problems = result.problems
+        this.refused = refusedPart(doc, proposal.ops)
+      }
     }
     this.proposal = preview ? proposal : null
     const holes = proposal?.holes ?? []
@@ -1197,7 +1315,9 @@ export class StudioView {
     this.ghostMarkers.set(markers)
     if (preview) circuit.engine.preview(preview)
     else circuit.engine.clearPreview()
+    const redraw = (before || this.refused) && useStudio.getState().preview === preview
     useStudio.setState({ preview })
+    if (redraw) this.draw()
     this.invalidate()
   }
 
@@ -1229,7 +1349,7 @@ export class StudioView {
 
   /** The document being drawn: the drag's preview, else the committed one with any ghosts. */
   private drawnDoc(): CircuitDoc {
-    return useStudio.getState().preview ?? this.ghosted()
+    return useStudio.getState().preview ?? this.refused?.doc ?? this.ghosted()
   }
 
   /**
@@ -1240,7 +1360,7 @@ export class StudioView {
   private draw(): void {
     const { preview, selection, labels } = useStudio.getState()
     const committed = this.base()
-    const doc = preview ?? this.ghosted()
+    const doc = preview ?? this.refused?.doc ?? this.ghosted()
     const now = performance.now()
     this.insertion.hover(doc === committed ? [] : reseated(committed, doc))
     // A drag's commit is measured once its preview is gone; the assistant's as each one lands.
@@ -1376,6 +1496,7 @@ export class StudioView {
           ...doc.wires.filter((w) => ghosts.has(w.id)).map((w) => w.id)
         ]
       },
+      refused: this.refused ? [this.refused.id] : [],
       snapshot: partial ? null : (shown?.snapshot ?? null),
       env,
       issues: shown?.issues ?? [],
@@ -1648,6 +1769,21 @@ function liveSuffix(net: string | null): string {
   const { online, pins } = useLive.getState()
   const pin = online ? pins[Number(bcm)] : undefined
   return pin ? ` · Pi: ${liveText(pin)}` : ''
+}
+
+/**
+ * The document with a placed or moved part that may not go where it fits (another part's holes,
+ * under the T-board), to draw it there in red; null for any other edit, which has nothing to show.
+ */
+function refusedPart(doc: CircuitDoc, ops: Op[]): { doc: CircuitDoc; id: string } | null {
+  const op = ops.length === 1 ? ops[0]! : null
+  const id = op?.type === 'AddPart' ? op.part.id : op?.type === 'MovePart' ? op.id : null
+  if (!id) return null
+  try {
+    return { doc: applyOps(doc, ops).doc, id }
+  } catch {
+    return null
+  }
 }
 
 /** The lead end on a module pin, if one is there. */

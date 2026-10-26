@@ -1,7 +1,8 @@
 // The opening tour (ADR-0147). Test automation never starts it on its own (navigator.webdriver),
-// so these play it as C does: the camera moves and the side panels step back while it plays, the
-// first click only takes over and the camera eases home to the iso preset, and the scene is still
-// again within 2 s. A key ends it and still acts.
+// so these play it as C does: the camera moves and the side panels slide away while it plays, the
+// stage taking their room; the first click only takes over, the panels come back and the camera
+// eases home to the iso preset, and the scene is still again within 2 s. A key ends it and still
+// acts.
 import { expect, test } from '@playwright/test'
 import { frames, openTutorial, report, studio, waitUntilStill } from './helpers'
 
@@ -12,24 +13,28 @@ test.beforeEach(async ({ page }) => {
 
 const camera = async (page: import('@playwright/test').Page) => (await report(page)).room!.camera
 
-test('the tour plays, steps the panels back, and gives way to the first click', async ({
+test('the tour plays, gives the panels’ room to the stage, and gives way to the first click', async ({
   page
 }) => {
   expect((await report(page)).touring).toBe(false)
+  const canvas = page.getByTestId('studio').locator('canvas')
+  const width = async () => (await canvas.boundingBox())!.width
+  const narrow = await width()
   await studio(page, (s) => s.playTour())
   await expect.poll(async () => (await report(page)).touring).toBe(true)
   // The camera moves on its own while it plays.
   const before = await frames(page)
   await page.waitForTimeout(600)
   expect(await frames(page)).toBeGreaterThan(before + 10)
-  // The panels keep their place but step back, out of reach; one line says how to take over.
+  // The panels slide away, out of reach, and the stage takes their room; one line says how to
+  // take over.
   const aside = page.locator('aside').last()
   await expect(aside).toHaveAttribute('inert', '')
-  await expect.poll(() => aside.evaluate((el) => getComputedStyle(el).opacity)).toBe('0')
+  await expect(aside).toBeHidden()
+  await expect.poll(width).toBeGreaterThan(narrow + 400)
   await expect(page.getByText('Drag, click or press a key to take over')).toBeVisible()
 
   // The first click only takes over: nothing is selected, and the camera eases to the iso preset.
-  const canvas = page.getByTestId('studio').locator('canvas')
   const box = (await canvas.boundingBox())!
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
   await expect.poll(async () => (await report(page)).touring).toBe(false)
@@ -38,6 +43,8 @@ test('the tour plays, steps the panels back, and gives way to the first click', 
   expect(Date.now() - start).toBeLessThan(2000)
   expect(await page.getByText('Drag, click or press a key to take over').count()).toBe(0)
   await expect(aside).not.toHaveAttribute('inert')
+  await expect(aside).toBeVisible()
+  await expect.poll(width).toBeCloseTo(narrow, 0)
   const landed = await camera(page)
   await studio(page, (s) => s.preset('iso'))
   await waitUntilStill(page, 10_000)

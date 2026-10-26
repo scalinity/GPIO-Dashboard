@@ -1,9 +1,12 @@
 // What validateDoc checks beyond placement: each part's properties against its definition
-// (SPEC 11.4), and a project's own part definitions (SPEC 7).
+// (SPEC 11.4), a project's own part definitions (SPEC 7), and boards kept off the Pi (SPEC 6.6).
 import { describe, expect, it } from 'vitest'
+import { SAMPLES } from '../defs/samples'
+import { TUTORIALS } from '../defs/tutorials'
 import type { CircuitDoc, PartDef } from '../model/types'
+import { standingOverlaps } from '../reach/reach'
 import { CUSTOM_RES, emptyDoc, fixtureDefs, hole, part, RES } from '../testing/fixtures'
-import { validateDoc } from './validate'
+import { newOverlaps, validateDoc } from './validate'
 
 const problems = (doc: CircuitDoc) => validateDoc(doc, fixtureDefs).map((p) => p.code)
 
@@ -90,5 +93,33 @@ describe('custom parts', () => {
     )
     const badGroup = withCustom({ ...CUSTOM_RES, internalConnections: [['1', '9']] })
     expect(validateDoc(badGroup, fixtureDefs)[0]!.message).toMatch(/unknown pin 9/)
+  })
+})
+
+describe('boards and the Pi on the table', () => {
+  // The default bench: the Pi's 85 mm outline ends at x = -35, and bb1 starts at x = 0.
+  const at = (x: number): CircuitDoc => {
+    const doc = emptyDoc()
+    return {
+      ...doc,
+      boards: [{ ...doc.boards[0]!, transform: { position: [x, 0], rotationDeg: 0 } }]
+    }
+  }
+
+  it('refuses a board moved into the Pi, and lets one meet its edge', () => {
+    expect(newOverlaps(emptyDoc(), at(-36))).toEqual([
+      { code: 'OVERLAP', message: "bb1 can't overlap the Pi", refs: ['bb1'] }
+    ])
+    expect(newOverlaps(emptyDoc(), at(-35))).toEqual([])
+  })
+
+  it('counts only the overlaps an edit makes, so a project saved with one still edits', () => {
+    expect(standingOverlaps(at(-60))).toEqual([['bb1', 'pi']])
+    expect(newOverlaps(at(-60), at(-50))).toEqual([])
+  })
+
+  it('finds none on a tutorial or sample bench', () => {
+    for (const doc of [...TUTORIALS.map((t) => t.doc), ...SAMPLES.map((s) => s.doc)])
+      expect(standingOverlaps(doc), doc.meta.name).toEqual([])
   })
 })

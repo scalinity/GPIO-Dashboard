@@ -23,6 +23,28 @@ describe('CircuitStore', () => {
     expect(notified).toBe(1)
   })
 
+  it('refuses moving a board into the Pi, in a check as in a commit', () => {
+    const s = store()
+    const input = {
+      author: 'user' as const,
+      label: 'Move bb1',
+      ops: [
+        {
+          type: 'MoveBoard' as const,
+          id: 'bb1',
+          transform: { position: [-60, 0] as const, rotationDeg: 0 }
+        }
+      ]
+    }
+    const checked = s.check(input)
+    expect(!checked.ok && checked.problems.map((p) => p.code)).toEqual(['OVERLAP'])
+    const result = s.dispatch(input)
+    expect(!result.ok && result.problems.map((p) => p.message)).toEqual([
+      "bb1 can't overlap the Pi"
+    ])
+    expect(s.getSnapshot().boards[0]!.transform.position).toEqual([0, 0])
+  })
+
   it('rejects an invalid transaction and leaves the very same document in place', () => {
     const s = store()
     const before = s.getSnapshot()

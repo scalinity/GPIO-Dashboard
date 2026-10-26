@@ -255,6 +255,17 @@ function BadgeCard({ doc }: { doc: CircuitDoc }) {
   )
 }
 
+/**
+ * The Studio's region between the side panels, and the canvas's within it (ADR-0148): the view
+ * sets the four variables on the page's row. At rest the canvas fills the region; while a panel
+ * shows or hides, it holds still over the room on either side of the edge that moves.
+ */
+const REGION = { left: 'var(--dock-l, 0px)', right: 'var(--dock-r, 0px)' }
+const SPAN = {
+  left: 'calc(var(--span-l, 0px) - var(--dock-l, 0px))',
+  right: 'calc(var(--span-r, 0px) - var(--dock-r, 0px))'
+}
+
 export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDoc }) {
   const tooltip = useRef<HTMLDivElement>(null)
   const labels = useRef<HTMLDivElement>(null)
@@ -290,10 +301,14 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
   // Anything clickable sits outside the element the orbit controls listen on: their pointer
   // capture would otherwise take its clicks.
   return (
-    <div className="relative flex-1 min-h-0 min-w-0">
+    <div className="absolute inset-y-0" style={REGION}>
       {/* Before the stage, so that its ref is set when the stage attaches. */}
-      <div ref={badges} className="absolute inset-0 z-10 overflow-hidden pointer-events-none" />
-      <div ref={attach} className="absolute inset-0" data-testid="studio">
+      <div
+        ref={badges}
+        className="absolute inset-y-0 z-10 overflow-hidden pointer-events-none"
+        style={SPAN}
+      />
+      <div ref={attach} className="absolute inset-y-0" style={SPAN} data-testid="studio">
         <Canvas
           gl={createRenderer}
           camera={view.camera}
@@ -302,7 +317,10 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
           onCreated={(state) => {
             // R3F sets ACES Filmic while configuring a renderer; the Studio uses AgX (SPEC 10.1).
             state.gl.toneMapping = AgXToneMapping
-            view.bind(state.gl as unknown as WebGPURenderer, state.scene, state.invalidate)
+            view.bind(state.gl as unknown as WebGPURenderer, state.scene, state.invalidate, {
+              size: () => state.get().size,
+              setSize: state.setSize
+            })
           }}
         >
           <Stage rig={view.rig} />

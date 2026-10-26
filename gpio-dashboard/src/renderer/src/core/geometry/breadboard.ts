@@ -12,6 +12,11 @@ export function columnPitches(def: BoardDef, col: MainColumn): number {
   return i < 5 ? i : i - 1 + def.trenchPitches
 }
 
+/** The column `pitches` from column a, if one is there (none in the trench or past the edges). */
+export function columnAt(def: BoardDef, pitches: number): MainColumn | undefined {
+  return MAIN_COLUMNS.find((c) => columnPitches(def, c) === pitches)
+}
+
 export function rowX(def: BoardDef, row: number): number {
   return def.layout.row1FromEndMm + (row - 1) * def.pitchMm
 }

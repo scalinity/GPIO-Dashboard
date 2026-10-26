@@ -1,12 +1,16 @@
 // The edits the Studio's gestures propose (SPEC 6.5, 6.6, 11.3): ids and defaults, seating by an
 // anchor hole, turns, removals, leads from the inventory default, and the green/red glow.
+import { Ray } from 'three/webgpu'
 import { describe, expect, it } from 'vitest'
-import { partDef } from '../core/defs/parts'
+import { boardDef } from '../core/defs/boards'
+import { PART_DEFS, partDef } from '../core/defs/parts'
 import { TUTORIALS } from '../core/defs/tutorials'
 import { newDoc } from '../core/model/defaults'
 import type { CircuitDoc, HoleRef, MainColumn, Op } from '../core/model/types'
+import { MAIN_COLUMNS } from '../core/model/types'
 import { applyOps } from '../core/ops/apply'
 import { validateDoc } from '../core/ops/validate'
+import { propose } from './gestures'
 import {
   holeFree,
   holeLegality,
@@ -128,6 +132,61 @@ describe('moving and turning', () => {
       { type: 'RemovePart', id: m.id }
     ])
     commit(wired, removePartOps(wired, m.id))
+  })
+})
+
+describe('placing a rigid part from the library', () => {
+  // Over any main hole, a rigid part is drawn where it fits nearest the pointer: a chip or a
+  // display snaps to the columns that straddle the trench, rather than being refused everywhere
+  // else, and a part near an end slides in along the rows. What may still refuse it is another
+  // part or the T-board on those holes, and then it is drawn there in red.
+  const doc = empty()
+  const board = doc.boards[0]!
+  const rows = boardDef(board.defId).rows
+  const pointer = (row: number, col: MainColumn) => ({
+    ray: new Ray(),
+    hole: hole(row, col),
+    pin: null
+  })
+  for (const def of PART_DEFS.values()) {
+    if (def.footprint.kind !== 'rigid') continue
+    it(`seats ${def.id} near every main hole`, () => {
+      for (let row = 1; row <= rows; row++)
+        for (const col of MAIN_COLUMNS) {
+          const proposal = propose(
+            { kind: 'place', defId: def.id, rotation: 0 },
+            pointer(row, col),
+            doc
+          )
+          expect(proposal?.refused, `${def.id} at ${row}${col}`).toBeUndefined()
+          const next = applyOps(doc, proposal!.ops).doc
+          const codes = validateDoc(next, partDef).map((p) => p.code)
+          expect(codes.filter((c) => c !== 'HOLE_BLOCKED' && c !== 'HOLE_TAKEN')).toEqual([])
+          // Pin 1 stays within the part's own length of the pointer.
+          const pin1 = next.parts.at(-1)!.placement.pins[def.pins[0]!.id]!
+          const reach = Math.max(...def.pins.map((p) => Math.abs(p.offsetPitch[0]))) + 1
+          expect(pin1.area === 'main' && Math.abs(pin1.row - row)).toBeLessThanOrEqual(reach)
+        }
+    })
+  }
+
+  it('keeps pin 1 where it points when the part fits there', () => {
+    const proposal = propose(
+      { kind: 'place', defId: 'ic-74hc595', rotation: 0 },
+      pointer(20, 'e'),
+      doc
+    )
+    const part = (proposal!.ops[0] as Extract<Op, { type: 'AddPart' }>).part
+    expect(part.placement.pins[partDef('ic-74hc595').pins[0]!.id]).toEqual(hole(20, 'e'))
+  })
+
+  it('refuses a chip turned across the trench, which fits nowhere', () => {
+    const proposal = propose(
+      { kind: 'place', defId: 'ic-74hc595', rotation: 90 },
+      pointer(20, 'e'),
+      doc
+    )
+    expect(proposal?.refused).toBe(`${partDef('ic-74hc595').name} does not fit here`)
   })
 })
 

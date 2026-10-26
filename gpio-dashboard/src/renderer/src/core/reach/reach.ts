@@ -35,9 +35,10 @@ const TOUCH_MM = 1e-6
 
 /**
  * Whether two convex outlines (table frame, corners in order around) share any of the table: no
- * edge of either separates them. A point, or two, is an outline too.
+ * edge of either separates them. A point, or two, is an outline too. Outlines that only meet
+ * share it unless `touching` is false.
  */
-function overlap(a: Vec2[], b: Vec2[]): boolean {
+function overlap(a: Vec2[], b: Vec2[], touching = true): boolean {
   for (const outline of [a, b])
     for (let i = 0; i < outline.length; i++) {
       const [x0, y0] = outline[i]!
@@ -48,9 +49,41 @@ function overlap(a: Vec2[], b: Vec2[]): boolean {
       const along = (o: Vec2[]) => o.map(([x, y]) => x * ax + y * ay)
       const [sa, sb] = [along(a), along(b)]
       const gap = Math.max(Math.min(...sb) - Math.max(...sa), Math.min(...sa) - Math.max(...sb))
-      if (gap > TOUCH_MM) return false
+      if (gap > (touching ? TOUCH_MM : -TOUCH_MM)) return false
     }
   return true
+}
+
+/** The corners, in order, of a `[length, width]` footprint laid by `t` (table frame). */
+const corners = (t: Transform2D, [l, w]: Vec2): Vec2[] =>
+  (
+    [
+      [0, 0],
+      [l, 0],
+      [l, w],
+      [0, w]
+    ] as const
+  ).map((c) => toTable(t, c))
+
+/**
+ * The boards, and a board and the Pi, standing on the same stretch of table: one inside the
+ * other in 3D. Each pair is by id, with the Pi as `pi`; outlines that only meet do not count.
+ */
+export function standingOverlaps(doc: CircuitDoc): [string, string][] {
+  const { widthMm, depthMm } = piBoardJson.outline
+  const stands = [
+    ...doc.boards.map((b) => {
+      const { lengthMm, widthMm } = boardDef(b.defId).body
+      return { id: b.id, outline: corners(b.transform, [lengthMm, widthMm]) }
+    }),
+    { id: 'pi', outline: corners(doc.controller.pi.transform, [widthMm, depthMm]) }
+  ]
+  const out: [string, string][] = []
+  stands.forEach((a, i) => {
+    for (const b of stands.slice(i + 1))
+      if (overlap(a.outline, b.outline, false)) out.push([a.id, b.id])
+  })
+  return out
 }
 
 /**
@@ -61,18 +94,7 @@ export function restHeightMm(doc: CircuitDoc, points: Vec2[]): number {
   let top = 0
   for (const board of doc.boards) {
     const { lengthMm, widthMm, heightMm } = boardDef(board.defId).body
-    const corners: Vec2[] = [
-      [0, 0],
-      [lengthMm, 0],
-      [lengthMm, widthMm],
-      [0, widthMm]
-    ]
-    if (
-      overlap(
-        points,
-        corners.map((c) => toTable(board.transform, c))
-      )
-    )
+    if (overlap(points, corners(board.transform, [lengthMm, widthMm])))
       top = Math.max(top, heightMm)
   }
   return top

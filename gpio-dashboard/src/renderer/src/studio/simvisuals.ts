@@ -62,6 +62,8 @@ export interface SimInputs {
   }
   /** Parts and leads tinted as the assistant's: its ghosts, and what its turn changed. */
   review: { parts: string[]; wires: string[] }
+  /** A drag's part drawn where it may not go: ringed in red, as an error is. */
+  refused: string[]
 }
 
 /** What the visuals drew, read back for tests. */
@@ -255,7 +257,7 @@ export class SimVisuals {
           if (i.doc.parts.some((p) => p.id === ref)) rated.set(ref, issue.severity)
     // A rating halo says more than the assistant's tint, so it wins.
     const reviewed = i.review.parts.filter((id) => !rated.has(id))
-    const key = JSON.stringify([[...rated], reviewed])
+    const key = JSON.stringify([[...rated], reviewed, i.refused])
     if (key === this.haloKey && this.cache?.doc === this.haloDoc) return
     this.haloKey = key
     this.haloDoc = this.cache?.doc ?? null
@@ -268,6 +270,10 @@ export class SimVisuals {
       ...reviewed.flatMap((id) => {
         const box = bodyBox(i.doc, { kind: 'part', id })
         return box ? [{ box, color: REVIEW_HALO }] : []
+      }),
+      ...i.refused.flatMap((id) => {
+        const box = bodyBox(i.doc, { kind: 'part', id })
+        return box ? [{ box, color: HALO_COLOR.error }] : []
       })
     ])
     this.invalidate()

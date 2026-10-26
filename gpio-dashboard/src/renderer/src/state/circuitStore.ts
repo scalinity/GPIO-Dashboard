@@ -7,7 +7,7 @@ import { partDef } from '../core/defs/parts'
 import { ConnectivityEngine } from '../core/netlist/engine'
 import type { PartDefs } from '../core/netlist/netlist'
 import { applyOps, OpError } from '../core/ops/apply'
-import { type Problem, validateDoc } from '../core/ops/validate'
+import { newOverlaps, type Problem, validateDoc } from '../core/ops/validate'
 import type { Author, CircuitDoc, Op, Transaction } from '../core/model/types'
 
 export interface TransactionInput {
@@ -99,7 +99,7 @@ export class CircuitStore {
         return { ok: false, problems: [{ code: 'OP', message: e.message, refs: [] }] }
       throw e
     }
-    const problems = validateDoc(result.doc, this.defs)
+    const problems = [...validateDoc(result.doc, this.defs), ...newOverlaps(this.doc, result.doc)]
     return problems.length ? { ok: false, problems } : { ok: true, doc: result.doc }
   }
 
@@ -113,7 +113,7 @@ export class CircuitStore {
         return { ok: false, problems: [{ code: 'OP', message: e.message, refs: [] }] }
       throw e
     }
-    const problems = validateDoc(result.doc, this.defs)
+    const problems = [...validateDoc(result.doc, this.defs), ...newOverlaps(this.doc, result.doc)]
     if (problems.length) return { ok: false, problems }
 
     this.txCounter += 1

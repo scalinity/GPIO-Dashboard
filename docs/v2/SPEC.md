@@ -642,6 +642,8 @@ Wiring convention (my bench; tutorials, the placer, and the assistant all follow
 - Each part pin occupies exactly one hole, or is null (unplaced).
 - Each hole holds at most one lead: a pin, a T-board pin, or a wire end, never more than one.
 - Rigid footprints rotate in 90° steps. A DIP must straddle the trench.
+- Boards and the Pi may not overlap on the table. Their outlines may meet. An edit that adds an
+  overlap is refused; a project saved with one still opens.
 - A flexible two-lead part must span between minSpan and maxSpan.
 - Part bodies may not collide. Check this with bounding volumes.
 - T-board placement:
@@ -1133,8 +1135,8 @@ Opening tour:
   breadboard, and close on the brightest lit part (else the T-board), the veil dipping to black
   at each cut; then it eases to the iso preset, about 16 s in all. Each shot turns 1.6 to 3
   degrees a second, and every pose stands inside the room.
-- While it plays the side panels step back, keeping their place and taking no input, and one
-  line under the stage says "Drag, click or press a key to take over". The first press or wheel
+- While it plays the side panels slide away and the stage takes their room, and one line under
+  the stage says "Drag, click or press a key to take over". The first press or wheel
   turn on the stage only takes over: the camera eases home from where it is. A key ends it and
   still does what it does. A look switch, an edit, a capture, entering Build Mode or any other
   move of the camera ends it too; a document opened under it plans it again for the new bench.
@@ -1189,11 +1191,16 @@ Camera:
   - Inspect toggles: Labels, Voltages, Current flow, Nets, Live Pi state
   - camera presets: Fit, Iso, Top, Front
   - rotate selection ±90°
+- Each side panel folds from the top bar or with `[` and `]`, and `\` folds or shows both. A
+  panel slides over the stage's edge as the stage eases into its room over 280 ms. The canvas
+  resizes once a fold, and the picture stays centred in what is visible throughout.
 - Bottom drawer tabs: Claude, Code, ERC, Sim/Probes, Build Steps, Board (Board Sense, 14.5).
 - Keys: Delete, R (rotate), Esc, Cmd+Z / Cmd+Shift+Z, W (wire tool), F (fit), 1–4 (camera presets).
 
 11.3 Placing, wiring, and moving by hand
 - Dragging from the library shows a ghost snapped to the grid. Legal footprint holes glow green and illegal ones glow coral. Dropping commits, and the part seats with its insertion animation.
+  - A rigid part snaps to the hole nearest the pointer from which it fits, across the trench if it must straddle it. It stays where pin 1 points when it fits there.
+  - A part that fits but may not go there (another part's holes, under the T-board) is drawn there ringed in red, and dropping it places nothing.
 - Hovering a hole highlights its whole strip or rail segment, plus every lead and wire on its net, with a tooltip such as "Row 23 · column e · net GPIO17".
   - This is the most important feature for breadboard literacy. Make it instant.
 - Wire tool: click a hole, then another hole (or a module header pin).
@@ -1206,7 +1213,7 @@ Camera:
   - height, for solid arcs
 - Wire ends are draggable. Dragging a lead mid-span sets a route hint.
 - Moving things is live:
-  - Dragging a board carries everything plugged into it.
+  - Dragging a board carries everything plugged into it. A board or the Pi stops against what it would overlap.
   - Dragging the Pi or the T-board re-drapes the ribbon.
   - Dragging a module drags its leads.
   - All cables follow and collide in real time, then settle.

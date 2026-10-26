@@ -22,7 +22,7 @@ import {
   Square,
   Undo2
 } from 'lucide-react'
-import { useState, useSyncExternalStore } from 'react'
+import { useCallback, useState, useSyncExternalStore } from 'react'
 import ConnectionStatus from '../components/ConnectionStatus'
 import BuildPanel from '../panels/BuildPanel'
 import Drawer from '../panels/Drawer'
@@ -224,6 +224,10 @@ function TopBar() {
   )
 }
 
+/** A side panel out of sight once it has slid away, and in sight as soon as it starts back. */
+const slid = (shown: boolean) =>
+  `transition-[visibility] duration-0 ${shown ? 'visible' : 'invisible delay-[280ms]'}`
+
 /** Shows or hides a side panel; with both hidden the bench fills the window. */
 function PanelToggle({ side }: { side: 'library' | 'properties' }) {
   const open = useStudio((s) => s[side])
@@ -249,35 +253,50 @@ export default function StudioPage() {
   const doc = useSyncExternalStore(circuit.subscribe, circuit.getSnapshot)
   const preview = useStudio((s) => s.preview)
   const building = useBuild((s) => s.on)
-  const library = useStudio((s) => s.library)
-  const properties = useStudio((s) => s.properties)
-  // While the opening tour plays the side panels step back, keeping their place (ADR-0147).
+  // The opening tour has the side panels give the stage their room while it plays (ADR-0147).
   const presenting = useStudio((s) => s.presenting)
-  const stepBack = `flex shrink-0 transition-opacity duration-500 ${presenting ? 'opacity-0' : ''}`
+  const left = useStudio((s) => s.library) || building
+  const right = useStudio((s) => s.properties)
+  const dockTo = useCallback(
+    (row: HTMLDivElement) => {
+      view.dockTo(row)
+      return () => view.dockTo(null)
+    },
+    [view]
+  )
   return (
     <div ref={followOnMount} className="relative flex-1 flex flex-col h-full overflow-hidden">
       <TopBar />
-      <div className="relative flex-1 flex min-h-0">
-        {(building || library) && (
-          <div className={stepBack} inert={presenting}>
-            {building ? <BuildPanel /> : <PartLibrary view={view} />}
-          </div>
-        )}
+      {/* The side panels slide off over the stage's edges as it takes their room (ADR-0148). */}
+      <div ref={dockTo} className="relative flex-1 min-h-0 overflow-hidden">
         <Studio view={view} doc={preview ?? doc} />
-        {properties && (
-          <aside
-            className={`w-64 overflow-y-auto border-l border-white/[0.06] bg-surface-950 p-2 ${stepBack}`}
-            inert={presenting}
-          >
-            {/* The HUD's control card. */}
-            <div className="card space-y-4 px-2.5 pb-2.5 pt-2">
-              <LookSwitch />
-              <Properties />
-              <Inspect view={view} />
-            </div>
-          </aside>
-        )}
-        <div className={`absolute ${properties ? 'right-[17rem]' : 'right-3'} top-3 z-20 w-96`}>
+        <div
+          data-dock="left"
+          data-shown={left && !presenting}
+          inert={!left || presenting}
+          className={`absolute inset-y-0 left-0 z-20 flex ${slid(left && !presenting)}`}
+          style={{ transform: 'translateX(calc(var(--dock-l, 0px) - 100%))' }}
+        >
+          {building ? <BuildPanel /> : <PartLibrary view={view} />}
+        </div>
+        <aside
+          data-dock="right"
+          data-shown={right && !presenting}
+          inert={!right || presenting}
+          className={`absolute inset-y-0 right-0 z-20 w-64 overflow-y-auto border-l border-white/[0.06] bg-surface-950 p-2 ${slid(right && !presenting)}`}
+          style={{ transform: 'translateX(calc(100% - var(--dock-r, 0px)))' }}
+        >
+          {/* The HUD's control card. */}
+          <div className="card space-y-4 px-2.5 pb-2.5 pt-2">
+            <LookSwitch />
+            <Properties />
+            <Inspect view={view} />
+          </div>
+        </aside>
+        <div
+          className="absolute top-3 z-20 w-96"
+          style={{ right: 'calc(var(--dock-r, 0px) + 0.75rem)' }}
+        >
           <RunBlockedDialog />
         </div>
       </div>

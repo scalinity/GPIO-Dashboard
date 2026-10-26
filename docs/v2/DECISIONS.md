@@ -3712,6 +3712,8 @@ declare it.
 
 ## ADR-0140 The side panels fold away for an immersive bench
 
+Superseded in part by ADR-0148: the panels slide, and the stage eases into their room.
+
 - **Context.** The Studio's part library and properties panels take about 30% of a laptop
   window's width, and while arranging or looking over a bench they are not needed.
 - **Decision.** Each panel has a toggle in the top bar (left for the library, right for the
@@ -4048,6 +4050,9 @@ declare it.
 
 ## ADR-0147 An opening tour shows the bench in its room, and gives way to the first input
 
+Superseded in part by ADR-0148: while it plays the side panels slide away and the stage takes
+their room.
+
 - **Context.** The app opens on the Studio (ADR-0141), and the Lab look (ADR-0143 to ADR-0145)
   sets the bench in a furnished workroom that its first framing, the iso preset close on the
   bench, barely shows. The exhibit house style opens with a short tour that the first input
@@ -4083,3 +4088,69 @@ declare it.
     camera lands on the iso preset, and the scene is still within 2 s.
   - Under automation the tour never starts by itself, so the rest of the suite opens the Studio
     as before.
+
+## ADR-0148 The side panels slide, and the stage eases into their room
+
+- **Context.** Folding a side panel (ADR-0140) unmounted it, so the stage jumped to its new
+  width in one step. The canvas resized with it, and every render target the post chain holds
+  (TRAA, GTAO, bloom, bokeh) was reallocated, so the jump also stalled. Easing the stage's width
+  with CSS would resize the canvas and reallocate those targets on every frame of the change. The
+  opening tour stepped the panels back without moving the stage, so the room they left stayed
+  empty while it played.
+- **Decision.**
+  - The panels stay mounted and slide over the stage's edges. They are `inert` once hidden, and
+    out of sight once they have slid away.
+  - `studio/dock.ts` eases the stage's visible region over 280 ms. Meanwhile the canvas holds
+    still over the union of the old region and the new, so it resizes once, at the change's
+    start when it widens or its end when it narrows. The view applies that size through R3F's
+    `setSize` in the same frame it draws, so the picture is never shown stretched or shifted.
+  - A lens shift (`camera.filmOffset`) puts the camera's centre at the visible region's centre
+    while the region and the canvas differ. TRAA rewrites the camera's view offset on every
+    frame for its jitter, so the shift cannot live there.
+  - The page's row carries four CSS variables that the view sets: the region's insets and the
+    canvas's. The Studio's overlays sit in the region and follow it. Each panel's transform
+    hangs it off the region's edge, so the two move as one.
+  - The opening tour hides both panels while it plays (ADR-0147), and the stage takes their
+    room. Entering Build Mode swaps the library for the wider build panel the same way.
+  - With reduced motion asked for, the region moves at once.
+- **Consequences.** A fold costs one resize, not one per frame, and the canvas is up to one
+  panel wider than the visible region for 280 ms. `dock.test.ts` holds the easing, the union and
+  the lens shift's projection; `placing.spec.ts` counts one canvas resize per fold, and
+  `tour.spec.ts` checks the stage widening for the tour.
+
+## ADR-0149 A rigid part snaps to where it fits, and a part that may not go is drawn in red
+
+- **Context.** A drag from the library seated pin 1 in the hole under the pointer and drew the
+  part only when the result was legal. Over any other hole it drew red hole marks and no part.
+  A part that must straddle the trench fits from one column only, so the bar graph, the
+  74HC595, the ADC0834, the L293D and the tact switch were drawn over about 5% of the board,
+  and the displays and the LED matrix over about 22%.
+- **Decision.**
+  - For a rigid part, placing or moving it takes the hole nearest the pointer from which every
+    pin lands in a main hole, across the trench when the part must straddle it
+    (`snapAnchor`). The search reaches as far as the part's own length. When pin 1's own hole
+    fits, the part stays there; when no hole fits (a chip turned across the trench), the drag is
+    refused as before. A flexible part still seats where it points.
+  - A part that fits its holes but may not take them, such as another part's holes or those
+    under the T-board, is drawn where it would sit, ringed in the error halo's red, with its
+    holes marked red. It is drawn from the edit applied without checks and is never committed.
+- **Consequences.** Every rigid library part seats near every one of a bb-830's 630 main holes,
+  and the footprint and trench rules hold wherever it does (`placement.test.ts`). The report
+  names the part drawn in red (`refused`) for `placing.spec.ts`.
+
+## ADR-0150 Boards and the Pi may not overlap, and a drag stops against them
+
+- **Context.** Nothing kept a board out of the Pi, or out of another board, so a drag could put
+  one inside the other.
+- **Decision.**
+  - `circuitStore.check` and `dispatch` refuse an edit that makes boards or a board and the Pi
+    overlap on the table (`OVERLAP`, "bb1 can't overlap the Pi"). They use the board's body and
+    the Pi's 85 × 56 mm outline, through the convex overlap test the modules' rest height uses.
+    Outlines that only meet do not overlap.
+  - Only an edit's new overlaps count. `validateDoc` does not check them, so a project saved
+    with an overlap still opens and takes other edits.
+  - A board or Pi drag that would overlap stops at the point of contact: the view bisects
+    between the last clear position and the pointer's, and shows the refusal as the stage's
+    notice.
+- **Consequences.** No tutorial or sample bench has an overlap (`validate.test.ts`). The
+  assistant's board moves are refused with the same message.
