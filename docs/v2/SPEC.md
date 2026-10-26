@@ -1115,9 +1115,10 @@ Camera:
 
 11.2 Studio layout
 - Top bar: an editable project name and menu, Simulate, Run on Pi, Undo/Redo, and the connection pill.
-  - It stays one row at every width the window allows. In a narrower window the project name gives up width first; below 1280 px Wire, Build and Fork show their icons alone, and below 1024 px Simulate and Run on Pi do too, and the pill shows its dot alone. Each keeps its name for screen readers.
+  - It stays one row at every width the window allows. In a narrower window the project name gives up width first; below 1280 px Wire, Build and Fork show their icons alone, and below 1100 px Simulate, Run on Pi and their Stops do too, and the pill shows its dot alone. Stop on Pi shows the Pi's chip, so it reads apart from the simulation's Stop. Each keeps its name for screen readers.
 - Left: the Part Library, with search, categories, an "In my inventory" filter, kit tags, and "Create custom part…", which hands off to Claude.
 - Center: the 3D stage.
+  - Over its top left, a title column: the project's name, three readouts (GPIO draw, the busiest pin's current, and the checks) and one sentence on what the bench is doing. They read the snapshot the bench shows: the Pi's while Live Pi state follows it, else the simulation's, and none while a build is part of the way. A total over 50 mA or a pin over 16 mA turns its readout coral. The sentence names things and changes only with the bench's state, so a screen reader hears it once. The column takes no clicks but for Claude's note under it, and folds the sentence, then the name, away as the stage shrinks.
 - Right:
   - contextual Properties
   - Inspect toggles: Labels, Voltages, Current flow, Nets, Live Pi state

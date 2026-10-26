@@ -3779,3 +3779,31 @@ declare it.
   colour goes into the palette. `palette.test.ts` checks that every text shade and accent reads at
   4.5:1 on surfaces 950, 900 and 800, and on-text at 7:1 on on-bg. The fonts add about 62 KB of
   WOFF2 (Outfit's Latin Extended file, 15 KB more, loads only for a character that needs it).
+
+## ADR-0146 A title column reads the bench: three readouts and a sentence
+
+- **Context.** The Studio showed the simulation's currents only in the drawer's Sim/Probes tab
+  and its problems in the ERC tab, so with the drawer closed nothing on the stage said whether the
+  circuit was within the Pi's limits or what it was doing. The night-lab HUD (ADR-0142) frames a
+  stage with a title column: a name, three live numbers and one live sentence.
+- **Decision.**
+  - The title column sits over the stage's top left: the project's name under "Breadboard
+    Studio", then three readouts, then a sentence (`studio/readouts.ts`, `studio/Hud.tsx`).
+  - The readouts are GPIO DRAW (every GPIO's current together, in cyan as the headline), PEAK
+    with the busiest pin's name, and CHECKS (errors, else warnings, else OK). A total over
+    `RP1.totalGpioCurrentMaxA` or a pin over `RP1.pinCurrentMaxA`, the limits `simChecks` also
+    reports, turns its readout coral; currents read in whole µA below 1 mA, then mA to one
+    decimal.
+  - They read the snapshot the bench shows, chosen as the view chooses it: the Pi's while Live Pi
+    state follows it, else the simulation's, none while a build is part of the way.
+  - The sentence names controls and pins but no live numbers, in a fixed order: an empty bench,
+    a build part-way, a simulation error, a pin over its limit, the total over its limit, ERC
+    errors, Live Pi state, a run on the Pi, a simulation running, idle. It changes only with the
+    bench's state, so as `aria-live` text a screen reader hears it once; it carries no role, so
+    the page keeps one `role="status"`.
+  - The column takes no pointer input except Claude's note, which moved into it; it is mounted
+    after the stage element, so the stage holds no button and the world labels stay first in the
+    document. Container queries hide the sentence, then the name, as the stage gets short.
+- **Consequences.** With the drawer open the stage is short, so the sentence folds away and the
+  readouts stay. The column covers the stage's top left: the default framing can put the bench's
+  far end under it.

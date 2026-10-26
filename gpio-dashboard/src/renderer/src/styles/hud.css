@@ -80,3 +80,129 @@
   background: #05070fa8;
   backdrop-filter: blur(3px);
 }
+
+/* The title column over the stage's top left (SPEC 11.2): the project's name, three readouts and a
+   caption. It sizes against the stage, folding the caption and then the name away as the stage
+   shrinks (the drawer open, a short window). Only its children take pointer input. */
+.hud-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  container-type: size;
+}
+.hud-side {
+  position: absolute;
+  left: 24px;
+  top: 22px;
+  width: 304px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.hud-side > :not(.hud-brand, .hud-stats, .hud-why) {
+  pointer-events: auto;
+}
+.hud-brand {
+  margin: 0;
+  text-transform: uppercase;
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: -0.5px;
+  text-shadow: 0 2px 18px #000a;
+}
+.hud-brand span {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--text-kicker);
+}
+.hud-brand b {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 5px;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--cyan);
+}
+.hud-stats {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+}
+.hud-stat {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 6px 9px 7px;
+  border-radius: 10px;
+  background: var(--chip);
+  backdrop-filter: blur(8px);
+}
+.hud-stat dt {
+  font: 500 9px var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute-stat);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hud-stat dd {
+  margin: 4px 0 0;
+  font: 500 16px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
+}
+.hud-stat dd i {
+  margin-left: 2px;
+  font-size: 10.5px;
+  font-style: normal;
+  color: var(--mute);
+}
+.hud-stat[data-tone='hot'] dd {
+  color: var(--cyan);
+}
+.hud-stat[data-tone='coral'] dd {
+  color: var(--coral);
+}
+.hud-stat[data-tone='amber'] dd {
+  color: var(--amber);
+}
+.hud-stat[data-tone='green'] dd {
+  color: var(--green);
+}
+.hud-why {
+  margin: 0;
+  min-height: 3.6em;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: var(--chip);
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-lede);
+}
+.hud-why b {
+  font-weight: 600;
+  color: var(--text);
+}
+.hud-cyan {
+  color: var(--cyan);
+}
+.hud-coral {
+  color: var(--coral);
+}
+@container (max-height: 480px) {
+  .hud-why {
+    display: none;
+  }
+}
+@container (max-height: 360px) or (max-width: 560px) {
+  .hud-brand {
+    display: none;
+  }
+}

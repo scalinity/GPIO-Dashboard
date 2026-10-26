@@ -395,3 +395,22 @@ for (const width of [900, 1024, 1099, 1100, 1168])
       expect(box.x + box.width).toBeLessThanOrEqual(width - 12)
     }
   })
+
+// The title column (SPEC 11.2): three readouts with the draw in cyan, and a caption that follows
+// what the bench does. It takes no clicks: the stage under it stays live.
+test('the title column shows three readouts and a caption that follows the bench', async ({
+  page
+}) => {
+  await openTutorial(page, 'blinking-led')
+  const column = page.getByRole('region', { name: 'Bench readouts' })
+  await expect(column.locator('dt')).toHaveCount(3)
+  await expect(column.locator('dt').first()).toHaveText('GPIO draw')
+  const draw = column.locator('.hud-stat[data-tone="hot"] dd')
+  await expect(draw).toHaveCSS('color', 'rgb(127, 227, 255)')
+  const caption = column.locator('.hud-why')
+  await expect(caption).toHaveText('Press Simulate to run the program on this bench.')
+  await page.getByRole('button', { name: 'Simulate' }).click()
+  await expect(caption).toContainText('runs in simulation')
+  await expect(column.locator('dt').nth(1)).toHaveText(/^Peak GPIO17$/, { timeout: 15_000 })
+  expect(await column.evaluate((e) => getComputedStyle(e).pointerEvents)).toBe('none')
+})

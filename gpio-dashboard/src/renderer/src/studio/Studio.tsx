@@ -21,6 +21,7 @@ import Models from './Models'
 import { createRenderer } from './renderer'
 import Stage from './Stage'
 import type { StudioView } from './view'
+import Hud from './Hud'
 
 declare global {
   interface Window {
@@ -155,7 +156,7 @@ function Cue() {
     <div
       role="note"
       aria-label="Claude's note"
-      className="absolute top-3 left-3 z-20 max-w-xs glass-panel rounded-btn flex items-start gap-2 px-3 py-2 text-xs text-violet-100"
+      className="glass-panel rounded-btn flex items-start gap-2 px-3 py-2 text-xs text-violet-100"
     >
       <span className="flex-1">{cue.note}</span>
       <button
@@ -310,7 +311,9 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
       </div>
       <PinMenu />
       <Working />
-      <Cue />
+      <Hud doc={doc}>
+        <Cue />
+      </Hud>
       <BadgeCard doc={doc} />
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 max-w-[80%] flex flex-col items-center gap-2">
         {notice && (
