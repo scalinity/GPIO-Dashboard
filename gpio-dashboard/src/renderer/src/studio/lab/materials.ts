@@ -36,7 +36,7 @@ export function roomMaterials() {
     side: DoubleSide,
     fog: false
   })
-  const edge = float(1).sub(smoothstep(0.15, 0.5, uv().sub(0.5).length()))
+  const edge = float(1).sub(smoothstep(0, 0.5, uv().sub(0.5).length()))
   const facing = smoothstep(0.1, 0.6, normalView.dot(positionView.normalize()).abs())
   glow.opacityNode = edge.mul(edge).mul(facing)
   return { lit, emit, glow }

@@ -65,15 +65,15 @@ export const LAB = {
   name: 'lab',
   background: '#0b0f1a',
   // A lavender haze: the room's far walls sit a third of the way into it and read as depth.
-  fog: { color: '#3a3d62', density: 2.2e-4 },
+  fog: { color: '#3a3d62', density: 1.2e-4 },
   environment: { kind: 'dusk', intensity: 0.7 },
   key: { color: '#ffc98f', intensity: 2.1 },
   hemisphere: { sky: '#8fa6d8', ground: '#3a3026', intensity: 0.5 },
   rim: { color: '#a8b8ff', intensity: 1.6 },
-  tone: { mapping: 'aces', exposure: 1.3, saturation: 1.35 },
+  tone: { mapping: 'aces', exposure: 1.5, saturation: 1.35 },
   grain: 0.03,
   bloom: { strength: 0.45, radius: 0.55 },
-  vignette: 1,
+  vignette: 0.6,
   room: true,
   // An ESD mat.
   table: '#26303b',

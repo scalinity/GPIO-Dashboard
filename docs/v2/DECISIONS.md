@@ -3805,15 +3805,18 @@ declare it.
     | | Studio | Lab |
     |---|---|---|
     | Background | `#24272c` | `#0b0f1a` |
-    | Fog (exponential squared) | density 0 | `#3a3d62`, 2.2e-4 per mm |
+    | Fog (exponential squared) | density 0 | `#3a3d62`, 1.2e-4 per mm |
     | Environment | the HDRI, 0.6 | a dusk scene (`lab/dusk.ts`), 0.7 |
     | Key | white, 2.2 | `#ffc98f`, 2.1, same place |
     | Hemisphere, rim | 0, 0 | `#8fa6d8` over `#3a3026` at 0.5; `#a8b8ff` at 1.6 from behind |
-    | Tone and grade | AgX, exposure 1.7, the chroma stretch of 1.2 | saturation 1.35, then ACES Filmic at exposure 1.3 |
-    | Grain, vignette | none | 0.03, the house vignette |
+    | Tone and grade | AgX, exposure 1.7, the chroma stretch of 1.2 | saturation 1.35, then ACES Filmic at exposure 1.5 |
+    | Grain, vignette | none | 0.03, the house vignette at 60% |
     | Bloom (threshold 2 in both) | 0.35, radius 0.4 | 0.45, radius 0.55 |
     | Table, sweep | `#505153`, `#6a6b6d` | `#26303b` (an ESD mat), hidden |
     | Camera reach | 3000 mm | 2200 mm |
+
+    The Lab fog, exposure and vignette started at 2.2e-4, 1.3 and full opacity; the lookdev
+    rounds of ADR-0145 moved them, because the room read as a flat indigo haze.
 
   - `StageRig` (`studio/rig.ts`) owns the table, sweep and lights with Stage.tsx's old numbers,
     one `FogExp2`, one background `Color` and one PMREM target. `apply(look)` sets values; the
@@ -3823,7 +3826,7 @@ declare it.
     look.
   - `Post` builds one output that holds both looks' finishes and picks one with a uniform
     (`select`). The Studio finish is ADR-0067's. The Lab finish is bloom, a saturation of 1.35,
-    ACES Filmic at exposure 1.3, film grain of 0.03 and the sRGB encoding. Each look's blooms
+    ACES Filmic at exposure 1.5, film grain of 0.03 and the sRGB encoding. Each look's blooms
     are left out of the other look's frames (`updateBeforeType` NONE) and gated as ADR-0129
     within their own.
   - The right column's first row, View, has Lab and Studio buttons; L switches too; the view
@@ -3832,7 +3835,7 @@ declare it.
   - A switch fades an ink veil (`#0b0f1a`) in over the stage for 200 ms, applies the look under
     it, and fades it out over 220 ms after the first frame drawn in the new look, which hides a
     first switch's compile. Under reduced motion it is instant. The vignette is an HTML layer
-    in the stage, at full opacity in the Lab look and hidden in the Studio look, so Studio
+    in the stage, at 60% opacity in the Lab look and hidden in the Studio look, so Studio
     captures are unchanged. Halos are drawn without fog.
   - The camera keeps its 35° field of view and has no idle drift in both looks: a field of view
     per look would turn each switch into a dolly zoom, and drift would draw frames while still.
@@ -3880,10 +3883,14 @@ declare it.
     down), and merges every piece of one kind on one side into one geometry.
   - Three materials serve the whole room (`lab/materials.ts`): a lit vertex-colour standard
     material; an unlit emitter material for lamps, bars and screens, at most 1.5 in linear light;
-    and additive glow cards, at most 0.16, without fog, fading at their edges and when seen
-    edge-on. A bulb's three crossed cards over the bulb stay under 2. Metal in the room is at
-    least 0.5 rough, so the key's highlight on it stays under the threshold too.
-  - The room is 14 meshes and 24,254 triangles; none casts or takes a shadow, as the key's
+    and additive glow cards, at most 0.16, without fog, fading from their centres and when
+    seen edge-on. A bulb's three crossed cards over the bulb stay under 2. Metal in the room is
+    at least 0.5 rough, so the key's highlight on it stays under the threshold too. As drawn, the
+    brightest emitter is 1.2 and the brightest card 0.1.
+  - Besides the furniture, a thin amber strip under the bench's front lip, a warm pool on the
+    mat around the bench, and warm light under the door.
+  - The room is 18 meshes (three kinds on each of six groups) and 24,288 triangles; none casts
+    or takes a shadow, as the key's
     shadow map covers the bench. It is built the first time the Lab look is applied (about 50
     ms), and hidden in the Studio look.
   - `view.frame` follows the orbit and any preset move with `clampToRoom`, which keeps the target
@@ -3902,6 +3909,72 @@ declare it.
     top and front presets; the forced and gated frames differ by 0.006 to 0.011 of 255, the
     settling floor (`e2e/lab.spec.ts`).
   - The room's cost, measured with the depth of field, is in ADR-0145.
+
+## ADR-0145 The Lab look focuses on the bench with a depth-aware bokeh, and what it costs
+
+- **Context.**
+  - The exhibit house style keeps its hero in focus and lets the room melt into bokeh, the far
+    blur stronger than the near, so the bench reads as a miniature. three 0.186's `dof()`
+    gathers neighbours without weighing them by depth: a sharp edge smears into the blurred
+    background behind it as halos and stepped copies, worst on the white breadboard against
+    the dark room. The Studio look's Build Mode focus uses `dof()` and stays as it is.
+  - SPEC 10.8 asks for 60 fps at the window's pixel ratio with physics awake and the full post
+    stack, and to scale effect quality first, recording what changed. The ladder for the Lab
+    look: GTAO's resolution 0.5 to 0.35, then the bokeh's taps 48 to 32, then no depth of
+    field while cables are awake.
+- **Decision.**
+  - `studio/bokeh.ts` is a single gather after the house style's stage (Gustafsson's 2018
+    single pass), written for this app. A tap counts only if its own blur reaches the pixel,
+    and a tap behind the pixel may not out-blur it by more than twice. 32 taps on a golden-angle
+    spiral at half resolution; taps farther than 4 device pixels read a quarter-resolution
+    box-filtered copy, so a thin bright strip does not break into beads; a full-resolution
+    composite keeps in-focus pixels from the sharp image. Blur grows with the distance from the
+    focus, 1.6 times as fast behind it as 0.9 in front, over a band of 4000 mm, up to 10 CSS
+    pixels.
+  - The Lab look's output is the Lab finish of the bokeh of TRAA's image, with the scene pass's
+    depth. `view.frame` focuses it at the camera's distance from its target every frame
+    (`Post.setBenchFocus`). Build Mode's focus narrows the same node's band to 320 mm; its output
+    is another graph, so the pipeline's output differs from `sharp` while focused. The bokeh's
+    two passes are left out of the Studio look's frames.
+  - GTAO runs at 0.35 of the drawing buffer in the Lab look and 0.5 in the Studio look, set on
+    each switch, and the bokeh has 32 taps: the ladder's first two steps (below). The third, no
+    depth of field while cables are awake, is not taken.
+  - The look was dialled in three critic rounds: a separate reviewer saw only the captures, the
+    house style's exemplars and the rubric's rows A1 to A6 (look and light), scored them and
+    named the largest gaps. 13.5 of 25 (54%), then 15.5 (62%), then 17 (68%). Between rounds
+    the window, bars, strips, screens and pendants were dimmed so the lit circuit leads, a warm
+    pool went onto the mat and a strip under the bench's lip, the walls moved from indigo to a
+    lighter teal-grey, the fog thinned (2.2e-4 to 1.2e-4 per mm), the exposure rose (1.3 to
+    1.5), the vignette eased to 60%, and the far blur weakened (14 to 10 px, band 2400 to 4000
+    mm). The rubric's pass mark is 80; its remaining gaps are the mat, which reads as a large
+    flat plane at the working distance (its colour and the table's size are fixed by the
+    Studio look), and how small a lit LED's glow is against the room.
+- **Consequences.**
+  - Measured in headless Chromium on WebGPU (`FRAME_RATE=1 FRAME_RATE_LOOKS=lab,studio`, 1200 x
+    800 at a pixel ratio of 2, three interleaved rounds, a board dragged with every cable
+    awake), on a machine at load 7 to 25 from other work (a Rust build, iOS simulators):
+    - LEDs dark, 48 taps and GTAO at 0.5 in both looks: 60.0 fps in every run of both looks.
+      GPU pass sums, Lab against Studio: 15.7 against 10.9 ms (four-digit), 10.4 against 9.8 (dot
+      matrix), 13.6 against 8.3 (shift register).
+    - LEDs lit (`FRAME_RATE_LIT=1`), the same settings: 59.8, 58.8 and 60.0 fps in the Lab look
+      against 60.0, 59.1 and 60.0 in the Studio look; sums 39.0, 45.4 and 44.3 against 28.0, 26.8
+      and 25.5 ms.
+    - LEDs lit, GTAO at 0.35 and 32 taps in the Lab look: 59.8, 59.3 and 60.0 fps against 60.0,
+      59.0 and 60.0; sums 41.8, 40.3 and 40.3 against 27.7, 26.5 and 27.5 ms.
+    - With vsync and the frame-rate cap off, the camera moving every frame, LEDs lit, after the
+      ladder: a median 2.09 ms a frame in the Lab look against 1.81 in the Studio look (three
+      rounds, four-digit).
+  - The per-pass times show why the sums are not a measure of cost here: each of the bloom's
+    passes, down to its 45 x 23 blur, reads 1.6 to 2.9 ms, because a pass is timed from its
+    first stage to its last and waits on the one before it (ADR-0082). The sums exceed SPEC
+    10.8's 13 ms in both looks, the Studio look's included, so they cannot decide the third
+    step. The frame rate held, and the uncapped frame time puts the Lab look about 15% over
+    the Studio look. Whether to take the third step is for a measurement in the Tauri window
+    with physics awake (`HIL_CHECKLIST.md`'s drag).
+  - The bokeh's passes are named `Bokeh.prefilter` and `Bokeh.gather`, and the frame-rate
+    measurement prints every pass's time by its target.
+  - The Studio look draws as before: LOOKDIFF against 6538594 at 0.001 to 0.002 of 255 opened in
+    the Studio look, and 0.001 to 0.014 opened in the Lab look and switched (`LOOKDIFF_FROM=lab`).
 
 ## ADR-0146 A title column reads the bench: three readouts and a sentence
 

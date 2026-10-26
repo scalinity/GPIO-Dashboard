@@ -134,7 +134,13 @@ export function buildRoom(): Room {
     b.solid(new BoxGeometry(2500, 7, 1850), FINISH.rug, [20, 4, 30], undefined, 'floor')
     b.at(0, 0, 0)
     benchFrame(b, floor)
-    return ['tiles', 'rug', 'bench legs, apron and lower shelf']
+    b.glow(700, 520, '#ffb878', 0.06, [20, 0.6, 20], [-Math.PI / 2, 0, 0])
+    return [
+      'tiles',
+      'rug',
+      'bench legs, apron, lower shelf and front strip',
+      'warm pool on the mat'
+    ]
   })
 
   sides.north = side('north', (b) => {
@@ -197,7 +203,7 @@ export function buildRoom(): Room {
     pinoutPoster(b)
     b.at(300, floor, ROOM.south - 520, 0.4)
     stool(b)
-    return ['door', 'GPIO pinout poster', 'stool']
+    return ['door with light under it', 'GPIO pinout poster', 'stool']
   })
 
   sides.ceiling = side('ceiling', (b) => {

@@ -28,7 +28,7 @@ export interface Batches {
 
 /** The room's finishes, sRGB. Metal stays rough enough that the key's highlight on it is under 2. */
 export const FINISH = {
-  plaster: { color: '#2d2b33', roughness: 0.92 },
+  plaster: { color: '#3f484b', roughness: 0.92 },
   wainscot: { color: '#2a201a', roughness: 0.55 },
   trim: { color: '#1a1d24', roughness: 0.5 },
   ceiling: { color: '#171a22', roughness: 0.95 },
@@ -37,7 +37,7 @@ export const FINISH = {
   rug: { color: '#1f2c36', roughness: 0.95 },
   rugBorder: { color: '#4a3527', roughness: 0.95 },
   walnut: { color: '#3a2a20', roughness: 0.55 },
-  oak: { color: '#6e4f36', roughness: 0.62 },
+  oak: { color: '#5a4230', roughness: 0.62 },
   butcher: { color: '#8a6747', roughness: 0.6 },
   steel: { color: '#5a5f68', roughness: 0.6, metalness: 0.5 },
   darkSteel: { color: '#23272e', roughness: 0.6, metalness: 0.5 },
@@ -49,9 +49,9 @@ export const FINISH = {
   terracotta: { color: '#a5603f', roughness: 0.8 },
   leaf: { color: '#5f8c45', roughness: 0.72 },
   leafDark: { color: '#46703a', roughness: 0.74 },
-  hardboard: { color: '#7d6850', roughness: 0.85 },
+  hardboard: { color: '#957d60', roughness: 0.85 },
   toolbox: { color: '#4e2724', roughness: 0.55, metalness: 0.3 },
-  bin: { color: '#9aa3ad', roughness: 0.6 },
+  bin: { color: '#7e868f', roughness: 0.6 },
   red: { color: '#a8382d', roughness: 0.6 },
   blue: { color: '#2f5d9a', roughness: 0.6 },
   black: { color: '#202124', roughness: 0.6 },
@@ -198,6 +198,8 @@ export function benchFrame(b: Builder, floor: number): void {
   b.box(320, 70, 210, bin, cx + 160, floor + 194, cz + 40, 6)
   for (let i = 0; i < 4; i++) b.box(72, 64, 200, cream, cx + 50 + i * 74, floor + 194, cz + 40, 3)
   b.rod(90, 160, charcoal, cx + 330, floor + 240, cz - 120, [Math.PI / 2, 0, 0], 16)
+  b.emit(new BoxGeometry(hw * 2 - 140, 4, 4), '#ffa83c', 0.45, [cx, -92, cz + hd - 48])
+  b.glow(hw * 2.4, 1000, '#ffa83c', 0.05, [cx, floor + 10, cz + hd + 150], [-Math.PI / 2, 0, 0])
 }
 
 // ---------- north wall ----------
@@ -218,7 +220,7 @@ export function duskWindow(b: Builder, w: number, h: number, sill: number): void
       ? horizon.clone().lerp(middle, k / 0.3)
       : middle.clone().lerp(top, Math.min(1, (k - 0.3) / 0.7))
   }
-  b.emit(new PlaneGeometry(w, h, 1, 10), sky, 0.75, [0, h / 2, 34])
+  b.emit(new PlaneGeometry(w, h, 1, 10), sky, 0.32, [0, h / 2, 34])
   for (const x of [-w / 2, -w / 6, w / 6, w / 2]) b.box(34, h + 34, 40, darkSteel, x, h / 2, 50, 4)
   for (const y of [0, h / 3, (2 * h) / 3, h]) b.box(w + 34, 30, 40, darkSteel, 0, y, 50, 4)
   b.box(w + 180, 30, 160, cream, 0, -25, 90, 6)
@@ -227,8 +229,8 @@ export function duskWindow(b: Builder, w: number, h: number, sill: number): void
 /** An amber light bar on the wall: a housing, its strip, and the wash it throws on the wall. */
 export function lightBar(b: Builder, h: number): void {
   b.box(64, h, 40, FINISH.trim, 0, h / 2, 20, 6)
-  b.emit(new BoxGeometry(18, h - 40, 10), '#ffb454', 1.4, [0, h / 2, 44])
-  b.glow(420, h * 1.15, '#ffb454', 0.16, [0, h / 2, 6])
+  b.emit(new BoxGeometry(18, h - 40, 10), '#ffa83c', 0.5, [0, h / 2, 44])
+  b.glow(260, h * 1.1, '#ffa83c', 0.08, [0, h / 2, 6])
 }
 
 /** A low walnut sideboard with brass pulls, books and a faceted vase. */
@@ -356,8 +358,10 @@ export function deskLamp(b: Builder): void {
   b.box(22, 380, 22, steel, 60, 200, 0, 4)
   b.solid(block(22, 360, 22, 4), steel, [180, 470, 0], [0, 0, -0.95])
   b.solid(new CylinderGeometry(40, 120, 150, 20, 1, true), darkSteel, [300, 560, 0], [0, 0, -0.5])
-  b.emit(new SphereGeometry(38, 12, 8), '#ffd29a', 1.4, [318, 525, 0])
-  b.halo(420, '#ffc070', 0.16, [330, 500, 0])
+  b.emit(new SphereGeometry(38, 12, 8), '#ffd29a', 1.2, [318, 525, 0])
+  b.halo(300, '#ffc070', 0.1, [330, 500, 0])
+  b.glow(700, 500, '#ffb070', 0.08, [360, 2, 0], [-Math.PI / 2, 0, 0])
+  b.glow(800, 700, '#ffb070', 0.05, [300, 400, -280])
 }
 
 /** A bench oscilloscope with a dim trace on its screen. */
@@ -375,7 +379,7 @@ export function scope(b: Builder): void {
     b.emit(
       new PlaneGeometry(Math.hypot(8.4, y1 - y0) + 1, 3.5),
       '#7fe3ff',
-      0.9,
+      0.55,
       [x0 + 4.2, (y0 + y1) / 2, d / 2 + 2],
       [0, 0, a]
     )
@@ -405,7 +409,7 @@ export function powerSupply(b: Builder): void {
   ] as const) {
     b.emit(new PlaneGeometry(96, 34), '#1a0d08', 1, [x, 105, d / 2 + 1])
     for (let i = 0; i < 4; i++)
-      b.emit(new PlaneGeometry(14, 22), colour, 0.85, [x - 33 + i * 22, 105, d / 2 + 2])
+      b.emit(new PlaneGeometry(14, 22), colour, 0.5, [x - 33 + i * 22, 105, d / 2 + 2])
   }
   for (const [x, f] of [
     [-50, red],
@@ -442,8 +446,8 @@ export function shelf(b: Builder, rng: () => number, w: number, heights: number[
   }
   // The lowest board's underside carries the strip; it washes the wall and what stands below.
   const low = heights[0]!
-  b.emit(new BoxGeometry(w - 60, 8, 12), '#ffb454', 1.3, [0, low - 17, d - 40])
-  b.glow(w * 1.05, 520, '#ffb454', 0.15, [0, low - 230, 4])
+  b.emit(new BoxGeometry(w - 60, 8, 12), '#ffa83c', 1.1, [0, low - 17, d - 40])
+  b.glow(w * 1.3, 1100, '#ffa83c', 0.06, [0, low - 380, 4])
   for (const y of heights) {
     let x = -w / 2 + 60
     while (x < w / 2 - 120) {
@@ -490,7 +494,7 @@ export function solderingStation(b: Builder): void {
   b.box(200, 110, 170, darkSteel, -120, top + 55, 40, 10)
   b.emit(new PlaneGeometry(90, 34), '#1a0d08', 1, [-140, top + 75, 126])
   for (let i = 0; i < 3; i++)
-    b.emit(new PlaneGeometry(16, 24), '#ff6b4a', 0.8, [-162 + i * 22, top + 75, 127])
+    b.emit(new PlaneGeometry(16, 24), '#ff6b4a', 0.5, [-162 + i * 22, top + 75, 127])
   b.rod(18, 18, charcoal, -60, top + 50, 132, [Math.PI / 2, 0, 0], 12)
   // The stand's coil and the iron resting in it.
   b.rod(32, 120, steel, 120, top + 70, 20, [0.6, 0, 0], 14)
@@ -504,14 +508,16 @@ export function solderingStation(b: Builder): void {
 
 /** A panelled walnut door in its frame. */
 export function door(b: Builder): void {
-  const { trim, walnut, brass } = FINISH
+  const { trim, oak, brass } = FINISH
   const [w, h] = [900, 2100]
   b.box(w + 140, 70, 50, trim, 0, h + 35, 25, 6)
   for (const s of [-1, 1]) b.box(70, h, 50, trim, s * (w / 2 + 35), h / 2, 25, 6)
-  b.box(w, h, 44, walnut, 0, h / 2, 22, 8)
+  b.box(w, h, 44, oak, 0, h / 2, 22, 8)
   for (const y of [h * 0.3, h * 0.72]) b.box(w - 220, h * 0.36, 16, FINISH.wainscot, 0, y, 50, 10)
   b.rod(14, 140, brass, w / 2 - 90, 1000, 70, [0, 0, Math.PI / 2], 10)
   b.rod(30, 12, brass, w / 2 - 90, 1000, 52, [Math.PI / 2, 0, 0], 16)
+  b.emit(new BoxGeometry(w - 20, 8, 6), '#ffb878', 0.9, [0, 4, 47])
+  b.glow(w * 1.2, 520, '#ffb878', 0.07, [0, 6, 260], [-Math.PI / 2, 0, 0])
 }
 
 /** A round shop stool with splayed legs and a foot ring. */
@@ -576,6 +582,6 @@ export function pendant(b: Builder, drop: number): void {
   b.rod(4, drop, black, 0, -drop / 2, 0, undefined, 6)
   b.solid(new CylinderGeometry(30, 150, 140, 24, 1, true), darkSteel, [0, -drop - 60, 0])
   b.rod(34, 30, darkSteel, 0, -drop + 10, 0, undefined, 16)
-  b.emit(new SphereGeometry(34, 12, 8), '#ffd29a', 1.2, [0, -drop - 110, 0])
-  b.halo(360, '#ffc070', 0.14, [0, -drop - 130, 0])
+  b.emit(new SphereGeometry(34, 12, 8), '#ffd29a', 0.9, [0, -drop - 110, 0])
+  b.halo(220, '#ffc070', 0.05, [0, -drop - 130, 0])
 }

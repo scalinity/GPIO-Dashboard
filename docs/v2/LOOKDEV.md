@@ -105,3 +105,27 @@ are and no composite is committed, because they are vendor images in a public re
 |---|-------|-----------|--------|
 | S1 | Lighting, Studio look | Neutral studio light from the CC0 HDRI plus one key light with soft shadows; AO visible in holes and under parts; AgX tone mapping | pass 2026-10-24: neutral greys, one softer key with its soft shadow, AO in the holes and under the parts, AgX then a colour grade (ADR-0067) |
 | S2 | No gimmicks, Studio look | No film grain, chromatic aberration or lens dirt; bloom only on lit LEDs | pass 2026-10-24: nothing added; bloom takes only what passes 2, so the metal rings and shields no longer glow (ADR-0067) |
+
+## Lab look
+
+The Lab look (ADR-0143 to ADR-0145) is read against the exhibit house style's night lab, its
+style bible and exemplars, rather than against the photos. Captures of 2026-10-26: headless
+Chromium on WebGPU at 1168 x 734 points and a pixel ratio of 1, the side panels shown, the dev
+overlay hidden, the Flowing LEDs tutorial; not yet taken in the Tauri window.
+`lookdev/lab-iso.png`, `lab-front.png` and `lab-top.png` are the presets with the LEDs dark,
+`lab-close-lit.png` an orbit 420 mm from the bench with the chaser running, and `lab-orbits.png`
+eight orbit angles 1500 mm out, 45 degrees apart: the camera south of the bench first, then turning through the east.
+
+| # | Check | Pass when | Status |
+|---|-------|-----------|--------|
+| L1 | The lit circuit leads | With a tutorial simulating, the LEDs are the brightest thing in the frame, and bloom covers at most 5% of it | pass 2026-10-26 at the close and iso views (`lab-close-lit.png`: the lit LED is the brightest point, its glow well under 1% of the frame, judged by eye, not counted). At the front preset the amber light bars come near the lit LED's brightness |
+| L2 | The bench reads | The boards, Pi, ribbon and leads are sharp and stand apart from the mat and the room | pass 2026-10-26 (`lab-iso.png`, `lab-front.png`, `lab-top.png`) |
+| L3 | Every side furnished | Each of 8 orbit angles shows an anchor piece | pass 2026-10-26 (`lab-orbits.png`): the window between its bars and the credenza; the plant and the window's corner; the wall bench with the oscilloscope and power supply; the pegboard bench; the poster and the stool; the shelf and the soldering station; the drawer cabinet; the window with the cabinet |
+| L4 | No halo in the blur | The breadboard's and the Pi's edges stay crisp against the blurred room, with no bright fringe or stepped copy | pass 2026-10-26 (`lab-front.png`: the breadboard and the leads against the window) |
+| L5 | Nothing on the set blooms | With the LEDs dark, the bloom forced on adds nothing | pass 2026-10-26: `e2e/lab.spec.ts` reads the bloom's high pass empty at the iso, top and front presets |
+| L6 | Faint grain | Grain is visible only on close inspection of a flat area | open: the grain (0.03 of the colour) is in the finish but under one level of 255 on the dark mat at 4x zoom, so the captures do not show it |
+| L7 | The near side cuts away | A side the camera stands near or behind opens, with nothing opaque between the camera and the bench | pass 2026-10-26: the orbit angles from the north in `lab-orbits.png` stand with the north side cut away; `e2e/lab.spec.ts` checks the cut sides all the way round |
+
+Three critic rounds scored the look-and-light rows of the house style's rubric at 54%, 62% and
+68% (ADR-0145). What they leave: the mat reads as a large flat plane at the working distance,
+and a lit LED's glow is small against the room.

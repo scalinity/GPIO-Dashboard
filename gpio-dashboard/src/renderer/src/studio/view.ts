@@ -375,7 +375,9 @@ export class StudioView {
     if (this.visuals.step(now)) moving = true
     const capture = this.capturing && this.captureStep(now)
     if (this.capturing) moving = true
-    if (this.focusing) this.post.setFocus(this.camera.position.distanceTo(this.controls.target))
+    const focus = this.camera.position.distanceTo(this.controls.target)
+    if (this.focusing) this.post.setFocus(focus)
+    this.post.setBenchFocus(focus)
     this.post.setBloom(this.visuals.glowing)
     this.post.render()
     if (this.lifting && this.veil) {

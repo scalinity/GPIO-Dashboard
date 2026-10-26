@@ -848,8 +848,9 @@ Validation:
   tone mapping, grade and finish:
   - Lab, the default: the bench in a furnished electronics workroom at dusk, after the exhibit
     house style. A warm key light, cool fog and ambient light, a procedural dusk environment, a
-    saturation lift then ACES Filmic, a faint film grain and a vignette. The lit circuit is the
-    brightest thing in the frame.
+    saturation lift then ACES Filmic, a faint film grain, a vignette, and depth of field that
+    keeps the bench sharp while the room melts. The lit circuit is the brightest thing in the
+    frame.
   - Studio: a neutral studio, tone-mapped with AgX and graded after it (ADR-0067), with no grain
     and no vignette. It is the look checked against the photos:
     - my reference photos (2.2), for the T-board, ribbon, IDC sockets, breadboard, and Dupont leads
@@ -876,7 +877,10 @@ Post-processing:
   - each look's tone mapping and grade, in the pipeline's last pass: RenderPipeline draws without
     the renderer's tone mapping
   - film grain, in the Lab look
-  - optional depth of field, for focus in Build Mode
+  - depth of field in the Lab look: a depth-aware bokeh focused on the bench, the far blur
+    stronger than the near, which keeps sharp edges out of the blurred background
+  - depth of field for focus in Build Mode: the Lab look's bokeh narrowed to the step, and in
+    the Studio look three's depth of field
 - Verify every class name and import path against the installed three.js version (section 22).
 
 Stage:
@@ -1126,8 +1130,10 @@ Camera:
 - Build Mode frames each step, and may use depth of field to focus.
 
 10.8 Budgets
-- Frame rate: at least 60 fps at the window's native pixel ratio, in the Tauri window on my M-series Mac. This holds for tutorial scenes with physics awake and the full post stack.
-  - If a scene misses it, scale effect quality first (AO resolution, then depth of field) and record what changed.
+- Frame rate: at least 60 fps at the window's native pixel ratio, in the Tauri window on my M-series Mac, in both looks. This holds for tutorial scenes with physics awake and the full post stack, LEDs lit.
+  - Lab look: the GPU at most 13 ms a frame, median, at a pixel ratio of 2 with LEDs lit.
+  - If a scene misses it, scale effect quality first and record what changed. In the Lab look: GTAO's resolution from 0.5 to 0.35, then the bokeh's taps from 48 to 32, then no depth of field while cables are awake. GTAO runs at 0.35 and the bokeh at 32 taps.
+- The Lab look's room: at most 18 meshes and 60k triangles, built once, the first time the look shows.
 - Physics: at most 4 ms per frame in the worker, for the heaviest tutorial scene (about 40 leads plus the ribbon).
 - Idle: zero frames rendered when the scene is static.
 - Assets:

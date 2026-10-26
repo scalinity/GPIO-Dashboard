@@ -2,20 +2,23 @@
 // WebGLRenderer, and three's node RenderPipeline with GTAO and TRAA, then each look's own finish:
 // bloom, the tone mapping and grade (the pipeline draws without the renderer's tone mapping) and, in
 // the Lab look, a faint grain. One output holds both finishes and a uniform picks one, so a look
-// switch compiles nothing (ADR-0143). Depth of field is built when something first asks for focus
-// (Build Mode). No aberration or lens dirt.
+// switch compiles nothing (ADR-0143). The Lab look focuses on the bench with a depth-aware bokeh
+// (ADR-0145); Build Mode narrows its band to the step, and in the Studio look builds three's depth
+// of field the first time it asks for focus. No aberration or lens dirt.
 import {
   AgXToneMapping,
-  type Camera,
   type DirectionalLight,
   type Node,
   NodeUpdateType,
   NoToneMapping,
   RenderPipeline,
+  type PerspectiveCamera,
   type Scene,
   SRGBColorSpace,
+  type TextureNode,
   TimestampQuery,
   UnsignedByteType,
+  Vector2,
   WebGPURenderer
 } from 'three/webgpu'
 import {
@@ -47,6 +50,7 @@ import { film } from 'three/addons/tsl/display/FilmNode.js'
 import { ao } from 'three/addons/tsl/display/GTAONode.js'
 import { traa } from 'three/addons/tsl/display/TRAANode.js'
 import { setFrameCost } from '../dev/frameCost'
+import { bokeh, bokehUniforms } from './bokeh'
 import { LAB, type LookName, STUDIO } from './look'
 import { type Backend, setStatus } from './status'
 
@@ -92,6 +96,20 @@ export const GRADE = { exposure: STUDIO.tone.exposure, saturation: STUDIO.tone.s
  */
 export const BLOOM_THRESHOLD = 2
 
+/**
+ * The Lab look's depth of field (ADR-0145): the distance over which the blur ramps from none to
+ * full around the bench, and around Build Mode's step; its largest radius in CSS pixels.
+ */
+const BENCH_BAND_MM = 4000
+const STEP_BAND_MM = 320
+const MAX_BLUR_PX = 10
+
+/**
+ * GTAO's resolution against the drawing buffer's, per look: the first step of SPEC 10.8's ladder
+ * in the Lab look, whose dusk keeps the occlusion's detail in shadow (ADR-0145).
+ */
+const AO_SCALE: Record<LookName, number> = { studio: 0.5, lab: 0.35 }
+
 /** The key light's shadow map is redrawn every this many frames (ADR-0082). */
 const SHADOW_EVERY = 2
 
@@ -107,6 +125,13 @@ export class Post {
   private readonly lab = uniform(0)
   /** Every bloom node built, with the strength it draws at and its look, for `gate`. */
   private readonly blooms = new Map<BloomNode, { strength: number; look: LookName }>()
+  /** Other nodes that draw passes of their own for one look only (depth of field). */
+  private readonly own = new Map<Node, LookName>()
+  /** The Lab look's depth of field, and the bench's image through it. */
+  private readonly lens = bokehUniforms()
+  private readonly occlusion: ReturnType<typeof ao>
+  private readonly labInput: Output
+  private readonly size = new Vector2()
   /** Both looks' output without depth of field. */
   private readonly output: Output
   private look: LookName = 'studio'
@@ -122,7 +147,7 @@ export class Post {
     /** Public for the e2e frame-rate measurement, which reads the GPU's timestamp queries. */
     readonly renderer: WebGPURenderer,
     scene: Scene,
-    camera: Camera
+    private readonly camera: PerspectiveCamera
   ) {
     // One geometry pass draws the colour, the packed normal and the velocity. GTAO reads that
     // pass's depth and normals, and the same pass applies the occlusion to its ambient light: the
@@ -136,7 +161,8 @@ export class Post {
 
     // GTAO's radius is in scene units: 8 mm, about three pitches.
     const occlusion = ao(depth, normal, camera)
-    occlusion.resolutionScale = 0.5
+    this.occlusion = occlusion
+    occlusion.resolutionScale = AO_SCALE.studio
     occlusion.useTemporalFiltering = true
     occlusion.radius.value = 8
     colour.contextNode = builtinAOContext(occlusion.getTextureNode().sample(screenUV).r)
@@ -145,7 +171,13 @@ export class Post {
     resolved.useSubpixelCorrection = false
     this.resolved = resolved
 
-    this.output = this.pick(this.finishLab(resolved), this.finish(resolved))
+    // getTextureNode() exists on TRAANode in r186 but is missing from @types/three 0.186.
+    const sharp = (resolved as unknown as { getTextureNode(): TextureNode }).getTextureNode()
+    this.lens.band.value = BENCH_BAND_MM
+    const lens = bokeh(sharp, depth, this.lens)
+    for (const p of lens.passes) this.own.set(p, 'lab')
+    this.labInput = lens.output
+    this.output = this.pick(this.finishLab(lens.output), this.finish(resolved))
     this.pipeline = new RenderPipeline(renderer, this.output)
     this.pipeline.outputColorTransform = false
     this.gate()
@@ -160,7 +192,13 @@ export class Post {
   setLook(look: LookName): void {
     this.look = look
     this.lab.value = look === 'lab' ? 1 : 0
+    this.occlusion.resolutionScale = AO_SCALE[look]
     this.gate()
+  }
+
+  /** Where the Lab look's depth of field focuses: the bench, `distanceMm` from the camera. */
+  setBenchFocus(distanceMm: number): void {
+    this.lens.focus.value = distanceMm
   }
 
   /** The light whose shadow map `render` redraws. */
@@ -175,6 +213,11 @@ export class Post {
       this.key.shadow.autoUpdate = false
       this.key.shadow.needsUpdate = this.rendered % SHADOW_EVERY === 0
     }
+    this.renderer.getDrawingBufferSize(this.size)
+    this.lens.texel.value.set(1 / this.size.x, 1 / this.size.y)
+    this.lens.maxBlur.value = MAX_BLUR_PX * this.renderer.getPixelRatio()
+    this.lens.near.value = this.camera.near
+    this.lens.far.value = this.camera.far
     if (import.meta.env.DEV) this.renderTimed()
     else this.pipeline.render()
     // The frame that drew a bloom of strength 0 left its texture black; it is not drawn again.
@@ -203,6 +246,8 @@ export class Post {
       b.strength.value = mine && this.bloom ? strength : 0
       b.updateBeforeType = mine ? NodeUpdateType.FRAME : NodeUpdateType.NONE
     }
+    for (const [node, look] of this.own)
+      node.updateBeforeType = look === this.look ? NodeUpdateType.FRAME : NodeUpdateType.NONE
   }
 
   /** Dev builds: the render call's main-thread time and the GPU's pass time, every 30 frames. */
@@ -220,10 +265,14 @@ export class Post {
     })
   }
 
-  /** Depth of field focused `distanceMm` along the view, or none (Build Mode, SPEC 11.7). */
+  /**
+   * Depth of field focused `distanceMm` along the view, or none (Build Mode, SPEC 11.7). The Lab
+   * look's narrows to the step; the Studio look's is three's, built the first time.
+   */
   setFocus(distanceMm: number | null): void {
     if (distanceMm !== null) this.focus.distance.value = distanceMm
     this.focused = distanceMm !== null
+    this.lens.band.value = this.focused ? STEP_BAND_MM : BENCH_BAND_MM
     const output = this.focused ? this.focusOutput() : this.output
     if (this.pipeline.outputNode !== output) {
       this.pipeline.outputNode = output
@@ -242,7 +291,8 @@ export class Post {
         120,
         4
       ) as unknown as Output
-      this.focus.output = this.pick(this.finishLab(blurred), this.finish(blurred))
+      this.own.set(blurred, 'studio')
+      this.focus.output = this.pick(this.finishLab(this.labInput), this.finish(blurred))
       this.gate()
     }
     return this.focus.output
