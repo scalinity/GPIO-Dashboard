@@ -80,7 +80,7 @@ export const LAB = {
   room: true,
   // A walnut bench top under a slate ESD mat: the mat's edge and grid give the bench its size.
   table: '#22170f',
-  mat: { color: '#1b1f27', grid: '#232b36' },
+  mat: { color: '#14171d', grid: '#1c222b' },
   sweep: null,
   maxDistance: 2200
 } satisfies Look

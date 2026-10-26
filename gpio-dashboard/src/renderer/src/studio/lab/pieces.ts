@@ -201,7 +201,7 @@ export function benchFrame(b: Builder, floor: number): void {
   b.box(320, 70, 210, bin, cx + 160, floor + 194, cz + 40, 6)
   for (let i = 0; i < 4; i++) b.box(72, 64, 200, cream, cx + 50 + i * 74, floor + 194, cz + 40, 3)
   b.rod(90, 160, charcoal, cx + 330, floor + 240, cz - 120, [Math.PI / 2, 0, 0], 16)
-  b.emit(new BoxGeometry(hw * 2 - 140, 4, 4), '#ffa83c', 0.09, [cx, -92, cz + hd - 48])
+  b.emit(new BoxGeometry(hw * 2 - 140, 4, 4), '#ffa83c', 0.07, [cx, -92, cz + hd - 48])
   b.glow(hw * 2.4, 1000, '#ffa83c', 0.012, [cx, floor + 10, cz + hd + 150], [-Math.PI / 2, 0, 0])
 }
 
@@ -223,7 +223,7 @@ export function duskWindow(b: Builder, w: number, h: number, sill: number): void
       ? horizon.clone().lerp(middle, k / 0.18)
       : middle.clone().lerp(top, Math.min(1, (k - 0.18) / 0.82))
   }
-  b.emit(new PlaneGeometry(w, h, 1, 10), sky, 0.17, [0, h / 2, 34])
+  b.emit(new PlaneGeometry(w, h, 1, 10), sky, 0.24, [0, h / 2, 34])
   for (const x of [-w / 2, -w / 6, w / 6, w / 2]) b.box(34, h + 34, 40, darkSteel, x, h / 2, 50, 4)
   for (const y of [0, h / 3, (2 * h) / 3, h]) b.box(w + 34, 30, 40, darkSteel, 0, y, 50, 4)
   b.box(w + 180, 30, 160, cream, 0, -25, 90, 6)
@@ -281,8 +281,8 @@ export function credenza(b: Builder, rng: () => number, w: number): void {
 
 /** A tall plant in a faceted cream pot, its foliage low-poly clusters. */
 export function plant(b: Builder, rng: () => number, height: number): void {
-  const { cream, leaf, leafDark, oak } = FINISH
-  b.solid(faceted(new CylinderGeometry(190, 150, 380, 8)), cream, [0, 190, 0])
+  const { linen, leaf, leafDark, oak } = FINISH
+  b.solid(faceted(new CylinderGeometry(190, 150, 380, 8)), linen, [0, 190, 0])
   b.solid(faceted(new CylinderGeometry(175, 175, 20, 8)), FINISH.charcoal, [0, 375, 0])
   b.rod(14, height - 500, oak, 0, 380 + (height - 500) / 2, 0, undefined, 6)
   for (let i = 0; i < 9; i++) {
@@ -315,8 +315,8 @@ export function wallBench(b: Builder, w: number, d: number): void {
     }
   b.box(w - 60, 16, d - 80, steel, 0, 240, 0, 4)
   // An amber strip under the top's front edge lights the shelf of bins.
-  b.emit(new BoxGeometry(w - 80, 8, 12), '#ffa83c', 0.5, [0, top - 46, d / 2 - 30])
-  b.glow(w * 1.2, 900, '#ffa83c', 0.035, [0, top - 420, d / 2 + 4])
+  b.emit(new BoxGeometry(w - 80, 8, 12), '#ffa83c', 0.38, [0, top - 46, d / 2 - 30])
+  b.glow(w * 1.2, 900, '#ffa83c', 0.027, [0, top - 420, d / 2 + 4])
   for (let i = 0; i < 5; i++)
     b.box(260, 160, 360, i % 2 ? bin : charcoal, -w / 2 + 220 + i * 390, 330, 0, 8)
 }
@@ -375,7 +375,7 @@ export function scope(b: Builder): void {
   const { charcoal, darkSteel, cream } = FINISH
   const [w, h, d] = [380, 200, 300]
   b.box(w, h, d, charcoal, 0, h / 2, 0, 14)
-  b.emit(new PlaneGeometry(210, 140), '#0d2a2e', 1, [-60, h / 2 + 4, d / 2 + 1])
+  b.emit(new PlaneGeometry(210, 140), '#0d2a2e', 0.6, [-60, h / 2 + 4, d / 2 + 1])
   // The trace: a sine of short segments, cyan, under the screens' share of the attention.
   for (let i = 0; i < 24; i++) {
     const x0 = -160 + i * 8.4
@@ -384,13 +384,13 @@ export function scope(b: Builder): void {
     const a = Math.atan2(y1 - y0, 8.4)
     b.emit(
       new PlaneGeometry(Math.hypot(8.4, y1 - y0) + 1, 3.5),
-      '#7fe3ff',
-      0.35,
+      '#5fb8c4',
+      0.18,
       [x0 + 4.2, (y0 + y1) / 2, d / 2 + 2],
       [0, 0, a]
     )
   }
-  b.glow(320, 240, '#7fe3ff', 0.06, [-60, h / 2 + 4, d / 2 + 6])
+  b.glow(320, 240, '#5fb8c4', 0.03, [-60, h / 2 + 4, d / 2 + 6])
   for (let i = 0; i < 6; i++)
     b.rod(
       13,
@@ -415,7 +415,7 @@ export function powerSupply(b: Builder): void {
   ] as const) {
     b.emit(new PlaneGeometry(96, 34), '#1a0d08', 1, [x, 105, d / 2 + 1])
     for (let i = 0; i < 4; i++)
-      b.emit(new PlaneGeometry(14, 22), colour, 0.3, [x - 33 + i * 22, 105, d / 2 + 2])
+      b.emit(new PlaneGeometry(14, 22), colour, 0.12, [x - 33 + i * 22, 105, d / 2 + 2])
   }
   for (const [x, f] of [
     [-50, red],
@@ -452,8 +452,8 @@ export function shelf(b: Builder, rng: () => number, w: number, heights: number[
   }
   // The lowest board's underside carries the strip; it washes the wall and what stands below.
   const low = heights[0]!
-  b.emit(new BoxGeometry(w - 60, 8, 12), '#ffa83c', 0.5, [0, low - 17, d - 40])
-  b.glow(w * 1.3, 1100, '#ffa83c', 0.035, [0, low - 380, 4])
+  b.emit(new BoxGeometry(w - 60, 8, 12), '#ffa83c', 0.38, [0, low - 17, d - 40])
+  b.glow(w * 1.3, 1100, '#ffa83c', 0.027, [0, low - 380, 4])
   for (const y of heights) {
     let x = -w / 2 + 60
     while (x < w / 2 - 120) {
@@ -500,7 +500,7 @@ export function solderingStation(b: Builder): void {
   b.box(200, 110, 170, darkSteel, -120, top + 55, 40, 10)
   b.emit(new PlaneGeometry(90, 34), '#1a0d08', 1, [-140, top + 75, 126])
   for (let i = 0; i < 3; i++)
-    b.emit(new PlaneGeometry(16, 24), '#ff6b4a', 0.3, [-162 + i * 22, top + 75, 127])
+    b.emit(new PlaneGeometry(16, 24), '#ff6b4a', 0.12, [-162 + i * 22, top + 75, 127])
   b.rod(18, 18, charcoal, -60, top + 50, 132, [Math.PI / 2, 0, 0], 12)
   // The stand's coil and the iron resting in it.
   b.rod(32, 120, steel, 120, top + 70, 20, [0.6, 0, 0], 14)

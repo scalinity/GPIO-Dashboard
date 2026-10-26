@@ -233,7 +233,9 @@ export class Post {
     }
     this.renderer.getDrawingBufferSize(this.size)
     this.lens.texel.value.set(1 / this.size.x, 1 / this.size.y)
-    this.lens.maxBlur.value = MAX_BLUR_PX * this.renderer.getPixelRatio()
+    // A wide view blurs less, so the room behind it stays shapes rather than smears.
+    const reach = Math.min(Math.max(1000 / this.lens.focus.value, 0.75), 1)
+    this.lens.maxBlur.value = MAX_BLUR_PX * reach * this.renderer.getPixelRatio()
     this.lens.near.value = this.camera.near
     this.lens.far.value = this.camera.far
     if (import.meta.env.DEV) this.renderTimed()

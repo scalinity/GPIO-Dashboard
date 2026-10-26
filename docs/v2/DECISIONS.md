@@ -3951,9 +3951,10 @@ declare it.
     copy by its own blur, so the sharp bench does not halo into the blur behind it. A
     full-resolution composite keeps in-focus pixels from the sharp image. Blur grows with the
     distance from the focus, 1.6 times as fast behind it as 0.9 in front, over a band as long
-    as the camera's distance to the bench, up to 10 CSS pixels: as a lens's, the blur grows the
-    closer it focuses, so a close view melts its foreground and the room and a wide one keeps
-    the bench's surroundings.
+    as the camera's distance to the bench, up to 10 CSS pixels (three quarters of that from
+    1.33 m out, so a wide view's room stays shapes rather than smears): as a lens's, the blur
+    grows the closer it focuses, so a close view melts its foreground and the room and a wide
+    one keeps the bench's surroundings.
   - The Lab look's output is the Lab finish of the bokeh of TRAA's image, with the scene pass's
     depth. `view.frame` focuses it at the camera's distance from its target every frame
     (`Post.setBenchFocus`). Build Mode's focus narrows the same node's band to 320 mm; its output
@@ -3982,7 +3983,11 @@ declare it.
     the window at a low view, and the wider gather read the quarter-resolution copy as blocks.
     The rubric's pass mark is 80. Its remaining gaps are the wide orbits, where a lit LED at
     1.6 m is a speck under the room's instrument faces; the room's furniture, plain bevelled
-    blocks without lacquer or texture; and the room falling to black in the close views.
+    blocks without lacquer or texture; and the room falling to black in the close views. The
+    loop closed there, after a last unscored pass on what the critics marked down round after
+    round: the instrument faces and strips dimmed further, a darker mat, a brighter window, a
+    muted plant pot, and less blur in a wide view. The furniture's detail is open in LOOKDEV,
+    for a later round.
 - **Consequences.**
   - Measured in headless Chromium on WebGPU (`FRAME_RATE=1 FRAME_RATE_LOOKS=lab,studio`, 1200 x
     800 at a pixel ratio of 2, three interleaved rounds, a board dragged with every cable
