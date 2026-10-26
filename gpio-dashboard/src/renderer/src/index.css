@@ -10,7 +10,8 @@
 
   body {
     @apply bg-surface-950 text-gray-200 font-sans antialiased;
-    font-synthesis: none;
+    /* Outfit has no italic face, so italics are slanted for it; bold comes from its real weights. */
+    font-synthesis: style;
   }
 
   input[type='checkbox'] {

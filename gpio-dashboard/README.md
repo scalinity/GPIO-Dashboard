@@ -218,7 +218,7 @@ Counted from the repository when this README was written; the commands in the So
 | Vitest | 2,476 tests pass, 2 skipped; 118 files run, 1 skipped | `npx vitest run` |
 | Rust | 100 tests pass, 20 ignored | `cargo test` |
 | Node bridge / Pi agent | 7 / 64 tests pass | `node --test`, `python3 -m unittest` |
-| End-to-end tests (listed, not run for this table) | 110 in 12 files | `npx playwright test --list` |
+| End-to-end tests (listed, not run for this table) | 114 in 12 files | `npx playwright test --list` |
 | Recorded decisions | 142 | `docs/v2/DECISIONS.md` |
 | Audit rows | 242 (11 unsafe for hardware), every one closed | `docs/v2/AUDIT.md`, `audit.test.ts` |
 

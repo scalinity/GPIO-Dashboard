@@ -42,7 +42,7 @@ export default function ConnectionStatus({ compact = false }) {
       title={full}
     >
       <span className={`w-2 h-2 rounded-full ${cfg.color} ${cfg.glow || ''}`} />
-      <span className={`text-gray-400 ${compact ? 'max-lg:sr-only' : ''}`}>
+      <span className={`text-gray-400 ${compact ? 'max-[1100px]:sr-only' : ''}`}>
         {compact && agentLabel ? agentLabel.replace(': ', ' ') : cfg.label}
       </span>
       {!compact && agentLabel && (

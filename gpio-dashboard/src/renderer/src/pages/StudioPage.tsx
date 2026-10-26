@@ -180,8 +180,12 @@ function TopBar() {
       {error && <span className="!shrink min-w-0 truncate text-xs text-red-400">{error}</span>}
       <div className="ml-auto flex items-center gap-2">
         {simulating ? (
-          <button className="btn-danger text-sm flex items-center gap-1.5" onClick={stopCode}>
-            <Square className="w-4 h-4" /> <span className="max-lg:sr-only">Stop</span>
+          <button
+            className="btn-danger text-sm flex items-center gap-1.5"
+            title="Stop the simulation"
+            onClick={stopCode}
+          >
+            <Square className="w-4 h-4" /> <span className="max-[1100px]:sr-only">Stop</span>
           </button>
         ) : (
           <button
@@ -192,12 +196,16 @@ function TopBar() {
               runInSim(1)
             }}
           >
-            <Play className="w-4 h-4" /> <span className="max-lg:sr-only">Simulate</span>
+            <Play className="w-4 h-4" /> <span className="max-[1100px]:sr-only">Simulate</span>
           </button>
         )}
         {onPi ? (
-          <button className="btn-danger text-sm flex items-center gap-1.5" onClick={stopRun}>
-            <Square className="w-4 h-4" /> <span className="max-lg:sr-only">Stop on Pi</span>
+          <button
+            className="btn-danger text-sm flex items-center gap-1.5"
+            title="Stop the program on the Pi"
+            onClick={stopRun}
+          >
+            <Cpu className="w-4 h-4" /> <span className="max-[1100px]:sr-only">Stop on Pi</span>
           </button>
         ) : (
           <button
@@ -205,7 +213,7 @@ function TopBar() {
             title="Run on Pi"
             onClick={() => void runOnPi(source, doc, code)}
           >
-            <Cpu className="w-4 h-4" /> <span className="max-lg:sr-only">Run on Pi</span>
+            <Cpu className="w-4 h-4" /> <span className="max-[1100px]:sr-only">Run on Pi</span>
           </button>
         )}
         <ConnectionStatus compact />

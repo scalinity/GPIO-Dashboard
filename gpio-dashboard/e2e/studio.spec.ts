@@ -366,38 +366,32 @@ test.describe('projects', () => {
   })
 })
 
-// The top bar stays one row (SPEC 11.2) at a laptop window's size, holding the most it ever does:
-// a template's badge and Fork, and the Pi connected with its agent running.
-test('the top bar keeps every control on one row in a laptop window', async ({ page }) => {
-  await page.setViewportSize({ width: 1168, height: 734 })
-  await openTutorial(page, 'blinking-led')
-  await page.evaluate(
-    "import('/src/store/connectionStore.js').then((m) => m.default.setState({ status: 'connected', agentStatus: 'running' }))"
-  )
-  const bar = page.getByTestId('studio-topbar')
-  await expect(bar.getByRole('button', { name: 'Connection status' })).toHaveText('Agent running')
-  const controls = [
-    bar.getByRole('button', { name: 'Hide the part library' }),
-    bar.getByLabel('Project name'),
-    bar.getByRole('button', { name: 'Project', exact: true }),
-    bar.getByRole('button', { name: 'Undo' }),
-    bar.getByRole('button', { name: 'Redo' }),
-    bar.getByRole('button', { name: 'Wire (W)' }),
-    bar.getByRole('button', { name: 'Build', exact: true }),
-    bar.getByText('Template · read-only'),
-    bar.getByRole('button', { name: 'Fork to my projects' }),
-    bar.getByRole('button', { name: 'Simulate' }),
-    bar.getByRole('button', { name: 'Run on Pi' }),
-    bar.getByRole('button', { name: 'Connection status' }),
-    bar.getByRole('button', { name: 'Hide the properties' })
-  ]
-  const row = (await bar.boundingBox())!
-  expect(row.height).toBeLessThanOrEqual(48)
-  for (const control of controls) {
-    await expect(control).toBeVisible()
-    const box = (await control.boundingBox())!
-    expect(box.y).toBeGreaterThanOrEqual(row.y)
-    expect(box.y + box.height).toBeLessThanOrEqual(row.y + row.height)
-    expect(box.x + box.width).toBeLessThanOrEqual(1168)
-  }
-})
+// The top bar stays one row (SPEC 11.2) from the narrowest window up, holding the most it ever
+// does: a template's badge and Fork, an error, the Pi connected with its agent running, and both a
+// simulation and a Pi program to stop.
+for (const width of [900, 1024, 1099, 1100, 1168])
+  test(`the top bar keeps every control on one row in a ${width} px window`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 734 })
+    await openTutorial(page, 'blinking-led')
+    await page.evaluate(`Promise.all([
+      import('/src/store/connectionStore.js').then((m) => m.default.setState({ status: 'connected', agentStatus: 'running' })),
+      import('/src/state/projectStore.ts').then((m) => m.useProject.setState({ error: 'Could not save the project' })),
+      import('/src/state/workbenchStore.ts').then((m) => m.useWorkbench.setState({ codeStatus: 'running' })),
+      import('/src/state/runStore.ts').then((m) => m.useRun.setState({ status: 'running' }))
+    ])`)
+    const bar = page.getByTestId('studio-topbar')
+    await expect(bar.getByRole('button', { name: 'Stop on Pi' })).toBeVisible()
+    await expect(bar.getByRole('button', { name: 'Stop', exact: true })).toBeVisible()
+    await expect(bar.getByText('Template · read-only')).toBeVisible()
+    const row = (await bar.boundingBox())!
+    expect(row.height).toBeLessThanOrEqual(48)
+    const buttons = await bar.getByRole('button').all()
+    expect(buttons.length).toBeGreaterThanOrEqual(10)
+    for (const control of [...buttons, bar.getByLabel('Project name')]) {
+      const box = (await control.boundingBox())!
+      expect(box.y).toBeGreaterThanOrEqual(row.y)
+      expect(box.y + box.height).toBeLessThanOrEqual(row.y + row.height)
+      // Inside the bar's 12 px right padding: a control that eats into it is about to be clipped.
+      expect(box.x + box.width).toBeLessThanOrEqual(width - 12)
+    }
+  })
