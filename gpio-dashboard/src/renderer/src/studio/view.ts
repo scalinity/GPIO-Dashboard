@@ -82,6 +82,7 @@ import { hoverInfo, type HoverInfo, pickHole, pickModulePin } from './picking'
 import { holeFree, holeLegality, removePartOps, turned, turnedPart } from './placement'
 import { Post } from './renderer'
 import { SimVisuals, type VisualsReport } from './simvisuals'
+import { StageRig } from './rig'
 import { setStatus } from './status'
 import { type Mark, StepMarks } from './stepMarks'
 import { WireLayer } from './wires'
@@ -201,6 +202,8 @@ export class StudioView {
   /** The current ghost's holes and whether each glows green (tests read it). */
   ghost: { holes: string[]; legal: boolean[] } | null = null
   post: Post | null = null
+  /** The table, sweep, lights, environment, fog and background. */
+  readonly rig = new StageRig()
 
   private readonly highlights = new Markers(this.overlay, 0.15)
   private readonly footprints = new Markers(this.layers, 0.1)
@@ -291,11 +294,14 @@ export class StudioView {
   bind(renderer: WebGPURenderer, scene: Scene, invalidate: () => void): void {
     configureModels(renderer)
     this.post = new Post(renderer, scene, this.camera)
+    this.post.setKey(this.rig.key)
     this.canvas = renderer.domElement
     this.invalidate = () => {
       this.loop.changed()
       invalidate()
     }
+    this.rig.onChange = this.invalidate
+    this.rig.bind(renderer, scene)
     const view = presetView('iso', circuit.getSnapshot(), this.camera, this.controls.target)
     this.camera.position.copy(view.position)
     this.controls.target.copy(view.target)

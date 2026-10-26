@@ -286,14 +286,13 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
           camera={view.camera}
           frameloop="demand"
           shadows="percentage"
-          scene={{ environmentIntensity: 0.6 }}
           onCreated={(state) => {
             // R3F sets ACES Filmic while configuring a renderer; the Studio uses AgX (SPEC 10.1).
             state.gl.toneMapping = AgXToneMapping
             view.bind(state.gl as unknown as WebGPURenderer, state.scene, state.invalidate)
           }}
         >
-          <Stage />
+          <Stage rig={view.rig} />
           <Models doc={doc} />
           <primitive object={view.overlay} />
           <primitive object={view.layers} />

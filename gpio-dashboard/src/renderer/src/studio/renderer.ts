@@ -38,6 +38,7 @@ import { dof } from 'three/addons/tsl/display/DepthOfFieldNode.js'
 import { ao } from 'three/addons/tsl/display/GTAONode.js'
 import { traa } from 'three/addons/tsl/display/TRAANode.js'
 import { setFrameCost } from '../dev/frameCost'
+import { type LookName, STUDIO } from './look'
 import { type Backend, setStatus } from './status'
 
 /**
@@ -69,11 +70,11 @@ type Output = Node<'vec4'>
  * about 214, 83, 65 and a yellow at 230, 185, 120; the reference photos' are 208, 10, 14 and
  * 245, 203, 26) and, lit by the studio, leaves the white boards a step darker than the photos'.
  * The exposure is lifted, and once AgX has tone mapped the image, each pixel's distance below its
- * brightest channel is stretched by up to `1 + saturation`, in proportion to how colourful the
+ * brightest channel is stretched by up to `1 + stretch`, in proportion to how colourful the
  * pixel is: greys and whites stay where they are, reds and yellows go back to red and yellow. AgX
- * stays the tone mapping, and nothing else is added.
+ * stays the tone mapping, and nothing else is added. The numbers are the Studio look's.
  */
-export const GRADE = { exposure: 1.7, saturation: 1.2 }
+export const GRADE = { exposure: STUDIO.tone.exposure, saturation: STUDIO.tone.stretch }
 
 /**
  * Bloom takes only what is brighter than this in scene-linear light: a lit LED's emission, which
@@ -82,35 +83,21 @@ export const GRADE = { exposure: 1.7, saturation: 1.2 }
  */
 export const BLOOM_THRESHOLD = 2
 
-/** Bloom's strength and radius. */
-const BLOOM = { strength: 0.35, radius: 0.4 }
-
-// The pipeline's own output transform is off, so the same AgX mapping and sRGB encoding are
-// applied here, followed by the grade. `blooms` collects the bloom nodes it builds.
-const finish = (input: Output, blooms: BloomNode[]): Output => {
-  const glow = bloom(input, BLOOM.strength, BLOOM.radius, BLOOM_THRESHOLD)
-  blooms.push(glow)
-  const lit = input.add(glow)
-  const mapped = renderOutput(lit, AgXToneMapping, SRGBColorSpace)
-  const peak = max(max(mapped.r, mapped.g), mapped.b)
-  const below = peak.sub(mapped.rgb)
-  const chroma = peak.sub(min(min(mapped.r, mapped.g), mapped.b)).div(max(peak, 1e-4))
-  const stretch = smoothstep(0.1, 0.5, chroma).mul(GRADE.saturation).add(1)
-  return vec4(peak.sub(min(below.mul(stretch), peak)), mapped.a)
-}
-
 /** The key light's shadow map is redrawn every this many frames (ADR-0082). */
 const SHADOW_EVERY = 2
 
 export class Post {
   private readonly pipeline: RenderPipeline
-  private readonly sharp: Output
   private readonly resolved: Output
   private readonly viewZ: Node
-  /** Every bloom node built, for `setBloom`. */
-  private readonly blooms: BloomNode[] = []
+  /** Every bloom node built, with the strength it draws at, for `setBloom`. */
+  private readonly blooms = new Map<BloomNode, number>()
+  /** Each look's output without depth of field. */
+  private readonly outputs: Record<LookName, Output>
+  private look: LookName = 'studio'
   private bloom = true
   private focus: { output: Output; distance: ReturnType<typeof uniform> } | null = null
+  private focused = false
   private key: DirectionalLight | null = null
   private rendered = 0
   private renderMs = 0
@@ -118,7 +105,7 @@ export class Post {
   constructor(
     /** Public for the e2e frame-rate measurement, which reads the GPU's timestamp queries. */
     readonly renderer: WebGPURenderer,
-    private readonly scene: Scene,
+    scene: Scene,
     camera: Camera
   ) {
     // One geometry pass draws the colour, the packed normal and the velocity. GTAO reads that
@@ -142,15 +129,22 @@ export class Post {
     resolved.useSubpixelCorrection = false
     this.resolved = resolved
 
-    this.sharp = finish(resolved, this.blooms)
-    this.pipeline = new RenderPipeline(renderer, this.sharp)
+    this.outputs = { studio: this.finish(resolved) }
+    this.pipeline = new RenderPipeline(renderer, this.outputs.studio)
     this.pipeline.outputColorTransform = false
   }
 
+  /** The active look's output without depth of field (tests compare the pipeline's with it). */
+  get sharp(): Output {
+    return this.outputs[this.look]
+  }
+
+  /** The light whose shadow map `render` redraws. */
+  setKey(light: DirectionalLight): void {
+    this.key = light
+  }
+
   render(): void {
-    this.key ??=
-      (this.scene.getObjectByProperty('isDirectionalLight', true) as
-        DirectionalLight | undefined) ?? null
     if (this.key) {
       // A shadow that trails by one frame is under a millimetre behind a dragged board; the
       // settling frames after the last change redraw it.
@@ -160,7 +154,7 @@ export class Post {
     if (import.meta.env.DEV) this.renderTimed()
     else this.pipeline.render()
     // The frame that drew a bloom of strength 0 left its texture black; it is not drawn again.
-    if (!this.bloom) for (const b of this.blooms) b.updateBeforeType = NodeUpdateType.NONE
+    if (!this.bloom) for (const b of this.blooms.keys()) b.updateBeforeType = NodeUpdateType.NONE
     this.rendered += 1
   }
 
@@ -172,8 +166,8 @@ export class Post {
   setBloom(on: boolean): void {
     if (on === this.bloom) return
     this.bloom = on
-    for (const b of this.blooms) {
-      b.strength.value = on ? BLOOM.strength : 0
+    for (const [b, strength] of this.blooms) {
+      b.strength.value = on ? strength : 0
       b.updateBeforeType = NodeUpdateType.FRAME
     }
   }
@@ -200,16 +194,38 @@ export class Post {
         const distance = uniform(distanceMm)
         // @types/three 0.186 leaves DepthOfFieldNode's output type out; it is a vec4 like TRAA's.
         const blurred = dof(this.resolved, this.viewZ, distance, 120, 4) as unknown as Output
-        const output = finish(blurred, this.blooms)
-        if (!this.bloom) this.blooms.at(-1)!.strength.value = 0
-        return { output, distance }
+        return { output: this.finish(blurred), distance }
       })()
       this.focus.distance.value = distanceMm
     }
-    const output = distanceMm === null ? this.sharp : this.focus!.output
+    this.focused = distanceMm !== null
+    this.show()
+  }
+
+  /** Points the pipeline at the output the look and the focus ask for. */
+  private show(): void {
+    const output = this.focused ? this.focus!.output : this.sharp
     if (this.pipeline.outputNode !== output) {
       this.pipeline.outputNode = output
       this.pipeline.needsUpdate = true
     }
+  }
+
+  /**
+   * The Studio look's finish (ADR-0067): bloom, then the AgX mapping and sRGB encoding the
+   * pipeline's own output transform would apply (it is off), then the grade.
+   */
+  private finish(input: Output): Output {
+    const { strength, radius } = STUDIO.bloom
+    const glow = bloom(input, strength, radius, BLOOM_THRESHOLD)
+    if (!this.bloom) glow.strength.value = 0
+    this.blooms.set(glow, strength)
+    const lit = input.add(glow)
+    const mapped = renderOutput(lit, AgXToneMapping, SRGBColorSpace)
+    const peak = max(max(mapped.r, mapped.g), mapped.b)
+    const below = peak.sub(mapped.rgb)
+    const chroma = peak.sub(min(min(mapped.r, mapped.g), mapped.b)).div(max(peak, 1e-4))
+    const stretch = smoothstep(0.1, 0.5, chroma).mul(STUDIO.tone.stretch).add(1)
+    return vec4(peak.sub(min(below.mul(stretch), peak)), mapped.a)
   }
 }
