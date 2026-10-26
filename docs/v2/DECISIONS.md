@@ -3671,3 +3671,35 @@ declare it.
   the pin to an input. RPi.GPIO and gpiozero in the venv shadow the system's for the app's programs
   only; nothing outside `~/gpio-dashboard-agent` changes. On Raspberry Pi OS lgpio imports already,
   so no venv is made for it.
+
+## ADR-0139 An off-board module rests on the board it is laid over
+
+- **Context.** The studio laid an off-board module where the pointer's ray met the table, so a
+  module dropped over a breadboard was drawn inside it: the joystick's PCB sat in the bb-830's
+  8.5 mm body with its pins below the board's top, and its selection box, its pins' lead ends
+  and the plane a move dragged it along were all at table height. The rebuilt HC-SR04 and DHT11
+  breakout carry right-angle headers whose pins lie flat 0.3 mm above the module's lowest point,
+  so a 2.54 mm Dupont housing on them reached about 1 mm into whatever the module lay on.
+- **Decision.** A module rests on the top of the highest board under any corner of its model's
+  footprint, else on the table (`restHeightMm` in `core/reach`, `moduleRestMm` in
+  `studio/coords`). The drawn module, its pins' frames, its selection box and a move's drag
+  plane all use that height. A drop or move finds the footprint where the pointer's ray meets the
+  table, then meets the ray again at the rest height, so the module stays under the pointer. A
+  module with a pin lying flat is raised by however far that pin sits below half a housing's
+  width; a module whose pins point up is not. Reach's lead ends take the board under the
+  module's position, and the 10 mm assumed pin height above it.
+- **Consequences.** A module can lie across a board's edge, resting on its top; nothing models it
+  tipping. Physics stays visual (SPEC principle 8), so the rest height is geometry, not a simulated
+  contact. Moving a module off a board drops it back to the table.
+
+## ADR-0140 The side panels fold away for an immersive bench
+
+- **Context.** The Studio's part library and properties panels take about 30% of a laptop
+  window's width, and while arranging or looking over a bench they are not needed.
+- **Decision.** Each panel has a toggle in the top bar (left for the library, right for the
+  properties, each naming what it hides or shows and reporting its state as pressed), and the
+  keys `[` and `]` fold one each and `\` folds both, or shows both if either is hidden. The
+  canvas takes the freed width. The state lives in the studio store and is not saved with a
+  project.
+- **Consequences.** Placing a part needs the library shown; the keys bring it back without the
+  mouse. The run-blocked dialog anchors to the canvas's right edge either way.
