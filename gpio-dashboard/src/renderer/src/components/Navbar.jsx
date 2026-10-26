@@ -20,8 +20,8 @@ export default function Navbar() {
       data-tauri-drag-region="deep"
       className="flex items-center bg-surface-900/80 backdrop-blur-xl border-b border-white/[0.04] pl-20 pr-4 h-12 shrink-0"
     >
-      {/* Left: App title */}
-      <div className="flex items-center gap-2 mr-4">
+      {/* Left: App title, on one line at any width */}
+      <div className="flex items-center gap-2 mr-4 shrink-0 whitespace-nowrap">
         <Cpu className="w-5 h-5 text-accent" />
         <span className="text-[13px] font-extrabold uppercase tracking-[0.4px] text-gray-100">
           <span className="text-accent">GPIO</span> Dashboard
@@ -31,7 +31,8 @@ export default function Navbar() {
       {/* Separator */}
       <div className="w-px h-5 bg-white/[0.06] mr-4" />
 
-      {/* Center: Tabs */}
+      {/* Center: Tabs. Below 1100 px they show their icons only, keeping their names (as the
+          Studio's top bar does). */}
       <div className="flex flex-1 justify-center">
         <div className="seg-track" role="tablist" aria-label="Main navigation">
           {TABS.map(({ id, label, icon: Icon }) => (
@@ -40,10 +41,11 @@ export default function Navbar() {
               role="tab"
               aria-selected={activeTab === id}
               onClick={() => setActiveTab(id)}
+              title={label}
               className={`tab-button ${activeTab === id ? 'active' : ''}`}
             >
               <Icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{label}</span>
+              <span className="max-[1100px]:sr-only">{label}</span>
             </button>
           ))}
         </div>

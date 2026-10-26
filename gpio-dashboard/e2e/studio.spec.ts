@@ -396,6 +396,32 @@ for (const width of [900, 1024, 1099, 1100, 1168])
     }
   })
 
+// The app's own bar stays one row too, from the narrowest window up, with the Pi connected and its
+// agent running: below 1100 px the tabs show their icons only, keeping their names.
+for (const width of [900, 1024, 1099, 1100, 1168])
+  test(`the app bar keeps the brand, tabs and status on one row in a ${width} px window`, async ({
+    page
+  }) => {
+    await page.setViewportSize({ width, height: 734 })
+    await page.goto('/')
+    await page.getByRole('tab', { name: 'Workbench' }).click()
+    await page.evaluate(
+      `import('/src/store/connectionStore.js').then((m) => m.default.setState({ status: 'connected', agentStatus: 'running' }))`
+    )
+    const bar = page.locator('nav').first()
+    await expect(bar.getByText('Connected')).toBeVisible()
+    const row = (await bar.boundingBox())!
+    expect(row.height).toBeLessThanOrEqual(48)
+    const brand = (await bar.getByText('Dashboard', { exact: false }).first().boundingBox())!
+    expect(brand.height).toBeLessThanOrEqual(24)
+    for (const control of [...(await bar.getByRole('tab').all()), bar.getByText(/Agent/)]) {
+      const box = (await control.boundingBox())!
+      expect(box.y + box.height).toBeLessThanOrEqual(row.y + row.height)
+      // Inside the bar's 16 px right padding.
+      expect(box.x + box.width).toBeLessThanOrEqual(width - 16)
+    }
+  })
+
 // The title column (SPEC 11.2): three readouts with the draw in cyan, and a caption that follows
 // what the bench does. It takes no clicks: the stage under it stays live.
 test('the title column shows three readouts and a caption that follows the bench', async ({

@@ -1174,6 +1174,9 @@ Camera:
 - Tutorials: rebuilt around circuit documents and Build Mode.
 - Connect, Pinout, and Monitor: kept.
 - The terminal drawer is kept (Cmd+`).
+- The app's bar (the brand, the page tabs, and the connection status away from the Studio) stays
+  one row at every width the window allows: below 1100 px the tabs show their icons alone,
+  keeping their names for assistive technology and a tooltip.
 
 11.2 Studio layout
 - Top bar: an editable project name and menu, Simulate, Run on Pi, Undo/Redo, and the connection pill.
