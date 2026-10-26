@@ -3805,18 +3805,19 @@ declare it.
     | | Studio | Lab |
     |---|---|---|
     | Background | `#24272c` | `#0b0f1a` |
-    | Fog (exponential squared) | density 0 | `#3a3d62`, 1.2e-4 per mm |
+    | Fog (exponential squared) | density 0 | `#3a3d62`, 0.9e-4 per mm |
     | Environment | the HDRI, 0.6 | a dusk scene (`lab/dusk.ts`), 0.7 |
-    | Key | white, 2.2 | `#ffc98f`, 2.1, same place |
-    | Hemisphere, rim | 0, 0 | `#8fa6d8` over `#3a3026` at 0.5; `#a8b8ff` at 1.6 from behind |
+    | Key | white, 2.2 | `#ffc98f`, 1.5, same place |
+    | Hemisphere, rim | 0, 0 | `#8fa6d8` over `#3a3026` at 0.7; `#a8b8ff` at 1.6 from behind |
     | Tone and grade | AgX, exposure 1.7, the chroma stretch of 1.2 | saturation 1.35, then ACES Filmic at exposure 1.5 |
-    | Grain, vignette | none | 0.06, the house vignette at 60% |
-    | Bloom (threshold 2 in both) | 0.35, radius 0.4 | 1.2, radius 0.75 |
-    | Table, sweep | `#505153`, `#6a6b6d` | walnut `#3f2d22` under an ESD mat, hidden |
+    | Grain, vignette | none | 0.06, the house vignette at 85% |
+    | Bloom (threshold 2 in both) | 0.35, radius 0.4 | 2, radius 0.85 |
+    | Table, sweep | `#505153`, `#6a6b6d` | walnut `#33241b` under an ESD mat, hidden |
     | Camera reach | 3000 mm | 2200 mm |
 
-    The Lab fog, exposure and vignette started at 2.2e-4, 1.3 and full opacity; the lookdev
-    rounds of ADR-0145 moved them, because the room read as a flat indigo haze.
+    The Lab fog, exposure, key and vignette started at 2.2e-4, 1.3, 2.1 and full opacity; the
+    lookdev rounds of ADR-0145 moved them, because the room read as a flat indigo haze and the
+    white breadboard matched a lit LED.
 
   - `StageRig` (`studio/rig.ts`) owns the table, sweep and lights with Stage.tsx's old numbers,
     one `FogExp2`, one background `Color` and one PMREM target. `apply(look)` sets values; the
@@ -3868,10 +3869,10 @@ declare it.
 
     | Side | Contents |
     |---|---|
-    | North, behind the first views | the dusk window (1300 x 1350 mm, lavender over a peach horizon) between amber light bars, a walnut credenza under it, a plant in the corner |
-    | West | a pegboard of pliers, cutters, drivers and wire spools over a wall bench, with a desk lamp, an oscilloscope and a power supply on it, their screens dim |
+    | North, behind the first views | the dusk window (1300 x 1350 mm, lavender over a dusty-rose horizon) between amber light bars, a walnut credenza under it, a plant in the corner |
+    | West | a pegboard of pliers, cutters, drivers and wire spools over a wall bench lit by an amber strip under its top, with a desk lamp, an oscilloscope and a power supply on it, their screens dim |
     | East | a parts-drawer cabinet, a shelf lit from below by an amber strip, a soldering station on a side table |
-    | South | the door, a stool, and a faint framed GPIO pinout: the background echo |
+    | South | the door, a brass sconce beside it, a stool, and a faint framed GPIO pinout: the background echo |
     | Ceiling | two dim pendants over the bench |
     | Floor | tiles and a rug, and the bench's legs, apron and lower shelf under its table |
 
@@ -3903,8 +3904,10 @@ declare it.
     with its pendants, that the camera stands within 900 mm of or behind: farther than any piece
     stands out from its wall, so the camera is never inside one.
   - The Lab look orbits at most 2200 mm from its target, and it is the default look.
-  - The bench in the Lab look is a walnut top under a slate ESD mat, 610 x 508 mm and 2 mm thick
-    (`StageRig`'s mat, shown when the look names one). A uniform dark plane at the working
+  - The bench in the Lab look is a walnut top under a matte slate ESD mat, 457 x 381 mm (18 x 15
+    inches) and 2 mm thick (`StageRig`'s mat, shown when the look names one), so the walnut
+    frames it; matte, as a vinyl mat is, since a sheen mirrored the dusk window at a low view.
+    A uniform dark plane at the working
     distance had nothing to give the breadboard its size: the mat's edge, its border and a grid
     printed every 10 and 50 mm do, as a real bench's mat does, and its ground snap and cord over
     the back edge mark it as an electronics bench. The grid is drawn in the mat's material, its
@@ -3958,9 +3961,18 @@ declare it.
     pool went onto the mat and a strip under the bench's lip, the walls moved from indigo to a
     lighter teal-grey, the fog thinned (2.2e-4 to 1.2e-4 per mm), the exposure rose (1.3 to
     1.5), the vignette eased to 60%, and the far blur weakened (14 to 10 px, band 2400 to 4000
-    mm). The rubric's pass mark is 80; its remaining gaps are the mat, which reads as a large
-    flat plane at the working distance (its colour and the table's size are fixed by the
-    Studio look), and how small a lit LED's glow is against the room.
+    mm). Three more rounds, each scored by a fresh critic that saw nothing of the others: 60%,
+    60%, then 16.5 of 25 (66%). They added the walnut top and the ESD mat (ADR-0144), dimmed
+    the key from 2.1 to 1.5 so the white breadboard sits under a lit LED, raised the Lab
+    bloom to 2 at radius 0.85 so a lit LED leads a close frame, deepened the vignette to 85%,
+    thinned the fog to 0.9e-4 per mm, raised the cool fill to 0.7, dimmed the window, the
+    light bars and the strip under the bench's lip, and put a sconce by the south door and a
+    strip under the west bench. Two changes of round 5 went back after round 6's critic
+    showed their cost: a satin mat mirrored the window at a low view, and a 14 px blur read
+    the quarter-resolution copy as visible blocks and smeared at the frame's edge. The
+    rubric's pass mark is 80. Its remaining gaps are the wide orbits, where a lit LED at
+    1.6 m is a speck under the room's practicals, the window's size in the front view, a
+    background echo the front and iso views do not show, and LED reds that clip to peach.
 - **Consequences.**
   - Measured in headless Chromium on WebGPU (`FRAME_RATE=1 FRAME_RATE_LOOKS=lab,studio`, 1200 x
     800 at a pixel ratio of 2, three interleaved rounds, a board dragged with every cable

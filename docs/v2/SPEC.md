@@ -887,17 +887,18 @@ Stage:
 - Scene units are millimetres, with Y up.
 - Studio look: a neutral studio stage, a matte table surface plus a soft cyclorama, lit by a CC0
   studio HDRI (Poly Haven or similar; record the license) and one shadow-casting key light.
-- Lab look: the same table as a walnut bench top on a bench frame, under a slate ESD mat (610 x
-  508 mm, 2 mm thick, a grid printed every 10 and 50 mm, a ground snap and its cord) whose top is
+- Lab look: the same table as a walnut bench top on a bench frame, under a matte slate ESD mat (457
+  x 381 mm, 2 mm thick, a grid printed every 10 and 50 mm, a ground snap and its cord) whose top is
   the table plane, so the table sits 2 mm lower while it shows; in "a Pi breadboard bench in an
   electronics workroom at dusk", lit by the same key light, warmer, with a cool hemisphere light,
   a rim light from behind the bench, a procedural dusk environment and a lavender fog.
   - The room: the floor 900 mm below the tabletop, inside x ±2400 mm and z -1700 to +2600 mm, the
     ceiling 1900 mm above the tabletop. Every side is finished and furnished: the dusk window
     between amber light bars, a credenza and a plant (north); a pegboard of tools and wire spools
-    over a wall bench with a desk lamp, an oscilloscope and a power supply (west); a parts-drawer
-    cabinet, a shelf lit from below and a soldering station (east); the door, a stool and a faint
-    framed GPIO pinout (south); two dim pendants (ceiling); the bench's legs, apron and lower
+    over a wall bench lit from under its top, with a desk lamp, an oscilloscope and a power supply
+    (west); a parts-drawer
+    cabinet, a shelf lit from below and a soldering station (east); the door with a sconce beside
+    it, a stool and a faint framed GPIO pinout (south); two dim pendants (ceiling); the bench's legs, apron and lower
     shelf.
   - At most 18 meshes and 60k triangles; nothing in it casts or takes a shadow.
   - Its practical lamps and screens are drawn at most 1.5 in linear light and glow through

@@ -27,6 +27,7 @@ import {
   pegboard,
   pendant,
   pinoutPoster,
+  sconce,
   plant,
   powerSupply,
   scope,
@@ -199,11 +200,13 @@ export function buildRoom(): Room {
     wall(b, width + 120)
     b.at(-1300, floor, ROOM.south, Math.PI)
     door(b)
+    b.at(-550, floor + 1750, ROOM.south, Math.PI)
+    sconce(b)
     b.at(900, floor + 1500, ROOM.south, Math.PI)
     pinoutPoster(b)
     b.at(300, floor, ROOM.south - 520, 0.4)
     stool(b)
-    return ['door with light under it', 'GPIO pinout poster', 'stool']
+    return ['door with light under it', 'sconce by the door', 'GPIO pinout poster', 'stool']
   })
 
   sides.ceiling = side('ceiling', (b) => {

@@ -33,6 +33,7 @@ import {
   uniform,
   vec2
 } from 'three/tsl'
+import { ROOM } from './lab/bounds'
 import { duskScene } from './lab/dusk'
 import { buildRoom, type Room } from './lab/room'
 import { type Look, STUDIO } from './look'
@@ -41,9 +42,9 @@ import { type Look, STUDIO } from './look'
 // 120 mm to its left); its top is the table plane, y = 0.
 const TABLE = { width: 1000, depth: 700, thickness: 20, centre: [20, -30] as const }
 
-// An ESD mat, 24 × 20 inches and 2 mm thick, under the default bench. Its top is the table plane,
+// An ESD mat, 18 × 15 inches and 2 mm thick, under the default bench, with the walnut around it. Its top is the table plane,
 // so the table sits 2 mm lower while the mat shows; the ground snap stands at its back left corner.
-const MAT = { width: 610, depth: 508, thickness: 2, centre: [-40, -10] as const }
+const MAT = { width: 457, depth: 381, thickness: 2, centre: [-40, -10] as const }
 
 // The sweep: a floor from the front, a curve, and a wall behind, in mm.
 const SWEEP = { width: 5000, front: 1500, back: 700, radius: 600, height: 2500 }
@@ -100,7 +101,8 @@ function matMaterial(color: Color, grid: Color): MeshStandardNodeMaterial {
   const inside = step(off.x, 0).mul(step(off.y, 0))
   const fine = lines(10, 0.12).mul(float(1).sub(smoothstep(0.4, 1, max(aa.x, aa.y))))
   const printed = max(border, max(lines(50, 0.25), fine.mul(0.4)).mul(inside))
-  const material = new MeshStandardNodeMaterial({ roughness: 0.85 })
+  // Matte vinyl: a sheen would mirror the dusk window at a low view.
+  const material = new MeshStandardNodeMaterial({ roughness: 0.9 })
   material.colorNode = mix(
     uniform(color),
     uniform(grid),
@@ -224,14 +226,14 @@ export class StageRig {
     const [sx, sz] = [x - MAT.width / 2 + 30, z - MAT.depth / 2 + 30]
     const snap = new Mesh(new CylinderGeometry(5, 5.5, 3, 24), steel)
     snap.position.set(sx, 1.5, sz)
-    // The cord runs from the snap to the table's back edge, then down out of sight.
+    // The cord runs from the snap to the table's back edge, then down to the floor.
     const back = -TABLE.centre[1] - TABLE.depth / 2
     const run = sz - back
     const cord = new Mesh(new CylinderGeometry(1.6, 1.6, run, 12), rubber)
     cord.rotation.x = Math.PI / 2
     cord.position.set(sx, 1.6, back + run / 2)
-    const drop = new Mesh(new CylinderGeometry(1.6, 1.6, 300, 12), rubber)
-    drop.position.set(sx, -150, back - 1.6)
+    const drop = new Mesh(new CylinderGeometry(1.6, 1.6, -ROOM.floor, 12), rubber)
+    drop.position.set(sx, ROOM.floor / 2, back - 1.6)
     for (const m of [snap, cord, drop]) m.castShadow = true
     this.mat.add(mat, snap, cord, drop)
   }

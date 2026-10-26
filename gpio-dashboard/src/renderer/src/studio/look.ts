@@ -68,19 +68,19 @@ export const LAB = {
   name: 'lab',
   background: '#0b0f1a',
   // A lavender haze: the room's far walls sit a third of the way into it and read as depth.
-  fog: { color: '#3a3d62', density: 1.2e-4 },
+  fog: { color: '#3a3d62', density: 0.9e-4 },
   environment: { kind: 'dusk', intensity: 0.7 },
-  key: { color: '#ffc98f', intensity: 2.1 },
-  hemisphere: { sky: '#8fa6d8', ground: '#3a3026', intensity: 0.5 },
+  key: { color: '#ffc98f', intensity: 1.5 },
+  hemisphere: { sky: '#8fa6d8', ground: '#3a3026', intensity: 0.7 },
   rim: { color: '#a8b8ff', intensity: 1.6 },
   tone: { mapping: 'aces', exposure: 1.5, saturation: 1.35 },
   grain: 0.06,
-  bloom: { strength: 1.2, radius: 0.75 },
-  vignette: 0.6,
+  bloom: { strength: 2, radius: 0.85 },
+  vignette: 0.85,
   room: true,
   // A walnut bench top under a slate ESD mat: the mat's edge and grid give the bench its size.
-  table: '#3f2d22',
-  mat: { color: '#2a3b4c', grid: '#4d6680' },
+  table: '#33241b',
+  mat: { color: '#1e2833', grid: '#2f3f50' },
   sweep: null,
   maxDistance: 2200
 } satisfies Look

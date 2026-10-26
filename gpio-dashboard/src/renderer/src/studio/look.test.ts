@@ -30,16 +30,16 @@ describe('the looks', () => {
   it('the Lab look is the house night lab, with no grain or bloom past what it states', () => {
     expect(LAB).toMatchObject({
       background: '#0b0f1a',
-      fog: { color: '#3a3d62', density: 1.2e-4 },
+      fog: { color: '#3a3d62', density: 0.9e-4 },
       environment: { kind: 'dusk', intensity: 0.7 },
-      key: { color: '#ffc98f', intensity: 2.1 },
-      hemisphere: { sky: '#8fa6d8', ground: '#3a3026', intensity: 0.5 },
+      key: { color: '#ffc98f', intensity: 1.5 },
+      hemisphere: { sky: '#8fa6d8', ground: '#3a3026', intensity: 0.7 },
       tone: { mapping: 'aces', exposure: 1.5, saturation: 1.35 },
       grain: 0.06,
-      bloom: { strength: 1.2, radius: 0.75 },
-      vignette: 0.6,
-      table: '#3f2d22',
-      mat: { color: '#2a3b4c', grid: '#4d6680' },
+      bloom: { strength: 2, radius: 0.85 },
+      vignette: 0.85,
+      table: '#33241b',
+      mat: { color: '#1e2833', grid: '#2f3f50' },
       sweep: null,
       maxDistance: 2200
     })
@@ -74,7 +74,7 @@ describe('the looks', () => {
     expect([rig.fog, rig.background]).toEqual([fog, background])
     expect(rig.fog.density).toBe(LAB.fog.density)
     expect(rig.background.equals(new Color(LAB.background))).toBe(true)
-    expect(rig.key.intensity).toBe(2.1)
+    expect(rig.key.intensity).toBe(LAB.key.intensity)
     expect(rig.rim.intensity).toBe(LAB.rim.intensity)
     rig.apply(STUDIO)
     // The key keeps its place: it stands 64 degrees up, a little in front (ADR-0067).
