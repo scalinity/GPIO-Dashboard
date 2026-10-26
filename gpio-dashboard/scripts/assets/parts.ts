@@ -520,7 +520,7 @@ const PARTS: PartEntry[] = [
     family: 'module',
     defId: 'ads7830-module',
     texturePx: [512, 512],
-    triangles: 680,
+    triangles: 760,
     bytes: 40_000
   },
   {
