@@ -34,6 +34,7 @@ import { tboardPinHoles } from '../core/geometry/tboard'
 import type { CircuitDoc, Endpoint, Op, Vec3, Wire } from '../core/model/types'
 import { computeState, type ConnectivityState } from '../core/netlist/engine'
 import type { Problem } from '../core/ops/validate'
+import { useAssistant } from '../state/assistantStore'
 import { useBuild } from '../state/buildStore'
 import { circuit } from '../state/circuit'
 import { LOCKED_MESSAGE } from '../state/circuitStore'
@@ -88,6 +89,7 @@ import { SimVisuals, type VisualsReport } from './simvisuals'
 import { StageRig } from './rig'
 import { setStatus } from './status'
 import { type Mark, StepMarks } from './stepMarks'
+import { benchOf, planShots, Tour } from './tour'
 import { WireLayer } from './wires'
 
 const KEYS: Record<string, Preset> = { f: 'fit', 1: 'fit', 2: 'iso', 3: 'top', 4: 'front' }
@@ -116,6 +118,9 @@ const CAPTURE_MAX_PX = 1568
 /** The veil fades in over this long before a look switch, and out over VEIL_OUT_MS after it. */
 const VEIL_IN_MS = 200
 const VEIL_OUT_MS = 220
+
+/** The opening tour plays once a launch, the first time the Studio opens (ADR-0147). */
+let toured = false
 /** A press that moves further than this, in pixels, is a drag rather than a click. */
 const CLICK_PX = 4
 /** A lead grabbed this close to one of its route hints moves that hint rather than adding one. */
@@ -162,6 +167,8 @@ export interface SceneReport {
   build: BuildReport | null
   /** The look drawn. */
   look: LookName
+  /** Whether the opening tour is playing. */
+  touring: boolean
   /** In the Lab look, where the camera stands (mm) and the room's sides cut away from it. */
   room: { camera: [number, number, number]; cut: Side[] } | null
 }
@@ -296,6 +303,8 @@ export class StudioView {
   private lifting = false
   /** The room's sides cut away at the last frame. */
   private cut = new Set<Side>()
+  /** The opening tour, while it plays. */
+  private readonly tour = new Tour()
   /**
    * Where the orbit put the camera, and where the room's walls let it stand, at the last frame. The
    * orbit goes on from the first, so passing a wall does not shorten its distance for good.
@@ -335,7 +344,54 @@ export class StudioView {
     // Reopening the Studio in the middle of a build: the step is framed, not flown to.
     if (useBuild.getState().on) this.frameBuild(true)
     this.syncFocus()
+    if (!toured) {
+      toured = true
+      if (this.tourWanted()) this.playTour()
+    }
     this.draw()
+  }
+
+  /**
+   * Whether the Studio's first opening plays the tour: in the Lab look, on a bench, when the
+   * preference allows, and not under test automation, reduced motion, Build Mode or an
+   * assistant's turn.
+   */
+  private tourWanted(): boolean {
+    return (
+      this.look === 'lab' &&
+      useStudio.getState().tour &&
+      circuit.getSnapshot().boards.length > 0 &&
+      !navigator.webdriver &&
+      !matchMedia('(prefers-reduced-motion: reduce)').matches &&
+      !useBuild.getState().on &&
+      !useAssistant.getState().running
+    )
+  }
+
+  /** Plays the opening tour from its first shot (C does, and the Studio's first opening). */
+  playTour(): void {
+    if (!this.post || circuit.getSnapshot().boards.length === 0) return
+    this.tween.cancel()
+    const doc = this.drawnDoc()
+    // The close-up looks at the brightest lit part, else at the T-board.
+    const lit = Object.keys(this.visuals.report().lit)[0]
+    const box = lit ? bodyBox(doc, { kind: 'part', id: lit }) : null
+    const close = box ? new Vector3().applyMatrix4(box) : undefined
+    this.tour.begin(planShots(benchOf(doc, this.camera, close)), performance.now())
+    useStudio.setState({ presenting: true })
+    this.invalidate()
+  }
+
+  /** Ends the tour where it is; `home` eases the camera to the iso preset from there. */
+  private endTour(home: boolean): void {
+    if (!this.tour.playing) return
+    this.tour.stop()
+    if (this.veil) {
+      this.veil.style.transition = `opacity ${VEIL_OUT_MS}ms ease`
+      this.veil.style.opacity = '0'
+    }
+    useStudio.setState({ presenting: false })
+    if (home) this.preset('iso')
   }
 
   /** One frame: move, render, and say whether another is needed. */
@@ -346,6 +402,15 @@ export class StudioView {
     this.kept = null
     // Damping drains during a preset move too, so nothing is left over when it ends.
     let moving = this.controls.update()
+    if (this.tour.playing) {
+      const veil = this.tour.step(now, this.camera, this.controls.target)
+      if (this.veil) {
+        this.veil.style.transition = 'none'
+        this.veil.style.opacity = String(veil ?? 0)
+      }
+      if (veil === null) useStudio.setState({ presenting: false })
+      moving = true
+    }
     if (this.tween.active) {
       const running = this.tween.step(now, this.camera, this.controls.target)
       if (!running && this.framing?.ms === null) this.framing.ms = now - this.framing.start
@@ -421,6 +486,7 @@ export class StudioView {
   capture(preset: ViewPreset): Promise<CapturedView> {
     if (!this.post || !this.canvas)
       return Promise.reject(new Error('The 3D stage is not open, so there is nothing to capture.'))
+    this.endTour(false)
     this.capturing?.reject(new Error('A newer capture replaced this one.'))
     return new Promise((resolve, reject) => {
       this.capturing = {
@@ -441,6 +507,7 @@ export class StudioView {
    * first switch's shader compile. Under reduced motion the switch is instant.
    */
   private switchLook(look: LookName): void {
+    this.endTour(true)
     const veil = this.veil
     const id = ++this.switching
     if (!veil || !this.post || matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -577,6 +644,7 @@ export class StudioView {
       cueMarks: this.cueMarkers.count,
       build: this.buildReport(),
       look: this.look,
+      touring: this.tour.playing,
       room:
         this.look === 'lab'
           ? {
@@ -636,6 +704,7 @@ export class StudioView {
       )
         return
       const key = e.key.toLowerCase()
+      this.endTour(true)
       if ((e.metaKey || e.ctrlKey) && key === 'z') {
         e.preventDefault()
         if (this.refuseWhileLocked()) return
@@ -653,6 +722,7 @@ export class StudioView {
       else if (key === ']') togglePanels('properties')
       else if (key === '\\') togglePanels('both')
       else if (key === 'l') chooseLook(useStudio.getState().look === 'lab' ? 'studio' : 'lab')
+      else if (key === 'c') this.playTour()
       else if (KEYS[key]) this.preset(KEYS[key])
     }
     // Hover only over the canvas itself, and not while a button is down (orbiting).
@@ -660,12 +730,25 @@ export class StudioView {
       this.pointer(e.target === this.canvas && e.buttons === 0 ? e : null)
     const onLeave = () => this.pointer(null)
     const onDown = (e: PointerEvent) => this.down(e)
+    // The wheel's first turn during the tour only takes over, as a press does.
+    const onWheel = (e: WheelEvent) => {
+      if (!this.tour.playing) return
+      e.stopImmediatePropagation()
+      e.preventDefault()
+      this.endTour(true)
+    }
     const onGestureMove = (e: PointerEvent) => this.moveGesture(e)
     const onUp = (e: PointerEvent) => this.up(e)
     const unsubscribe = [
       circuit.subscribe(() => {
         // Opening a document clears its history: its cables settle afresh, offscreen.
-        if (!circuit.canUndo && !circuit.canRedo) this.settle = true
+        const opened = !circuit.canUndo && !circuit.canRedo
+        if (opened) this.settle = true
+        // The tour follows a document opened under it to its bench; an edit ends it.
+        if (this.tour.playing) {
+          if (opened) this.playTour()
+          else this.endTour(true)
+        }
         this.refreshHover()
         this.draw()
       }),
@@ -742,6 +825,7 @@ export class StudioView {
     window.addEventListener('pointerup', onUp)
     // Capture runs before the orbit controls' own listener, so a drag can switch them off first.
     element.addEventListener('pointerdown', onDown, { capture: true })
+    element.addEventListener('wheel', onWheel, { capture: true, passive: false })
     element.addEventListener('pointermove', onMove)
     element.addEventListener('pointerleave', onLeave)
     this.showCue()
@@ -757,6 +841,9 @@ export class StudioView {
       window.removeEventListener('pointermove', onGestureMove)
       window.removeEventListener('pointerup', onUp)
       element.removeEventListener('pointerdown', onDown, { capture: true })
+      element.removeEventListener('wheel', onWheel, { capture: true })
+      this.tour.stop()
+      useStudio.setState({ presenting: false })
       element.removeEventListener('pointermove', onMove)
       element.removeEventListener('pointerleave', onLeave)
       this.controls.disconnect()
@@ -914,6 +1001,13 @@ export class StudioView {
   }
 
   private down(e: PointerEvent): void {
+    // The first press during the tour only takes over: the camera eases home from where it is.
+    if (this.tour.playing) {
+      e.stopImmediatePropagation()
+      e.preventDefault()
+      this.endTour(true)
+      return
+    }
     if (e.button === 2) this.rightPress = { x: e.clientX, y: e.clientY }
     if (e.button !== 0 || this.gesture?.kind === 'place') return
     const p = this.pointerAt(e)

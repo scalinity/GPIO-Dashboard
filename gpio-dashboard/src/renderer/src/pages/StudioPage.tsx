@@ -251,14 +251,24 @@ export default function StudioPage() {
   const building = useBuild((s) => s.on)
   const library = useStudio((s) => s.library)
   const properties = useStudio((s) => s.properties)
+  // While the opening tour plays the side panels step back, keeping their place (ADR-0147).
+  const presenting = useStudio((s) => s.presenting)
+  const stepBack = `flex shrink-0 transition-opacity duration-500 ${presenting ? 'opacity-0' : ''}`
   return (
     <div ref={followOnMount} className="relative flex-1 flex flex-col h-full overflow-hidden">
       <TopBar />
       <div className="relative flex-1 flex min-h-0">
-        {building ? <BuildPanel /> : library && <PartLibrary view={view} />}
+        {(building || library) && (
+          <div className={stepBack} inert={presenting}>
+            {building ? <BuildPanel /> : <PartLibrary view={view} />}
+          </div>
+        )}
         <Studio view={view} doc={preview ?? doc} />
         {properties && (
-          <aside className="w-64 shrink-0 overflow-y-auto border-l border-white/[0.06] bg-surface-950 p-2">
+          <aside
+            className={`w-64 overflow-y-auto border-l border-white/[0.06] bg-surface-950 p-2 ${stepBack}`}
+            inert={presenting}
+          >
             {/* The HUD's control card. */}
             <div className="card space-y-4 px-2.5 pb-2.5 pt-2">
               <LookSwitch />

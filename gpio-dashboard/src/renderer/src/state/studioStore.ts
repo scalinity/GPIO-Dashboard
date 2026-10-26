@@ -53,6 +53,10 @@ interface StudioState {
   properties: boolean
   /** The Lab or the Studio look (ADR-0143), a preference of this machine, not of the project. */
   look: LookName
+  /** Whether the Studio's first opening in a launch plays the tour (ADR-0147); this machine's. */
+  tour: boolean
+  /** The opening tour is playing: the side panels step back and a toast says how to take over. */
+  presenting: boolean
   /** The document as the current drag would leave it, while that is legal. */
   preview: CircuitDoc | null
   /** Why the last edit was refused, until the next one. */
@@ -65,6 +69,7 @@ interface StudioState {
 }
 
 const LOOK_KEY = 'gpio.studio.look'
+const TOUR_KEY = 'gpio.studio.tour'
 
 /** The look last chosen on this machine; the Lab look until one is. */
 function savedLook(): LookName {
@@ -87,6 +92,25 @@ export function setLook(look: LookName): void {
   }
 }
 
+/** Whether the tour opens the Studio, as last chosen on this machine; on until turned off. */
+function savedTour(): boolean {
+  try {
+    return localStorage.getItem(TOUR_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
+
+/** Turns the opening tour on or off on this machine. */
+export function setTour(on: boolean): void {
+  useStudio.setState({ tour: on })
+  try {
+    localStorage.setItem(TOUR_KEY, on ? 'on' : 'off')
+  } catch {
+    /* storage unavailable: the choice holds until the app closes */
+  }
+}
+
 export const useStudio = create<StudioState>(() => ({
   selection: null,
   tool: 'select',
@@ -102,6 +126,8 @@ export const useStudio = create<StudioState>(() => ({
   library: true,
   properties: true,
   look: savedLook(),
+  tour: savedTour(),
+  presenting: false,
   preview: null,
   notice: null,
   ghosts: {},

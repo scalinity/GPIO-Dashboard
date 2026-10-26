@@ -264,6 +264,7 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
   const veil = useRef<HTMLDivElement>(null)
   const vignette = useRef<HTMLDivElement>(null)
   const notice = useStudio((s) => s.notice)
+  const presenting = useStudio((s) => s.presenting)
   const attach = useCallback(
     (element: HTMLDivElement) => {
       const detach = view.attach(
@@ -343,6 +344,7 @@ export default function Studio({ view, doc }: { view: StudioView; doc: CircuitDo
       </Hud>
       <BadgeCard doc={doc} />
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 max-w-[80%] flex flex-col items-center gap-2">
+        {presenting && <p className="hud-toast">Drag, click or press a key to take over</p>}
         {notice && (
           <div
             role="status"

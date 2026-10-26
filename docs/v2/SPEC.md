@@ -1127,6 +1127,22 @@ Looks:
   open. The side the camera stands within 900 mm of, or behind, is cut away with its
   furniture, and so is the ceiling. Every preset of every tutorial stands inside the room.
 
+Opening tour:
+- The first time the Studio opens in a launch, in the Lab look and on a bench, the camera takes
+  three slow shots: the bench small in its room, low along the bench from the Pi to the
+  breadboard, and close on the brightest lit part (else the T-board), the veil dipping to black
+  at each cut; then it eases to the iso preset, about 16 s in all. Each shot turns 1.6 to 3
+  degrees a second, and every pose stands inside the room.
+- While it plays the side panels step back, keeping their place and taking no input, and one
+  line under the stage says "Drag, click or press a key to take over". The first press or wheel
+  turn on the stage only takes over: the camera eases home from where it is. A key ends it and
+  still does what it does. A look switch, an edit or a capture ends it too; a document opened
+  under it plans it again for the new bench.
+- It does not start under test automation, with reduced motion asked for, in Build Mode or
+  during an assistant's turn, or once turned off: View's Opening tour button keeps that choice on
+  the machine. C plays it at any time. It counts as motion: frames are drawn while it plays and
+  none once it ends.
+
 Camera:
 - A damped orbit, with a 35° vertical field of view in both looks.
 - Presets animate with easing, in at most 600 ms.

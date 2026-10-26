@@ -4042,3 +4042,39 @@ declare it.
 - **Consequences.** With the drawer open the stage is short, so the sentence folds away and the
   readouts stay. The column covers the stage's top left: the default framing can put the bench's
   far end under it.
+
+## ADR-0147 An opening tour shows the bench in its room, and gives way to the first input
+
+- **Context.** The app opens on the Studio (ADR-0141), and the Lab look (ADR-0143 to ADR-0145)
+  sets the bench in a furnished workroom that its first framing, the iso preset close on the
+  bench, barely shows. The exhibit house style opens with a short tour that the first input
+  takes over. Three constraints hold it in: the Studio draws no frames when nothing moves (SPEC
+  10.8), test automation must see the Studio as it was, and nothing the user does may be lost.
+- **Decision.**
+  - `studio/tour.ts` plans the tour from the bench (`benchOf`, `planShots`) and runs it (`Tour`):
+    the room from about 1.4 m over 5 s, low along the bench from the Pi to the breadboard over
+    5 s, close on the brightest lit part or else the T-board over 4.5 s, then 1.2 s eased home to
+    the iso preset. Each shot turns 1.6 to 3 degrees a second; the veil dips to black over
+    350 ms into each cut and lifts over 350 ms after it. The Lab look's depth of field follows
+    the camera's distance (ADR-0145), so the close-up melts the room without a focus pull of its
+    own.
+  - The view runs it in `frame()` beside the preset tween, which keeps the frame loop's rule:
+    frames while it plays, none once it ends.
+  - It plays once a launch, at the Studio's first opening, in the Lab look, on a bench, unless
+    `navigator.webdriver` is set, reduced motion is asked for, Build Mode is on, an assistant's
+    turn is running, or View's Opening tour button has turned it off (`gpio.studio.tour` on this
+    machine). C plays it at any time.
+  - The first press or wheel turn on the stage is swallowed in the capture phase, before the
+    orbit controls see it, and eases the camera to the iso preset from wherever the tour put it.
+    A key ends the tour and then acts as it always does, so a preset key lands on its preset. A
+    look switch, an edit or a capture ends it; a document opened under it re-plans it.
+  - While it plays, `studioStore.presenting` steps the side panels back (opacity 0 and `inert`,
+    in their place, so the stage does not resize) and shows one line under the stage. The line
+    has no status role, so the page keeps one.
+- **Consequences.**
+  - Every tutorial's tour stays inside the room, turns at that pace, ends exactly on the iso
+    preset and runs under 16 s (`tour.test.ts`). `e2e/tour.spec.ts` plays it as C does: the
+    camera moves, the panels step back and take no input, the first click selects nothing, the
+    camera lands on the iso preset, and the scene is still within 2 s.
+  - Under automation the tour never starts by itself, so the rest of the suite opens the Studio
+    as before.
