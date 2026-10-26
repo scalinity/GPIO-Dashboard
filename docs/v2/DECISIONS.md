@@ -1106,14 +1106,15 @@ decision and consequences. Numbering is stable; superseded records say so.
   - A new module is a function in a `mod_*.py` file, an entry in `module.py`'s table and one in
     `parts.ts`'s `MODULES`.
 
-## ADR-0044 Off-board modules lie on the table with the definition's pin layout and a header on top
+## ADR-0044 Off-board modules lie flat with the definition's pin layout and their headers as built
 
 - **Context.** The part GLB contract puts an off-board module's origin at its footprint corner on
   the table, its header pins in the model, and `pin-<id>` at each pin tip, axis out along the pin.
   The definitions give each pin an `offsetPitch` from the first pin "as a layout hint", and their
   `bodyMm` as the module's [x, y, z]. Several real boards carry the header on the other side or
-  along their short edge (the HC-SR04, HC-SR501 and KY-023 plug into a breadboard upright; the
-  LCD's backpack is behind the glass), and no source read shows which.
+  as a right-angle header along an edge (the HC-SR04, DHT11 breakout, relay and KY-023 lay their
+  pins out of an edge; the HC-SR501's points down from its component side; the LCD's backpack is
+  behind the glass), as the kit's and the vendors' photographs show.
 - **Decision.**
   - The model's x axis runs along the header row and y across it, so a pin's `offsetPitch`
     maps onto the model without a rotation: pin i is at pin 1 + `offsetPitch` * 2.54 mm
@@ -1127,9 +1128,13 @@ decision and consequences. Numbering is stable; superseded records say so.
     HC-SR501's real header points down from its component side; the model stands it on the lens
     side's free end, beside a mounting hole, and runs the board's 32 mm along y to make room.
   - A right-angle header is drawn as the board has it, its pins along -y out of the board's near
-    edge, 6 mm past the base, with the empties at their tips pointing along -y: the HC-SR04's,
-    whose base is on the back (the module lies on its back and rests on the bent pins), and the
-    DHT11 breakout's, whose base is on top. A female housing slides on sideways.
+    edge, with the empties at their tips pointing along -y: the HC-SR04's, whose base is on the
+    back (the module lies on its back and rests on the bent pins), and the DHT11 breakout's, the
+    relay's and the joystick's, whose bases are on top. A female housing slides on sideways, and
+    the module is raised so that it clears what the module rests on (ADR-0139).
+  - The LCD lies face up on its backpack, whose contrast trimmer is its lowest point. The
+    backpack's right-angle header stands its four pins in a column along y, GND by the 16-pin
+    edge, and points them past the module's -x end, the empties along -x.
   - Female connectors lie flat on the table with their sockets facing -y, away from the module:
     the keypad's 1 x 8 housing at the end of its 86 mm tail (flat, 0.35 mm), the SG90's 3-way
     housing at the end of its 250 mm cable (three 1.1 mm wires, straight), and the relay's three
