@@ -301,7 +301,8 @@ body, which floats on its standoff, is 4.57 mm thick and `assets:check` expects 
 - *Origin.* The footprint's corner on the table: the model's lowest x, y and z are all 0 (checked
   to 0.05 mm). x runs along the header row, y across it, z up. A module with a header rests on its
   pins' 1.5 mm tails, the HC-SR04 on its header's bent pins under its back and the HC-SR501 on the
-  capacitors and jumper under its board; the keypad, servo and motor lie on the table.
+  capacitors and jumper under its board; the LCD lies face up on its backpack, whose contrast
+  trimmer is its lowest point; the keypad, servo and motor lie on the table.
 - *Pins.* The module keeps its connector's layout: pin i is at pin 1 + `offsetPitch` * 2.54 mm
   (the relay's screw terminal block at its own 5 mm pitch), so the definition's offsets map straight
   onto the model. `assets:check` measures every pin's place relative to the first (0.05 mm) and the
@@ -309,11 +310,14 @@ body, which floats on its standoff, is 4.57 mm thick and `assets:check` expects 
   the metal pin in the node `pins`. `pin-<id>` is at the tip of each, +z up, where a female Dupont
   housing mates; the header is on the board's top face with its pins up whichever side the real
   board's header is on, so that a housing can reach it (the HC-SR501's real header points down from
-  its component side; the model stands it on the lens side's free end). Four kinds differ, each
+  its component side; the model stands it on the lens side's free end). Five kinds differ, each
   listed in `parts.ts` under `axes`:
   - the right-angle headers of the HC-SR04 (its base on the back), the DHT11 breakout (its base
     on top), the relay and the joystick: the pins lie along -y out of the board's near edge, as on
     the boards, and so do the empties' +z;
+  - the LCD's backpack, behind the glass as on the real board: its right-angle header stands its
+    four pins in a column along y (GND by the 16-pin edge, SCL lowest, as the definition lays them
+    out) and points them past the module's -x end, +z along -x;
   - the relay's screw terminals `NC`, `COM` and `NO`: at the block's front face, +z along +y, out
     of the board's edge;
   - the keypad and the servo: the female housing at the end of a flat tail or a cable lies on the
@@ -326,12 +330,13 @@ body, which floats on its standoff, is 4.57 mm thick and `assets:check` expects 
   `sensorOverhangApproxMm` past the far edge; the board's size is read off a photo, so only its
   footprint, with the overhang, is compared. The HC-SR501 runs its 32 mm along y.
 - *Textures.* A board's solder-mask top carries its silkscreen legend as one KTX2 base-colour map
-  (UVs run over the board's outline; the power module's turned a quarter, u along its 53 mm). The
-  HC-SR04's transducer meshes and the DHT11 breakout's resistor code are drawn in that legend and
-  mapped onto their tops from above. The relay's case top and terminal face, the power module's
-  regulator markings, the keypad's keys, the LCD's screen and the housings' socket holes are small
-  maps on panels of their own. The DHT11's vents are holes in its housing's front plate. The
-  ADS1115 also has the occlusion map baked from its STEP; no other module has one.
+  (UVs run over the board's outline; the power module's turned a quarter, u along its 53 mm), the
+  LCD's backpack too. The HC-SR04's transducer meshes and the DHT11 breakout's resistor code are
+  drawn in that legend and mapped onto their tops from above. The relay's case top and terminal
+  face, the power module's regulator markings, the keypad's keys and tail, the LCD's screen, the
+  servo's label and the housings' socket holes are small maps on panels of their own. The DHT11's
+  vents are holes in its housing's front plate. The ADS1115 also has the occlusion map baked from
+  its STEP; no other module has one.
 
 **Names the studio looks up** (all unique in a file):
 

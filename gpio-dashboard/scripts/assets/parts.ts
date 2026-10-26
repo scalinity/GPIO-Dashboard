@@ -241,15 +241,17 @@ const MODULES: Record<string, (p: Params, def: PartDefinition) => PartExpectatio
       nodes: ['stick'],
       axes: Object.fromEntries(def.pins.map((q) => [q.id, [0, -1, 0] as Vec3]))
     }),
-  'lcd1602a-i2c-backpack': (p) =>
-    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'moduleThicknessMaxMm'), {
+  // The LCD lies face up on its backpack, whose right-angle header points out past the left end.
+  'lcd1602a-i2c-backpack': (p, def) =>
+    board(num(p, 'boardLengthMm'), num(p, 'boardWidthMm'), num(p, 'moduleHeightWithBackpackMm'), {
       nodes: ['lcd-screen'],
-      screen: HD44780_AREA_MM
+      screen: HD44780_AREA_MM,
+      axes: Object.fromEntries(def.pins.map((q) => [q.id, [-1, 0, 0] as Vec3]))
     }),
-  // The pad is the body; its tail ends in a female housing lying flat, its sockets facing along
-  // the tail, away from the pad.
+  // The pad is the body, 70 mm across its keys and 77 mm along its tail, which ends in a female
+  // housing lying flat, its sockets facing along the tail, away from the pad.
   'membrane-keypad-4x4': (p, def) =>
-    board(num(p, 'keypadLengthMm'), num(p, 'keypadWidthMm'), num(p, 'keypadThicknessMm'), {
+    board(num(p, 'keypadWidthMm'), num(p, 'keypadLengthMm'), num(p, 'keypadThicknessMm'), {
       exit: 'up',
       axes: Object.fromEntries(def.pins.map((q) => [q.id, [0, -1, 0] as Vec3])),
       bodyNodes: ['body']
@@ -552,8 +554,14 @@ const PARTS: PartEntry[] = [
     triangles: 2800,
     bytes: 49_000
   },
-  { family: 'module', defId: 'keypad-4x4', texturePx: [1024, 1024], triangles: 125, bytes: 56_000 },
-  { family: 'module', defId: 'lcd1602-i2c', texturePx: [1024, 512], triangles: 550, bytes: 30_000 },
+  { family: 'module', defId: 'keypad-4x4', texturePx: [1024, 1024], triangles: 125, bytes: 60_000 },
+  {
+    family: 'module',
+    defId: 'lcd1602-i2c',
+    texturePx: [1024, 512],
+    triangles: 1750,
+    bytes: 60_000
+  },
   {
     family: 'module',
     defId: 'relay-module-5v',
@@ -561,7 +569,7 @@ const PARTS: PartEntry[] = [
     triangles: 1450,
     bytes: 67_000
   },
-  { family: 'module', defId: 'sg90', texturePx: [256, 256], triangles: 530, bytes: 24_000 }
+  { family: 'module', defId: 'sg90', texturePx: [256, 256], triangles: 1160, bytes: 35_000 }
 ]
 
 const partPath = (defId: string) => `${PARTS_DIR}/${defId}.part.json`

@@ -4,18 +4,23 @@ build() draws one variant into root and returns [(collider name, [objects])]; se
 frame and sensors' notes in mod_sensors.py for how the headers sit.
 
 Modules with a header lie on its pin tails with the pins up, or out of the board's edge where the
-real board has a right-angle header (the relay, the joystick). The keypad and the servo end in a
-female housing on a cable or tail; it lies flat on the table with its socket openings facing
-along the cable, away from the module, and its pin empties point out of the openings.
+real board has a right-angle header (the relay, the joystick). The LCD lies face up on its
+backpack, whose right-angle header points its pins out past the module's left end, as on the real
+board. The keypad and the servo end in a female housing on a cable or tail; it lies flat on the
+table with its socket openings facing along the cable, away from the module, and its pin empties
+point out of the openings.
 """
 import math
 import os
 import sys
 
+import bpy
+from mathutils import Matrix
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import devicekit as kit  # noqa: E402
 import modparts as mp  # noqa: E402
+from lib import bake, materials, scene  # noqa: E402
 
 
 def mounting_holes(L, W, span_x, span_y, d):
@@ -518,147 +523,494 @@ def joystick_module(root, part, args):
     return [('body', [pcb, base, pivot]), ('pins', [pin_obj])]
 
 
+# --- Printing and boards for the keypad, the LCD and the servo -------------------------------------
+
+
+def _ring_pts(x0, y0, x1, y1, r, z, n=4):
+    return [(x, y, z) for x, y in kit.rounded_rect(x0, y0, x1, y1, r, n)]
+
+
+def _decal(name, rect, px, base_hex, items):
+    """devicekit.decal with rounded shapes and bolder text: bake a colour image of rect from a
+    backing of base_hex and items drawn in order, each over the ones before it. Items:
+      ('text', string, x, y, height_mm, hex, rotation_deg, align[, weight_mm])
+      ('box', x0, y0, x1, y1, hex)
+      ('ring', cx, cy, r_outer, r_inner, hex)            r_inner 0 fills the disc
+      ('rbox', x0, y0, x1, y1, radius, hex)              a filled rounded rectangle
+      ('rframe', x0, y0, x1, y1, radius, width, hex)     its outline, width inward
+      ('poly', [(x, y), ...], hex)                       a convex polygon
+    weight_mm thickens a text by drawing it again that far to each side."""
+    x0, y0, x1, y1 = rect
+    made = [kit._flat(f'{name}-backing', x0, y0, x1, y1, 0.001, kit.emissive(f'{name}-base', base_hex))]
+
+    def mesh(label, verts, faces, mat):
+        me = bpy.data.meshes.new(label)
+        me.from_pydata(verts, [], faces)
+        me.materials.append(mat)
+        made.append(scene.link(bpy.data.objects.new(label, me)))
+
+    for k, item in enumerate(items):
+        # Each item lies a little above the one before, so the bake's rays meet the later first.
+        z = 0.002 + 0.03 * k / max(len(items), 1)
+        kind = item[0]
+        ink = item[5] if kind == 'text' else item[-1]
+        mat = kit.emissive(f'ink-{ink}', ink)
+        if kind == 'text':
+            body, x, y, h, _hex, rot, align = item[1:8]
+            weight = item[8] if len(item) > 8 else 0.0
+            shifts = [(0, 0)] + ([(weight, 0), (-weight, 0), (0, weight), (0, -weight)] if weight else [])
+            for j, (dx, dy) in enumerate(shifts):
+                curve = bpy.data.curves.new(f'{name}-t{k}-{j}', 'FONT')
+                curve.body = body
+                curve.size = h / 0.73  # Blender's built-in font: digits stand 0.73 of the size tall
+                curve.align_x = align
+                curve.align_y = 'CENTER'
+                curve.materials.append(mat)
+                obj = scene.link(bpy.data.objects.new(f'{name}-t{k}-{j}', curve))
+                obj.location = (x + dx, y + dy, z)
+                obj.rotation_euler.z = math.radians(rot)
+                made.append(obj)
+        elif kind == 'box':
+            made.append(kit._flat(f'{name}-b{k}', item[1], item[2], item[3], item[4], z, mat))
+        elif kind == 'ring':
+            _, cx, cy, ro, ri, _hex = item
+            n = 24
+            outer = [(x, y, z) for x, y in kit.circle(cx, cy, ro, n)]
+            if ri > 0:
+                inner = [(x, y, z) for x, y in kit.circle(cx, cy, ri, n)]
+                mesh(f'{name}-r{k}', outer + inner, [(i, (i + 1) % n, n + (i + 1) % n, n + i) for i in range(n)], mat)
+            else:
+                mesh(f'{name}-r{k}', outer, [tuple(range(n))], mat)
+        elif kind == 'rbox':
+            _, a, b, c, d, r, _hex = item
+            pts = _ring_pts(a, b, c, d, r, z)
+            mesh(f'{name}-q{k}', pts, [tuple(range(len(pts)))], mat)
+        elif kind == 'rframe':
+            _, a, b, c, d, r, w, _hex = item
+            outer = _ring_pts(a, b, c, d, r, z)
+            inner = _ring_pts(a + w, b + w, c - w, d - w, max(r - w, 0.05), z)
+            n = len(outer)
+            mesh(f'{name}-f{k}', outer + inner, [(i, (i + 1) % n, n + (i + 1) % n, n + i) for i in range(n)], mat)
+        elif kind == 'poly':
+            pts = [(x, y, z) for x, y in item[1]]
+            mesh(f'{name}-p{k}', pts, [tuple(range(len(pts)))], mat)
+    target = kit._flat(f'{name}-target', x0, y0, x1, y1, 0, materials.principled(f'{name}-target', (1, 1, 1)))
+    uv = target.data.uv_layers.new(name='UVMap')
+    for loop in target.data.loops:
+        co = target.data.vertices[loop.vertex_index].co
+        uv.data[loop.index].uv = ((co.x - x0) / (x1 - x0), (co.y - y0) / (y1 - y0))
+    img = bake.bake(target, 'EMIT', bake.image(name, *px), made, extrusion=0.05, distance=0.1)
+    for obj in [target, *made]:
+        bpy.data.objects.remove(obj)
+    return img
+
+
+def _printed(name, hex6, img, **inputs):
+    """A material whose base colour is a baked image."""
+    mat = kit.material(name, hex6, **inputs)
+    kit.textured(mat, img)
+    return mat
+
+
+def _mark_top(obj, rect, z, mat):
+    """devicekit.mark_top, with the UVs clamped to 0-1: a rounded corner's rounding error would
+    otherwise leave a UV a hair outside, and meshopt then leaves the UVs unquantized."""
+    kit.mark_top(obj, rect, z, mat)
+    for loop in obj.data.uv_layers.active.data:
+        loop.uv = (min(max(loop.uv[0], 0.0), 1.0), min(max(loop.uv[1], 0.0), 1.0))
+
+
+def _paint_down(obj, mat):
+    """Give obj's downward faces the material mat (a board's solder-masked underside)."""
+    me = obj.data
+    if mat not in list(me.materials):
+        me.materials.append(mat)
+    slot = list(me.materials).index(mat)
+    for poly in me.polygons:
+        if poly.normal.z < -0.99:
+            poly.material_index = slot
+
+
+def _board(root, name, rect, z0, thickness, mask_hex, px, items, holes=(), radius=0.8, rough=0.35, underside=True):
+    """A circuit board as devicekit.board makes one, with its own materials (so two boards in one
+    model keep their colours) and, with underside, the solder mask on its bottom face too (otherwise
+    the bottom shows the cut edge's colour). Returns (object, top z)."""
+    x0, y0, x1, y1 = rect
+    top = z0 + thickness
+    edge = kit.material('pcb-edge', kit.FR4, Roughness=0.6)
+    mask = kit.material(f'{name}-mask', mask_hex, Roughness=rough, Coat_Weight=0.5, Coat_Roughness=0.15)
+    m = kit.Mesh()
+    m.slab(kit.rounded_rect(x0, y0, x1, y1, radius), [kit.circle(cx, cy, d / 2, 12) for cx, cy, d in holes],
+           z0, top, edge, top_mat=mask)
+    obj = m.to_object(name, root)
+    img = _decal(f'{name}-legend', rect, px, mask_hex, list(items))
+    legend = _printed(f'{name}-legend', mask_hex, img, Roughness=rough, Coat_Weight=0.5, Coat_Roughness=0.15)
+    _mark_top(obj, rect, top, legend)
+    if underside:
+        _paint_down(obj, mask)
+    return obj, top
+
+
+def _housing(root, name, x0, y_face, width, length, height, pitch, n, px):
+    """A black female housing lying on the table, its socket face toward -y at y_face: the body and
+    a panel with the n square openings, pitch apart and centred across it. Returns the objects and
+    the openings' centres (x) at mid-height."""
+    hm = kit.Mesh()
+    hm.box((x0, y_face, 0.0), (x0 + width, y_face + length, height), mp.black_plastic(), taper=0.12)
+    body = hm.to_object(name, root)
+    first = (width - (n - 1) * pitch) / 2
+    holes = [('box', first + k * pitch - 0.62, height / 2 - 0.62, first + k * pitch + 0.62, height / 2 + 0.62, '030304')
+             for k in range(n)]
+    face_mat = _printed(f'{name}-face', '17181a', _decal(f'{name}-face', (0, 0, width, height), px, '17181a', holes),
+                        Roughness=0.7)
+    # Facing -y: u along +x and v up, u x v = -y.
+    face = kit.panel(root, f'{name}-face', (x0, y_face - 0.02, 0.0), (width, 0, 0), (0, 0, height), face_mat)
+    return [body, face], [x0 + first + k * pitch for k in range(n)]
+
+
+# --- The 4x4 membrane keypad --------------------------------------------------------------------
+
 KEYS = ['1', '2', '3', 'A', '4', '5', '6', 'B', '7', '8', '9', 'C', '*', '0', '#', 'D']
+KEY_BLUE, KEY_RED, KEY_RIM, KEY_INK = '3a82dc', 'e2262e', 'd7dbe0', 'f6f7f9'
+PAD_BLACK, PAD_LINE = '161718', 'c6c9cd'
 
 
 def keypad(root, part, args):
+    """The common black membrane keypad (SunFounder's keypad photo, protosupplies, Parallax 27899):
+    a 0.8 mm pad 70 mm across the keys and 77 mm along the tail, a pale line 2.3 mm in from its
+    edge, sixteen 11.5 mm keys on a 14.7 x 14.6 mm grid (blue digits, red letters and symbols, white
+    legends, a pale rim), and a 20 mm clear tail with eight silver traces from the middle of the
+    lower edge to a black 1 x 8 female housing."""
     G = part['geometry']['params']
-    L, W, T = G['keypadLengthMm'], G['keypadWidthMm'], G['keypadThicknessMm']
-    tail_total = G['cableLengthMm']
+    W, L, T = G['keypadWidthMm'], G['keypadLengthMm'], G['keypadThicknessMm']
+    total = G['cableLengthMm']  # the tail with its housing, from the pad's edge
     pitch = G['connectorPitchMm']
     pins = part['pins']
-    housing_len, housing_w, housing_h = 8.0, pins[-1]['offsetPitch'][0] * pitch + pitch, 2.54
-    # The pad lies from y = tail_total up; the tail runs down to the housing at y = 0.
-    y_pad = tail_total
-    # Keys: a 4 x 4 grid, light legends on dark keys, laid out on the pad's top.
-    key_w, key_h, px_, py_ = 14.5, 12.5, 17.5, 15.5
-    kx0 = (L - (3 * px_ + key_w)) / 2
-    ky0 = (W - (3 * py_ + key_h)) / 2
-    items = []
-    for i, key in enumerate(KEYS):
+    n = len(pins)
+    hw, hl, hh = n * pitch + 0.3, 8.0, 2.6  # the housing: across, along the tail, thick
+    tail_w = 20.0
+    y_pad = total
+    key, px_, py_ = 11.5, 14.7, 14.6
+    kx0 = (W - (3 * px_ + key)) / 2
+    ky1 = y_pad + L - (L - (3 * py_ + key)) / 2
+    items = [('rframe', 2.3, y_pad + 2.3, W - 2.3, y_pad + L - 2.3, 3.0, 0.55, PAD_LINE)]
+    for i, k in enumerate(KEYS):
         r, c = divmod(i, 4)
-        x0 = kx0 + c * px_
-        y1 = W - ky0 - r * py_
-        items.append(('box', x0, y1 - key_h, x0 + key_w, y1, '3f4046'))
-        items.append(('text', key, x0 + key_w / 2, y1 - key_h / 2, 5.0 if key not in '*#' else 5.6, 'f0f0ea', 0, 'CENTER'))
-    img = kit.decal('keypad-face', (0, 0, L, W), args.px, '1d1e21', items)
-    face = kit.material('keypad-face', '1d1e21', Roughness=0.5)
-    kit.textured(face, img)
+        x0, y1 = kx0 + c * px_, ky1 - r * py_
+        items.append(('rbox', x0, y1 - key, x0 + key, y1, 1.4, KEY_RIM))
+        ink = KEY_RED if k in 'ABCD*#' else KEY_BLUE
+        items.append(('rbox', x0 + 0.45, y1 - key + 0.45, x0 + key - 0.45, y1 - 0.45, 1.0, ink))
+        h, dy = {'*': (7.5, -1.6), '#': (4.6, 0.0)}.get(k, (5.8, 0.0))
+        xc, yc = x0 + key / 2, y1 - key / 2
+        items.append(('text', k, xc, yc + dy, h, KEY_INK, 0, 'CENTER', 0.1))
+        if k == '1':  # the built-in font's 1 is a bare stroke; the keypad's has a flag
+            left, top = xc - 0.6, yc + h / 2 + 0.1
+            flag = [(left - 1.5, top - 1.2), (left - 1.5, top - 2.15), (left + 0.4, top - 0.95), (left + 0.4, top)]
+            items.append(('poly', flag, KEY_INK))
+    rect = (0, y_pad, W, y_pad + L)
+    face = _printed('keypad-face', PAD_BLACK, _decal('keypad-face', rect, args.px, PAD_BLACK, items),
+                    Roughness=0.3, Coat_Weight=0.4, Coat_Roughness=0.1)
     m = kit.Mesh()
-    edge = kit.material('keypad-edge', '2a2b2f', Roughness=0.6)
-    m.slab(kit.rounded_rect(0, y_pad, L, y_pad + W, 1.5), [], 0.0, T, edge, top_mat=face)
+    m.slab(kit.rounded_rect(*rect, 2.5), [], 0.0, T, kit.material('keypad-edge', '202124', Roughness=0.5), top_mat=face)
     pad = m.to_object('pad', root)
-    kit.mark_top(pad, (0, y_pad, L, y_pad + W), T, face)
-    tail_w = housing_w + 0.6
+    _mark_top(pad, rect, T, face)
+    # The tail: a clear film over eight traces, darker over the row lines near the housing.
+    tx0 = W / 2 - tail_w / 2
+    first = (tail_w - (n - 1) * pitch) / 2
+    lines = [('box', first + k * pitch - 0.45, 0, first + k * pitch + 0.45, y_pad - hl, 'e8eaec') for k in range(n)]
+    lines.append(('box', first - 0.75, 0, first + 3 * pitch + 0.75, 7.0, '45484d'))
+    film = _printed('keypad-tail', 'b9bec5', _decal('keypad-tail', (0, 0, tail_w, y_pad - hl), [64, 256], 'b9bec5', lines),
+                    Roughness=0.25)
     tm = kit.Mesh()
-    tm.box((L / 2 - tail_w / 2, housing_len, 0.0), (L / 2 + tail_w / 2, y_pad + 0.5, 0.35), kit.material('tail', '4a4b50', Roughness=0.5))
+    tm.box((tx0, hl, 0.0), (tx0 + tail_w, y_pad, 0.2), film)
     tail = tm.to_object('tail', root)
-    hm = kit.Mesh()
-    hm.box((L / 2 - housing_w / 2, 0.0, 0.0), (L / 2 + housing_w / 2, housing_len, housing_h), mp.black_plastic(), taper=0.08)
-    housing = hm.to_object('housing', root)
-    sockets = [('box', (k + 0.5) * pitch - 0.6, housing_h / 2 - 0.6, (k + 0.5) * pitch + 0.6, housing_h / 2 + 0.6, '000000') for k in range(len(pins))]
-    hole_img = kit.decal('housing-face', (0, 0, housing_w, housing_h), [256, 32], '17181a', sockets)
-    hole_mat = kit.material('housing-face', '17181a', Roughness=0.7)
-    kit.textured(hole_mat, hole_img)
-    # Facing -y: u runs along +x, v up, and u x v = -y... x cross z is -y.
-    front = kit.panel(root, 'housing-face', (L / 2 - housing_w / 2, -0.02, 0.0), (housing_w, 0, 0), (0, 0, housing_h), hole_mat)
-    for p in pins:
-        kit.pin_empty(root, p['id'], (L / 2 - housing_w / 2 + (p['offsetPitch'][0] + 0.5) * pitch, -0.02, housing_h / 2), (0, -1, 0))
-    return [('body', [pad]), ('cable', [tail]), ('connector', [housing, front])]
+    _mark_top(tail, (tx0, hl, tx0 + tail_w, y_pad), 0.2, film)
+    connector, sockets = _housing(root, 'housing', W / 2 - hw / 2, 0.0, hw, hl, hh, pitch, n, [256, 32])
+    for p, x in zip(pins, sockets):
+        kit.pin_empty(root, p['id'], (x, -0.02, hh / 2), (0, -1, 0))
+    return [('body', [pad]), ('cable', [tail]), ('connector', connector)]
+
+
+# --- The LCD1602 with its PCF8574 backpack ---------------------------------------------------------
+
+LCD_GREEN, LCD_TRACE, PAD_GOLD, TIN = '2f9a3c', '4fb357', 'c9a457', 'cdd0d3'
+BACKPACK_BLACK = '15161a'
+SCREEN_BLUE, CELL_BLUE = '2358d8', '1e4cc2'
+
+
+def _backpack_frame(objs, x_mirror, z_face):
+    """Bring objects drawn in the backpack's frame (the module seen from behind: x mirrored, its
+    component face up at z = 0) into the module's: a half turn about y, x -> x_mirror - x and
+    z -> z_face - z."""
+    turn = Matrix.Translation((x_mirror, 0, z_face)) @ Matrix.Rotation(math.pi, 4, 'Y')
+    for obj in objs:
+        obj.data.transform(turn)
+        obj.data.update()
+
+
+def _turned_rect(cx, cy, length, width, angle_deg):
+    a = math.radians(angle_deg)
+    u, v = (math.cos(a), math.sin(a)), (-math.sin(a), math.cos(a))
+    return [(cx + su * length / 2 * u[0] + sv * width / 2 * v[0], cy + su * length / 2 * u[1] + sv * width / 2 * v[1])
+            for su, sv in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+
+
+def _so16_y(m, cx, cy, z, bx, by, h, n, pitch):
+    """A small-outline chip whose two rows of n gull-wing leads run along y."""
+    m.box((cx - bx / 2, cy - by / 2, z), (cx + bx / 2, cy + by / 2, z + h), mp.epoxy(), taper=0.08)
+    for side in (-1, 1):
+        for i in range(n):
+            y = cy + (i - (n - 1) / 2) * pitch
+            x0, x1 = sorted((cx + side * (bx / 2 - 0.1), cx + side * (bx / 2 + 1.1)))
+            m.box((x0, y - 0.21, z), (x1, y + 0.21, z + 0.25), mp.tin())
+
+
 
 
 def lcd1602(root, part, args):
+    """The LCD-1602A (SunFounder's mechanical drawing) with the PCF8574 backpack behind it, as
+    SunFounder's photos show its I2C LCD1602: a green 80 x 36 mm board with four gold-ringed holes
+    and the 16 pads along its top edge, a black bezel (72.2 x 24.1 mm) round the blue glass of the
+    64.5 x 14.5 mm view area, and on the back the black backpack on a 16-pin header with the SO-16
+    PCF8574T, the blue 3362 contrast trimmer, the backlight jumper and the 4-pin right-angle header
+    (GND, VCC, SDA, SCL from the top edge down), whose pins point out past the left end. The module
+    lies face up on its backpack, so the trimmer is its lowest point (ADR-0044)."""
     G = part['geometry']['params']
     L, W = G['boardLengthMm'], G['boardWidthMm']
-    z0 = 0.0
-    thick = G['pcbThicknessMm']
-    # The backpack's header stands on the module, pins up, along its lower edge.
+    t = G['pcbThicknessMm']
     pins = part['pins']
-    hx = L - 20.0
-    hy = 3.0
-    labels = [kit.label(p['label'], hx + p['offsetPitch'][0] * kit.PITCH, 5.4, 0.85) for p in pins]
-    labels += [kit.label('LCD1602 + I2C', 14.0, 3.0, 1.0), kit.label('1', 4.0, W - 5.8, 0.8), kit.label('16', L - 4.0, W - 5.8, 0.8)]
-    z0 = mp.TAIL
-    pcb, top = kit.board(root, 'pcb', (0, 0, L, W), z0, thick, '1d5a3a', args.px, labels,
-                         holes=mounting_holes(L, W, G['mountingHoleSpanLongMm'], G['mountingHoleSpanShortMm'], 2.5), radius=1.0)
-    stack = G['moduleThicknessMaxMm'] - thick
-    bezel_l, bezel_w = 71.2, 24.2
-    cx, cy = L / 2, 20.0
-    view_l, view_w = G['viewAreaLengthMm'], G['viewAreaWidthMm']
+    # The LCD's board spans z 0 to t. Behind it are the header's 2.5 mm spacer, the backpack's
+    # board and the trimmer (4.3 mm with its rotor); in front, the bezel and its 0.1 mm ribs make
+    # the whole stack moduleHeightWithBackpackMm.
+    spacer, trimmer, rib = 2.5, 4.3, 0.1
+    face_z = -(spacer + t)  # the backpack's component face, which faces -z
+    bezel_top = G['moduleHeightWithBackpackMm'] + face_z - trimmer - rib
+    hx, hy = (L - G['mountingHoleSpanLongMm']) / 2, (W - G['mountingHoleSpanShortMm']) / 2
+    holes = [(x, y, 2 * 1.35) for x in (hx, L - hx) for y in (hy, W - hy)]
+    pin1_x, pin_y = 8.1, W - 2.1  # the 16-pin row: 8.10 mm in from the left end, 2.10 mm down
+    pads = [(pin1_x + k * kit.PITCH, pin_y) for k in range(16)]
+
+    # The board's face: gold-ringed holes, the tinned pads (pin 1 square), the pin numbers, traces.
+    items = [('ring', x, y, 2.5, 1.2, PAD_GOLD) for x, y, _d in holes]
+    items += [('box', 1.3, 6.0, 1.75, 30.0, LCD_TRACE), ('box', L - 1.75, 6.0, L - 1.3, 30.0, LCD_TRACE),
+              ('box', 48.6, 31.4, 74.0, 31.85, LCD_TRACE), ('box', 6.0, 3.4, 74.0, 3.85, LCD_TRACE),
+              ('box', 48.6, 31.85, 49.05, 33.4, LCD_TRACE)]
+    items += [('ring', x, y, 0.85, 0, TIN) for x, y in pads[1:]]
+    items += [('box', pin1_x - 0.85, pin_y - 0.85, pin1_x + 0.85, pin_y + 0.85, TIN)]
+    items += [kit.label('1', pin1_x, pin_y - 2.0, 0.9), kit.label('16', pads[-1][0], pin_y - 2.0, 0.9)]
+    pcb, top = _board(root, 'pcb', (0, 0, L, W), 0.0, t, LCD_GREEN, args.px, items, holes=holes, radius=0.8)
+
     m = kit.Mesh()
-    silver = kit.material('lcd-bezel', 'c9ccd0', Metallic=1.0, Roughness=0.4)
-    m.slab(kit.rounded_rect(cx - bezel_l / 2, cy - bezel_w / 2, cx + bezel_l / 2, cy + bezel_w / 2, 0.6),
-           [kit.rounded_rect(cx - view_l / 2, cy - view_w / 2, cx + view_l / 2, cy + view_w / 2, 0.0)],
-           top, top + stack, silver)
-    m.box((cx - view_l / 2, cy - view_w / 2, top + stack - 0.9), (cx + view_l / 2, cy + view_w / 2, top + stack - 0.5),
-          kit.material('lcd-glass', '2a46b8', Roughness=0.25))
+    for x, y in pads:  # the backpack's pins, soldered through the LCD's board
+        m.disc((x, y), 0.75, top, top + 0.7, mp.tin(), n=6, r_top=0.32, caps=(False, True))
+    # The bezel: a black metal frame round the view area, its two ribs, and the blue glass in it.
+    bx0, by0, bx1, by1 = (L - 72.2) / 2, 5.8, (L + 72.2) / 2, 5.8 + 24.1
+    cx, cy = L / 2, (by0 + by1) / 2
+    vl, vw = G['viewAreaLengthMm'], G['viewAreaWidthMm']
+    view = (cx - vl / 2, cy - vw / 2, cx + vl / 2, cy + vw / 2)
+    bezel_mat = kit.material('lcd-bezel', '19191b', Metallic=0.5, Roughness=0.4)
+    m.slab(kit.rounded_rect(bx0, by0, bx1, by1, 0.6, 2), [kit.rounded_rect(*view, 0.0)], top, bezel_top, bezel_mat)
+    for y in (by0 + 2.0, by1 - 2.0):  # the frame's two pressed ribs
+        m.box((bx0 + 2.2, y - 0.3, bezel_top), (bx1 - 2.2, y + 0.3, bezel_top + rib), bezel_mat)
+    m.polygon(kit.rounded_rect(*view, 0.0), bezel_top - 0.8, kit.material('lcd-glass', SCREEN_BLUE, Roughness=0.12))
     bezel = m.to_object('lcd', root)
-    # The character area of an HD44780 16 x 2: 15 pitches + a character wide, one pitch + a character high.
+    # The character area of an HD44780 16 x 2: 15 pitches + a character wide, a pitch + a character high.
     char_w, char_h, pitch_x, pitch_y = 2.95, 5.55, 3.55, 5.95
     area_w, area_h = 15 * pitch_x + char_w, pitch_y + char_h
     # The screen: a quad with UVs 0-1 over the character area, +v toward the top row. Its texture is
-    # the backlit glass with the 32 blank character cells; the studio draws characters over it.
-    cells = [
-        ('box', c * pitch_x, area_h - char_h - r * pitch_y, c * pitch_x + char_w, area_h - r * pitch_y, '3158dc')
-        for r in range(2)
-        for c in range(16)
-    ]
-    glass = kit.decal('lcd-screen', (0, 0, area_w, area_h), [256, 64], '2a46b8', cells)
-    screen_mat = kit.material('lcd-screen', '2a46b8', Roughness=0.25)
-    kit.textured(screen_mat, glass)
-    screen = kit.panel(root, 'lcd-screen', (cx - area_w / 2, cy - area_h / 2, top + stack - 0.4), (area_w, 0, 0), (0, area_h, 0), screen_mat)
-    strip = [(p['id'], (hx + p['offsetPitch'][0] * kit.PITCH, hy)) for p in pins]
-    pin_obj = mp.headers(root, [strip], top)
-    return [('body', [pcb, bezel, screen]), ('pins', [pin_obj])]
+    # the backlit glass with its 32 unlit character cells; the studio draws characters over it.
+    cells = [('box', c * pitch_x, area_h - char_h - r * pitch_y, c * pitch_x + char_w, area_h - r * pitch_y, CELL_BLUE)
+             for r in range(2) for c in range(16)]
+    screen_mat = _printed('lcd-screen', SCREEN_BLUE,
+                          _decal('lcd-screen', (0, 0, area_w, area_h), [256, 64], SCREEN_BLUE, cells), Roughness=0.12)
+    screen = kit.panel(root, 'lcd-screen', (cx - area_w / 2, cy - area_h / 2, bezel_top - 0.75),
+                       (area_w, 0, 0), (0, area_h, 0), screen_mat)
+
+    # Behind the board, drawn as seen from the back: x' = L - x and z' = face_z - z, so the
+    # backpack's component face is z' = 0 and the LCD's back is z' = face_z.
+    def X(x):
+        return L - x
+
+
+    # The backpack: 41.5 x 19 mm, centred on the 16 pins, its top edge 0.1 mm in from the LCD's.
+    mid = (pads[0][0] + pads[-1][0]) / 2
+    bp = (X(mid + 20.75), W - 19.1, X(mid - 20.75), W - 0.1)
+    i2c = [W - 5.6 - k * kit.PITCH for k in range(len(pins))]  # GND (by the 16-pin edge) to SCL
+    hdr_x0 = bp[2] - 1.4  # the right-angle header's block straddles the backpack's end
+    jy = W - 8.2  # the backlight jumper's centre line
+    legend = [('ring', X(x), y, 0.8, 0, TIN) for x, y in pads]
+    legend += [kit.label(p['label'], hdr_x0 - 2.3, y, 1.0) for p, y in zip(pins, i2c)]
+    legend += [kit.label('LED', bp[0] + 3.9, 31.6, 0.85), kit.label('POWER', bp[0] + 6.6, 19.6, 0.85),
+               kit.label('FC-113', bp[2] - 3.6, 18.3, 0.75)]
+    for k, name in enumerate(('A0', 'A1', 'A2')):
+        ax = bp[0] + 26.5 + k * 2.2
+        legend += [kit.label(name, ax, 17.7, 0.7), ('box', ax - 0.8, 18.8, ax - 0.15, 19.7, TIN),
+                   ('box', ax + 0.15, 18.8, ax + 0.8, 19.7, TIN)]
+    board, _ = _board(root, 'backpack', bp, -t, t, BACKPACK_BLACK, [512, 256], legend, radius=0.5, underside=False)
+
+    pm = kit.Mesh()
+    black = mp.black_plastic()
+    for bx, by in ((54.9, 18.1), (27.0, 15.0)):  # the LCD's two chip-on-board blobs (U1, U2)
+        kit.dome(pm, (X(bx), by), 5.0, 5.0, 1.0, face_z, black, n=12, rings=2)
+    pm.box((X(pads[-1][0] + 1.27), pin_y - 1.25, face_z), (X(pin1_x - 1.27), pin_y + 1.25, -t), black)  # the spacer
+    _so16_y(pm, bp[0] + 19.1, 28.0, 0.0, 7.5, 10.3, 2.3, 8, 1.27)  # PCF8574T, SO-16
+    # The 3362 trimmer: a blue cube with a white rotor and its cross slot.
+    tx, ty = bp[2] - 9.9, W - 8.2
+    pm.box((tx - 3.5, ty - 3.5, 0.0), (tx + 3.5, ty + 3.5, trimmer - 0.35),
+           kit.material('trimmer-blue', '3f80de', Roughness=0.4), taper=0.15)
+    pm.disc((tx, ty), 2.2, trimmer - 0.35, trimmer - 0.05, kit.material('trimmer-rotor', 'efeee8', Roughness=0.45), n=14,
+            caps=(False, True))
+    for a in (45, -45):
+        pm.extrude(_turned_rect(tx, ty, 3.4, 0.55, a), trimmer - 0.05, trimmer, mp.epoxy(), caps=(False, True))
+    # The backlight jumper: a right-angle pair of pins at the far end with its cap on them.
+    jx = bp[0] + 2.9
+    pm.box((jx, jy - kit.PITCH, 0.0), (jx + kit.PITCH, jy + kit.PITCH, kit.PITCH), black)
+    for y in (jy - kit.PITCH / 2, jy + kit.PITCH / 2):
+        pm.box((jx - 5.4, y - 0.32, 0.95), (jx + 3.2, y + 0.32, 1.59), mp.tin())
+        pm.box((jx + 2.86, y - 0.32, -t - 1.0), (jx + 3.5, y + 0.32, 1.59), mp.tin())
+    pm.box((jx - 6.0, jy - 2.5, 0.0), (jx, jy + 2.5, 2.6), black, taper=0.1)  # its cap
+    # Small parts: the power LED, the backlight transistor and the resistors.
+    mp.smd(pm, bp[0] + 5.3, 23.6, 0.0, 1.6, 0.8, 0.5, kit.material('led-red', 'd8352d', Roughness=0.3), along='y')
+    pm.box((bp[0] + 6.4, 30.35, 0.0), (bp[0] + 9.3, 31.65, 1.0), mp.epoxy())
+    for x, y in [(bp[0] + 10.9 + k * 2.6, 19.0) for k in range(3)] + [(bp[2] - 7.1, 21.6)]:
+        mp.smd(pm, x, y, 0.0, 1.6, 0.8, 0.45, mp.epoxy())
+    parts = pm.to_object('backpack-parts', root)
+
+    # The I2C header: a right-angle block, its pins bent down into the backpack and out past the end.
+    hm = kit.Mesh()
+    hm.box((hdr_x0, i2c[-1] - kit.PITCH / 2, 0.0), (hdr_x0 + kit.PITCH, i2c[0] + kit.PITCH / 2, kit.PITCH),
+           mp.black_plastic())
+    tip = hdr_x0 + kit.PITCH + 6.0
+    h = kit.LEG / 2
+    for y in i2c:
+        hm.box((hdr_x0 - 0.6 - h, y - h, kit.PITCH / 2 - h), (tip, y + h, kit.PITCH / 2 + h), mp.gold())
+        hm.box((hdr_x0 - 0.6 - h, y - h, -t - 1.0), (hdr_x0 - 0.6 + h, y + h, kit.PITCH / 2 - h), mp.gold())
+    header = hm.to_object('pins', root)
+    _backpack_frame([board, parts, header], L, face_z)
+    for p, y in zip(pins, i2c):
+        kit.pin_empty(root, p['id'], (L - tip, y, face_z - kit.PITCH / 2), (-1, 0, 0))
+    return [('body', [pcb, bezel, screen, board, parts]), ('pins', [header])]
+
+
+# --- The SG90 micro servo ----------------------------------------------------------------------------
+
+SERVO_BLUE, HORN_WHITE = '2040c4', 'f1f0ea'
+WIRES = [('5e3a20', -1.0), ('c8261d', 0.0), ('ef8a1d', 1.0)]  # brown, red, orange: GND, VCC, PWM
+
+
+def _flange(x0, x1, w, slot=1.1, hole_r=1.0, hole_in=2.4, k=8):
+    """The servo's mounting flange from above, counter-clockwise: x0 to x1 by w, with a keyhole at
+    each end (a hole hole_in from the end and a slot out to it)."""
+    cy, s = w / 2, slot / 2
+    reach = math.sqrt(hole_r ** 2 - s ** 2)
+    a0 = math.atan2(s, reach)
+
+    def around(hx, start):
+        step = (2 * math.pi - 2 * a0) / k
+        return [(hx + hole_r * math.cos(start - j * step), cy + hole_r * math.sin(start - j * step)) for j in range(k + 1)]
+
+    pts = [(x0, 0.0), (x1, 0.0), (x1, cy - s)]
+    pts += around(x1 - hole_in, -a0)
+    pts += [(x1, cy + s), (x1, w), (x0, w), (x0, cy + s)]
+    pts += around(x0 + hole_in, math.pi - a0)
+    pts += [(x0, cy - s)]
+    return pts
+
+
+def _tower(cx, cy, R, lobe_dx, r, n=24, k=10):
+    """The gear tower's outline from above, counter-clockwise: a circle of radius R round the shaft
+    joined with a smaller lobe of radius r, lobe_dx toward -x."""
+    a = (R ** 2 - r ** 2 + lobe_dx ** 2) / (2 * lobe_dx)
+    h = math.sqrt(R ** 2 - a ** 2)
+    big = math.pi - math.atan2(h, a)  # where the circles meet, seen from the shaft
+    small = math.atan2(h, a - lobe_dx) % (2 * math.pi)  # and from the lobe's centre
+    pts = [(cx + R * math.cos(-big + j * 2 * big / n), cy + R * math.sin(-big + j * 2 * big / n)) for j in range(n + 1)]
+    lx = cx - lobe_dx
+    step = (2 * math.pi - 2 * small) / k
+    pts += [(lx + r * math.cos(small + j * step), cy + r * math.sin(small + j * step)) for j in range(1, k)]
+    return pts
 
 
 def sg90(root, part, args):
+    """The TowerPro SG90 (its data sheet drawing and TowerPro's photos): a translucent blue case,
+    22.2 x 11.8 mm, with a 2.5 mm flange whose ears carry a keyhole at each end, the round gear
+    tower over the output shaft 5.9 mm from one end, a white double-arm horn on the shaft (31 mm
+    over all), the black TowerPro label on its side, and the brown, red and orange flat cable that
+    leaves the shaft end low down, turns along the table and ends in a black 3-way JR housing."""
     G = part['geometry']['params']
-    body_l, body_w, ears = G['bodyLengthMm'], G['bodyWidthMm'], G['earSpanMm']
-    height = G['overallHeightMm']
-    cable = G['cableLengthMm']
-    pitch = G['connectorPitchMm']
+    body_l, w, ears = G['bodyLengthMm'], G['bodyWidthMm'], G['earSpanMm']
+    height, cable, pitch = G['overallHeightMm'], G['cableLengthMm'], G['connectorPitchMm']
     pins = part['pins']
-    blue = kit.material('servo-blue', '2a6bd0', Roughness=0.45)
-    white = kit.material('horn-white', 'f1f1ee', Roughness=0.5)
-    # The case stands from z = 0; its long axis is x; the output end (and the shaft) at -x.
+    blue = kit.material('servo-blue', SERVO_BLUE, Roughness=0.16, Coat_Weight=0.6, Coat_Roughness=0.06)
+    white = kit.material('horn-white', HORN_WHITE, Roughness=0.45)
+    dark = kit.material('servo-hole', '0d0f1a', Roughness=0.6)
     x0 = (ears - body_l) / 2
-    cy = body_w / 2
-    case_h = 22.7
+    x1 = x0 + body_l
+    cy = w / 2
+    flange0, flange1, lid, tower = 15.9, 18.4, 22.7, 26.8  # heights over the table
+    shaft_x = x1 - 5.9
     m = kit.Mesh()
-    m.box((x0, 0, 0), (x0 + body_l, body_w, case_h), blue, taper=0.1)
-    m.box((0.0, 0.0, 15.9), (ears, body_w, 18.4), blue)  # the mounting flange and its ears
-    shaft_x = x0 + body_w / 2 + 0.6
-    m.disc((shaft_x, cy), body_w / 2 - 0.2, case_h, case_h + 3.8, blue, n=24)  # the gear housing
-    m.disc((shaft_x, cy), 2.8, case_h + 3.8, case_h + 5.6, blue, n=16)
-    spline_top = height - 2.0
-    m.disc((shaft_x, cy), 2.4, case_h + 5.6, spline_top, kit.material('spline', 'dcdcd8', Roughness=0.4), n=16)
+    m.extrude(kit.rounded_rect(x0 + 0.3, 0.3, x1 - 0.3, w - 0.3, 0.4, 2), 0.0, 1.0, blue, caps=(False, False))
+    m.extrude(kit.rounded_rect(x0, 0.0, x1, w, 0.6, 2), 1.0, flange0, blue, caps=(True, False))
+    m.slab(_flange(0.0, ears, w), [], flange0, flange1, blue)
+    m.extrude(kit.rounded_rect(x0, 0.0, x1, w, 0.6, 2), flange1, lid, blue, caps=(False, True))
+    m.slab(_tower(shaft_x, cy, 5.7, 6.0, 2.9), [], lid, tower, blue)
+    m.polygon(kit.circle(shaft_x - 6.0, cy, 0.6, 8), tower + 0.01, dark)
+    m.disc((shaft_x, cy), 3.3, tower, tower + 0.6, blue, n=18, caps=(False, True))
+    m.disc((shaft_x, cy), 2.35, tower + 0.6, tower + 1.0, white, n=12, caps=(False, False))
     body = m.to_object('body', root)
-    # The horn turns about the output shaft: a pivot at the shaft axis, a double arm at rest along x.
-    pivot = kit.node(root, 'horn', (shaft_x, cy, spline_top - 1.0))
+    # The label on the -y side: black, a gold border, TOWER PRO, a cream panel, SG90.
+    lw, lh, lz = 15.6, 11.4, 2.8
+    gold, cream, ink = 'd6b453', 'eee1a3', '161616'
+    label_img = _decal('servo-label', (0, 0, lw, lh), args.px, '121212', [
+        ('rframe', 0.45, 0.45, lw - 0.45, lh - 0.45, 0.5, 0.22, gold),
+        ('text', 'TOWER PRO', lw / 2, 9.1, 1.45, gold, 0, 'CENTER', 0.04),
+        ('rbox', 1.8, 4.6, lw - 1.8, 7.7, 0.3, cream),
+        ('text', 'Micro Servo', lw / 2, 6.75, 0.95, ink, 0, 'CENTER', 0.02),
+        ('text', '9g', lw / 2, 5.3, 0.95, ink, 0, 'CENTER', 0.02),
+        ('box', 1.8, 3.9, lw - 1.8, 4.05, gold),
+        ('text', 'SG90', lw / 2, 2.3, 1.6, gold, 0, 'CENTER', 0.06),
+    ])
+    label_mat = _printed('servo-label', '121212', label_img, Roughness=0.35)
+    label = kit.panel(root, 'servo-label', ((x0 + x1) / 2 - lw / 2, -0.02, lz), (lw, 0, 0), (0, 0, lh), label_mat)
+
+    # The horn turns about the output shaft: a pivot on its axis, a double arm at rest along x.
+    hub_z = tower + 0.8
+    pivot = kit.node(root, 'horn', (shaft_x, cy, hub_z))
+    top = height - hub_z
     hm = kit.Mesh()
-    hm.disc((0, 0), 3.6, 0, 3.0, white, n=20)
-    arm = [(-10.5, -1.0), (-9.5, -2.1), (9.5, -2.1), (10.5, -1.0), (10.5, 1.0), (9.5, 2.1), (-9.5, 2.1), (-10.5, 1.0)]
-    hm.extrude(arm, 1.0, 2.2, white)
+    hm.disc((0, 0), 3.4, 0.0, top, white, n=20)
+    tip, half_hub, half_tip = 8.6, 2.9, 1.6
+    arm = [(-tip, -half_tip), (0.0, -half_hub), (tip, -half_tip)]
+    arm += [(tip + half_tip * math.cos(math.radians(-90 + 30 * j)), half_tip * math.sin(math.radians(-90 + 30 * j)))
+            for j in range(1, 6)]
+    arm += [(tip, half_tip), (0.0, half_hub), (-tip, half_tip)]
+    arm += [(-tip + half_tip * math.cos(math.radians(90 + 30 * j)), half_tip * math.sin(math.radians(90 + 30 * j)))
+            for j in range(1, 6)]
+    arm_top = top - 0.3  # the hub stands a little proud of the arms
+    hm.extrude(arm, arm_top - 1.5, arm_top, white)
+    for x in (-7.8, -6.2, -4.6, 4.6, 6.2, 7.8):
+        hm.polygon(kit.circle(x, 0.0, 0.45, 8), arm_top + 0.01, dark)
+    hm.polygon(kit.circle(0.0, 0.0, 1.0, 10), top + 0.01, dark)
     hm.to_object('horn-mesh', pivot)
-    # The three-wire cable leaves the case's -y side near its base and runs straight out.
-    housing_w, housing_len, housing_h = pins[-1]['offsetPitch'][0] * pitch + pitch, 8.0, 2.54
-    hx = x0 + body_l - 5.0 - housing_w / 2
+
+    # The flat cable leaves the shaft end at the table, turns toward -y and runs to the housing,
+    # where its three wires spread to the sockets. Its length, housing included, is cableLengthMm.
+    R, r_wire, run = 7.0, 0.5, 2.0
+    hw, hl, hh = len(pins) * pitch + 0.5, 14.0, 3.2
+    xc = x1 + run + R
+    y_back = cy - R + run + math.pi / 2 * R + hl - cable
+    y_fan = y_back + 7.0
+    connector, sockets = _housing(root, 'housing', xc - hw / 2, y_back - hl, hw, hl, hh, pitch, len(pins), [128, 32])
     wm = kit.Mesh()
-    wires = [('624a2e', 0), ('c83a2e', 1), ('e8872a', 2)]  # brown, red, orange: GND, VCC, PWM
-    for hexa, k in wires:
-        x = hx + (k + 0.5) * pitch
-        wm.tube((x, 0.4, 1.27), (x, -(cable - housing_len), 1.27), 0.55, kit.material(f'wire-{hexa}', hexa, Roughness=0.5), n=8)
-    wire_obj = wm.to_object('cable', root)
-    hm2 = kit.Mesh()
-    y_back = -(cable - housing_len)
-    hm2.box((hx, y_back - housing_len, 0.0), (hx + housing_w, y_back, housing_h), mp.black_plastic(), taper=0.08)
-    housing = hm2.to_object('housing', root)
-    hole_img = kit.decal('housing-face', (0, 0, housing_w, housing_h), [128, 32],
-                         '17181a', [('box', (k + 0.5) * pitch - 0.6, housing_h / 2 - 0.6, (k + 0.5) * pitch + 0.6, housing_h / 2 + 0.6, '000000') for k in range(len(pins))])
-    hole_mat = kit.material('housing-face', '17181a', Roughness=0.7)
-    kit.textured(hole_mat, hole_img)
-    front = kit.panel(root, 'housing-face', (hx, y_back - housing_len - 0.02, 0.0), (housing_w, 0, 0), (0, 0, housing_h), hole_mat)
-    for p in pins:
-        kit.pin_empty(root, p['id'], (hx + (p['offsetPitch'][0] + 0.5) * pitch, y_back - housing_len - 0.02, housing_h / 2), (0, -1, 0))
-    return [('body', [body]), ('horn', [pivot]), ('cable', [wire_obj]), ('connector', [housing, front])]
+    for (hexa, o), sx in zip(WIRES, sockets):
+        z = r_wire
+        path = [(x1 - 0.8, cy + o, z), (x1 + run, cy + o, z)]
+        path += [(x1 + run + (R + o) * math.sin(math.radians(a)), cy - R + (R + o) * math.cos(math.radians(a)), z)
+                 for a in range(15, 90, 15)]
+        path += [(xc + o, cy - R, z), (xc + o, y_fan, z), (sx, y_back + 1.5, z), (sx, y_back - 0.6, z)]
+        wm.sweep(path, r_wire, kit.material(f'wire-{hexa}', hexa, Roughness=0.45), segs=6, caps=(False, False))
+    wires = wm.to_object('cable', root)
+    for p, sx in zip(pins, sockets):
+        kit.pin_empty(root, p['id'], (sx, y_back - hl - 0.02, hh / 2), (0, -1, 0))
+    return [('body', [body, label]), ('horn', [pivot]), ('cable', [wires]), ('connector', connector)]

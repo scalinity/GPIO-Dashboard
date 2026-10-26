@@ -19,8 +19,8 @@
       "blender/devicekit.py": "5cbe22dc9c2d951e94336d88fbeff00b27d5ac701ad9aac55a7cae6858f82c29",
       "blender/modparts.py": "ce20bce52a769aa64c8a63e675c78afa2b6c99d696d7852bb97f2d3a3ad65c05",
       "blender/mod_sensors.py": "da2805ebc730f48ca6e9db815f4007019896b0726a34569e73d28c54d47e9198",
-      "blender/mod_ads.py": "a978bcc1bdc6f6a7d8fb4bc2f16f6100a88a478bcc6c3d4ba9bbc36c4528c899",
-      "blender/mod_boards.py": "7ef1723cf0425cf4be9fdbfa9a526d37802b62213cc5176a3264cba63ad3c776",
+      "blender/mod_ads.py": "0e1e7e57e15a1e3eeaee4d5f0476e1bc5893bf2ddf8727bd214181001136725a",
+      "blender/mod_boards.py": "e42cc60ab79fb24ac65e6c3bc3e5efb5ad01beaff7db9289dabbd5db6df3ddd5",
       "blender/lib/__init__.py": "fde31da9f6d72b2297d6828833720649d7d25feab9e48e41ede38379551cb95a",
       "blender/lib/bake.py": "79d84decfc2118f593cbd56a4b2de266e48c41e5f27ba36cded71d45b83f7ed1",
       "blender/lib/export.py": "5832244f9a618a46fd65b3f7b0f5c816c591ead0510aebe744e339423a8774a7",
@@ -31,13 +31,24 @@
   "inputs": [
     {
       "path": "src/renderer/src/content/parts/sg90.part.json",
-      "sha256": "87e7664621a01bcd719294389e4f4afcc7fc580987a4f53d19874963ae6f31cc"
+      "sha256": "95bbf380050df4c29d50cb22297078cb41233950cc496ee2c9b5bf22b8e18eb2"
     }
   ],
   "sources": [],
-  "triangles": 438,
-  "bytes": 15032,
+  "triangles": 962,
+  "bytes": 28940,
   "textures": [
+    {
+      "name": "servo-label",
+      "format": "ETC1S",
+      "size": [
+        256,
+        256
+      ],
+      "slots": [
+        "baseColorTexture"
+      ]
+    },
     {
       "name": "housing-face",
       "format": "ETC1S",
@@ -55,9 +66,9 @@
       256,
       256
     ],
-    "triangles": 530,
-    "bytes": 24000,
+    "triangles": 1160,
+    "bytes": 35000,
     "met": true
   },
-  "geometryHash": "aae61bdaa78d56600767e83f01ea3317499035239fd8a3f171a541c2870a1cbe"
+  "geometryHash": "20459f203511951e588ae3a66b4a99c07525447918e83480037cfd02ef17f065"
 }

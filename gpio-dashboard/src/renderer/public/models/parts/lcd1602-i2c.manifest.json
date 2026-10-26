@@ -19,8 +19,8 @@
       "blender/devicekit.py": "5cbe22dc9c2d951e94336d88fbeff00b27d5ac701ad9aac55a7cae6858f82c29",
       "blender/modparts.py": "ce20bce52a769aa64c8a63e675c78afa2b6c99d696d7852bb97f2d3a3ad65c05",
       "blender/mod_sensors.py": "da2805ebc730f48ca6e9db815f4007019896b0726a34569e73d28c54d47e9198",
-      "blender/mod_ads.py": "a978bcc1bdc6f6a7d8fb4bc2f16f6100a88a478bcc6c3d4ba9bbc36c4528c899",
-      "blender/mod_boards.py": "7ef1723cf0425cf4be9fdbfa9a526d37802b62213cc5176a3264cba63ad3c776",
+      "blender/mod_ads.py": "0e1e7e57e15a1e3eeaee4d5f0476e1bc5893bf2ddf8727bd214181001136725a",
+      "blender/mod_boards.py": "e42cc60ab79fb24ac65e6c3bc3e5efb5ad01beaff7db9289dabbd5db6df3ddd5",
       "blender/lib/__init__.py": "fde31da9f6d72b2297d6828833720649d7d25feab9e48e41ede38379551cb95a",
       "blender/lib/bake.py": "79d84decfc2118f593cbd56a4b2de266e48c41e5f27ba36cded71d45b83f7ed1",
       "blender/lib/export.py": "5832244f9a618a46fd65b3f7b0f5c816c591ead0510aebe744e339423a8774a7",
@@ -31,13 +31,24 @@
   "inputs": [
     {
       "path": "src/renderer/src/content/parts/lcd1602-i2c.part.json",
-      "sha256": "a54947270c459e7565302ed93cc7b833a547fd3d015434dcf6186dd1ca5ebfda"
+      "sha256": "648eb431e78b29b31baeb281209feba803c9aec0a36d29ff10bcb1cee796ee64"
     }
   ],
   "sources": [],
-  "triangles": 454,
-  "bytes": 18568,
+  "triangles": 1440,
+  "bytes": 51176,
   "textures": [
+    {
+      "name": "backpack-legend",
+      "format": "ETC1S",
+      "size": [
+        512,
+        256
+      ],
+      "slots": [
+        "baseColorTexture"
+      ]
+    },
     {
       "name": "lcd-screen",
       "format": "ETC1S",
@@ -66,9 +77,9 @@
       1024,
       512
     ],
-    "triangles": 550,
-    "bytes": 30000,
+    "triangles": 1750,
+    "bytes": 60000,
     "met": true
   },
-  "geometryHash": "4830c8d048923c41c98fa7a90f8abe0d6b632ad390f515f613401d98b88a167d"
+  "geometryHash": "a99abe767440c930f96d0345e5d12d4f59559fd6218ca441b0b606d4333bdf2e"
 }

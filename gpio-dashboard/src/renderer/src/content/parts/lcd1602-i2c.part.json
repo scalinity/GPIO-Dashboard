@@ -17,7 +17,7 @@
       "label": "VCC",
       "role": "power",
       "electricalType": "power-in",
-      "offsetPitch": [1, 0],
+      "offsetPitch": [0, -1],
       "connector": "male-pin"
     },
     {
@@ -25,7 +25,7 @@
       "label": "SDA",
       "role": "logic-io",
       "electricalType": "bidirectional",
-      "offsetPitch": [2, 0],
+      "offsetPitch": [0, -2],
       "connector": "male-pin"
     },
     {
@@ -33,7 +33,7 @@
       "label": "SCL",
       "role": "logic-in",
       "electricalType": "input",
-      "offsetPitch": [3, 0],
+      "offsetPitch": [0, -3],
       "connector": "male-pin"
     }
   ],
@@ -65,7 +65,7 @@
     }
   },
   "properties": {},
-  "bodyMm": [80, 36, 11],
+  "bodyMm": [80, 36, 18.24],
   "geometry": {
     "family": "module",
     "params": {
@@ -74,6 +74,7 @@
       "boardWidthMm": 36,
       "pcbThicknessMm": 1.6,
       "moduleThicknessMaxMm": 11,
+      "moduleHeightWithBackpackMm": 18.24,
       "viewAreaLengthMm": 64.5,
       "viewAreaWidthMm": 14.5,
       "mountingHoles": 4,
@@ -93,8 +94,10 @@
       "https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/5773/CN0295D%20other%20related%20document.pdf",
       "https://www.siliconchip.com.au/Issue/SC/2017/March/El+Cheapo+Modules%2C+Part+5%3A+LCD+module+with+I%C2%B2C",
       "https://www.handsontec.com/dataspecs/module/I2C_1602_LCD.pdf",
-      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/index.html"
+      "https://basic-starter-kit-for-raspberry-pi.readthedocs.io/en/latest/index.html",
+      "https://docs.sunfounder.com/projects/umsk/en/latest/_images/26_i2c_lcd.png",
+      "https://www.addicore.com/products/1602-16x2-character-lcd-with-i2c-backpack"
     ],
-    "notes": "KIT: no LCD in the SunFounder Basic Starter Kit table of contents or Component List photo, so 'not in kit'. PIN ORDER AND CONNECTOR: the SunFounder photo of the backpack (26_back_lcd1602.jpg) shows a 4-pin male header printed GND, VCC, SDA, SCL from top to bottom, so Dupont male-female leads go female end onto the module. SUPPLY: the LCD-1602A datasheet (SunFounder-branded copy hosted by Digikey) says logic supply VDD 4.5-5.5 V (5.0 V nominal), 1.2 mA at 5 V, module 80.0 x 36.0 x 11.0 mm max; the Handson Technology backpack sheet says supply voltage 5 V. The PCF8574 itself runs 2.5-6 V (TI), but the LCD limits the module to 4.5-5.5 V. I2C ADDRESS: TI PCF8574 datasheet section 7.3.3 gives address 0100 A2 A1 A0 (0x20 to 0x27); the TI PCF8574A datasheet gives 0111 A2 A1 A0 (0x38 to 0x3F). With the three address pads open, A2 A1 A0 = 111, so the default is 0x27 for a PCF8574(T) backpack and 0x3F for a PCF8574A(T) backpack; SunFounder says 'The default address is basically 0x27, in a few cases it may be 0x3F' and its figure 26_i2c_address.jpg shows 0x27 down to 0x20. CONFLICT: the Handson Technology module sheet lists 0x38-0x3F with 0x3F as default (it is a PCF8574AT board). Shorting a pad pulls that address bit to 0. ADDRESS PADS: the Silicon Chip article shows 10 kOhm pull-ups from A0, A1 and A2 to VCC. SDA/SCL PULL-UPS: the Silicon Chip circuit (Fig.1, 'El Cheapo Modules Part 5', the common 'new blue' backpack) shows a 4.7 kOhm pull-up on each of SDA and SCL, and the text says 'the SDA and SCL lines ... are each fitted with a 4.7kW pull-up resistor'. The article does not name the rail for these two resistors in its text (it says the address pads' 10 kOhm pull-ups go to 'logic high (VCC)'); they are taken to go to VCC because a pull-up on this board can only reach the VCC pin (the board has only VCC and GND), and this is a deduction, not a read-off of Fig.1. The SunFounder board is the same design (an SO-16 chip marked PCF8574, A0 A1 A2 pads, shorting cap for the backlight, blue contrast pot) but its own schematic was not found, so the 4.7 kOhm value is taken from the Silicon Chip analysis of the same backpack, not from SunFounder. OVERVOLTAGE (SPEC 8 OVERVOLTAGE_GPIO): because the pull-ups go to VCC, a 5 V supply holds SDA and SCL at 5 V when idle, which would drive 5 V into a Pi GPIO; the Pi side must be level shifted or the board powered at a voltage the checks allow. The article says the pull-ups can be removed if another device on the bus has them. CLOCK: the PCF8574 supports up to 100 kHz (TI table, fSCL). SIZE: LCD-1602A mechanical drawing: 80.0 x 36.0 mm, 4 mounting holes on a 75.0 x 31.0 mm rectangle (R1.35), PCB 1.6 mm, 11.0 mm maximum module thickness, view area 64.5 x 14.5 mm. The I2C backpack's own thickness is not in any opened source, so bodyMm keeps the 11.0 mm of the bare module."
+    "notes": "KIT: no LCD in the SunFounder Basic Starter Kit table of contents or Component List photo, so 'not in kit'. PIN ORDER AND CONNECTOR: the SunFounder photo of the backpack (26_back_lcd1602.jpg) shows a 4-pin male header printed GND, VCC, SDA, SCL from top to bottom, so Dupont male-female leads go female end onto the module. LAYOUT: that header is a right-angle strip at the backpack's end (26_back_lcd1602.jpg, and the front view in 26_i2c_lcd.png shows its pins past the left end): seen from the front, the pins stand in a column along the 36 mm side, GND nearest the 16-pin edge, and point out past the module's left end, so offsetPitch runs GND [0, 0] down to SCL [0, -3]. SUPPLY: the LCD-1602A datasheet (SunFounder-branded copy hosted by Digikey) says logic supply VDD 4.5-5.5 V (5.0 V nominal), 1.2 mA at 5 V, module 80.0 x 36.0 x 11.0 mm max; the Handson Technology backpack sheet says supply voltage 5 V. The PCF8574 itself runs 2.5-6 V (TI), but the LCD limits the module to 4.5-5.5 V. I2C ADDRESS: TI PCF8574 datasheet section 7.3.3 gives address 0100 A2 A1 A0 (0x20 to 0x27); the TI PCF8574A datasheet gives 0111 A2 A1 A0 (0x38 to 0x3F). With the three address pads open, A2 A1 A0 = 111, so the default is 0x27 for a PCF8574(T) backpack and 0x3F for a PCF8574A(T) backpack; SunFounder says 'The default address is basically 0x27, in a few cases it may be 0x3F' and its figure 26_i2c_address.jpg shows 0x27 down to 0x20. CONFLICT: the Handson Technology module sheet lists 0x38-0x3F with 0x3F as default (it is a PCF8574AT board). Shorting a pad pulls that address bit to 0. ADDRESS PADS: the Silicon Chip article shows 10 kOhm pull-ups from A0, A1 and A2 to VCC. SDA/SCL PULL-UPS: the Silicon Chip circuit (Fig.1, 'El Cheapo Modules Part 5', the common 'new blue' backpack) shows a 4.7 kOhm pull-up on each of SDA and SCL, and the text says 'the SDA and SCL lines ... are each fitted with a 4.7kW pull-up resistor'. The article does not name the rail for these two resistors in its text (it says the address pads' 10 kOhm pull-ups go to 'logic high (VCC)'); they are taken to go to VCC because a pull-up on this board can only reach the VCC pin (the board has only VCC and GND), and this is a deduction, not a read-off of Fig.1. The SunFounder board is the same design (an SO-16 chip marked PCF8574, A0 A1 A2 pads, shorting cap for the backlight, blue contrast pot) but its own schematic was not found, so the 4.7 kOhm value is taken from the Silicon Chip analysis of the same backpack, not from SunFounder. OVERVOLTAGE (SPEC 8 OVERVOLTAGE_GPIO): because the pull-ups go to VCC, a 5 V supply holds SDA and SCL at 5 V when idle, which would drive 5 V into a Pi GPIO; the Pi side must be level shifted or the board powered at a voltage the checks allow. The article says the pull-ups can be removed if another device on the bus has them. CLOCK: the PCF8574 supports up to 100 kHz (TI table, fSCL). SIZE: LCD-1602A mechanical drawing: 80.0 x 36.0 mm, 4 mounting holes on a 75.0 x 31.0 mm rectangle (R1.35), PCB 1.6 mm, 11.0 mm maximum module thickness, view area 64.5 x 14.5 mm. With the backpack soldered on, Addicore gives 80 x 36 x 18.24 mm (Robu.in lists 18 mm), so bodyMm's height and moduleHeightWithBackpackMm are 18.24 mm, and moduleThicknessMaxMm keeps the bare module's 11.0 mm."
   }
 }

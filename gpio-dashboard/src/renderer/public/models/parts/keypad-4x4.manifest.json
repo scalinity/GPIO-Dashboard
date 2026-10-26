@@ -19,8 +19,8 @@
       "blender/devicekit.py": "5cbe22dc9c2d951e94336d88fbeff00b27d5ac701ad9aac55a7cae6858f82c29",
       "blender/modparts.py": "ce20bce52a769aa64c8a63e675c78afa2b6c99d696d7852bb97f2d3a3ad65c05",
       "blender/mod_sensors.py": "da2805ebc730f48ca6e9db815f4007019896b0726a34569e73d28c54d47e9198",
-      "blender/mod_ads.py": "a978bcc1bdc6f6a7d8fb4bc2f16f6100a88a478bcc6c3d4ba9bbc36c4528c899",
-      "blender/mod_boards.py": "7ef1723cf0425cf4be9fdbfa9a526d37802b62213cc5176a3264cba63ad3c776",
+      "blender/mod_ads.py": "0e1e7e57e15a1e3eeaee4d5f0476e1bc5893bf2ddf8727bd214181001136725a",
+      "blender/mod_boards.py": "e42cc60ab79fb24ac65e6c3bc3e5efb5ad01beaff7db9289dabbd5db6df3ddd5",
       "blender/lib/__init__.py": "fde31da9f6d72b2297d6828833720649d7d25feab9e48e41ede38379551cb95a",
       "blender/lib/bake.py": "79d84decfc2118f593cbd56a4b2de266e48c41e5f27ba36cded71d45b83f7ed1",
       "blender/lib/export.py": "5832244f9a618a46fd65b3f7b0f5c816c591ead0510aebe744e339423a8774a7",
@@ -31,12 +31,12 @@
   "inputs": [
     {
       "path": "src/renderer/src/content/parts/keypad-4x4.part.json",
-      "sha256": "b07692aa3879daa508be8937ef7f2078d33cb46b3902b42eb9cba8a046559edd"
+      "sha256": "8c53af3de7bcc72b677a699178cb2387f58980193b0187ad245ce36459d9e917"
     }
   ],
   "sources": [],
   "triangles": 102,
-  "bytes": 35536,
+  "bytes": 49808,
   "textures": [
     {
       "name": "keypad-face",
@@ -59,6 +59,17 @@
       "slots": [
         "baseColorTexture"
       ]
+    },
+    {
+      "name": "keypad-tail",
+      "format": "ETC1S",
+      "size": [
+        64,
+        256
+      ],
+      "slots": [
+        "baseColorTexture"
+      ]
     }
   ],
   "budget": {
@@ -67,8 +78,8 @@
       1024
     ],
     "triangles": 125,
-    "bytes": 56000,
+    "bytes": 60000,
     "met": true
   },
-  "geometryHash": "62007f8c4cc7b2bcc4432c3677093e58851990df586c321640fa14bb1bb6d0eb"
+  "geometryHash": "8188403432d1af2ef3b36d9efbe87ef288dd3012f6c209aaabc7b53ec6cf3f1f"
 }
