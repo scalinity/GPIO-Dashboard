@@ -1120,8 +1120,9 @@ Looks:
   too. The choice is a preference of the machine, not part of a project.
 - The camera orbits at most 2200 mm from its target in the Lab look and 3000 mm in the Studio look.
 - In the Lab look the camera stays inside the room: a view farther than the room allows is
-  shortened along its line to the target, 150 mm inside the walls, floor and ceiling; the front
-  (south) is open. The side the camera stands within 900 mm of, or behind, is cut away with its
+  shortened along its line to the target, 150 mm inside the walls, floor and ceiling, and the
+  target keeps 200 mm further in, so the camera's least distance always fits; the front (south) is
+  open. The side the camera stands within 900 mm of, or behind, is cut away with its
   furniture, and so is the ceiling. Every preset of every tutorial stands inside the room.
 
 Camera:
@@ -1132,7 +1133,7 @@ Camera:
 10.8 Budgets
 - Frame rate: at least 60 fps at the window's native pixel ratio, in the Tauri window on my M-series Mac, in both looks. This holds for tutorial scenes with physics awake and the full post stack, LEDs lit.
   - Lab look: the GPU at most 13 ms a frame, median, at a pixel ratio of 2 with LEDs lit.
-  - If a scene misses it, scale effect quality first and record what changed. In the Lab look: GTAO's resolution from 0.5 to 0.35, then the bokeh's taps from 48 to 32, then no depth of field while cables are awake. GTAO runs at 0.35 and the bokeh at 32 taps.
+  - If a scene misses it, scale effect quality first and record what changed. In the Lab look: the bokeh's taps from 48 to 32, then no depth of field while cables are awake. GTAO keeps one resolution in both looks, since a resolution per look would reallocate its targets on every switch. GTAO runs at 0.35 and the bokeh at 32 taps.
 - The Lab look's room: at most 18 meshes and 60k triangles, built once, the first time the look shows.
 - Physics: at most 4 ms per frame in the worker, for the heaviest tutorial scene (about 40 leads plus the ribbon).
 - Idle: zero frames rendered when the scene is static.

@@ -629,7 +629,12 @@ export class StudioView {
     this.controls.connect(element)
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
-      if (target?.isContentEditable || target?.closest('input, textarea, select')) return
+      // Keys typed into a field or pressed in a dialog belong to it, not to the bench behind it.
+      if (
+        target?.isContentEditable ||
+        target?.closest('input, textarea, select, dialog, [role="dialog"], [role="alertdialog"]')
+      )
+        return
       const key = e.key.toLowerCase()
       if ((e.metaKey || e.ctrlKey) && key === 'z') {
         e.preventDefault()
@@ -743,6 +748,8 @@ export class StudioView {
     this.syncMarks()
     return () => {
       this.cancel()
+      // A look switch still under its veil is dropped: its renderer goes with the Studio.
+      ++this.switching
       this.capturing?.reject(new Error('The 3D stage closed before the capture.'))
       this.capturing = null
       unsubscribe.forEach((u) => u())

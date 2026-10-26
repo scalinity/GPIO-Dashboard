@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { TUTORIALS } from '../../core/defs/tutorials'
 import { PRESETS, presetView } from '../camera'
 import { LAB } from '../look'
-import { clampToRoom, cutSides, MARGIN_MM, NEAR_MM, ROOM } from './bounds'
+import { clampToRoom, cutSides, MARGIN_MM, NEAR_MM, ROOM, TARGET_MM } from './bounds'
 
 const inside = (p: Vector3) =>
   p.x >= ROOM.west + MARGIN_MM &&
@@ -55,6 +55,17 @@ describe('the workroom bounds', () => {
     expect(still.toArray()).toEqual([400, 400, 400])
   })
 
+  it('leaves the camera its least distance when the target is pushed back from a wall', () => {
+    // Panned past the east wall, with the camera farther east still: both would meet on the wall.
+    const target = new Vector3(2500, 0, 0)
+    const position = new Vector3(3000, 600, 600)
+    clampToRoom(position, target)
+    expect(target.x).toBe(ROOM.east - MARGIN_MM - TARGET_MM)
+    expect(inside(position)).toBe(true)
+    // The controls' least distance, 60 mm, fits.
+    expect(position.distanceTo(target)).toBeGreaterThan(60)
+  })
+
   it('keeps any orbit inside, the front open, and the target in the room', () => {
     const target = new Vector3(0, 0, 0)
     for (let az = 0; az < 360; az += 15)
@@ -76,7 +87,7 @@ describe('the workroom bounds', () => {
     expect(cutSides(far)).toEqual(new Set(['south']))
     const panned = new Vector3(9000, 0, 0)
     clampToRoom(new Vector3(9000, 300, 400), panned)
-    expect(panned.x).toBe(ROOM.east - MARGIN_MM)
+    expect(panned.x).toBe(ROOM.east - MARGIN_MM - TARGET_MM)
     expect(NEAR_MM).toBeGreaterThan(600)
   })
 })

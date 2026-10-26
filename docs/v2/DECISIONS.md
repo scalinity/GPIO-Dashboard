@@ -3895,7 +3895,9 @@ declare it.
     ms), and hidden in the Studio look.
   - `view.frame` follows the orbit and any preset move with `clampToRoom`, which keeps the target
     in the room and shortens the camera's distance along its line to the target until it stands
-    150 mm inside the walls, floor and ceiling; the south is open, as a stage's front. The orbit
+    150 mm inside the walls, floor and ceiling; the south is open, as a stage's front. The target
+    keeps 200 mm further in than the camera: on the camera's own bound, a target panned to a wall
+    with the camera beyond it would leave no distance between them. The orbit
     goes on from its own position at the next frame, so passing a wall does not shorten its
     distance for good. Then the cutaway hides each side, a wall with its furniture or the ceiling
     with its pendants, that the camera stands within 900 mm of or behind: farther than any piece
@@ -3920,15 +3922,15 @@ declare it.
     the dark room. The Studio look's Build Mode focus uses `dof()` and stays as it is.
   - SPEC 10.8 asks for 60 fps at the window's pixel ratio with physics awake and the full post
     stack, and to scale effect quality first, recording what changed. The ladder for the Lab
-    look: GTAO's resolution 0.5 to 0.35, then the bokeh's taps 48 to 32, then no depth of
-    field while cables are awake.
+    look: the bokeh's taps 48 to 32, then no depth of field while cables are awake.
 - **Decision.**
   - `studio/bokeh.ts` is a single gather after the house style's stage (Gustafsson's 2018
     single pass), written for this app. A tap counts only if its own blur reaches the pixel,
     and a tap behind the pixel may not out-blur it by more than twice. 32 taps on a golden-angle
     spiral at half resolution; taps farther than 4 device pixels read a quarter-resolution
-    box-filtered copy, so a thin bright strip does not break into beads; a full-resolution
-    composite keeps in-focus pixels from the sharp image. Blur grows with the distance from the
+    box-filtered copy, so a thin bright strip does not break into beads. Each pixel counts in that
+    copy by its own blur, so the sharp bench does not halo into the blur behind it. A
+    full-resolution composite keeps in-focus pixels from the sharp image. Blur grows with the distance from the
     focus, 1.6 times as fast behind it as 0.9 in front, over a band of 4000 mm, up to 10 CSS
     pixels.
   - The Lab look's output is the Lab finish of the bokeh of TRAA's image, with the scene pass's
@@ -3936,9 +3938,10 @@ declare it.
     (`Post.setBenchFocus`). Build Mode's focus narrows the same node's band to 320 mm; its output
     is another graph, so the pipeline's output differs from `sharp` while focused. The bokeh's
     two passes are left out of the Studio look's frames.
-  - GTAO runs at 0.35 of the drawing buffer in the Lab look and 0.5 in the Studio look, set on
-    each switch, and the bokeh has 32 taps: the ladder's first two steps (below). The third, no
-    depth of field while cables are awake, is not taken.
+  - GTAO runs at 0.5 of the drawing buffer in both looks. A resolution per look reallocated its
+    targets on every switch, and 0.35 in the Lab look gave no measurable gain (below). The bokeh
+    has 32 taps, the ladder's first step; the second, no depth of field while cables are awake,
+    is not taken.
   - The look was dialled in three critic rounds: a separate reviewer saw only the captures, the
     house style's exemplars and the rubric's rows A1 to A6 (look and light), scored them and
     named the largest gaps. 13.5 of 25 (54%), then 15.5 (62%), then 17 (68%). Between rounds

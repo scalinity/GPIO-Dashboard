@@ -87,12 +87,25 @@ export function bokeh(
 
   // Outer taps sit several pixels apart, so point samples would skip across a thin bright strip
   // and break a defocused one into beads. Taps past PREFILTER_FROM pixels read a 4 x 4 box-filtered
-  // copy: four bilinear taps, each on the corner of a 2 x 2 block.
+  // copy: four bilinear taps, each on the corner of a 2 x 2 block. Each corner counts by its own
+  // blur, so a sharp pixel (the breadboard's white edge) adds next to nothing to the copy a blurred
+  // tap behind it reads, and does not halo into the background.
   const prefiltered = rtt(
     Fn(() => {
-      const at = (dx: number, dy: number) =>
-        colour.sample(screenUV.add(vec2(dx, dy).mul(u.texel))).rgb
-      return vec4(at(-1, -1).add(at(1, -1)).add(at(-1, 1)).add(at(1, 1)).mul(0.25), 1)
+      const sum = vec3(0).toVar()
+      const weight = float(0).toVar()
+      for (const [dx, dy] of [
+        [-1, -1],
+        [1, -1],
+        [-1, 1],
+        [1, 1]
+      ] as const) {
+        const at = screenUV.add(vec2(dx, dy).mul(u.texel))
+        const w = blurOf(distance(at)).div(max(u.maxBlur, 1)).add(0.02)
+        sum.addAssign(colour.sample(at).rgb.mul(w))
+        weight.addAssign(w)
+      }
+      return vec4(sum.div(weight), 1)
     })(),
     null,
     null,

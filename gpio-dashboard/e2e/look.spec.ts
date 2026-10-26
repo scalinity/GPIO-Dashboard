@@ -2,6 +2,7 @@
 // settles to no frames at all, the choice outlives a reload, and a switch compiles nothing new once
 // both looks have been drawn (it changes values, so no GPU pipeline is made again).
 import { expect, type Page, test } from '@playwright/test'
+import { LAB } from '../src/renderer/src/studio/look'
 import { frames, openTutorial, report, type StudioWindow, waitUntilStill } from './helpers'
 
 type Counted = StudioWindow & { __pipelines: number }
@@ -37,7 +38,15 @@ async function toggle(page: Page, to: 'lab' | 'studio') {
 }
 
 test('the View control and L switch the look, which settles to no frames', async ({ page }) => {
+  // Opened in the Studio look, so the View control switches into the Lab look and L back out.
+  await page.evaluate(() => localStorage.setItem('gpio.studio.look', 'studio'))
+  await page.reload()
+  await page.getByRole('tab', { name: 'Studio' }).click()
+  await page.waitForFunction(
+    () => ((window as unknown as StudioWindow).__studio?.loop.frames ?? 0) > 0
+  )
   const start = (await report(page)).look
+  expect(start).toBe('studio')
   const other = start === 'lab' ? 'studio' : 'lab'
   await view(page)
     .getByRole('button', { name: other === 'lab' ? 'Lab' : 'Studio' })
@@ -53,7 +62,7 @@ test('the View control and L switch the look, which settles to no frames', async
   const opacity = (id: string) =>
     page.getByTestId(id).evaluate((el) => Number(getComputedStyle(el).opacity))
   await expect.poll(() => opacity('studio-veil')).toBe(0)
-  expect(await opacity('studio-vignette')).toBe(other === 'lab' ? 1 : 0)
+  expect(await opacity('studio-vignette')).toBeCloseTo(LAB.vignette)
   // The look is this machine's preference: it outlives a reload.
   await page.reload()
   await page.getByRole('tab', { name: 'Studio' }).click()
@@ -62,6 +71,7 @@ test('the View control and L switch the look, which settles to no frames', async
   )
   expect((await report(page)).look).toBe(other)
   await toggle(page, start)
+  expect(await opacity('studio-vignette')).toBe(0)
 })
 
 test('a second round of switches makes no new GPU pipelines', async ({ page }) => {

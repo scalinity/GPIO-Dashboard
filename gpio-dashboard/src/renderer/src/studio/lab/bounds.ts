@@ -28,8 +28,16 @@ export const NEAR_MM = 900
 export type Side = 'north' | 'south' | 'east' | 'west' | 'ceiling'
 export const SIDES: Side[] = ['north', 'south', 'east', 'west', 'ceiling']
 
+/**
+ * The target keeps this much further in than the camera: a camera at the controls' least distance
+ * (60 mm) then always fits between it and a wall, whichever way it looks.
+ */
+export const TARGET_MM = 200
+
 const LOW = { x: ROOM.west + MARGIN_MM, y: ROOM.floor + MARGIN_MM, z: ROOM.north + MARGIN_MM }
 const HIGH = { x: ROOM.east - MARGIN_MM, y: ROOM.ceiling - MARGIN_MM, z: Infinity }
+const TARGET_LOW = { x: LOW.x + TARGET_MM, y: LOW.y + TARGET_MM, z: LOW.z + TARGET_MM }
+const TARGET_HIGH = { x: HIGH.x - TARGET_MM, y: HIGH.y - TARGET_MM, z: Infinity }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi)
 
@@ -40,7 +48,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), h
 export function clampToRoom(position: Vector3, target: Vector3): boolean {
   let moved = false
   for (const axis of ['x', 'y', 'z'] as const) {
-    const v = clamp(target[axis], LOW[axis], HIGH[axis])
+    const v = clamp(target[axis], TARGET_LOW[axis], TARGET_HIGH[axis])
     if (v !== target[axis]) [target[axis], moved] = [v, true]
   }
   const offset = position.clone().sub(target)

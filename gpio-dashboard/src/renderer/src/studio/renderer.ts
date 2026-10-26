@@ -105,10 +105,10 @@ const STEP_BAND_MM = 320
 const MAX_BLUR_PX = 10
 
 /**
- * GTAO's resolution against the drawing buffer's, per look: the first step of SPEC 10.8's ladder
- * in the Lab look, whose dusk keeps the occlusion's detail in shadow (ADR-0145).
+ * GTAO's resolution against the drawing buffer's, the same in both looks: a different one per look
+ * would reallocate its targets on every switch (ADR-0145).
  */
-const AO_SCALE: Record<LookName, number> = { studio: 0.5, lab: 0.35 }
+const AO_SCALE = 0.5
 
 /** The key light's shadow map is redrawn every this many frames (ADR-0082). */
 const SHADOW_EVERY = 2
@@ -129,7 +129,6 @@ export class Post {
   private readonly own = new Map<Node, LookName>()
   /** The Lab look's depth of field, and the bench's image through it. */
   private readonly lens = bokehUniforms()
-  private readonly occlusion: ReturnType<typeof ao>
   private readonly labInput: Output
   private readonly size = new Vector2()
   /** Both looks' output without depth of field. */
@@ -161,8 +160,7 @@ export class Post {
 
     // GTAO's radius is in scene units: 8 mm, about three pitches.
     const occlusion = ao(depth, normal, camera)
-    this.occlusion = occlusion
-    occlusion.resolutionScale = AO_SCALE.studio
+    occlusion.resolutionScale = AO_SCALE
     occlusion.useTemporalFiltering = true
     occlusion.radius.value = 8
     colour.contextNode = builtinAOContext(occlusion.getTextureNode().sample(screenUV).r)
@@ -192,7 +190,6 @@ export class Post {
   setLook(look: LookName): void {
     this.look = look
     this.lab.value = look === 'lab' ? 1 : 0
-    this.occlusion.resolutionScale = AO_SCALE[look]
     this.gate()
   }
 
