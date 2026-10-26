@@ -212,12 +212,12 @@ Counted from the repository when this README was written; the commands in the So
 | Device behaviour models | 15 | `core/sim/behaviors/` |
 | ngspice reference circuits | 22 | `core/sim/fixtures/ngspice.json` |
 | Assistant tools | 22 | `assistant/tools/index.ts` |
-| TypeScript and TSX files | 351 (114 of them Vitest files) | `git ls-files` |
+| TypeScript and TSX files | 354 (117 of them Vitest files) | `git ls-files` |
 | Rust files / Pi-agent Python files | 13 / 7 (2 of the Python files are tests) | `git ls-files` |
 | Blender scripts | 36 | `scripts/assets/blender/` |
-| Vitest | 2,321 tests pass, 2 skipped; 113 files run, 1 skipped | `npx vitest run` |
-| Rust | 94 tests pass, 20 ignored | `cargo test` |
-| Node bridge / Pi agent | 7 / 58 tests pass | `node --test`, `python3 -m unittest` |
+| Vitest | 2,464 tests pass, 2 skipped; 116 files run, 1 skipped | `npx vitest run` |
+| Rust | 99 tests pass, 20 ignored | `cargo test` |
+| Node bridge / Pi agent | 7 / 64 tests pass | `node --test`, `python3 -m unittest` |
 | End-to-end tests (listed, not run for this table) | 108 in 12 files | `npx playwright test --list` |
 | Recorded decisions | 140 | `docs/v2/DECISIONS.md` |
 | Audit rows | 242 (11 unsafe for hardware), every one closed | `docs/v2/AUDIT.md`, `audit.test.ts` |
