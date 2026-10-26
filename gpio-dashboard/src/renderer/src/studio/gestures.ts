@@ -114,26 +114,33 @@ const moved = (t: Transform2D, from: Vec2, to: Vec2): Transform2D => ({
   position: [round(t.position[0] + to[0] - from[0]), round(t.position[1] + to[1] - from[1])]
 })
 
+/** Where a board's or the Pi's drag proposal puts it; null for any other proposal. */
+export function placedAt(p: Proposal): Transform2D | null {
+  const op = p.ops[0]
+  if (op?.type === 'MoveBoard') return op.transform
+  if (op?.type === 'SetControllerPlacement') return op.controller.pi.transform
+  return null
+}
+
 /**
- * A board's or the Pi's drag `t` of the way from one of its proposals to a later one (0 to 1), to
- * find where it meets what it may not overlap. Any other pair is left at the first.
+ * A board's or the Pi's drag proposal brought back to `t` of the way from `from` to where it puts
+ * it (0 to 1), to find where it meets what it may not overlap. Any other proposal is unchanged.
  */
-export function partway(a: Proposal, b: Proposal, t: number): Proposal {
-  const mix = (p: Transform2D, q: Transform2D): Transform2D => ({
-    ...q,
+export function partway(from: Transform2D, p: Proposal, t: number): Proposal {
+  const to = placedAt(p)
+  const op = p.ops[0]
+  if (!to || !op) return p
+  const transform: Transform2D = {
+    ...to,
     position: [
-      round(p.position[0] + (q.position[0] - p.position[0]) * t),
-      round(p.position[1] + (q.position[1] - p.position[1]) * t)
+      round(from.position[0] + (to.position[0] - from.position[0]) * t),
+      round(from.position[1] + (to.position[1] - from.position[1]) * t)
     ]
-  })
-  const [from, to] = [a.ops[0], b.ops[0]]
-  if (from?.type === 'MoveBoard' && to?.type === 'MoveBoard')
-    return { ...b, ops: [{ ...to, transform: mix(from.transform, to.transform) }] }
-  if (from?.type === 'SetControllerPlacement' && to?.type === 'SetControllerPlacement') {
-    const pi = { transform: mix(from.controller.pi.transform, to.controller.pi.transform) }
-    return { ...b, ops: [{ ...to, controller: { ...to.controller, pi } }] }
   }
-  return a
+  if (op.type === 'MoveBoard') return { ...p, ops: [{ ...op, transform }] }
+  if (op.type === 'SetControllerPlacement')
+    return { ...p, ops: [{ ...op, controller: { ...op.controller, pi: { transform } } }] }
+  return p
 }
 
 /** The height of a board's top, where its drags are measured. */

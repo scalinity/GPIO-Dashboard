@@ -255,13 +255,15 @@ export class SimVisuals {
       if (RATING_CODES.has(issue.code) && issue.severity !== 'info')
         for (const ref of issue.refs)
           if (i.doc.parts.some((p) => p.id === ref)) rated.set(ref, issue.severity)
-    // A rating halo says more than the assistant's tint, so it wins.
-    const reviewed = i.review.parts.filter((id) => !rated.has(id))
+    // A drag's refusal is the newest word on a part, so it wins; a rating halo says more than the
+    // assistant's tint (a refused new part counts as its ghost). Halos add, so each part has one.
+    for (const id of i.refused) rated.delete(id)
+    const reviewed = i.review.parts.filter((id) => !rated.has(id) && !i.refused.includes(id))
     const key = JSON.stringify([[...rated], reviewed, i.refused])
     if (key === this.haloKey && this.cache?.doc === this.haloDoc) return
     this.haloKey = key
     this.haloDoc = this.cache?.doc ?? null
-    this.haloIds = [...rated.keys()]
+    this.haloIds = [...rated.keys(), ...i.refused]
     this.halos.set([
       ...[...rated].flatMap(([id, severity]) => {
         const box = bodyBox(i.doc, { kind: 'part', id })

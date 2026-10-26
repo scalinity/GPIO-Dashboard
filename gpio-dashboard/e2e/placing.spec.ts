@@ -107,38 +107,44 @@ test('a part over another is drawn there in red and is not placed', async ({ pag
   await page.mouse.move(over.x, over.y, { steps: 12 })
   await expect.poll(async () => (await report(page)).refused).toBe('B2')
   expect((await report(page)).parts.B2).toBeDefined()
+  // Ringed in red, as an error is, and in nothing else.
+  expect((await report(page)).sim.halos).toEqual(['B2'])
   await page.mouse.up()
   await expect.poll(async () => (await report(page)).refused).toBeNull()
   expect(await pins(page)).toHaveLength(1)
   expect((await report(page)).parts.B2).toBeUndefined()
 })
 
-test('a board dragged into the Pi stops against it', async ({ page }) => {
-  await emptyBench(page)
-  const id = await board(page)
-  const snapshot = (read: string) =>
-    page.evaluate(
-      `Promise.all([import('/src/state/circuit.ts'), import('/src/core/reach/reach.ts')]).then(([c, r]) => { const doc = c.circuit.getSnapshot(); return ${read} })`
-    ) as Promise<number[]>
-  const [x0] = await snapshot('doc.boards[0].transform.position')
-  const [px, py] = await snapshot('doc.controller.pi.transform.position')
-  const from = await hole(page, `${id}:55c`)
-  await page.mouse.click(from.x, from.y)
-  const to = (await page.evaluate(
-    (q) => (window as unknown as StudioWindow).__studio.projectPoint(q),
-    [px! + 42.5, py! + 28, 0] as const
-  ))!
-  await page.mouse.move(from.x, from.y)
-  await page.mouse.down()
-  await page.mouse.move(to.x, to.y, { steps: 20 })
-  await expect(page.getByRole('status')).toHaveText(`${id} can't overlap the Pi`)
-  await page.mouse.up()
-  await waitUntilStill(page, 10_000)
-  // It went as far as the Pi's edge, and no further.
-  const [x1] = await snapshot('doc.boards[0].transform.position')
-  expect(x1).toBeLessThan(x0! - 20)
-  expect(await snapshot('r.standingOverlaps(doc)')).toEqual([])
-})
+// Slowly, it stops from where it last stood clear; in one move, from where the drag began.
+for (const [how, steps] of [
+  ['slowly', 20],
+  ['in one move', 1]
+] as const)
+  test(`a board dragged into the Pi ${how} stops against its edge`, async ({ page }) => {
+    await emptyBench(page)
+    const id = await board(page)
+    const snapshot = (read: string) =>
+      page.evaluate(
+        `Promise.all([import('/src/state/circuit.ts'), import('/src/core/reach/reach.ts')]).then(([c, r]) => { const doc = c.circuit.getSnapshot(); return ${read} })`
+      ) as Promise<number[]>
+    // The bench has the board at x = 0 and the Pi's 85 mm outline from x = -120, both unturned.
+    const [px, py] = await snapshot('doc.controller.pi.transform.position')
+    const from = await hole(page, `${id}:55c`)
+    await page.mouse.click(from.x, from.y)
+    const to = (await page.evaluate(
+      (q) => (window as unknown as StudioWindow).__studio.projectPoint(q),
+      [px! + 42.5, py! + 28, 0] as const
+    ))!
+    await page.mouse.move(from.x, from.y)
+    await page.mouse.down()
+    await page.mouse.move(to.x, to.y, { steps })
+    await expect(page.getByRole('status')).toHaveText(`${id} can't overlap the Pi`)
+    await page.mouse.up()
+    await waitUntilStill(page, 10_000)
+    const [x1] = await snapshot('doc.boards[0].transform.position')
+    expect(Math.abs(x1! - (px! + 85))).toBeLessThanOrEqual(0.5)
+    expect(await snapshot('r.standingOverlaps(doc)')).toEqual([])
+  })
 
 test('the side panels fold away for an immersive bench and come back', async ({ page }) => {
   await emptyBench(page)

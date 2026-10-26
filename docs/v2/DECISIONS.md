@@ -4134,6 +4134,9 @@ their room.
   - A part that fits its holes but may not take them, such as another part's holes or those
     under the T-board, is drawn where it would sit, ringed in the error halo's red, with its
     holes marked red. It is drawn from the edit applied without checks and is never committed.
+    Only those two refusals are drawn: a footprint or span the rules refuse, such as two leads
+    in one hole, may have no shape to draw. The red ring replaces any other halo on the part,
+    since halos add.
 - **Consequences.** Every rigid library part seats near every one of a bb-830's 630 main holes,
   and the footprint and trench rules hold wherever it does (`placement.test.ts`). The report
   names the part drawn in red (`refused`) for `placing.spec.ts`.
@@ -4150,7 +4153,7 @@ their room.
   - Only an edit's new overlaps count. `validateDoc` does not check them, so a project saved
     with an overlap still opens and takes other edits.
   - A board or Pi drag that would overlap stops at the point of contact: the view bisects
-    between the last clear position and the pointer's, and shows the refusal as the stage's
-    notice.
+    toward the pointer's position from the drag's last clear one, or from where the drag began
+    when it has none, and shows the refusal as the stage's notice.
 - **Consequences.** No tutorial or sample bench has an overlap (`validate.test.ts`). The
   assistant's board moves are refused with the same message.

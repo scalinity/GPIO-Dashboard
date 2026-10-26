@@ -70,6 +70,7 @@ import {
   type Gesture,
   grabVector,
   partway,
+  placedAt,
   planePoint,
   type Pointer,
   type Proposal,
@@ -1275,24 +1276,27 @@ export class StudioView {
       if (result.ok) preview = result.doc
       else if (
         (g.kind === 'board' || g.kind === 'pi') &&
-        this.proposal &&
         result.problems.every((x) => x.code === 'OVERLAP')
       ) {
-        // A board or the Pi stops against what it would overlap: it goes as far as it stands clear.
+        // A board or the Pi stops against what it would overlap: it goes as far as it stands
+        // clear, from where it last stood clear in this drag, else from where the drag began.
         useStudio.setState({ notice: result.problems[0]!.message })
-        const clear = this.proposal
+        const from = (this.proposal && placedAt(this.proposal)) ?? g.transform
         let [lo, hi] = [0, 1]
         for (let i = 0; i < 8; i++) {
-          const step = partway(clear, proposal, (lo + hi) / 2)
+          const step = partway(from, proposal, (lo + hi) / 2)
           const stepped = circuit.check({ author: 'user', label: step.label, ops: step.ops })
           if (stepped.ok) [lo, preview] = [(lo + hi) / 2, stepped.doc]
           else hi = (lo + hi) / 2
         }
         if (!preview) return
-        proposal = partway(clear, proposal, lo)
+        proposal = partway(from, proposal, lo)
       } else {
         problems = result.problems
-        this.refused = refusedPart(doc, proposal.ops)
+        // Only a part that fits, on holes something else holds, is drawn there: a footprint or
+        // span the rules refuse may have no shape to draw (two leads in one hole).
+        if (problems.every((x) => x.code === 'HOLE_TAKEN' || x.code === 'HOLE_BLOCKED'))
+          this.refused = refusedPart(doc, proposal.ops)
       }
     }
     this.proposal = preview ? proposal : null
