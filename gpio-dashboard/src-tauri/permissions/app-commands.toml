@@ -27,6 +27,7 @@ permissions = [
   "allow-agent-install",
   "allow-agent-start",
   "allow-agent-stop",
+  "allow-agent-check",
   "allow-agent-get-status",
   "allow-settings-get",
   "allow-settings-set",

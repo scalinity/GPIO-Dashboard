@@ -72,6 +72,7 @@ export function createApi({ invoke, listen, Channel }) {
       install: () => structured('agent_install'),
       start: () => structured('agent_start'),
       stop: () => structured('agent_stop'),
+      check: () => structured('agent_check'),
       getStatus: () =>
         invoke('agent_get_status').catch((e) => ({ running: false, error: String(e) })),
       onLog: (callback) => on('agent:log', callback),

@@ -128,6 +128,7 @@ fn main() {
             commands::agent_install,
             commands::agent_start,
             commands::agent_stop,
+            commands::agent_check,
             commands::agent_get_status,
             commands::settings_get,
             commands::settings_set,

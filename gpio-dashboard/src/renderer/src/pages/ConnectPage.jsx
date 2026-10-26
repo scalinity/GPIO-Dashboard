@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { Plug, Play, Square, Upload, KeyRound, FolderOpen } from 'lucide-react'
 import useConnectionStore from '../store/connectionStore'
 
@@ -7,6 +6,7 @@ export default function ConnectPage() {
   const status = useConnectionStore((s) => s.status)
   const error = useConnectionStore((s) => s.error)
   const agentStatus = useConnectionStore((s) => s.agentStatus)
+  const agentNotice = useConnectionStore((s) => s.agentNotice)
   const setConfig = useConnectionStore((s) => s.setConfig)
   const connect = useConnectionStore((s) => s.connect)
   const disconnect = useConnectionStore((s) => s.disconnect)
@@ -15,50 +15,12 @@ export default function ConnectPage() {
   const stopAgent = useConnectionStore((s) => s.stopAgent)
   const clearError = useConnectionStore((s) => s.clearError)
 
-  useEffect(() => {
-    async function loadSaved() {
-      try {
-        const [host, port, username, password, authMethod, keyPath] = await Promise.all([
-          window.api.settings.get('connection.host'),
-          window.api.settings.get('connection.port'),
-          window.api.settings.get('connection.username'),
-          window.api.settings.get('connection.password'),
-          window.api.settings.get('connection.authMethod'),
-          window.api.settings.get('connection.keyPath')
-        ])
-        const saved = {}
-        if (host) saved.host = host
-        if (port) saved.port = port
-        if (username) saved.username = username
-        if (password) saved.password = password
-        if (authMethod) saved.authMethod = authMethod
-        if (keyPath) saved.keyPath = keyPath
-        if (Object.keys(saved).length > 0) setConfig(saved)
-      } catch {
-        // no saved config
-      }
-    }
-    loadSaved()
-  }, [setConfig])
-
   const isConnecting = status === 'connecting'
   const isConnected = status === 'connected'
   const inputDisabled = isConnecting || isConnected
 
-  const handleConnect = async () => {
+  const handleConnect = () => {
     clearError()
-    try {
-      await Promise.all([
-        window.api.settings.set('connection.host', config.host),
-        window.api.settings.set('connection.port', config.port),
-        window.api.settings.set('connection.username', config.username),
-        window.api.settings.set('connection.authMethod', config.authMethod),
-        window.api.settings.set('connection.keyPath', config.keyPath),
-        window.api.settings.setPassword(config.password)
-      ])
-    } catch {
-      // ignore save error
-    }
     connect()
   }
 
@@ -195,10 +157,7 @@ export default function ConnectPage() {
             )}
 
             {isConnected && (
-              <button
-                onClick={disconnect}
-                className="w-full btn-secondary py-2.5"
-              >
+              <button onClick={disconnect} className="w-full btn-secondary py-2.5">
                 Disconnect
               </button>
             )}
@@ -230,6 +189,8 @@ export default function ConnectPage() {
               <span className="text-sm text-gray-400 capitalize">{agentStatus}</span>
             </div>
 
+            {agentNotice && <p className="text-sm text-gray-400 mb-4">{agentNotice}</p>}
+
             <div className="flex gap-3">
               <button
                 onClick={deployAgent}
@@ -241,19 +202,13 @@ export default function ConnectPage() {
               </button>
 
               {agentStatus === 'running' ? (
-                <button
-                  onClick={stopAgent}
-                  className="flex items-center gap-2 btn-secondary"
-                >
+                <button onClick={stopAgent} className="flex items-center gap-2 btn-secondary">
                   <Square className="w-4 h-4" />
                   Stop Agent
                 </button>
               ) : (
                 agentStatus === 'stopped' && (
-                  <button
-                    onClick={startAgent}
-                    className="flex items-center gap-2 btn-secondary"
-                  >
+                  <button onClick={startAgent} className="flex items-center gap-2 btn-secondary">
                     <Play className="w-4 h-4" />
                     Start Agent
                   </button>
@@ -266,7 +221,9 @@ export default function ConnectPage() {
         {status === 'disconnected' && (
           <div className="bg-accent/[0.06] border border-accent/10 rounded-card px-4 py-3 text-accent-light text-sm">
             Enter your Pi&apos;s IP address (find it with{' '}
-            <code className="bg-surface-800 px-1.5 py-0.5 rounded text-accent-light/80">hostname -I</code>{' '}
+            <code className="bg-surface-800 px-1.5 py-0.5 rounded text-accent-light/80">
+              hostname -I
+            </code>{' '}
             on the Pi)
           </div>
         )}
