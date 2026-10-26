@@ -31,19 +31,44 @@ export function toTable(t: Transform2D, [x, y]: Vec2): Vec2 {
 }
 
 /**
- * What an off-board module laid at `points` (its footprint's corners, table frame) rests on: the
- * top of the highest board under any of them, else the table (0).
+ * Whether two convex outlines (table frame, corners in order around) share any of the table: no
+ * edge of either separates them. A point, or two, is an outline too.
+ */
+function overlap(a: Vec2[], b: Vec2[]): boolean {
+  for (const outline of [a, b])
+    for (let i = 0; i < outline.length; i++) {
+      const [x0, y0] = outline[i]!
+      const [x1, y1] = outline[(i + 1) % outline.length]!
+      const [ax, ay] = [y0 - y1, x1 - x0]
+      if (!ax && !ay) continue
+      const along = (o: Vec2[]) => o.map(([x, y]) => x * ax + y * ay)
+      const [sa, sb] = [along(a), along(b)]
+      if (Math.max(...sa) < Math.min(...sb) || Math.max(...sb) < Math.min(...sa)) return false
+    }
+  return true
+}
+
+/**
+ * What an off-board module laid with its footprint at `points` (its corners in order, table
+ * frame) rests on: the top of the highest board the footprint overlaps, else the table (0).
  */
 export function restHeightMm(doc: CircuitDoc, points: Vec2[]): number {
   let top = 0
   for (const board of doc.boards) {
     const { lengthMm, widthMm, heightMm } = boardDef(board.defId).body
-    const r = (board.transform.rotationDeg * Math.PI) / 180
-    for (const [x, y] of points) {
-      const [dx, dy] = [x - board.transform.position[0], y - board.transform.position[1]]
-      const [u, v] = [dx * Math.cos(r) + dy * Math.sin(r), -dx * Math.sin(r) + dy * Math.cos(r)]
-      if (u >= 0 && u <= lengthMm && v >= 0 && v <= widthMm) top = Math.max(top, heightMm)
-    }
+    const corners: Vec2[] = [
+      [0, 0],
+      [lengthMm, 0],
+      [lengthMm, widthMm],
+      [0, widthMm]
+    ]
+    if (
+      overlap(
+        points,
+        corners.map((c) => toTable(board.transform, c))
+      )
+    )
+      top = Math.max(top, heightMm)
   }
   return top
 }

@@ -22,6 +22,17 @@ describe('restHeightMm', () => {
     expect(restHeightMm(doc, [off, over])).toBe(body.heightMm)
   })
 
+  it('rests on the board when the footprint spans it with every corner off it', () => {
+    // A keypad's pad and tail laid across the board, 163 mm long against its 54.6 mm width.
+    const across = [
+      [60, -50],
+      [80, -50],
+      [80, body.widthMm + 50],
+      [60, body.widthMm + 50]
+    ].map((c) => toTable(board.transform, c as [number, number]))
+    expect(restHeightMm(doc, across)).toBe(body.heightMm)
+  })
+
   it('follows a board turned a quarter', () => {
     const turned = {
       ...doc,

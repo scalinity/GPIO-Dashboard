@@ -3685,8 +3685,8 @@ declare it.
   and the plane a move dragged it along were all at table height. The rebuilt HC-SR04 and DHT11
   breakout carry right-angle headers whose pins lie flat 0.3 mm above the module's lowest point,
   so a 2.54 mm Dupont housing on them reached about 1 mm into whatever the module lay on.
-- **Decision.** A module rests on the top of the highest board under any corner of its model's
-  footprint, else on the table (`restHeightMm` in `core/reach`, `moduleRestMm` in
+- **Decision.** A module rests on the top of the highest board its model's footprint overlaps
+  (no edge of either outline separates them), else on the table (`restHeightMm` in `core/reach`, `moduleRestMm` in
   `studio/coords`). The drawn module, its pins' frames, the leads ending on them, its selection
   box and a move's drag plane all use that height. A module with a pin lying flat is raised by
   however far that pin sits below half a housing's width; a module whose pins point up is not.
